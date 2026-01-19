@@ -44,7 +44,7 @@ import io.github.devers2.buildsupport.S2BuildUtils
  *   이렇게 하면 의존성 관리 도구가 서로 다른 아티팩트로 인식하여 같은 리포지토리라도 별도 아티팩트로 취급된다.
  */
 group = 'io.github.devers2'
-version = '1.0.0-SNAPSHOT'
+version = '1.0.0'
 
 // 전역 변수 선언
 ext {
@@ -201,7 +201,6 @@ def isAnyPublish = taskNames.any { it.toLowerCase().contains('publish') } // Mav
 def isRemotePublish = isAnyPublish && !taskNames.any { it.toLowerCase().contains('mavenlocal') } // 원격 배포만
 
 // 2. Source JAR 생성 여부 결정
-project.ext.enableSourceJar = true
 // project.ext.enableSourceJar = S2BuildUtils.shouldEnableSourceJar(
 //     project,
 //     isRemotePublish,
@@ -311,19 +310,7 @@ subprojects {
      */
     java {
         withJavadocJar()
-
-        // 소스 JAR 생성 조건은 루트 설정을 따른다.
-        if (rootProject.ext.enableSourceJar) {
-            /*
-             * 소스 JAR 생성 조건:
-             * 1. 원격 배포 시 GitHub API로 비공개 여부 확인
-             * 2. 비공개 리포지토리: 항상 생성
-             * 3. 공개 리포지토리: 안전한 태스크(local build/test)에서만 생성
-             *    - 안전한 태스크: 로컬 빌드/테스트용 (assemble, build, jar, sourcesJar, publishToMavenLocal)
-             *    - 공개 리포지토리에 publish 실행 시 소스 코드 노출 방지
-             */
-            withSourcesJar()
-        }
+        withSourcesJar()
 
         /**
          * [Java Toolchain]
@@ -345,7 +332,6 @@ subprojects {
 
     // publishing 블록
     publishing {
-        /*
         publications {
             mavenJava(MavenPublication) {
                 from components.java
@@ -377,19 +363,16 @@ subprojects {
                 }
             }
         }
-        */
         repositories {
-            // Maven Central(Sonatype) 배포를 위한 설정 (필요 시 추가)
-            /*
+            // Maven Central(Sonatype) 배포를 위한 설정
             maven {
                 name = "OSSRH"
                 url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
                 credentials {
-                    username = project.findProperty("ossrhUsername")
-                    password = project.findProperty("ossrhPassword")
+                    username = project.findProperty("centralUsername")
+                    password = project.findProperty("centralPassword")
                 }
             }
-            */
             // GitHub Packages 설정
             maven {
                 name = 's2-packages'
@@ -403,12 +386,10 @@ subprojects {
     }
 
     // GPG 서명 설정: 배포(publish) 태스크 실행 시에만 서명 수행
-    /*
     signing {
         required { gradle.taskGraph.hasTask("publish") }
         sign publishing.publications.mavenJava
     }
-    */
 
     test {
         /**
