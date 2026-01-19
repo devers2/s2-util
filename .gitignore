@@ -1,0 +1,81 @@
+#---------------------------------------------------
+# Git System
+#---------------------------------------------------
+.git/
+!.gitignore
+!.gitattributes
+
+#---------------------------------------------------
+# Build Tools (Gradle / Maven)
+#---------------------------------------------------
+.gradle/
+build/
+target/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+#---------------------------------------------------
+# IDE / Editors
+#---------------------------------------------------
+# IntelliJ / Eclipse / VSCode / NetBeans
+.idea/
+*.iws
+*.ipr
+*.iml
+.vscode/
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+out/
+.nb-gradle/
+.nbbuild/
+.nbproject/
+dist/
+nbdist/
+
+#---------------------------------------------------
+# Node / Frontend
+#---------------------------------------------------
+node_modules/
+
+# 아래 항목은 팀 환경에 따라 선택적으로 제외
+# Node.js 사용 환경(패키지 버전, 빌드 설정, 코드 스타일) 공유가 필요하다면 주석 처리 또는 삭제
+package.json
+package-lock.json
+eslint.config.mjs
+
+#---------------------------------------------------
+# Temp / Logs / Backups
+#---------------------------------------------------
+*.log
+*.bak
+*.tmp
+*~
+~*
+*.pid
+logs/**/*
+tmp/**/*
+temp/**/*
+*.war
+
+#---------------------------------------------------
+# Deploy & Custom Work
+#---------------------------------------------------
+work/
+deploy/
+
+#---------------------------------------------------
+# System / Error Dumps
+#---------------------------------------------------
+hs_err_pid*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -gitignore 가 포함된 모든 파일 및 디렉토리 제외
+**/*-gitignore*

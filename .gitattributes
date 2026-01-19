@@ -1,0 +1,116 @@
+# .gitattributes — Normalize line endings and mark binary files
+# Enforce LF for text files in this repository to avoid CRLF/LF inconsistencies
+# See: https://git-scm.com/docs/gitattributes
+
+# Default: treat text files automatically and check out using LF
+* text=auto eol=lf
+
+# Web & Frontend — JavaScript/TypeScript ecosystem
+*.js      text eol=lf
+*.ts      text eol=lf
+*.jsx     text eol=lf
+*.tsx     text eol=lf
+*.mjs     text eol=lf
+*.cjs     text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+*.css     text eol=lf
+*.scss    text eol=lf
+*.sass    text eol=lf
+*.less    text eol=lf
+*.html    text eol=lf
+*.htm     text eol=lf
+*.vue     text eol=lf
+*.svelte  text eol=lf
+*.styl    text eol=lf
+
+# Markup & Data
+*.md      text eol=lf
+*.markdown text eol=lf
+*.mdx     text eol=lf
+*.xml     text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.toml    text eol=lf
+*.csv     text eol=lf
+*.tsv     text eol=lf
+*.json5   text eol=lf
+
+# Backend — Java/Spring Boot
+*.java    text eol=lf
+*.kt      text eol=lf
+*.gradle  text eol=lf
+*.properties text eol=lf
+*.jsp     text eol=lf
+*.jspx    text eol=lf
+*.tld     text eol=lf
+
+# Backend — Python
+*.py      text eol=lf
+*.pyw     text eol=lf
+*.pyx     text eol=lf
+
+# Backend — PHP
+*.php     text eol=lf
+*.phtml   text eol=lf
+
+# Backend — C#/.NET
+*.cs      text eol=lf
+*.csproj  text eol=lf
+
+# Backend — ETC
+*.go      text eol=lf
+*.rb      text eol=lf
+*.rs      text eol=lf
+*.swift   text eol=lf
+*.ex      text eol=lf
+
+# Shell & Build Scripts
+*.sh      text eol=lf
+*.bash    text eol=lf
+*.zsh     text eol=lf
+*.fish    text eol=lf
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+*.ps1     text eol=crlf
+
+# Build Tools & Config
+/gradlew  text eol=lf
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.env      text eol=lf
+.env.*    text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+docker-compose.yaml text eol=lf
+.ini      text eol=lf
+
+# Binary files — treat as binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.svg     binary
+*.ico     binary
+*.webp    binary
+*.zip     binary
+*.gz      binary
+*.tar     binary
+*.7z      binary
+*.rar     binary
+*.jar     binary
+*.war     binary
+*.ear     binary
+*.class   binary
+*.o       binary
+*.so      binary
+*.dylib   binary
+*.exe     binary
+*.dll     binary
+*.ttf     binary
+*.otf     binary
+*.woff    binary
+*.woff2   binary
+
+# End of file

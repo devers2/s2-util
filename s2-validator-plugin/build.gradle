@@ -1,0 +1,73 @@
+/**
+ * S2Util Library
+ *
+ * Copyright 2020 - 2026 devers2 (이승수, Daejeon, Korea)
+ * Contact: eseungsu.dev@gmail.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information, please see the LICENSE file in the root directory.
+ */
+plugins {
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+version = '1.0.0-SNAPSHOT'
+
+ext {
+    /**
+     * [패키징 제외 설정]
+     * S2BuildUtils.configureProject()에서 패키징 설정(JAR/Shadow JAR)을 건너뛰도록 설정
+     * Gradle 플러그인 프로젝트는 자체 패키징 규칙을 사용하므로 표준 패키징 로직 제외
+     */
+    skipPackaging = true
+}
+
+group = project.property('group')
+version = project.property('version')
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(libs.versions.java.get().toInteger())
+    }
+}
+
+dependencies {
+    implementation gradleApi()
+
+    // JavaParser for AST-based source code analysis
+    implementation 'com.github.javaparser:javaparser-core:3.27.1'
+}
+
+/*
+ * Gradle Plugin Configuration
+ */
+gradlePlugin {
+    plugins {
+        s2ValidatorPlugin {
+            id = 'io.github.devers2.validator'
+            implementationClass = 'io.github.devers2.validator.plugin.S2ValidatorPlugin'
+            displayName = 'S2 Validator Field Checker'
+            description = 'Static analysis plugin for S2Validator field name validation'
+        }
+    }
+    vcsUrl = 'https://github.com/devers2/s2-packages'
+}
+
+

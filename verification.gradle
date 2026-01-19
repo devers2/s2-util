@@ -1,0 +1,209 @@
+/*
+ * [S2 프로젝트 패키징 규칙 검증 스크립트]
+ *
+ * 이 스크립트는 S2BuildUtils를 통해 구현된 4가지 패키징 전략이
+ * 의도한 대로 동작하는지 자동으로 테스트하기 위해 작성되었습니다.
+ *
+ * [검증 항목]
+ * 1. Standard JAR: 배포 모드, Prefix 없음 -> 외부 의존성 포함 안 됨 (POM 전이)
+ * 2. Shaded JAR: 배포 모드, Prefix 설정 -> 외부 의존성 Shaded(Relocate) 포함
+ * 3. Fat JAR: 빌드 모드, Prefix 없음 -> 모든 의존성 포함 (Relocation 없음)
+ *
+ * [사용 방법]
+ * ./gradlew -I verification.gradle verifyPackaging
+ */
+import java.util.zip.ZipFile
+
+gradle.projectsEvaluated {
+    gradle.rootProject {
+        task verifyPackaging {
+            doLast {
+                logger.lifecycle "Starting Packaging Verification (ProcessBuilder mode)..."
+
+                def artifactId = "s2-support"
+                def version = "26.1.8"
+                def buildDir = project.file("s2-support/build/libs")
+
+                def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+                def gradlew = isWindows ? "gradlew.bat" : "./gradlew"
+                def gradlewPath = new File(project.projectDir, gradlew).absolutePath
+
+                def runGradle = { List<String> args ->
+                    def argList = (isWindows ? ["cmd", "/c", gradlewPath] : [gradlewPath]) + args.collect { it.toString() }
+                    String[] cmd = argList.toArray(new String[0])
+                    logger.lifecycle "   🚀 [Exec] ${cmd.join(' ')}"
+
+                    ProcessBuilder pb = new ProcessBuilder(cmd)
+                    pb.directory(project.projectDir)
+                    pb.redirectErrorStream(true)
+                    Process process = pb.start()
+
+                    process.inputStream.eachLine { line ->
+                        logger.lifecycle "      > $line"
+                    }
+
+                    int exitValue = process.waitFor()
+                    return exitValue
+                }
+
+                def results = []
+
+                // Helper to record result
+                def record = { name, success, msg ->
+                    results << [name: name, success: success, msg: msg]
+                    if (success) logger.lifecycle "✅ SUCCESS: $name"
+                    else logger.lifecycle "❌ FAILURE: $name - $msg"
+                }
+
+                // Temporary variables for checks
+                def checkName = ""
+                def failedMsg = null
+
+                // 1. Verify Publishing -> Standard JAR (No Prefix)
+                checkName = "Standard JAR (Publishing, No Prefix)"
+                logger.lifecycle "\n--- 1. Testing $checkName ---"
+                failedMsg = null
+                try {
+                    int exitCode1 = runGradle([":${artifactId}:clean", ":${artifactId}:publishToMavenLocal", "-PshadedPackagePrefix=", "--no-daemon"])
+                    if (exitCode1 != 0) {
+                        failedMsg = "Build failed"
+                    } else {
+                        def standardJar = project.file("${buildDir}/${artifactId}-${version}.jar")
+                        if (!standardJar.exists()) {
+                            failedMsg = "JAR not found"
+                        } else {
+                            def zip = new ZipFile(standardJar)
+                            try {
+                                def hasDeps = zip.entries().any { it.name.contains("com/google/common") || it.name.contains("org/apache/commons") }
+                                def hasReloc = zip.entries().any { it.name.contains("io/github/devers2/s2util/shaded") }
+                                def hasReadme = zip.entries().any { it.name == "README.md" }
+
+                                logger.lifecycle "   - Has Dependencies: ${hasDeps} (Should be FALSE)"
+                                logger.lifecycle "   - Has Relocation: ${hasReloc} (Should be FALSE)"
+                                logger.lifecycle "   - Has README.md: ${hasReadme} (Should be TRUE)"
+
+                                if (hasDeps) failedMsg = "Contains dependencies"
+                                else if (hasReloc) failedMsg = "Has unexpected relocation"
+                                else if (!hasReadme) failedMsg = "Missing README.md"
+                            } finally {
+                                zip.close()
+                            }
+                        }
+                    }
+                } catch (Exception e) { failedMsg = "Exception: ${e.message}" }
+                record(checkName, failedMsg == null, failedMsg)
+
+
+                // 2. Verify Publishing -> Shaded JAR (With Prefix)
+                checkName = "Shaded JAR (Publishing, With Prefix)"
+                logger.lifecycle "\n--- 2. Testing $checkName ---"
+                failedMsg = null
+                try {
+                    int exitCode2 = runGradle([":${artifactId}:clean", ":${artifactId}:publishToMavenLocal", "-PshadedPackagePrefix=io.github.devers2.s2util.shaded", "--no-daemon"])
+                    if (exitCode2 != 0) {
+                        failedMsg = "Build failed"
+                    } else {
+                        def shadedJar = project.file("${buildDir}/${artifactId}-${version}.jar")
+                        if (!shadedJar.exists()) {
+                            failedMsg = "JAR not found"
+                        } else {
+                            def zip = new ZipFile(shadedJar)
+                            try {
+                                def hasReloc = zip.entries().any { it.name.contains("io/github/devers2/s2util/shaded/com") || it.name.contains("io/github/devers2/s2util/shaded/org") }
+
+                                logger.lifecycle "   - Has Relocated Dependencies: ${hasReloc} (Should be TRUE)"
+
+                                if (!hasReloc) failedMsg = "Missing relocated dependencies"
+                            } finally {
+                                zip.close()
+                            }
+                        }
+                    }
+                } catch (Exception e) { failedMsg = "Exception: ${e.message}" }
+                record(checkName, failedMsg == null, failedMsg)
+
+
+                // 3. Verify Build -> Fat JAR (No Prefix)
+                checkName = "Fat JAR (Build, No Prefix)"
+                logger.lifecycle "\n--- 3. Testing $checkName ---"
+                failedMsg = null
+                try {
+                    int exitCode3 = runGradle([":${artifactId}:clean", ":${artifactId}:shadowJar", "-PshadedPackagePrefix=", "--no-daemon"])
+                    if (exitCode3 != 0) {
+                        failedMsg = "Build failed"
+                    } else {
+                        def fatJar = project.file("${buildDir}/${artifactId}-${version}-all.jar")
+                        if (!fatJar.exists()) fatJar = project.file("${buildDir}/${artifactId}-${version}.jar")
+
+                        def zip = new ZipFile(fatJar)
+                        try {
+                            def hasDeps = zip.entries().any { it.name.contains("com/google/common") || it.name.contains("org/apache/commons") }
+                            def hasReloc = zip.entries().any { it.name.contains("io/github/devers2/s2util/shaded") }
+
+                            logger.lifecycle "   - Has Dependencies: ${hasDeps} (Should be TRUE)"
+                            logger.lifecycle "   - Has Relocation: ${hasReloc} (Should be FALSE)"
+
+                            if (!hasDeps) failedMsg = "Missing dependencies"
+                            else if (hasReloc) failedMsg = "Unexpected relocation"
+                        } finally {
+                            zip.close()
+                        }
+                    }
+                } catch (Exception e) { failedMsg = "Exception: ${e.message}" }
+                record(checkName, failedMsg == null, failedMsg)
+
+
+                // 4. Verify Build -> Shaded Fat JAR (With Prefix)
+                checkName = "Shaded Fat JAR (Build, With Prefix)"
+                logger.lifecycle "\n--- 4. Testing $checkName ---"
+                failedMsg = null
+                try {
+                    int exitCode4 = runGradle([":${artifactId}:clean", ":${artifactId}:shadowJar", "-PshadedPackagePrefix=io.github.devers2.s2util.shaded", "--no-daemon"])
+                    if (exitCode4 != 0) {
+                        failedMsg = "Build failed"
+                    } else {
+                        def fatShadedJar = project.file("${buildDir}/${artifactId}-${version}-all.jar")
+                        if (!fatShadedJar.exists()) fatShadedJar = project.file("${buildDir}/${artifactId}-${version}.jar")
+
+                        def zip = new ZipFile(fatShadedJar)
+                        try {
+                            def hasReloc = zip.entries().any { it.name.contains("io/github/devers2/s2util/shaded/com") || it.name.contains("io/github/devers2/s2util/shaded/org") }
+
+                            logger.lifecycle "   - Has Relocated Dependencies: ${hasReloc} (Should be TRUE)"
+
+                            if (!hasReloc) failedMsg = "Missing relocated dependencies"
+                        } finally {
+                            zip.close()
+                        }
+                    }
+                } catch (Exception e) { failedMsg = "Exception: ${e.message}" }
+                record(checkName, failedMsg == null, failedMsg)
+
+
+                // Summary
+                logger.lifecycle "\n========================================"
+                logger.lifecycle "           TEST SUMMARY"
+                logger.lifecycle "========================================"
+
+                int successCount = results.count { it.success }
+                int totalCount = results.size()
+
+                logger.lifecycle "Total Tests: $totalCount"
+                logger.lifecycle "Success: $successCount"
+                logger.lifecycle "Failed: ${totalCount - successCount}"
+
+                if (successCount != totalCount) {
+                    logger.lifecycle "\nFAILED TESTS:"
+                    results.findAll { !it.success }.each {
+                        // Using simple indicators since raw ANSI might not always render depending on console
+                        logger.error "❌ [FAILED] ${it.name}"
+                        logger.error "   Reason: ${it.msg}"
+                    }
+                    throw new GradleException("Verification failed! ${totalCount - successCount} tests failed.")
+                } else {
+                    logger.lifecycle "\n🎉 All verification tests passed!"
+                }
+            }
+        }
+    }
+}

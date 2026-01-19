@@ -1,0 +1,25 @@
+===========================================================
+S2Util Validator Module (s2-validator) 3rd Party Notices
+===========================================================
+
+This product includes or depends on the following open source software components.
+For more details, please refer to the 'LICENSE' file in the root directory.
+
+---
+1. S2Util Core (s2-core)
+---
+- This module depends on the s2-core library.
+- License: Apache License 2.0
+
+---
+2. Caffeine Cache (via s2-core)
+---
+- License: Apache License 2.0
+- Copyright: Ben Manes and Caffeine contributors.
+- Notice: Included as a transitive dependency of s2-core.
+
+---
+3. Gradle API
+---
+- License: Apache License 2.0
+- Copyright: Gradle Inc. and its contributors.

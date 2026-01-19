@@ -1,0 +1,40 @@
+pluginManagement {
+    // pluginManagement 블록 평가 시점에 사용자 홈의 gradle.properties 를 읽어올 수 없어 직접 읽어온다.
+    def globalProperties = new Properties()
+    def globalFile = new File(gradle.gradleUserHomeDir, 'gradle.properties')
+    if (globalFile.exists()) {
+        globalFile.withInputStream { stream ->
+            globalProperties.load(stream)
+        }
+    }
+
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()  // 기본 Gradle 플러그인 저장소
+        maven {
+            url = uri("https://maven.pkg.github.com/devers2/s2-packages")
+            credentials {
+                username = globalProperties.getProperty('gpr.user') ?: System.getenv('GITHUB_ACTOR')
+                password = globalProperties.getProperty('gpr.key') ?: System.getenv('GITHUB_TOKEN')
+            }
+        }
+    }
+}
+
+plugins {
+    // Gradle이 필요한 JDK를 자동으로 찾고 다운로드하는 플러그인
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+// JAR 파일의 기본 이름(BaseName, artifactId를 의미) 지정
+rootProject.name = 's2-util'
+
+include 's2-core'
+include 's2-validator'
+include 's2-validator-plugin'
+
+def s2BuildSupportDir = file('../s2-build-support')
+if (s2BuildSupportDir.exists()) {
+    // 로컬 개발용: s2-build-support 디렉토리가 존재하는 경우에만 포함 (없어도 빌드 오류 발생 방지)
+    includeBuild s2BuildSupportDir
+}

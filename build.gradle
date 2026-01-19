@@ -1,0 +1,433 @@
+/**
+ * S2Util Library
+ *
+ * Copyright 2020 - 2026 devers2 (이승수, Daejeon, Korea)
+ * Contact: eseungsu.dev@gmail.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * For more information, please see the LICENSE file in the root directory.
+ */
+
+/*
+ * [Version Catalog]
+ * 의존성 및 플러그인 버전은 'gradle/libs.versions.toml' 파일에서 통합 관리
+ * 별도 설정 없이 Gradle이 기본 경로(gradle/libs.versions.toml)를 자동으로 인식하여 'libs' 접근자로 제공
+ */
+plugins {
+    /* 버전 카탈로그 사용 (libs.versions.toml) */
+    alias(libs.plugins.shadow) // ⭐ 'shadow' 플러그인이 적용되고 shadedPackagePrefix 을 설정한 경우, 자동으로 Shadow JAR 를 생성하도록 구성된다. (implementation, runtimeOnly 의존성은 relocate 처리)
+    alias(libs.plugins.s2.build.support)
+    alias(libs.plugins.license) apply false // ⭐ 'license' 플러그인 (hierynomus) 버전을 카탈로그에서 관리하고, 하위 프로젝트에서 ID로 적용 가능하게 함
+    id 'signing'
+}
+
+import io.github.devers2.buildsupport.S2BuildUtils
+
+/*
+ * Maven 좌표 설정 (Root)
+ * - group: 프로젝트의 그룹 ID (예: io.github.devers2, com.example)
+ * - version: 프로젝트 버전
+ *
+ * ❗중요: 동일한 소스를 다른 조직/목적으로 배포하는 경우 group을 다르게 설정해야 한다.
+ *   예시) 원본: io.github.devers2, 포크: com.company
+ *   이렇게 하면 의존성 관리 도구가 서로 다른 아티팩트로 인식하여 같은 리포지토리라도 별도 아티팩트로 취급된다.
+ */
+group = 'io.github.devers2'
+version = '1.0.0-SNAPSHOT'
+
+// 전역 변수 선언
+ext {
+    // GitHub Packages 리포지토리 정보 (devers2/s2-packages)
+    REPO_OWNER = 'devers2'
+    REPO_NAME = 's2-util'
+
+    // Shadow Plugin - Relocation 대상 패키지 설정
+    shadedPackagePrefix = "io.github.devers2.s2util.shaded"
+
+
+
+    // ========================================================================
+    // ⭐ [사용자 설정 (User Configuration)]
+    // 개발자가 프로젝트 상황에 맞춰 자주 변경하거나 확인해야 하는 설정
+    // ========================================================================
+
+    /**
+     * 기본 Java 버전 설정: JavaVersion.current() 또는 JavaVersion.VERSION_17, JavaVersion.VERSION_25 등 설정 가능
+     * (JavaVersion.current(): 현재 실행 중인 JVM 버전)
+     *
+     * Java 버전에 따른 의존성 설정
+     * JavaVersion.VERSION_10 이하: javax.servlet
+     * JavaVersion.VERSION_11 이상: jakarta.servlet
+     *
+     * Jakarta EE 버전   서블릿 버전     패키지 명칭        일반적으로 사용되는 Java 버전
+     * -----------------------------------------------------------------------------
+     * Jakarta EE 8      Servlet 4.0    javax.servlet      Java 8, Java 11 등
+     * Jakarta EE 9      Servlet 5.0    jakarta.servlet    Java 11, Java 17 등
+     * Jakarta EE 10     Servlet 6.0    jakarta.servlet    Java 17, Java 21 등
+     */
+    javaVersion = JavaVersion.VERSION_21
+
+    /*
+     * [추가 소스 목록]
+     * dynamicSourceInfoMap에 정의된 기능 키(예: 'S2PdfUtil')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
+     */
+    activeFeatures = [] as Set
+
+    /**
+     * [동적 기능 소스 정보 (Feature Toggles)]
+     * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
+     *
+     * 💡 이 설정은 각 서브프로젝트의 build.gradle 에서 모듈별로 관리된다.
+     * [사용 예시 - subproject/build.gradle]
+     * ext {
+     *     activeFeatures = ['S2PdfUtil'] // 활성화할 기능 키
+     *     dynamicSourceInfoMap = [
+     *         'S2PdfUtil': [
+     *             variantId: 'pdf',
+     *             sources: ['io/github/devers2/s2util/support/S2PdfUtil.java'],
+     *             dependencies: [
+     *                 [configuration: 'compileOnly', group: 'org.jsoup', name: 'jsoup', version: '1.18.3']
+     *             ],
+     *             licenses: ['README-LGPL-2.1-PDF.md']
+     *         ]
+     *     ]
+     * }
+     */
+    dynamicSourceInfoMap = [:]
+
+    /*
+     * 기본 제외 소스 목록 (항상 제외되는 파일들)
+     */
+    excludedSources = [] as Set
+
+    /**
+     * [기준 Java 버전: Artifact ID 생성 기준]
+     * javaVersion이 baselineJavaVersion과 다를 경우 아티팩트 ID에 접미사 추가
+     */
+    baselineJavaVersion = JavaVersion.VERSION_21
+
+    /**
+     * 안전한 태스크 목록 (로컬 빌드/테스트용)
+     * - 이 태스크 실행 시에는 소스 JAR를 생성해도 안전하다고 판단
+     */
+    safeTasks = ['assemble', 'build', 'jar', 'sourcesJar', 'publishToMavenLocal'] as Set
+
+
+
+    // ========================================================================
+    // ⭐ [상수 및 환경 설정 (Constants & Environment)]
+    // 프로젝트 구조나 외부 환경과 관련된 설정 (변경 빈도 낮음)
+    // ========================================================================
+
+    JAVA_SRC_ROOT = 'src/main/java'
+    RESOURCES_SRC_ROOT = 'src/main/resources'
+
+    // GitHub Packages URL (.git 제외)
+    REPO_BASE_URL = "https://maven.pkg.github.com/${REPO_OWNER}/${REPO_NAME}"
+    GITHUB_USER = project.findProperty('gpr.user') ?: System.getenv('GITHUB_ACTOR')
+    GITHUB_TOKEN = project.findProperty('gpr.key') ?: System.getenv('GITHUB_TOKEN')
+}
+
+
+
+// ========================================================================
+// ⭐ [빌드 로직 (Build Logic & Calculations)]
+// 위 설정값들을 기반으로 실제 빌드에 필요한 값 계산 및 유틸리티 호출
+// ※ 특별한 이유가 없다면 수동 수정 지양
+// ========================================================================
+
+/*
+ * [Java 버전 오버라이드]
+ * -PtargetJavaVersion=21 옵션으로 덮어쓰기 가능
+ */
+if (project.hasProperty('targetJavaVersion')) {
+    project.ext.javaVersion = JavaVersion.toVersion(project.findProperty('targetJavaVersion'))
+}
+
+/*
+ * [동적 기능 모듈 오버라이드]
+ * -PtargetSources=S2PdfUtil,OtherFeature 옵션으로 덮어쓰기 가능
+ */
+if (project.hasProperty('targetSources')) {
+    def targetSourcesVal = project.findProperty('targetSources')
+    def sources = targetSourcesVal.toString().split(',')
+    project.ext.activeFeatures = sources.collect { it.trim() } as Set
+}
+
+
+
+
+// --------------------------------------------------------------------------------------
+// [Dynamic Artifact ID 설정] 기본 Java 버전과 다르거나 추가 소스가 있는 경우 접미사 추가
+// --------------------------------------------------------------------------------------
+def artifactSuffix = ""
+
+// 1. Java 버전 체크
+if (project.ext.javaVersion != project.ext.baselineJavaVersion) {
+    // Java MAJOR 버전만 추출 (예: 1.8 -> 8, 11 -> 11)
+    artifactSuffix += "-java${project.ext.javaVersion.majorVersion}"
+}
+
+// 2. 추가 소스 체크 (variantId 사용)
+project.ext.activeFeatures.each { srcName ->
+    def vId = project.ext.dynamicSourceInfoMap[srcName]?.variantId
+    if (vId) {
+        artifactSuffix += "-${vId}"
+    }
+}
+
+project.ext.globalArtifactSuffix = artifactSuffix
+
+
+
+// --------------------------------------------------------------------------------------
+// [Source JAR 및 Fat JAR 생성 정책 결정]
+// --------------------------------------------------------------------------------------
+
+// 1. 배포 관련 태스크 감지
+def taskNames = gradle.startParameter.taskNames
+def isAnyPublish = taskNames.any { it.toLowerCase().contains('publish') } // MavenLocal 포함 모든 배포
+def isRemotePublish = isAnyPublish && !taskNames.any { it.toLowerCase().contains('mavenlocal') } // 원격 배포만
+
+// 2. Source JAR 생성 여부 결정
+project.ext.enableSourceJar = true
+// project.ext.enableSourceJar = S2BuildUtils.shouldEnableSourceJar(
+//     project,
+//     isRemotePublish,
+//     project.ext.safeTasks,
+//     project.ext.REPO_BASE_URL,
+//     project.ext.GITHUB_TOKEN
+// )
+
+// 저작권 연도 업데이트 (수정이 필요한 경우에만 파일 IO 발생)
+S2BuildUtils.updateCopyright(project, [
+    'README.md'
+] as String[])
+
+
+// ========================================================================
+// ⭐ [서브 프로젝트 구성] ※ subprojects { ... } 안에서의 project 는 서브 프로젝트를 가리킨다.
+// ========================================================================
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+
+    // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
+    // Gradle 플러그인은 의존성을 번들링하지 않고 선언만 해야하므로 제외
+    if (project.name != 's2-validator-plugin') {
+        apply plugin: rootProject.libs.plugins.shadow.get().pluginId
+    }
+
+    group = rootProject.group
+    if (version == 'unspecified') {
+        // 서브 프로젝트에 버전이 정의되어 있지 않은 경우 루트 버전을 사용
+        version = rootProject.version
+    }
+
+    base {
+        // archivesName 업데이트 (접미사가 있는 경우만)
+        archivesName = "${project.name}${rootProject.ext.globalArtifactSuffix}"
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    sourceSets {
+        main {
+            java {
+                // 서브 프로젝트 디렉터리를 기준으로 'src/main/java'를 정의한다.
+                srcDirs = [rootProject.ext.JAVA_SRC_ROOT]
+            }
+            resources {
+                srcDirs = [rootProject.ext.RESOURCES_SRC_ROOT]
+            }
+        }
+    }
+
+    // 프로젝트 통합 설정
+    S2BuildUtils.configureProject(project)
+
+    // 저작권 연도 업데이트 (수정이 필요한 경우에만 파일 IO 발생)
+    S2BuildUtils.updateCopyright(project, [
+        rootProject.ext.JAVA_SRC_ROOT,
+        'src/main/kotlin',
+        'src/main/python',
+        rootProject.ext.RESOURCES_SRC_ROOT,
+        'src/main/webapp',
+        'README.md',
+        'build.gradle'
+    ] as String[])
+
+    /**
+     * 컴파일러 옵션 설정
+     */
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        // 파라미터명 정상적으로 보이도록 수정
+        options.compilerArgs += ['-parameters']
+        if (options.hasProperty('release')) {
+            /**
+             * --release 옵션의 제약을 해제하고, 구형 방식인 -source 및 -target 설정을 강제로 사용
+             * Java 21로 컴파일 하고 결과물을 Java 17으로 실행할 수 있도록 함
+             */
+            options.release.set(null)
+        }
+    }
+
+    /*
+     * [라이브러리 배포 아티팩트 및 Java 호환성 설정]
+     *
+     * 표준 배포 파일(Artifacts) 생성과 Java 호환성 레벨 정의
+     *
+     * 1. 배포 아티팩트:
+     * - withSourcesJar(): 소스 파일(*-sources.jar) 생성
+     * - withJavadocJar(): Javadoc 문서(*-javadoc.jar) 생성
+     *
+     * 2. IDE 활용:
+     * - 메인 JAR와 함께 sources/javadoc JAR 배포 시 IDE가 자동 감지하여 연결
+     * - assemble 또는 publish 계열 태스크로 생성됨
+     *
+     * 3. 호환성 설정:
+     * - sourceCompatibility: 소스 코드 레벨
+     * - targetCompatibility: 바이트코드(.class) 실행 레벨
+     *
+     * ★★★ 'assemble' 실행 시 모든 주요 아티팩트 생성 ★★★
+     *
+     * ※ Javadoc 작성 시 HTML 태그 주의 (<pre> 같은 실제 태그는 사용 가능)
+     *   - 금지: <, >, &, {, }, @
+     *   - 대체: List<String> → {@code List<String>}
+     */
+    java {
+        withJavadocJar()
+
+        // 소스 JAR 생성 조건은 루트 설정을 따른다.
+        if (rootProject.ext.enableSourceJar) {
+            /*
+             * 소스 JAR 생성 조건:
+             * 1. 원격 배포 시 GitHub API로 비공개 여부 확인
+             * 2. 비공개 리포지토리: 항상 생성
+             * 3. 공개 리포지토리: 안전한 태스크(local build/test)에서만 생성
+             *    - 안전한 태스크: 로컬 빌드/테스트용 (assemble, build, jar, sourcesJar, publishToMavenLocal)
+             *    - 공개 리포지토리에 publish 실행 시 소스 코드 노출 방지
+             */
+            withSourcesJar()
+        }
+
+        /**
+         * [Java Toolchain]
+         * 빌드 실행 환경(JAVA_HOME)과 프로젝트 컴파일 환경을 분리하는 현대적인 방식
+         * 1. 일관성: 팀원 모두가 동일한 JDK 버전으로 빌드하도록 강제
+         * 2. 자동화: 로컬에 해당 JDK가 없으면 설정된 리졸버(Foojay 등)를 통해 자동 다운로드
+         * 3. 유연성: Gradle은 Java 17로 실행하면서, 프로젝트는 Java 21로 컴파일하는 등의 설정이 가능
+         */
+        toolchain {
+            // project.ext.javaVersion (JavaVersion 타입)에서 숫자 버전만 추출하여 설정함
+            languageVersion = JavaLanguageVersion.of(rootProject.ext.javaVersion.majorVersion)
+        }
+
+        // --release 옵션을 제거하여 이 설정들이 컴파일러 인자(-source, -target)로 확실히 전달된다. (Java 17으로 실행할 수 있도록 함)
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+
+    // publishing 블록
+    publishing {
+        /*
+        publications {
+            mavenJava(MavenPublication) {
+                from components.java
+                // 생성될 pom.xml 상세 설정 (Maven Central 필수 요건)
+                pom {
+                    name = project.name
+                    description = 'S2Util Library - A comprehensive utility library for Java'
+                    url = 'https://github.com/devers2/s2-util'
+                    licenses {
+                        license {
+                            name = 'The Apache License, Version 2.0'
+                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'devers2'
+                            name = '이승수'
+                            email = 'eseungsu.dev@gmail.com'
+                            organization = 'devers2'
+                            organizationUrl = 'https://github.com/devers2'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/devers2/s2-util.git'
+                        developerConnection = 'scm:git:ssh://github.com/devers2/s2-util.git'
+                        url = 'https://github.com/devers2/s2-util'
+                    }
+                }
+            }
+        }
+        */
+        repositories {
+            // Maven Central(Sonatype) 배포를 위한 설정 (필요 시 추가)
+            /*
+            maven {
+                name = "OSSRH"
+                url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                credentials {
+                    username = project.findProperty("ossrhUsername")
+                    password = project.findProperty("ossrhPassword")
+                }
+            }
+            */
+            // GitHub Packages 설정
+            maven {
+                name = 's2-packages'
+                url = uri(rootProject.ext.REPO_BASE_URL)
+                credentials {
+                    username = rootProject.ext.GITHUB_USER
+                    password = rootProject.ext.GITHUB_TOKEN
+                }
+            }
+        }
+    }
+
+    // GPG 서명 설정: 배포(publish) 태스크 실행 시에만 서명 수행
+    /*
+    signing {
+        required { gradle.taskGraph.hasTask("publish") }
+        sign publishing.publications.mavenJava
+    }
+    */
+
+    test {
+        /**
+         * JUnit 5(Jupiter) 플랫폼 사용 설정.
+         * Gradle은 기본적으로 JUnit 4를 사용하려 하므로, JUnit 5 테스트를 실행하려면 이 설정이 필수이다.
+         */
+        useJUnitPlatform()
+        // JVM 인코딩 설정 (테스트 환경에서 한글 깨짐 방지)
+        jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8"
+    }
+
+    // ★★★ 'Tasks → other → copyDependencies' 실행 시 지정 디렉토리로 의존성 복사 ★★★
+    S2BuildUtils.registerCopyDependenciesTask(project)
+}
+
+
+// --------------------------------------------------------------------------------------
+// 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트
+// --------------------------------------------------------------------------------------
+S2BuildUtils.updateReadmeWithVersionAndDependencies(project, file('README.md'))
+
+
