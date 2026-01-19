@@ -196,4 +196,4 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator-plugin Version: 1.0.0-SNAPSHOT (2026-01-19)
+s2-validator-plugin Version: 1.0.0 (2026-01-19)
