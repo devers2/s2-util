@@ -306,7 +306,7 @@ export const S2Validator = {
       Object.entries(wildcardGroups).forEach(([collectionPrefix, groupRules]) => {
         // 해당 컬렉션의 인덱스들 추출
         const indices = new Set();
-        const pattern = new RegExp(`^${collectionPrefix.replace(/\[/g, '\\[').replace(/\]/g, '\\]')}\\[(\\d+)\\]`);
+        const pattern = new RegExp(`^${escapeRegExp(collectionPrefix)}\\[(\\d+)\\]`);
         allFieldNames.forEach((name) => {
           const match = name.match(pattern);
           if (match) indices.add(match[1]);
@@ -376,7 +376,7 @@ export const S2Validator = {
             // 리스트/배열 요소 반복 검증
             // form에 존재하는 해당 prefix 기반의 인덱스들을 추출
             const indices = new Set();
-            const pattern = new RegExp(`^${fullPath.replace(/\[/g, '\\[').replace(/\]/g, '\\]')}\\[(\\d+)\\]`);
+            const pattern = new RegExp(`^${escapeRegExp(fullPath)}\\[(\\d+)\\]`);
             allFieldNames.forEach((name) => {
               const match = name.match(pattern);
               if (match) indices.add(match[1]);
@@ -802,6 +802,20 @@ const parseDate = (value) => {
     return value;
   }
   return null;
+};
+
+/**
+ * Escapes special characters for use in a regular expression.
+ * <p>
+ * Ensures that characters like ., *, +, ?, ^, $, {, }, (, ), |, [, ], and \ are treated as literals.
+ * </p>
+ *
+ * @function escapeRegExp
+ * @param {string} string - The string to escape
+ * @returns {string} The escaped string
+ */
+const escapeRegExp = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 };
 
 // 초기화 상태 관리용 (중복 리스너 등록 방지)
