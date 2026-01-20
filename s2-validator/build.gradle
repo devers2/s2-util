@@ -18,9 +18,6 @@
  *
  * For more information, please see the LICENSE file in the root directory.
  */
-plugins {
-    id 'java-library'
-}
 
 ext {
     /*
