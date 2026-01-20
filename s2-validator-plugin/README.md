@@ -113,14 +113,8 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
 ```groovy
 pluginManagement {
     repositories {
+        mavenCentral()
         gradlePluginPortal()
-        maven {
-            url = uri("https://maven.pkg.github.com/devers2/s2-packages")
-            credentials {
-                username = 'your-github-username'
-                password = 'your-github-token'
-            }
-        }
     }
 }
 ```
@@ -140,14 +134,8 @@ plugins {
 ```groovy
 pluginManagement {
     repositories {
+        mavenCentral()
         gradlePluginPortal()
-        maven {
-            url = uri("https://maven.pkg.github.com/devers2/s2-packages")
-            credentials {
-                username = '깃허브-사용자명'
-                password = '깃허브-토큰'
-            }
-        }
     }
 }
 ```
