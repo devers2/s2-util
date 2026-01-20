@@ -39,7 +39,8 @@ Unified validation for server and client.
 
 #### [Controller]
 
-> **Note:** This example assumes Spring Framework integration. If Spring is not available, you can use `S2ValidatorFactory` directly, but `BindingResult` integration will not be available.
+> **Note:** This example assumes Spring Framework integration. If Spring is not available, you can use `S2Validator` and `S2ValidatorFactory` directly, but `BindingResult` integration will not be available.
+> (참고: 이 예제는 Spring Framework 통합을 가정합니다. Spring이 없는 환경에서도 `S2Validator` 및 `S2ValidatorFactory`를 직접 사용하여 검증할 수 있으나, `BindingResult` 연동은 불가능합니다.)
 
 ```java
 private S2Validator<UserCommand> profileValidator() {
