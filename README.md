@@ -24,10 +24,15 @@ dependencies {
     implementation 'io.github.devers2:s2-validator:1.0.0'
 }
 
-// [Optional] S2Validator Plugin
-// Add this ONLY if you want to verify that field names used in S2Validator actually exist in your DTO (e.g., UserCommand).
-// It performs static analysis on the generic type and triggers a build error if a non-existent field is referenced.
-// (UserCommand에 실제 있는 필드인지 확인할 필요가 있을 때만 추가하세요. 없는 필드 작성 시 빌드 에러가 발생합니다.)
+// [Optional] S2Validator Static Analysis Plugin
+// ✨ Prevent runtime errors caused by typos or field name mismatches.
+// When using Generics (e.g., S2Validator.<UserCommand>builder()), this plugin performs
+// static analysis during the build to verify that all referenced field names
+// actually exist in the specified DTO class.
+// It triggers a build error if a non-existent field is detected.
+// (제네릭을 사용한 경우(예: S2Validator.<UserCommand>builder()), 빌드 시점에 정적 분석을 수행합니다.
+// 명시된 DTO에 실제 필드가 있는지 확인하여, 오타 등으로 존재하지 않는 필드를 참조하면
+// 빌드 에러를 발생시켜 런타임 오류를 완벽히 예방합니다.)
 plugins {
     id 'io.github.devers2.validator' version '1.0.0'
 }
@@ -66,7 +71,7 @@ private S2Validator<UserCommand> profileValidator() {
             .field("userType", "User Type")
             .field("paymentMethod", "Payment Method")
             .field("cardNumber", "Card Number")
-                // ✨Conditional validation: cardNumber if (USER + CREDIT_CARD) OR (SELLER)
+                // ✨ Conditional validation: cardNumber if (USER + CREDIT_CARD) OR (SELLER)
                 // (일반회원의 카드결제 건 또는 판매자일 경우 카드번호 검증)
                 .when("userType", "USER").and("paymentMethod", "CREDIT_CARD")
                 .when("userType", "SELLER")
