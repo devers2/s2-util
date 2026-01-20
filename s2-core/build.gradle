@@ -19,11 +19,6 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
-plugins {
-    id 'java-library'
-    alias(libs.plugins.shadow) // Shadow JAR 생성을 위해 명시적 적용
-}
-
 ext {
     /*
      * [추가 소스 목록]
