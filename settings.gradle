@@ -9,8 +9,8 @@ pluginManagement {
     }
 
     repositories {
-        mavenLocal()
         gradlePluginPortal()  // 기본 Gradle 플러그인 저장소
+        mavenLocal()
         maven {
             url = uri("https://maven.pkg.github.com/devers2/s2-packages")
             credentials {
