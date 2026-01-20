@@ -105,8 +105,8 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 </form>
 
 <script type="module">
-  // s2.validator.js is included in the 's2-validator' dependency.
-  // (s2.validator.js는 's2-validator' 의존성에 포함되어 있으며, 아래 경로를 기준으로 사용할 수 있습니다.)
+  // s2.validator.js is served automatically from the JAR's META-INF/resources.
+  // (s2.validator.js는 라이브러리 내부(META-INF/resources)에 포함되어 있어 별도 설정 없이 바로 로드됩니다.)
   import '/s2-util/js/s2.validator.js';
   // Just importing the script automatically performs validation using the browser's native UI during submit, matching the server-side rules.
   // (임포트만 하면 폼 전송 시 브라우저 네이티브 UI를 통해 서버와 동일한 검증이 자동으로 수행됩니다.)
