@@ -134,11 +134,6 @@ ext {
 
     JAVA_SRC_ROOT = 'src/main/java'
     RESOURCES_SRC_ROOT = 'src/main/resources'
-
-    // GitHub Packages URL (.git 제외)
-    REPO_BASE_URL = "https://maven.pkg.github.com/${REPO_OWNER}/${REPO_NAME}"
-    GITHUB_USER = project.findProperty('gpr.user') ?: System.getenv('GITHUB_ACTOR')
-    GITHUB_TOKEN = project.findProperty('gpr.key') ?: System.getenv('GITHUB_TOKEN')
 }
 
 
@@ -355,19 +350,10 @@ subprojects {
                 name = "CentralPortal"
                 // Central Portal Zip Bundle Upload API (v1)
                 // publishingType → AUTOMATIC : 자동 배포, USER_MANAGED : 사용자 관리 배포 (수동 승인/배포 필요 시)
-                url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=AUTOMATIC"
+                url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED"
                 credentials {
                     username = project.findProperty("centralUsername")
                     password = project.findProperty("centralPassword")
-                }
-            }
-            // GitHub Packages 설정
-            maven {
-                name = 's2-packages'
-                url = uri(rootProject.ext.REPO_BASE_URL)
-                credentials {
-                    username = rootProject.ext.GITHUB_USER
-                    password = rootProject.ext.GITHUB_TOKEN
                 }
             }
         }

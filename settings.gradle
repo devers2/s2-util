@@ -9,15 +9,9 @@ pluginManagement {
     }
 
     repositories {
-        gradlePluginPortal()  // 기본 Gradle 플러그인 저장소
+        mavenCentral() // Maven Central
+        gradlePluginPortal() // 기본 Gradle 플러그인 저장소
         mavenLocal()
-        maven {
-            url = uri("https://maven.pkg.github.com/devers2/s2-packages")
-            credentials {
-                username = globalProperties.getProperty('gpr.user') ?: System.getenv('GITHUB_ACTOR')
-                password = globalProperties.getProperty('gpr.key') ?: System.getenv('GITHUB_TOKEN')
-            }
-        }
     }
 }
 
