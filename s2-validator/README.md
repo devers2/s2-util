@@ -183,7 +183,7 @@ s2-validator Version: 1.0.0 (2026-01-19)
 
 ---
 
-**To use certain functionalities (e.g., S2PdfUtil), the end-user project must explicitly add the following dependencies to be available at runtime.** Failure to include these dependencies will result in a `java.lang.NoClassDefFoundError` at runtime.
+**To use certain functionalities (e.g., S2BindValidator), the end-user project must explicitly add the following dependencies to be available at runtime.** Failure to include these dependencies will result in a `java.lang.NoClassDefFoundError` at runtime.
 
 **[For Gradle Users]**
 

@@ -1,19 +1,21 @@
-===========================================================
-S2 Validator Plugin 3rd Party Notices
-===========================================================
+# S2 Validator Plugin 3rd Party Notices
 
 This product includes or depends on the following open source software components.
 For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
+
 1. JavaParser (https://javaparser.org/)
----
+
 - Copyright (C) 2007-2024 The JavaParser Team
 - License: Dual-licensed under LGPL v3 or Apache License 2.0
 - Notice: We have elected to use JavaParser under the Apache License 2.0.
 
 ---
+
 2. Gradle API
----
+
 - This product utilizes the Gradle API for plugin development.
 - License: Apache License 2.0
+
+---
