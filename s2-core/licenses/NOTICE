@@ -1,18 +1,20 @@
-===========================================================
-S2Util Core Module (s2-core) 3rd Party Notices
-===========================================================
+# S2Util Core Module (s2-core) 3rd Party Notices
 
 This product includes or depends on the following open source software components.
 For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
+
 1. Caffeine Cache (https://github.com/ben-manes/caffeine)
----
+
 - License: Apache License 2.0
 - Copyright: Ben Manes and Caffeine contributors.
 
 ---
+
 2. Gradle API
----
+
 - License: Apache License 2.0
 - Copyright: Gradle Inc. and its contributors.
+
+---

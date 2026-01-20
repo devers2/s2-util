@@ -350,15 +350,6 @@ subprojects {
             }
         }
         repositories {
-            // GitHub Packages 설정
-            maven {
-                name = 's2-packages'
-                url = uri(rootProject.ext.REPO_BASE_URL)
-                credentials {
-                    username = rootProject.ext.GITHUB_USER
-                    password = rootProject.ext.GITHUB_TOKEN
-                }
-            }
             // Central Portal 배포 설정
             maven {
                 name = "CentralPortal"
@@ -368,6 +359,15 @@ subprojects {
                 credentials {
                     username = project.findProperty("centralUsername")
                     password = project.findProperty("centralPassword")
+                }
+            }
+            // GitHub Packages 설정
+            maven {
+                name = 's2-packages'
+                url = uri(rootProject.ext.REPO_BASE_URL)
+                credentials {
+                    username = rootProject.ext.GITHUB_USER
+                    password = rootProject.ext.GITHUB_TOKEN
                 }
             }
         }
