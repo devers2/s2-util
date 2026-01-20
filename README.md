@@ -56,8 +56,20 @@ private S2Validator<UserCommand> profileValidator() {
                 .rule(S2RuleType.REQUIRED)
                 // Verifies value equals "password" field (password 필드와 동일한 값인지 검증)
                 .rule(S2RuleType.EQUALS_FIELD, "password")
-                // Set English error message (영문 에러 메시지 설정)
-                .en("Password check does not match.")
+                    // Set English error message (영문 에러 메시지 설정)
+                    .en("Password check does not match.")
+                    .message(Locale.ENGLISH, "Password check does not match.")
+                    // Set Korean error message (한글 에러 메시지 설정)
+                    .ko("비밀번호가 일치하지 않습니다.")
+                    // Set Hindi error message (힌디어 에러 메시지 설정)
+                    .message(Locale.forLanguageTag("hi"), "पासवर्ड मेल नहीं खाते.")
+            .field("userType", "User Type")
+            .field("paymentMethod", "Payment Method")
+            .field("cardNumber", "Card Number")
+                // ✨Conditional validation: cardNumber if (USER + CREDIT_CARD) OR (SELLER)
+                // (일반회원의 카드결제 건 또는 판매자일 경우 카드번호 검증)
+                .when("userType", "USER").and("paymentMethod", "CREDIT_CARD")
+                .when("userType", "SELLER")
             .build();
 }
 
