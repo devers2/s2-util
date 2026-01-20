@@ -9,11 +9,11 @@
 
 ### [English]
 
-**S2Util** is a comprehensive Java utility framework consisting of three core modules designed to provide high-performance, production-ready utilities for Java development. The framework emphasizes performance optimization through advanced technologies like Method Handles, intelligent caching, and adaptive threading strategies.
+**S2Util** is a high-performance Java **utility library** featuring a **Unified Dynamic Validator** that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
 
 ### [한국어]
 
-**S2Util**은 자바 개발을 위한 고성능 프로덕션급 유틸리티를 제공하는 3개의 핵심 모듈로 구성된 종합 자바 유틸리티 프레임워크입니다. Method Handle, 지능형 캐싱, 적응형 스레드 전략 등 첨단 기술을 활용한 성능 최적화를 강조합니다.
+**S2Util**은 서버(Java)와 클라이언트(JavaScript) 간의 검증 로직을 완벽하게 동기화하는 **통합 동적 검증 라이브러리**입니다. **프로덕션급(Production-ready)** 성능과 안정성을 목표로 설계되었으며, Method Handle 및 지능형 캐싱과 같은 첨단 기술을 활용하여 최적의 실행 속도와 정적 타입 안전성을 제공합니다.
 
 ---
 
@@ -154,13 +154,13 @@ The foundational library providing high-performance core utility classes. Featur
 
 ---
 
-### 2. **s2-validator** - Unified Validation Framework
+### 2. **s2-validator** - Unified Validation Library
 
 [s2-validator/README.md](./s2-validator/README.md)
 
 #### [English]
 
-A unified cross-platform validation framework supporting both server and client with single configuration. Features include:
+A unified cross-platform validation Library supporting both server and client with single configuration. Features include:
 
 - **Fluent API**: Natural, chainable validation rules with sequential method application
 - **30+ Built-in Rule Types**: REQUIRED, LENGTH, REGEX, EMAIL, MPHONE_NO, DATE, and more
@@ -172,7 +172,7 @@ A unified cross-platform validation framework supporting both server and client 
 
 #### [한국어]
 
-단일 설정으로 서버와 클라이언트 모두를 지원하는 통합 검증 프레임워크입니다. 주요 기능:
+단일 설정으로 서버와 클라이언트 모두를 지원하는 통합 검증 라이브러리입니다. 주요 기능:
 
 - **유연한 API**: 자연스러운 체이닝 검증 규칙
 - **30가지 이상 내장 규칙**: REQUIRED, LENGTH, REGEX, EMAIL, MPHONE_NO, DATE 등
