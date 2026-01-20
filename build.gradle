@@ -195,13 +195,7 @@ project.ext.globalArtifactSuffix = artifactSuffix
 // [Source JAR 및 Fat JAR 생성 정책 결정]
 // --------------------------------------------------------------------------------------
 
-// 1. 배포 관련 태스크 감지
-def taskNames = gradle.startParameter.taskNames
-def isAnyPublish = taskNames.any { it.toLowerCase().contains('publish') } // MavenLocal 포함 모든 배포
-def isRemotePublish = isAnyPublish && !taskNames.any { it.toLowerCase().contains('mavenlocal') } // 원격 배포만
 
-// 2. Source JAR 생성 여부 결정 (Task Execution 시점에 determineSourceJarStatus 호출로 처리됨)
-// 초기화 시점에는 별도 호출 불필요 (Lazy evaluation or direct call later)
 
 // 저작권 연도 업데이트 (수정이 필요한 경우에만 파일 IO 발생)
 S2BuildUtils.updateCopyright(project, [
@@ -215,6 +209,7 @@ S2BuildUtils.updateCopyright(project, [
 subprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
+    apply plugin: 'signing'
 
     // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
     // Gradle 플러그인은 의존성을 번들링하지 않고 선언만 해야하므로 제외
@@ -372,7 +367,10 @@ subprojects {
             // Central Portal 배포 설정
             maven {
                 name = "CentralPortal"
-                url = "https://central.sonatype.com/api/v1/publisher/deployments/maven2/"
+                // Central Portal Zip Bundle Upload API (v1)
+                // publishingType=USER_MANAGED : 사용자 관리 배포 (수동 승인/배포 필요 시)
+                // publishingType=AUTOMATIC    : 자동 배포
+                url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED"
                 credentials {
                     username = project.findProperty("centralUsername")
                     password = project.findProperty("centralPassword")
@@ -381,12 +379,15 @@ subprojects {
         }
     }
 
-    if (isRemotePublish) {
-        // GPG 서명 설정: 배포(publish) 태스크 실행 시에만 서명 수행
-        signing {
-            required { gradle.taskGraph.hasTask("publish") }
-            sign publishing.publications.mavenJava
+    // GPG 서명 설정: 항상 Signing 플러그인을 적용하되, 배포 관련 태스크 실행 시에만 서명 수행
+    signing {
+        // 배포(Publish) 태스크가 실행될 때만 서명 필수 (그 외 일반 빌드에서는 건너뜀)
+        required {
+             gradle.taskGraph.allTasks.any {
+                 it.name.contains("publish") || it.name.contains("Publish")
+             }
         }
+        sign publishing.publications.mavenJava
     }
 
     test {
@@ -399,7 +400,7 @@ subprojects {
         jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=UTF-8"
     }
 
-    // ★★★ 'Tasks → other → copyDependencies' 실행 시 지정 디렉토리로 의존성 복사 ★★★
+    // 'Tasks → other → copyDependencies' 실행 시 지정 디렉토리로 의존성 복사
     S2BuildUtils.registerCopyDependenciesTask(project)
 }
 
