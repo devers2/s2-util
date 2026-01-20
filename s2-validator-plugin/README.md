@@ -106,41 +106,17 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
 
 ## 🔧 Installation (설치)
 
-### [English]
-
-#### settings.gradle
+### settings.gradle
 
 ```groovy
 pluginManagement {
     repositories {
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 ```
 
-#### build.gradle
-
-```groovy
-plugins {
-    id 'io.github.devers2.validator' version '1.0.0'
-}
-```
-
-### [한국어]
-
-#### settings.gradle
-
-```groovy
-pluginManagement {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-```
-
-#### build.gradle
+### build.gradle
 
 ```groovy
 plugins {
