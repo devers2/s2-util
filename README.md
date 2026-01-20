@@ -12,7 +12,98 @@
 
 ---
 
+## 🚀 Quick Start (빠른 시작 가이드)
+
+### 1. Installation (설치)
+
+Add the following dependencies to your `build.gradle` (using Maven Central).
+
+```groovy
+dependencies {
+    implementation 'io.github.devers2:s2-core:1.0.0'
+    implementation 'io.github.devers2:s2-validator:1.0.0'
+}
+
+// [Optional] S2Validator Plugin
+// Add this ONLY if you want to verify that field names used in S2Validator actually exist in your DTO (e.g., UserCommand).
+// It performs static analysis on the generic type and triggers a build error if a non-existent field is referenced.
+// (UserCommand에 실제 있는 필드인지 확인할 필요가 있을 때만 추가하세요. 없는 필드 작성 시 빌드 에러가 발생합니다.)
+plugins {
+    id 'io.github.devers2.validator' version '1.0.0'
+}
+```
+
+### 2. Usage (사용법)
+
+Unified validation for server and client.
+
+#### [Controller]
+
+> **Note:** This example assumes Spring Framework integration. If Spring is not available, you can use `S2ValidatorFactory` directly, but `BindingResult` integration will not be available.
+
+```java
+private S2Validator<UserCommand> profileValidator() {
+    return S2Validator.<UserCommand>builder()
+            // If no rule is specified, S2RuleType.REQUIRED is applied by default
+            // (Rule이 없으면 기본적으로 REQUIRED 적용)
+            // "Name" is the label used in error messages (에러 메시지에 사용될 라벨)
+            .field("name", "Name")
+            .field("password", "Password")
+            // When specifying explicit rules, REQUIRED must be added manually if needed
+            // (직접 Rule 지정 시 필수 체크가 필요하면 REQUIRED 별도 지정)
+            .field("passwordCheck", "Confirm Password")
+                .rule(S2RuleType.REQUIRED)
+                // Verifies value equals "password" field (password 필드와 동일한 값인지 검증)
+                .rule(S2RuleType.EQUALS_FIELD, "password")
+                // Set English error message (영문 에러 메시지 설정)
+                .en("Password check does not match.")
+            .build();
+}
+
+@GetMapping("/sign-up")
+public String signUpPage(@ModelAttribute("command") UserCommand command, Model model) {
+    // Convert validator to JSON and pass to client for validation
+    // (클라이언트 유효성 검증을 위해 JSON으로 변환하여 전달)
+    model.addAttribute("rules", S2BindValidator.context("sign-up", this::profileValidator).getRulesJson());
+    return "sign-up";
+}
+
+@PostMapping("/sign-up")
+public String signUp(@ModelAttribute("command") UserCommand command, BindingResult result, Model model) {
+    // Perform server-side validation using the same validator configuration
+    // (설정된 검증기로 서버 측에서도 동일하게 검증 수행)
+    S2BindValidator.context("sign-up", this::profileValidator).validate(command, result);
+
+    if (result.hasErrors()) {
+        return signUpPage(command, model);
+    }
+    userService.createUser(command);
+    return "redirect:/sign-in";
+}
+```
+
+#### [HTML / Client]
+
+```html
+<!-- Inject the validation rules JSON string passed from the controller -->
+<!-- 컨트롤러에서 전달받은 검증 규칙(JSON 문자열)을 폼의 data 속성에 주입 -->
+<form id="myForm" th:data-s2-rules="${rules}">
+  ...
+</form>
+
+<script type="module">
+  // s2.validator.js is included in the 's2-validator' dependency.
+  // (s2.validator.js는 's2-validator' 의존성에 포함되어 있으며, 아래 경로를 기준으로 사용할 수 있습니다.)
+  import '/s2-util/js/s2.validator.js';
+  // Just importing the script automatically performs validation using the browser's native UI during submit, matching the server-side rules.
+  // (임포트만 하면 폼 전송 시 브라우저 네이티브 UI를 통해 서버와 동일한 검증이 자동으로 수행됩니다.)
+</script>
+```
+
+---
+
 ## 📦 Core Modules (핵심 모듈)
+
 
 ### 1. **s2-core** - Foundation Library
 

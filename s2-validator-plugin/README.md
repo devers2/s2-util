@@ -167,10 +167,12 @@ plugins {
 ### [English]
 
 - **Java 17 or higher** is required to use this plugin.
+- **Gradle 8.0 or higher** is recommended.
 
 ### [한국어]
 
 - 이 플러그인을 사용하려면 **Java 17 이상**이 필요합니다.
+- **Gradle 8.0 이상** 사용을 권장합니다.
 
 ---
 

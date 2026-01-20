@@ -33,7 +33,7 @@ plugins {
      * ⭐ 'shadow' 플러그인을 적용하면 -all 타겟이 추가되어 의존성을 추가한 JAR 가 생성된다.
      * ⭐ 'shadow' 플러그인을 적용하고 shadedPackagePrefix 을 설정한 경우, 자동으로 implementation, runtimeOnly 의존성을 relocate 처리한 Shadow JAR 가 생성된다.
      */
-    alias(libs.plugins.shadow)
+    // alias(libs.plugins.shadow)
 }
 
 import io.github.devers2.buildsupport.S2BuildUtils
