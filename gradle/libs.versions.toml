@@ -1,24 +1,27 @@
 [versions]
+# Plugin Versions
 s2-build-support = "2.0.0"
 shadow = "9.3.1"
+license-plugin = "0.16.1"
 
-# Java Default
+# Java / Core
 java = "21"
-
-# Spring Framework (Dual Versions)
-spring-framework-5 = "5.3.39"
-spring-framework-6 = "6.1.1"
+jsr305 = "3.0.2"
 
 # Dependencies
 aspectj = "1.9.25.1"
-jackson = "3.0.3"
-commons-pool2 = "2.13.1"
-jsch = "0.1.55"
-uuid-creator = "6.1.1"
-lz4 = "1.10.2"
-jsr305 = "3.0.2"
-junit = "6.0.2"
 caffeine = "3.2.3"
+commons-pool2 = "2.13.1"
+jackson = "3.0.3"
+javaparser = "3.27.1"
+jsch = "0.1.55"
+junit = "6.0.2"
+lz4 = "1.10.2"
+uuid-creator = "6.1.1"
+
+# Spring Framework
+spring-framework-5 = "5.3.39"
+spring-framework-6 = "6.1.1"
 
 # Servlet / JSP
 javax-servlet-api = "4.0.1"
@@ -27,20 +30,20 @@ jakarta-servlet-api = "6.1.0"
 jakarta-servlet-jsp = "4.0.0"
 
 [libraries]
-# Spring 5
-spring5-context = { group = "org.springframework", name = "spring-context", version.ref = "spring-framework-5" }
-# Spring 6
-spring6-context = { group = "org.springframework", name = "spring-context", version.ref = "spring-framework-6" }
-
 # Common
 aspectj-weaver = { group = "org.aspectj", name = "aspectjweaver", version.ref = "aspectj" }
-jackson-databind = { group = "tools.jackson.core", name = "jackson-databind", version.ref = "jackson" }
-commons-pool2 = { group = "org.apache.commons", name = "commons-pool2", version.ref = "commons-pool2" }
-jsch = { group = "com.jcraft", name = "jsch", version.ref = "jsch" }
-uuid-creator = { group = "com.github.f4b6a3", name = "uuid-creator", version.ref = "uuid-creator" }
-lz4 = { group = "at.yawk.lz4", name = "lz4-java", version.ref = "lz4" }
-jsr305 = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "jsr305" }
 caffeine = { group = "com.github.ben-manes.caffeine", name = "caffeine", version.ref = "caffeine" }
+commons-pool2 = { group = "org.apache.commons", name = "commons-pool2", version.ref = "commons-pool2" }
+jackson-databind = { group = "tools.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+javaparser-core = { group = "com.github.javaparser", name = "javaparser-core", version.ref = "javaparser" }
+jsch = { group = "com.jcraft", name = "jsch", version.ref = "jsch" }
+jsr305 = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "jsr305" }
+lz4 = { group = "at.yawk.lz4", name = "lz4-java", version.ref = "lz4" }
+uuid-creator = { group = "com.github.f4b6a3", name = "uuid-creator", version.ref = "uuid-creator" }
+
+# Spring
+spring5-context = { group = "org.springframework", name = "spring-context", version.ref = "spring-framework-5" }
+spring6-context = { group = "org.springframework", name = "spring-context", version.ref = "spring-framework-6" }
 
 # Servlet (Legacy vs Modern)
 javax-servlet-api = { group = "javax.servlet", name = "javax.servlet-api", version.ref = "javax-servlet-api" }
@@ -48,13 +51,14 @@ javax-servlet-jsp = { group = "javax.servlet.jsp", name = "javax.servlet.jsp-api
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta-servlet-api" }
 jakarta-servlet-jsp = { group = "jakarta.servlet.jsp", name = "jakarta.servlet.jsp-api", version.ref = "jakarta-servlet-jsp" }
 
-# Testing - JUnit
+# Testing
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
-# License Plugin Implementation (Hierynomus)
-license-gradle-plugin = { group = "com.github.hierynomus.gradle.license", name = "license-gradle-plugin", version = "0.16.1" }
+
+# Gradle Plugins (Implementation)
+license-gradle-plugin = { group = "com.github.hierynomus.gradle.license", name = "license-gradle-plugin", version.ref = "license-plugin" }
 
 [plugins]
 s2-build-support = { id = "io.github.devers2.buildsupport", version.ref = "s2-build-support" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
-license = { id = "com.github.hierynomus.license", version = "0.16.1" }
+license = { id = "com.github.hierynomus.license", version.ref = "license-plugin" }

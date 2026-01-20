@@ -18,8 +18,10 @@
  *
  * For more information, please see the LICENSE file in the root directory.
  */
+
 plugins {
     id 'java-library'
+    alias(libs.plugins.shadow) // Shadow JAR 생성을 위해 명시적 적용
 }
 
 ext {
@@ -49,6 +51,8 @@ ext {
 }
 
 // 동적 의존성 및 라이선스 자동화 설정 적용은 루트에서 일괄 처리됨
+
+
 
 dependencies {
     /**

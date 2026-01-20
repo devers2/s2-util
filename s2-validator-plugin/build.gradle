@@ -18,9 +18,20 @@
  *
  * For more information, please see the LICENSE file in the root directory.
  */
-plugins {
-    id 'java-gradle-plugin'
-    id 'maven-publish'
+
+// 1. 플러그인 개발 기능 로드
+apply plugin: 'java-gradle-plugin'
+
+// 2. 플러그인 메타데이터 설정 (중앙 저장소 배포)
+gradlePlugin {
+    plugins {
+        s2ValidatorPlugin {
+            id = 'io.github.devers2.validator'
+            implementationClass = 'io.github.devers2.validator.plugin.S2ValidatorPlugin'
+            displayName = 'S2 Validator Field Checker'
+            description = 'Static analysis plugin for S2Validator field name validation'
+        }
+    }
 }
 
 version = '1.0.0'
@@ -52,22 +63,5 @@ dependencies {
     implementation gradleApi()
 
     // JavaParser for AST-based source code analysis
-    implementation 'com.github.javaparser:javaparser-core:3.27.1'
+    implementation libs.javaparser.core
 }
-
-/*
- * Gradle Plugin Configuration
- */
-gradlePlugin {
-    plugins {
-        s2ValidatorPlugin {
-            id = 'io.github.devers2.validator'
-            implementationClass = 'io.github.devers2.validator.plugin.S2ValidatorPlugin'
-            displayName = 'S2 Validator Field Checker'
-            description = 'Static analysis plugin for S2Validator field name validation'
-        }
-    }
-    vcsUrl = 'https://github.com/devers2/s2-packages'
-}
-
-
