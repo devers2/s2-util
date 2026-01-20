@@ -25,11 +25,15 @@
  * 별도 설정 없이 Gradle이 기본 경로(gradle/libs.versions.toml)를 자동으로 인식하여 'libs' 접근자로 제공
  */
 plugins {
-    /* 버전 카탈로그 사용 (libs.versions.toml) */
-    alias(libs.plugins.shadow) // ⭐ 'shadow' 플러그인이 적용되고 shadedPackagePrefix 을 설정한 경우, 자동으로 Shadow JAR 를 생성하도록 구성된다. (implementation, runtimeOnly 의존성은 relocate 처리)
     alias(libs.plugins.s2.build.support)
     alias(libs.plugins.license) apply false // ⭐ 'license' 플러그인 (hierynomus) 버전을 카탈로그에서 관리하고, 하위 프로젝트에서 ID로 적용 가능하게 함
     id 'signing'
+
+    /*
+     * ⭐ 'shadow' 플러그인을 적용하면 -all 타겟이 추가되어 의존성을 추가한 JAR 가 생성된다.
+     * ⭐ 'shadow' 플러그인을 적용하고 shadedPackagePrefix 을 설정한 경우, 자동으로 implementation, runtimeOnly 의존성을 relocate 처리한 Shadow JAR 가 생성된다.
+     */
+    alias(libs.plugins.shadow)
 }
 
 import io.github.devers2.buildsupport.S2BuildUtils
@@ -52,10 +56,8 @@ ext {
     REPO_OWNER = 'devers2'
     REPO_NAME = 's2-util'
 
-    // Shadow Plugin - Relocation 대상 패키지 설정(미설정 시 Relocation이 적용되지 않음)
+    // Shadow Plugin - Relocation 패키지 설정(미설정 시 Relocation이 적용되지 않음)
     // shadedPackagePrefix = "io.github.devers2.s2util.shaded"
-
-
 
     // ========================================================================
     // ⭐ [사용자 설정 (User Configuration)]
@@ -189,14 +191,6 @@ project.ext.activeFeatures.each { srcName ->
 
 project.ext.globalArtifactSuffix = artifactSuffix
 
-
-
-// --------------------------------------------------------------------------------------
-// [Source JAR 및 Fat JAR 생성 정책 결정]
-// --------------------------------------------------------------------------------------
-
-
-
 // 저작권 연도 업데이트 (수정이 필요한 경우에만 파일 IO 발생)
 S2BuildUtils.updateCopyright(project, [
     'README.md'
@@ -211,10 +205,13 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
 
-    // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
-    // Gradle 플러그인은 의존성을 번들링하지 않고 선언만 해야하므로 제외
-    if (project.name != 's2-validator-plugin') {
-        apply plugin: rootProject.libs.plugins.shadow.get().pluginId
+    // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만 실행
+    if (rootProject.plugins.hasPlugin("com.github.johnrengelman.shadow")) {
+        // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
+        // Gradle 플러그인은 의존성을 번들링하지 않고 선언만 해야하므로 제외
+        if (project.name != 's2-validator-plugin') {
+            apply plugin: rootProject.libs.plugins.shadow.get().pluginId
+        }
     }
 
     group = rootProject.group
@@ -320,8 +317,6 @@ subprojects {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-
-    // publishing 블록
     publishing {
         publications {
             mavenJava(MavenPublication) {
@@ -409,5 +404,3 @@ subprojects {
 // 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트
 // --------------------------------------------------------------------------------------
 S2BuildUtils.updateReadmeWithVersionAndDependencies(project, file('README.md'))
-
-
