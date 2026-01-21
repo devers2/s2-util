@@ -69,3 +69,8 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
+
+// Gradle 9.2.1 암시적 의존성 에러 해결: s2-core의 JAR 출력물을 사용하므로 명시적 의존성 선언
+tasks.named('jar') {
+    dependsOn(':s2-core:jar')
+}
