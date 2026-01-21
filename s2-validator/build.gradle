@@ -70,7 +70,25 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-// Gradle 9.2.1 암시적 의존성 에러 해결: s2-core의 JAR 출력물을 사용하므로 명시적 의존성 선언
-tasks.named('jar') {
+// 1. 모든 JavaCompile 태스크가 s2-core 빌드 후 실행되도록 설정
+tasks.withType(JavaCompile).configureEach {
     dependsOn(':s2-core:jar')
+}
+
+// 2. 리소스 처리 단계에서도 s2-core의 결과물이 필요할 수 있으므로 설정
+tasks.named('processResources') {
+    dependsOn(':s2-core:jar')
+}
+
+// 3. jar 생성 시점에 확실하게 의존성 명시
+tasks.named('jar') {
+    mustRunAfter(':s2-core:jar')
+    dependsOn(':s2-core:jar')
+}
+
+// 4. 만약 shadowJar를 사용 중이라면 동일하게 적용
+if (tasks.findByName('shadowJar')) {
+    tasks.named('shadowJar') {
+        dependsOn(':s2-core:jar')
+    }
 }
