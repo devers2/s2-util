@@ -25,7 +25,7 @@ apply plugin: 'java-gradle-plugin'
 import io.github.devers2.buildsupport.S2BuildUtils
 import org.gradle.api.tasks.bundling.Jar
 
-// 2. 플러그인 메타데이터 설정 (중앙 저장소 배포)
+// 2. 중앙 저장소 배포 플러그인 메타데이터 설정
 gradlePlugin {
     plugins {
         s2ValidatorPlugin {

@@ -26,7 +26,6 @@
  */
 plugins {
     alias(libs.plugins.s2.build.support)
-
     id 'signing'
 
     /*
@@ -200,10 +199,10 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
 
-    // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만 실행
     if (rootProject.plugins.hasPlugin("com.github.johnrengelman.shadow")) {
+        // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만
         // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
-        // Gradle 플러그인은 의존성을 번들링하지 않고 선언만 해야하므로 제외
+        // s2-validator-plugin 은 Gradle 플러그인으로 배포되므로 제외한다.
         if (project.name != 's2-validator-plugin') {
             apply plugin: rootProject.libs.plugins.shadow.get().pluginId
         }
@@ -367,7 +366,7 @@ subprojects {
                  it.name.contains("publish") || it.name.contains("Publish")
              }
         }
-        sign publishing.publications.mavenJava
+        sign publishing.publications
     }
 
     test {
