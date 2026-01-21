@@ -69,17 +69,3 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
-
-// 1. s2-core 프로젝트가 먼저 평가(설정)되도록 보장
-evaluationDependsOn(':s2-core')
-
-tasks.named('jar') {
-    // 2. s2-core의 jar 태스크를 변수로 가져옵니다 (TaskProvider)
-    def coreJarTask = project(':s2-core').tasks.named('jar')
-
-    // 3. 실행 순서 의존성
-    dependsOn(coreJarTask)
-
-    // 4. 파일 경로(.get().outputs...)가 아니라 '태스크 자체'를 넘깁니다.
-    inputs.files(coreJarTask)
-}
