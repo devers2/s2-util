@@ -26,7 +26,7 @@
  */
 plugins {
     alias(libs.plugins.s2.build.support)
-    alias(libs.plugins.license) apply false // ⭐ 'license' 플러그인 (hierynomus) 버전을 카탈로그에서 관리하고, 하위 프로젝트에서 ID로 적용 가능하게 함
+
     id 'signing'
 
     /*
@@ -48,7 +48,7 @@ import io.github.devers2.buildsupport.S2BuildUtils
  *   이렇게 하면 의존성 관리 도구가 서로 다른 아티팩트로 인식하여 같은 리포지토리라도 별도 아티팩트로 취급된다.
  */
 group = 'io.github.devers2'
-version = '1.0.0'
+version = '1.0.1'
 
 // 전역 변수 선언
 ext {

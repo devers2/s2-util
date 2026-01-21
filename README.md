@@ -27,8 +27,8 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.0.0'
-    implementation 'io.github.devers2:s2-validator:1.0.0'
+    implementation 'io.github.devers2:s2-core:1.0.1'
+    implementation 'io.github.devers2:s2-validator:1.0.1'
 }
 
 // [Optional] S2Validator Static Analysis Plugin
@@ -41,7 +41,7 @@ dependencies {
 // 명시된 DTO에 실제 필드가 있는지 확인하여, 오타 등으로 존재하지 않는 필드를 참조하면
 // 빌드 에러를 발생시켜 런타임 오류를 완벽히 예방합니다.)
 plugins {
-    id 'io.github.devers2.validator' version '1.0.0'
+    id 'io.github.devers2.validator' version '1.0.1'
 }
 ```
 
