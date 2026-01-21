@@ -3,6 +3,8 @@
 > **Write Once, Validate Anywhere.**<br>
 > **(Java & JavaScript) 한 번의 작성**으로 **서버와 클라이언트 모두를 검증**하는 가장 스마트한 방법.
 
+[![Java CI](https://github.com/devers2/s2-util/actions/workflows/ci.yml/badge.svg)](https://github.com/devers2/s2-util/actions/workflows/ci.yml)
+
 ---
 
 ## Overview (개요)
@@ -216,13 +218,11 @@ S2Validator 필드명을 컴파일 타임에 정적 분석으로 검증하는 Gr
 
 ### [English]
 
-- **Java 17 or higher** is required to use S2Util Library.
-- All modules and plugins require Java 17+.
+This project is built with **JDK 21**, but it can be used reliably in all environments running **Java 17 or higher**.
 
 ### [한국어]
 
-- S2Util 라이브러리를 사용하려면 **Java 17 이상**이 필요합니다.
-- 모든 모듈과 플러그인은 Java 17 이상을 요구합니다.
+본 프로젝트는 **JDK 21** 환경에서 빌드되었으나, **Java 17 이상**의 모든 환경에서 안정적으로 사용할 수 있습니다.
 
 ---
 

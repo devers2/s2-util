@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # 1. Gradle 의존성 및 플러그인 관리 (s2-util 포함 전체)
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  # 2. GitHub Actions 버전 관리 (setup-java 등 액션 도구 업데이트)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
