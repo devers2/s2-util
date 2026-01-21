@@ -1,8 +1,8 @@
 [versions]
 # Plugin Versions
-s2-build-support = "0.1.1"
+s2-build-support = "0.1.3"
 shadow = "9.3.1"
-license-plugin = "0.16.1"
+
 
 # Java / Core
 java = "21"
@@ -56,9 +56,9 @@ junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.r
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
 
 # Gradle Plugins (Implementation)
-license-gradle-plugin = { group = "com.github.hierynomus.gradle.license", name = "license-gradle-plugin", version.ref = "license-plugin" }
+
 
 [plugins]
 s2-build-support = { id = "io.github.devers2.buildsupport", version.ref = "s2-build-support" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
-license = { id = "com.github.hierynomus.license", version.ref = "license-plugin" }
+

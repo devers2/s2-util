@@ -22,6 +22,9 @@
 // 1. 플러그인 개발 기능 로드
 apply plugin: 'java-gradle-plugin'
 
+import io.github.devers2.buildsupport.S2BuildUtils
+import org.gradle.api.tasks.bundling.Jar
+
 // 2. 플러그인 메타데이터 설정 (중앙 저장소 배포)
 gradlePlugin {
     plugins {
@@ -34,9 +37,30 @@ gradlePlugin {
     }
 }
 
-version = '1.0.0'
+version = '1.0.1'
 
 ext {
+    /*
+     * [추가 소스 목록]
+     * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
+     */
+    activeFeatures = ['licensesInfo'] as Set
+
+    /**
+     * [동적 기능 소스 정보 (Feature Toggles)]
+     * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
+     */
+    dynamicSourceInfoMap = [
+        'licensesInfo': [
+            licenses: [
+                'README.md',
+                'LICENSE',
+                'licenses/LICENSE-APACHE-2.0',
+                'licenses/NOTICE'
+            ]
+        ]
+    ]
+
     /**
      * [패키징 제외 설정]
      * S2BuildUtils.configureProject()에서 패키징 설정(JAR/Shadow JAR)을 건너뛰도록 설정
@@ -65,3 +89,27 @@ dependencies {
     // JavaParser for AST-based source code analysis
     implementation libs.javaparser.core
 }
+
+/**
+ * [라이선스 파일 자동 포함]
+ * skipPackaging = true 설정 시 S2BuildUtils의 자동 패키징 로직이 동작하지 않으므로,
+ * activeFeatures와 dynamicSourceInfoMap에 정의된 라이선스 파일들을 수동으로 jar 태스크에 주입한다.
+ */
+project.afterEvaluate {
+    def extraFiles = [] as Set
+
+    // 1. activeFeatures에 선언된 기능들의 라이선스 정보 수집
+    activeFeatures.each { feature ->
+        def info = dynamicSourceInfoMap[feature]
+        if (info && info.licenses) {
+            extraFiles.addAll(info.licenses)
+        }
+    }
+
+    // 2. 수집된 파일들을 JAR에 포함 (S2BuildUtils의 검증된 로직 재사용)
+    if (!extraFiles.isEmpty()) {
+        def jarTask = tasks.named('jar', Jar).get()
+        S2BuildUtils.includeExtraFiles(jarTask, project, extraFiles)
+    }
+}
+
