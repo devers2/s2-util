@@ -130,8 +130,13 @@ plugins {
 
 ### [English]
 
-- **Java 17 or higher** is required to use this plugin.
+- This project is built with **JDK 21**, but it can be used reliably in all environments running **Java 17 or higher**.
 - **Gradle 8.0 or higher** is recommended.
+
+### [한국어]
+
+- 본 프로젝트는 **JDK 21** 환경에서 빌드되었으나, **Java 17 이상**의 모든 환경에서 안정적으로 사용할 수 있습니다.
+- **Gradle 8.0 이상** 사용을 권장합니다.
 
 ### [한국어]
 

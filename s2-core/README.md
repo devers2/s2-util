@@ -104,11 +104,11 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ### [English]
 
-- **Java 17 or higher** is required to use this module.
+This project is built with **JDK 21**, but it can be used reliably in all environments running **Java 17 or higher**.
 
 ### [한국어]
 
-- 이 모듈을 사용하려면 **Java 17 이상**이 필요합니다.
+본 프로젝트는 **JDK 21** 환경에서 빌드되었으나, **Java 17 이상**의 모든 환경에서 안정적으로 사용할 수 있습니다.
 
 ---
 
