@@ -29,8 +29,8 @@ import org.gradle.api.tasks.bundling.Jar
 // 2. 중앙 저장소 배포 플러그인 메타데이터 설정
 gradlePlugin {
     plugins {
-        s2ValidatorPlugin {
-            id = 'io.github.devers2.s2-validator-plugin'
+        s2Validator {
+            id = 'io.github.devers2.validator'
             implementationClass = 'io.github.devers2.validator.plugin.S2ValidatorPlugin'
             displayName = 'S2 Validator Field Checker'
             description = 'Static analysis plugin for S2Validator field name validation'
@@ -38,7 +38,7 @@ gradlePlugin {
     }
 }
 
-version = '1.0.1'
+version = '1.0.2'
 
 ext {
     /*
@@ -126,7 +126,7 @@ project.afterEvaluate {
 
     // 3. Gradle 플러그인 publication의 groupId와 artifactId 통일
     publishing.publications.each { pub ->
-        if (pub.name in ['pluginMaven', 's2ValidatorPluginPluginMarkerMaven']) {
+        if (pub.name in ['pluginMaven', 's2ValidatorPluginMarkerMaven']) {
             pub.groupId = 'io.github.devers2'
             pub.artifactId = 's2-validator-plugin'
         }
@@ -135,7 +135,6 @@ project.afterEvaluate {
 
 publishing {
     publications {
-
         pluginMaven(MavenPublication) {
             groupId = 'io.github.devers2'
             artifactId = 's2-validator-plugin'
@@ -181,7 +180,7 @@ publishing {
 
 // Marker Artifact에 대한 메타데이터 설정 (이미 존재하는 Publication 설정)
 project.afterEvaluate {
-    publishing.publications.named('s2ValidatorPluginPluginMarkerMaven', MavenPublication) {
+    publishing.publications.named('s2ValidatorPluginMarkerMaven', MavenPublication) {
         // Gradle Plugin Marker Artifact 관례에 맞게 강제 설정
         groupId = 'io.github.devers2.validator'
         artifactId = 'io.github.devers2.validator.gradle.plugin'
