@@ -74,29 +74,18 @@ dependencies {
 
 /**
  * [Gradle 빌드 최적화 및 태스크 의존성 설정]
- * Gradle 9.x 이상에서는 태스크 간의 암시적 의존성을 허용하지 않습니다.
- * :s2-validator의 작업들이 :s2-core에서 생성된 JAR 파일을 참조하므로,
- * 실행 순서와 입출력 관계를 명시적으로 정의해야 빌드 오류를 방지할 수 있습니다.
+ * Gradle 9.x 이상의 엄격한 태스크 유효성 검사를 해결합니다.
+ * :s2-validator의 태스크들이 :s2-core의 아티팩트를 사용하므로 명시적 의존성을 부여합니다.
  */
+tasks.configureEach { task ->
+    if (task.name == 'jar' || task.name == 'shadowJar' || task.name == 'downloadLicenses') {
 
-// 1. 표준 jar 태스크 설정
-tasks.named('jar') {
-    // s2-core의 jar 결과물을 이 태스크의 입력값으로 명시하여 변경 사항을 감지하도록 함 (Lazy Configuration)
-    inputs.file(project(':s2-core').tasks.named('jar').map { it.archiveFile })
+        // s2-core:jar가 반드시 먼저 완료되도록 순서 보장
+        task.dependsOn(':s2-core:jar')
 
-    // s2-core 프로젝트의 jar 태스크가 완료된 후 실행되도록 보장
-    dependsOn(':s2-core:jar')
-}
-
-// 2. shadowJar 태스크 설정 (플러그인에 의해 동적으로 생성될 수 있으므로 matching 사용)
-tasks.matching { it.name == 'shadowJar' }.all {
-    // shadowJar 생성 시 s2-core의 최신 JAR 파일이 필요함을 명시
-    dependsOn(':s2-core:jar')
-}
-
-// 3. 라이선스 관련 태스크 설정
-// 로그상에서 발생한 'implicit dependency' 에러를 해결하기 위해 추가
-tasks.matching { it.name == 'downloadLicenses' }.all {
-    // 라이선스 정보를 추출하기 위해 s2-core의 아티팩트를 읽어야 하므로 선행 작업으로 등록
-    dependsOn(':s2-core:jar')
+        // jar 태스크의 경우, 버전 변화에 상관없이 생성된 결과물을 입력 파일로 자동 연결
+        if (task.name == 'jar') {
+            task.inputs.file(project(':s2-core').tasks.named('jar').map { it.archiveFile })
+        }
+    }
 }
