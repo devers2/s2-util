@@ -94,9 +94,9 @@ public final class S2ValidatorFactory {
      * @param contextKey        Unique identifier for the validation context (e.g., "MEMBER_JOIN") | 검증 컨텍스트의 고유 식별자
      * @param validatorSupplier Lambda or method reference to build the validator | 검증기 생성을 위한 람다 또는 메서드 참조
      * @return The cached or newly created {@link S2Validator} instance | 캐시된 또는 새로 생성된 S2Validator 인스턴스
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Example 1: Basic usage with inline lambda
      * S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
      *     "USER_JOIN", () -> S2Validator.builder()
@@ -111,57 +111,57 @@ public final class S2ValidatorFactory {
      * validator.validate(newUser);  // Reuses cached validator
      *
      * // Example 2: Using method reference in controller
-     *           @RestController
-     *           public class MemberController {
-     *           private S2Validator<MemberDTO> getMemberValidator() {
-     *           return S2Validator.<MemberDTO>builder()
-     *           .field("memberId", "회원ID").rule(S2RuleType.REQUIRED)
-     *           .field("email", "이메일").rule(S2RuleType.EMAIL)
-     *           .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
-     *           .field("confirmPw", "비밀번호 확인")
-     *           .rule(
-     *           (value, target) -> S2Util.getValue(target, "password", "").equals(value)
-     *           ).ko("비밀번호가 일치하지 않습니다.")
-     *           .build();
-     *           }
+     *          @RestController
+     *          public class MemberController {
+     *          private S2Validator<MemberDTO> getMemberValidator() {
+     *          return S2Validator.<MemberDTO>builder()
+     *          .field("memberId", "회원ID").rule(S2RuleType.REQUIRED)
+     *          .field("email", "이메일").rule(S2RuleType.EMAIL)
+     *          .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
+     *          .field("confirmPw", "비밀번호 확인")
+     *          .rule(
+     *          (value, target) -> S2Util.getValue(target, "password", "").equals(value)
+     *          ).ko("비밀번호가 일치하지 않습니다.")
+     *          .build();
+     *          }
      *
-     *           @PostMapping("/join")
-     *           public String joinMember(MemberDTO dto, BindingResult result) {
-     *           // First call: builds and caches validator
-     *           S2Validator<MemberDTO> validator = S2ValidatorFactory.getOrRegister("MEMBER_JOIN", this::getMemberValidator);
+     *          @PostMapping("/join")
+     *          public String joinMember(MemberDTO dto, BindingResult result) {
+     *          // First call: builds and caches validator
+     *          S2Validator<MemberDTO> validator = S2ValidatorFactory.getOrRegister("MEMBER_JOIN", this::getMemberValidator);
      *
-     *           validator.validate(
-     *           dto, error -> result.rejectValue(
-     *           error.fieldName(), error.errorCode(),
-     *           error.errorArgs(), error.defaultMessage()
-     *           )
-     *           );
+     *          validator.validate(
+     *          dto, error -> result.rejectValue(
+     *          error.fieldName(), error.errorCode(),
+     *          error.errorArgs(), error.defaultMessage()
+     *          )
+     *          );
      *
-     *           if (result.hasErrors()) {
-     *           return "join/form";
-     *           }
-     *           // Process successful join...
-     *           }
-     *           }
+     *          if (result.hasErrors()) {
+     *          return "join/form";
+     *          }
+     *          // Process successful join...
+     *          }
+     *          }
      *
-     *           // Example 3: Multi-threaded safety demonstration
-     *           // Even if multiple threads call simultaneously, the supplier executes only once
-     *           ExecutorService executor = Executors.newFixedThreadPool(10);
-     *           for (int i = 0; i < 100; i++) {
-     *           executor.submit(() -> {
-     *           S2Validator<?> v = S2ValidatorFactory.getOrRegister(
-     *           "SHARED_KEY",
-     *           () -> S2Validator.builder().field("test").rule(S2RuleType.REQUIRED).build()
-     *           );
-     *           // All threads receive the exact same instance
-     *           });
-     *           }
+     *          // Example 3: Multi-threaded safety demonstration
+     *          // Even if multiple threads call simultaneously, the supplier executes only once
+     *          ExecutorService executor = Executors.newFixedThreadPool(10);
+     *          for (int i = 0; i < 100; i++) {
+     *          executor.submit(() -> {
+     *          S2Validator<?> v = S2ValidatorFactory.getOrRegister(
+     *          "SHARED_KEY",
+     *          () -> S2Validator.builder().field("test").rule(S2RuleType.REQUIRED).build()
+     *          );
+     *          // All threads receive the exact same instance
+     *          });
+     *          }
      *
-     *           // Example 4: Retrieve cached validator without supplier
-     *           S2Validator<?> cached = S2ValidatorFactory.getValidator("USER_JOIN");
-     *           if (cached != null) {
-     *           // Use cached validator
-     *           }
+     *          // Example 4: Retrieve cached validator without supplier
+     *          S2Validator<?> cached = S2ValidatorFactory.getValidator("USER_JOIN");
+     *          if (cached != null) {
+     *          // Use cached validator
+     *          }
      * }</pre>
      */
     @SuppressWarnings("unchecked")
@@ -205,12 +205,12 @@ public final class S2ValidatorFactory {
      * @param contextKey The registered validation context key | 등록된 검증 규칙 키
      * @param locale     The locale for error message generation | 에러 메시지 처리를 위한 로케일
      * @return A JSON string containing the validation rules | 서버에서 정의된 검증 규칙이 포함된 JSON 문자열
-     * @implNote
-     *           <p>
-     *           <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
-     *           </p>
+     * @apiNote
+     *          <p>
+     *          <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
+     *          </p>
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Controller (Java)
      * model.addAttribute("validationRules", validator.getRulesJson());
      *
@@ -226,11 +226,11 @@ public final class S2ValidatorFactory {
      * }
      * }</pre>
      *
-     *           <p>
-     *           <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
-     *           </p>
+     *          <p>
+     *          <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
+     *          </p>
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * const myRules = '[[${validationRules}]]';
      *
      * function doSave() {
@@ -262,12 +262,12 @@ public final class S2ValidatorFactory {
      * @param validator The validator to export | 내보낼 검증기 인스턴스
      * @param locale    The locale for error message generation | 에러 메시지 생성을 위한 로케일
      * @return A JSON string representing the validation rules | 검증 규칙을 나타내는 JSON 문자열
-     * @implNote
-     *           <p>
-     *           <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
-     *           </p>
+     * @apiNote
+     *          <p>
+     *          <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
+     *          </p>
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Controller (Java)
      * model.addAttribute("validationRules", validator.getRulesJson());
      *
@@ -283,11 +283,11 @@ public final class S2ValidatorFactory {
      * }
      * }</pre>
      *
-     *           <p>
-     *           <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
-     *           </p>
+     *          <p>
+     *          <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
+     *          </p>
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * const myRules = '[[${validationRules}]]';
      *
      * function doSave() {
