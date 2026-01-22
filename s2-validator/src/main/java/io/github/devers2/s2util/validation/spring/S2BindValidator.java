@@ -134,9 +134,9 @@ public final class S2BindValidator {
      * @param contextKey        Identifier for the validation logic (cached in {@link S2ValidatorFactory}) | 검증 로직 식별자 (S2ValidatorFactory에 캐싱됨)
      * @param validatorSupplier Functional supplier that builds the validator on first call | 첫 호출 시 검증기를 생성하는 함수형 서플라이어
      * @return A {@link BoundContext} for fluent execution | 유연한 실행을 위한 BoundContext 객체
-     * @implNote
+     * @apiNote
      *
-     *           <pre>
+     *          <pre>
      * {@code
      * // Example 1: Complete Spring MVC Controller Integration
      * &#64;Controller
@@ -330,9 +330,9 @@ public final class S2BindValidator {
          *
          * @return A JSON string containing the validation rules | 서버에서 정의된 검증 규칙이 포함된 JSON 문자열
          * @see S2ValidatorFactory#getRulesJson(String, Locale)
-         * @implNote
+         * @apiNote
          *
-         *           <pre>{@code
+         *          <pre>{@code
          * // Controller (Java)
          * model.addAttribute("validationRules", validator.getRulesJson());
          *

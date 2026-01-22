@@ -60,9 +60,9 @@ import io.github.devers2.s2util.log.S2Logger;
  * </ul>
  * </p>
  *
- * @implNote
+ * @apiNote
  *
- *           <pre>{@code
+ *          <pre>{@code
  * // 초기화 (애플리케이션 시작 시 한 번만)
  * S2ResourceBundle.setDefaultBasename("messages/myapp");
  *

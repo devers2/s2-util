@@ -145,9 +145,9 @@ public enum S2RuleType {
     /**
      * 중첩 객체 검증 ({0}: 필드설명)
      *
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // 하위(자식) 검증기 정의
      * S2Validator<Address> addressValidator = S2Validator.<Address>builder()
      *     .field("zipCode", "우편번호").rule(REQUIRED).rule(NUMBER)
@@ -167,9 +167,9 @@ public enum S2RuleType {
     /**
      * 리스트/배열의 각 요소 검증 ({0}: 필드설명)
      *
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // 하위(자식) 검증기 정의
      * S2Validator<File> fileValidator = S2Validator.<File>builder()
      *     .field("fileName", "파일명").rule(REQUIRED)

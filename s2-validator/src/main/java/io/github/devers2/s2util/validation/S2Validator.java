@@ -185,9 +185,9 @@ public class S2Validator<T> implements Serializable {
      * @param <T>    The type of the target object | 대상 객체의 타입
      * @param target The object to validate | 검증 대상 객체
      * @return A fluent step to define fields and rules | 필드와 규칙을 정의할 수 있는 Fluent API 단계
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Example 1: Basic validation with error handler
      * Map<String, Object> userData = new HashMap<>();
      * userData.put("userId", "admin");
@@ -276,9 +276,9 @@ public class S2Validator<T> implements Serializable {
      *
      * @param <T> The type of the object this validator will handle | 이 검증기가 처리할 객체의 타입
      * @return A fluent step to construct the validator blueprint | 검증기 설계도를 구성할 Fluent API 단계
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Example 1: Define a reusable validator blueprint
      * S2Validator<UserDTO> userValidator = S2Validator.<UserDTO>builder()
      *     .field("userId", "아이디").rule(S2RuleType.REQUIRED)
@@ -340,9 +340,9 @@ public class S2Validator<T> implements Serializable {
      * @param <T>   The type of the value | 값의 타입
      * @param value The value to check | 검증할 값
      * @return A rule definition step | 규칙 정의 단계
-     * @implNote
+     * @apiNote
      *
-     *           <pre>{@code
+     *          <pre>{@code
      * // Example 1: Basic value check (returns boolean)
      * String email = "test@s2.kr";
      * boolean isValidEmail = S2Validator.check(email)
