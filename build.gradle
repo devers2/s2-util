@@ -197,7 +197,9 @@ S2BuildUtils.updateCopyright(project, [
 subprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
-    apply plugin: 'signing'
+    if (project.name != 's2-validator-plugin') {
+        apply plugin: 'signing'
+    }
 
     if (rootProject.plugins.hasPlugin("com.github.johnrengelman.shadow")) {
         // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만
@@ -311,62 +313,66 @@ subprojects {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    publishing {
-        publications {
-            mavenJava(MavenPublication) {
-                from components.java
-                // 생성될 pom.xml 상세 설정 (Maven Central 필수 요건)
-                pom {
-                    name = project.name
-                    description = 'S2Util Library - A comprehensive utility library for Java'
-                    url = 'https://github.com/devers2/s2-util'
-                    licenses {
-                        license {
-                            name = 'The Apache License, Version 2.0'
-                            url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                        }
-                    }
-                    developers {
-                        developer {
-                            id = 'devers2'
-                            name = '이승수'
-                            email = 'eseungsu.dev@gmail.com'
-                            organization = 'devers2'
-                            organizationUrl = 'https://github.com/devers2'
-                        }
-                    }
-                    scm {
-                        connection = 'scm:git:git://github.com/devers2/s2-util.git'
-                        developerConnection = 'scm:git:ssh://github.com/devers2/s2-util.git'
+    if (project.name != 's2-validator-plugin') {
+        publishing {
+            publications {
+                mavenJava(MavenPublication) {
+                    from components.java
+                    // 생성될 pom.xml 상세 설정 (Maven Central 필수 요건)
+                    pom {
+                        name = project.name
+                        description = 'S2Util Library - A comprehensive utility library for Java'
                         url = 'https://github.com/devers2/s2-util'
+                        licenses {
+                            license {
+                                name = 'The Apache License, Version 2.0'
+                                url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                            }
+                        }
+                        developers {
+                            developer {
+                                id = 'devers2'
+                                name = '이승수'
+                                email = 'eseungsu.dev@gmail.com'
+                                organization = 'devers2'
+                                organizationUrl = 'https://github.com/devers2'
+                            }
+                        }
+                        scm {
+                            connection = 'scm:git:git://github.com/devers2/s2-util.git'
+                            developerConnection = 'scm:git:ssh://github.com/devers2/s2-util.git'
+                            url = 'https://github.com/devers2/s2-util'
+                        }
                     }
                 }
             }
-        }
-        repositories {
-            // Central Portal 배포 설정
-            maven {
-                name = "CentralPortal"
-                // Central Portal Zip Bundle Upload API (v1)
-                // publishingType → AUTOMATIC : 자동 배포, USER_MANAGED : 사용자 관리 배포 (수동 승인/배포 필요 시)
-                url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED"
-                credentials {
-                    username = project.findProperty("centralUsername")
-                    password = project.findProperty("centralPassword")
+            repositories {
+                // Central Portal 배포 설정
+                maven {
+                    name = "CentralPortal"
+                    // Central Portal Zip Bundle Upload API (v1)
+                    // publishingType → AUTOMATIC : 자동 배포, USER_MANAGED : 사용자 관리 배포 (수동 승인/배포 필요 시)
+                    url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED"
+                    credentials {
+                        username = project.findProperty("centralUsername")
+                        password = project.findProperty("centralPassword")
+                    }
                 }
             }
         }
     }
 
     // GPG 서명 설정: 항상 Signing 플러그인을 적용하되, 배포 관련 태스크 실행 시에만 서명 수행
-    signing {
-        // 배포(Publish) 태스크가 실행될 때만 서명 필수 (그 외 일반 빌드에서는 건너뜀)
-        required {
-             gradle.taskGraph.allTasks.any {
-                 it.name.contains("publish") || it.name.contains("Publish")
-             }
+    if (project.name != 's2-validator-plugin') {
+        signing {
+            // 배포(Publish) 태스크가 실행될 때만 서명 필수 (그 외 일반 빌드에서는 건너뜀)
+            required {
+                 gradle.taskGraph.allTasks.any {
+                     it.name.contains("publish") || it.name.contains("Publish")
+                 }
+            }
+            sign publishing.publications
         }
-        sign publishing.publications
     }
 
     test {
