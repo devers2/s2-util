@@ -88,7 +88,7 @@ Add the following dependency to your `build.gradle`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-jpa:1.0.1'
+    implementation 'io.github.devers2:s2-jpa:1.0.2'
 }
 ```
 
@@ -163,7 +163,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-jpa Version: 1.0.1 (2026-01-23)
+s2-jpa Version: 1.0.2 (2026-01-23)
 
 [//]: # 'S2_DEPS_INFO_START'
 
