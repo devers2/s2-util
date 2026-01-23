@@ -1,6 +1,7 @@
 package io.github.devers2.s2util.jpa;
 
 import java.util.Collection;
+import java.util.Map;
 
 import jakarta.persistence.TypedQuery;
 
@@ -17,17 +18,17 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -37,16 +38,16 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, String suffix);
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -56,16 +57,16 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -75,15 +76,15 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix);
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -93,15 +94,16 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause, LikeMode likeMode);
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -111,14 +113,118 @@ public interface Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String name, Object value, Object clause);
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -128,16 +234,16 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix   String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix   String to append to the clause | 절 뒤에 붙을 문자열
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -147,15 +253,15 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix String to append to the clause | 절 뒤에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause, String prefix, String suffix);
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -165,15 +271,15 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix   String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -183,14 +289,14 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause, String prefix);
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -200,14 +306,15 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause, LikeMode likeMode);
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -217,13 +324,111 @@ public interface Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String name, Object value, Object clause);
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, LikeMode likeMode);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause);
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause);
 
     /**
      * Parses the sort condition string and dynamically adds an ORDER BY clause.
