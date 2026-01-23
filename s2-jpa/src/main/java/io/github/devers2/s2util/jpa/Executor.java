@@ -28,7 +28,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -47,7 +47,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -66,7 +66,7 @@ public interface Executor<T> {
      * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -84,7 +84,7 @@ public interface Executor<T> {
      * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -103,7 +103,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -121,7 +121,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -139,7 +139,7 @@ public interface Executor<T> {
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -156,7 +156,7 @@ public interface Executor<T> {
      * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -174,7 +174,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -191,7 +191,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, LikeMode likeMode);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -208,7 +208,7 @@ public interface Executor<T> {
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause);
+    Executor<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -224,7 +224,7 @@ public interface Executor<T> {
      * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause);
+    Executor<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -243,7 +243,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -261,7 +261,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, String suffix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -279,7 +279,7 @@ public interface Executor<T> {
      * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -296,7 +296,7 @@ public interface Executor<T> {
      * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, String suffix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -314,7 +314,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -331,7 +331,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -348,7 +348,7 @@ public interface Executor<T> {
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -364,7 +364,7 @@ public interface Executor<T> {
      * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -381,7 +381,7 @@ public interface Executor<T> {
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, LikeMode likeMode);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -397,7 +397,7 @@ public interface Executor<T> {
      * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause, LikeMode likeMode);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause, LikeMode likeMode);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -413,7 +413,7 @@ public interface Executor<T> {
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, String parameterName, Object parameterValue, Object clause);
+    Executor<T> applyClause(String key, String parameterName, Object parameterValue, String clause);
 
     /**
      * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
@@ -428,7 +428,7 @@ public interface Executor<T> {
      * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setParameter(String key, Map<String, Object> parameters, Object clause);
+    Executor<T> applyClause(String key, Map<String, Object> parameters, String clause);
 
     /**
      * Parses the sort condition string and dynamically adds an ORDER BY clause.
@@ -440,12 +440,12 @@ public interface Executor<T> {
      * 정렬 조건 문자열을 파싱하여 동적으로 ORDER BY 절을 추가합니다.
      * 콤마(,)로 구분된 다중 정렬을 지원하며, 정렬 방향(ASC/DESC)의 유효성을 검사합니다.
      *
-     * @param key       Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
-     * @param condition Whether to apply the sort condition | 정렬 조건 적용 여부
-     * @param sort      Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
+     * @param key            Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param condition      Whether to apply the sort condition | 정렬 조건 적용 여부
+     * @param sortExpression Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setOrder(String key, boolean condition, String sort);
+    Executor<T> applyOrderBy(String key, boolean condition, String sortExpression);
 
     /**
      * Parses the sort condition string and dynamically adds an ORDER BY clause.
@@ -457,11 +457,11 @@ public interface Executor<T> {
      * 정렬 조건 문자열을 파싱하여 동적으로 ORDER BY 절을 추가합니다.
      * 콤마(,)로 구분된 다중 정렬을 지원하며, 정렬 방향(ASC/DESC)의 유효성을 검사합니다.
      *
-     * @param key  Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
-     * @param sort Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
+     * @param key            Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param sortExpression Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> setOrder(String key, String sort);
+    Executor<T> applyOrderBy(String key, String sortExpression);
 
     /**
      * [Value-based binding] Replaces with 'prefix + value' format only when value is valid.
@@ -567,10 +567,10 @@ public interface Executor<T> {
      *
      * @param key       Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
      * @param condition Boolean condition to check | 유효성을 검사할 Boolean 조건
-     * @param content   Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
+     * @param content   Actual content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
      * @param prefix    Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
      * @param suffix    Suffix to append when content is injected | 내용 주입 시 뒤에 붙일 접미사
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
      *          Mainly used for inserting sentences based on sorting conditions or true/false of specific business logic.
      *
@@ -579,7 +579,7 @@ public interface Executor<T> {
      * // Result: "ORDER BY m.id DESC" if pageable.isSorted() is true
      * }</pre>
      */
-    Executor<T> bindWhen(String key, boolean condition, Object content, String prefix, String suffix);
+    Executor<T> bindWhen(String key, boolean condition, String content, String prefix, String suffix);
 
     /**
      * [Condition-based binding] Injects specified content when condition is true.
@@ -601,9 +601,9 @@ public interface Executor<T> {
      *
      * @param key       Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
      * @param condition Boolean condition to check | 유효성을 검사할 Boolean 조건
-     * @param content   Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
+     * @param content   Actual content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
      * @param prefix    Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
      *          Mainly used for inserting sentences based on sorting conditions or true/false of specific business logic.
      *
@@ -612,7 +612,7 @@ public interface Executor<T> {
      * // Result: "ORDER BY m.id DESC" if pageable.isSorted() is true
      * }</pre>
      */
-    Executor<T> bindWhen(String key, boolean condition, Object content, String prefix);
+    Executor<T> bindWhen(String key, boolean condition, String content, String prefix);
 
     /**
      * [Condition-based binding] Injects specified content when condition is true.
@@ -633,8 +633,8 @@ public interface Executor<T> {
      *
      * @param key       Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
      * @param condition Boolean condition to check | 유효성을 검사할 Boolean 조건
-     * @param content   Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @param content   Actual content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
      *          Mainly used for inserting sentences based on sorting conditions or true/false of specific business logic.
      *
@@ -643,106 +643,107 @@ public interface Executor<T> {
      * // Result: "m.id DESC" if pageable.isSorted() is true
      * }</pre>
      */
-    Executor<T> bindWhen(String key, boolean condition, Object content);
+    Executor<T> bindWhen(String key, boolean condition, String content);
 
     /**
-     * [Presence-based binding] Injects specified content when presence value exists.
+     * [Value-based binding] Injects specified content when the value exists and is valid.
      * <p>
-     * Uses the validity of presence (not null, not empty) as a trigger.
+     * Uses the validity of the value (not null, not empty) as a trigger.
      * When valid, combines prefix and content to replace the template key.
-     * Useful for conditionally inserting clauses like AND, ORDER BY in dynamic queries.
+     * Useful for conditionally inserting JPQL clauses like 'AND' or 'ORDER BY' in dynamic queries.
      * </p>
      *
      * <p>
      * [한국어 설명]
      * </p>
-     * [Presence 기반 바인딩] 값(presence)이 존재할 때 지정된 내용(content)을 주입합니다.
+     * [Value 기반 바인딩] 값({@code value})이 유효할 때 지정된 내용({@code content})을 주입합니다.
      * <p>
-     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
+     * 이 메서드는 {@code value}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
      * 유효할 경우, {@code prefix}와 {@code content}를 결합하여 템플릿의 키를 치환합니다.
-     * 주로 동적 쿼리에서 {@code AND}, {@code ORDER BY} 절과 같은 문장 자체를 조건부로 삽입할 때 유용합니다.
+     * 주로 동적 쿼리에서 {@code AND}, {@code ORDER BY} 절과 같은 구문 자체를 조건부로 삽입할 때 유용합니다.
      * </p>
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
-     * @param presence Reference value or Boolean condition to check validity | 유효성을 검사할 기준 값 혹은 Boolean 조건
-     * @param content  Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
-     * @param prefix   Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
-     * @param suffix   Suffix to append when content is injected | 내용 주입 시 뒤에 붙일 접미사
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @param key     Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param value   Reference value or Boolean condition to check validity | 유효성을 검사할 기준 값 혹은 Boolean 조건
+     * @param content Actual content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
+     * @param prefix  Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
+     * @param suffix  Suffix to append when content is injected | 내용 주입 시 뒤에 붙일 접미사
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
-     *          {@code presence} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
+     *          {@code value} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
      *
      *          <pre>{@code
      * .bindWhen("stage", stage, ":stage", "AND s.stage IN (", ")")
      * // Result: "AND s.stage IN (:stage)" if stage exists
      * }</pre>
      */
-    Executor<T> bindWhen(String key, Object presence, Object content, String prefix, String suffix);
+    Executor<T> bindWhen(String key, Object value, String content, String prefix, String suffix);
 
     /**
-     * [Presence-based binding] Injects specified content when presence value exists.
+     * [Value-based binding] Injects specified content when the reference value exists.
      * <p>
-     * Uses the validity of presence (not null, not empty) as a trigger.
-     * When valid, combines prefix and content to replace the template key.
-     * Useful for conditionally inserting clauses like AND, ORDER BY in dynamic queries.
+     * Uses the validity of the value (not null, not empty) as a trigger.
+     * When valid, combines the prefix and content to replace the template key.
+     * Useful for conditionally inserting JPQL clauses like 'AND' or 'ORDER BY' in dynamic queries.
      * </p>
      *
      * <p>
      * [한국어 설명]
      * </p>
-     * [Presence 기반 바인딩] 값(presence)이 존재할 때 지정된 내용(content)을 주입합니다.
+     * [Value 기반 바인딩] 값({@code value})이 유효할 때 지정된 내용({@code content})을 주입합니다.
      * <p>
-     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
+     * 이 메서드는 {@code value}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
      * 유효할 경우, {@code prefix}와 {@code content}를 결합하여 템플릿의 키를 치환합니다.
-     * 주로 동적 쿼리에서 {@code AND}, {@code ORDER BY} 절과 같은 문장 자체를 조건부로 삽입할 때 유용합니다.
+     * 주로 동적 쿼리에서 {@code AND}, {@code ORDER BY} 절과 같은 구문 자체를 조건부로 삽입할 때 유용합니다.
      * </p>
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
-     * @param presence Reference value or Boolean condition to check validity | 유효성을 검사할 기준 값 혹은 Boolean 조건
-     * @param content  Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
-     * @param prefix   Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @param key     Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param value   Reference value to check validity (not null/blank) | 유효성을 검사할 기준 값
+     * @param prefix  Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
+     * @param content Actual JPQL content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
-     *          {@code presence} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
+     *          {@code value} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
      *
      *          <pre>{@code
      * .bindWhen("stage", stage, "s.stage = :stage", "AND ")
      * // Result: "AND s.stage = :stage" if stage exists
      * }</pre>
      */
-    Executor<T> bindWhen(String key, Object presence, Object content, String prefix);
+    Executor<T> bindWhen(String key, Object value, String content, String prefix);
 
     /**
-     * [Presence-based binding] Injects specified content when presence value exists.
+     * [Value-based binding] Injects specified content only when the provided value is valid.
      * <p>
-     * Uses the validity of presence (not null, not empty) as a trigger.
-     * When valid, replaces the template key with content.
-     * Useful for conditionally inserting clauses like AND, ORDER BY in dynamic queries.
+     * Uses the validity of the value (not null, not empty) as a trigger.
+     * When valid, replaces the template key with the specified content.
+     * Useful for conditionally inserting JPQL clauses like 'AND' or 'ORDER BY'
+     * based on the existence of a specific data value.
      * </p>
      *
      * <p>
      * [한국어 설명]
      * </p>
-     * [Presence 기반 바인딩] 값(presence)이 존재할 때 지정된 내용(content)을 주입합니다.
+     * [Value 기반 바인딩] 값({@code value})이 유효할 때 지정된 내용({@code content})을 주입합니다.
      * <p>
-     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
+     * 이 메서드는 {@code value}의 유효성(null 아님, 비어 있지 않음)을 트리거로 사용합니다.
      * 유효할 경우, {@code content}로 템플릿의 키를 치환합니다.
-     * 주로 동적 쿼리에서 {@code AND}, {@code ORDER BY} 절과 같은 문장 자체를 조건부로 삽입할 때 유용합니다.
+     * 주로 동적 쿼리에서 파라미터 값의 존재 여부에 따라 구문 자체를 삽입할 때 유용합니다.
      * </p>
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
-     * @param presence Reference object to check validity (ignored if null/blank) | 유효성을 검사할 기준 객체 (null/blank 시 무시)
-     * @param content  Actual content to inject when value is valid (Object.toString() is used) | 값이 유효할 때 주입할 실제 내용 (Object의 toString()이 사용됨)
-     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @param key     Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param value   Reference object to check validity (ignored if null/blank) | 유효성을 검사할 기준 객체 (null/blank 시 무시)
+     * @param content Actual content to inject when value is valid | 값이 유효할 때 주입할 실제 내용
+     * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
      * @apiNote
-     *          {@code presence} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
+     *          {@code value} acts only as a trigger for existence judgment, actual replacement is done with {@code content}.
      *
      *          <pre>{@code
      * .bindWhen("stage", stage, "s.stage = :stage")
      * // Result: "s.stage = :stage" if stage exists
      * }</pre>
      */
-    Executor<T> bindWhen(String key, Object presence, Object content);
+    Executor<T> bindWhen(String key, Object value, String content);
 
     /**
      * [Collection-based binding] When collection is valid, joins elements

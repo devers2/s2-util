@@ -22,7 +22,7 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
    - Support for complex WHERE, ORDER BY, and JOIN clauses
 
 2. **Type-Safe Parameter Binding**
-   - `setParameter()` methods with condition checks
+   - `applyClause()` methods with condition checks
    - Automatic parameter type handling
    - Support for various parameter types (String, Number, Date, etc.)
 
@@ -53,8 +53,8 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
    - 파라미터 존재 여부에 따른 조건부 절 포함
    - 복잡한 WHERE, ORDER BY, JOIN 절 지원
 
-2. **타입 안전한 파라미터 바인딩**
-   - 조건 검사를 포함한 `setParameter()` 메서드
+2. **안전한 파라미터 바인딩**
+   - 조건 검사를 포함한 `applyClause()` 메서드
    - 자동 파라미터 타입 처리
    - 다양한 파라미터 타입 지원 (String, Number, Date 등)
 
@@ -88,7 +88,7 @@ Add the following dependency to your `build.gradle`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-jpa:1.0.2'
+    implementation 'io.github.devers2:s2-jpa:1.0.5'
 }
 ```
 
@@ -106,11 +106,9 @@ TypedQuery<Member> query = S2Jpql.from(entityManager)
         {{=where_clause}}
         {{=order_clause}}
         """)
-    .setParameter("name_cond", "name", "John", "AND m.name = :name")
-    .setParameter("age_cond", "age", 30, "AND m.age > :age")
-    .bind("where_clause", "AND m.active = 1")  // S2Template method
-    .bindWhen("order_clause", true, "ORDER BY m.name ASC", "")  // S2Template method
-    .setOrder("order_clause", "m.createdAt DESC")  // JPA-specific method
+    .applyClause("name_cond", "name", "John", "AND m.name = :name")
+    .applyClause("age_cond", "age", 30, "AND m.age > :age")
+    .bindOrderBy("order_clause", "m.createdAt DESC")
     .build();
 
 // Execute the query
@@ -123,7 +121,7 @@ List<Member> results = query.getResultList();
 TypedQuery<Member> searchQuery = S2Jpql.from(entityManager)
     .type(Member.class)
     .query("SELECT m FROM Member m WHERE m.name LIKE :name")
-    .setParameter("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)  // %John%
+    .applyClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)  // %John%
     .build();
 ```
 
@@ -163,7 +161,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-jpa Version: 1.0.4 (2026-01-23)
+s2-jpa Version: 1.0.5 (2026-01-23)
 
 [//]: # 'S2_DEPS_INFO_START'
 

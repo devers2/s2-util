@@ -59,9 +59,9 @@ class S2JpqlTest {
         TypedQuery<Member> result = S2Jpql.from(entityManager)
                 .type(Member.class)
                 .query(jpql)
-                .setParameter("cond_name", "name", "John", "AND m.name = :name")
-                .setParameter("cond_age", "age", 30, "AND m.age = :age")
-                .setOrder("cond_order", "m.name ASC")
+                .applyClause("cond_name", "name", "John", "AND m.name = :name")
+                .applyClause("cond_age", "age", 30, "AND m.age = :age")
+                .applyOrderBy("cond_order", "m.name ASC")
                 .build();
 
         // Then
@@ -87,7 +87,7 @@ class S2JpqlTest {
         S2Jpql.from(entityManager)
                 .type(Member.class)
                 .query(jpql)
-                .setParameter("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
+                .applyClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
                 .build();
 
         // Then
@@ -109,7 +109,7 @@ class S2JpqlTest {
         S2Jpql.from(entityManager)
                 .type(Member.class)
                 .query(jpql)
-                .setParameter("dummy", "name", "John", "dummy", LikeMode.START)
+                .applyClause("dummy", "name", "John", "dummy", LikeMode.START)
                 .build();
 
         // Then
@@ -132,7 +132,7 @@ class S2JpqlTest {
         S2Jpql.from(entityManager)
                 .type(Member.class)
                 .query(jpql)
-                .setParameter("dummy", "name", "John", "dummy", LikeMode.END)
+                .applyClause("dummy", "name", "John", "dummy", LikeMode.END)
                 .build();
 
         // Then
@@ -156,7 +156,7 @@ class S2JpqlTest {
                 .query(jpql)
                 .bind("where", "WHERE m.active = 1")
                 .bindWhen("order", true, "ORDER BY m.name", "")
-                .setParameter("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
+                .applyClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
                 .build();
 
         // Then
