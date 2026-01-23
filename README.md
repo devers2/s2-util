@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.0.2'
+    implementation 'io.github.devers2:s2-core:1.0.3'
     implementation 'io.github.devers2:s2-validator:1.0.2'
 }
 
@@ -112,9 +112,7 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 ```html
 <!-- Inject the validation rules JSON string passed from the controller -->
 <!-- 컨트롤러에서 전달받은 검증 규칙(JSON 문자열)을 폼의 data 속성에 주입 -->
-<form id="myForm" th:data-s2-rules="${rules}">
-  ...
-</form>
+<form id="myForm" th:data-s2-rules="${rules}">...</form>
 
 <script type="module">
   // s2.validator.js is served automatically from the JAR's META-INF/resources.
@@ -128,7 +126,6 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 ---
 
 ## 📦 Core Modules (핵심 모듈)
-
 
 ### 1. **s2-core** - Foundation Library
 
