@@ -110,13 +110,13 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
 
     private final EntityManager entityManager;
     private final Class<T> resultClass;
-    private final Map<String, Object> parameters;
+    private final Map<String, Object> boundParameters;
 
     private S2Jpql(String sql, EntityManager entityManager, Class<T> resultClass) {
         super(sql);
         this.entityManager = Objects.requireNonNull(entityManager, "EntityManager must not be null");
         this.resultClass = Objects.requireNonNull(resultClass, "Result class must not be null");
-        this.parameters = new HashMap<>();
+        this.boundParameters = new HashMap<>();
     }
 
     /**
@@ -142,20 +142,20 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, String suffix, LikeMode likeMode) {
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix, suffix);
-        putParameters(name, value, likeMode);
+        putParameter(parameterName, parameterValue, likeMode);
         return this;
     }
 
@@ -167,19 +167,19 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, String suffix) {
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix, suffix);
-        putParameters(name, value, null);
+        putParameters(parameters, likeMode);
         return this;
     }
 
@@ -191,19 +191,66 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix, LikeMode likeMode) {
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix) {
+        super.bindWhen(key, condition, clause, prefix, suffix);
+        putParameter(parameterName, parameterValue, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix) {
+        super.bindWhen(key, condition, clause, prefix, suffix);
+        putParameters(parameters, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix);
-        putParameters(name, value, likeMode);
+        putParameter(parameterName, parameterValue, likeMode);
         return this;
     }
 
@@ -215,18 +262,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause, String prefix) {
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix);
-        putParameters(name, value, null);
+        putParameters(parameters, likeMode);
         return this;
     }
 
@@ -238,18 +285,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause, LikeMode likeMode) {
-        super.bindWhen(key, condition, clause);
-        putParameters(name, value, likeMode);
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix) {
+        super.bindWhen(key, condition, clause, prefix);
+        putParameter(parameterName, parameterValue, null);
         return this;
     }
 
@@ -261,17 +308,105 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param name      Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value     Parameter value | 파라미터 값
-     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String name, Object value, Object clause) {
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix) {
+        super.bindWhen(key, condition, clause, prefix);
+        putParameters(parameters, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, LikeMode likeMode) {
         super.bindWhen(key, condition, clause);
-        putParameters(name, value, null);
+        putParameter(parameterName, parameterValue, likeMode);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, LikeMode likeMode) {
+        super.bindWhen(key, condition, clause);
+        putParameters(parameters, likeMode);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause) {
+        super.bindWhen(key, condition, clause);
+        putParameter(parameterName, parameterValue, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition  Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause) {
+        super.bindWhen(key, condition, clause);
+        putParameters(parameters, null);
         return this;
     }
 
@@ -283,19 +418,19 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix   String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix   String to append to the clause | 절 뒤에 붙을 문자열
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause, String prefix, String suffix, LikeMode likeMode) {
-        super.bindWhen(key, value, clause, prefix, suffix);
-        putParameters(name, value, likeMode);
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode) {
+        super.bindWhen(key, parameterValue, clause, prefix, suffix);
+        putParameter(parameterName, parameterValue, likeMode);
         return this;
     }
 
@@ -307,18 +442,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix String to append to the clause | 절 뒤에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause, String prefix, String suffix) {
-        super.bindWhen(key, value, clause, prefix, suffix);
-        putParameters(name, value, null);
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode) {
+        super.bindWhen(key, parameters, clause, prefix, suffix);
+        putParameters(parameters, likeMode);
         return this;
     }
 
@@ -330,18 +465,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix   String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause, String prefix, LikeMode likeMode) {
-        super.bindWhen(key, value, clause, prefix);
-        putParameters(name, value, likeMode);
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix) {
+        super.bindWhen(key, parameterValue, clause, prefix, suffix);
+        putParameter(parameterName, parameterValue, null);
         return this;
     }
 
@@ -353,17 +488,17 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix     String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause, String prefix) {
-        super.bindWhen(key, value, clause, prefix);
-        putParameters(name, value, null);
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix) {
+        super.bindWhen(key, parameters, clause, prefix, suffix);
+        putParameters(parameters, null);
         return this;
     }
 
@@ -375,17 +510,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key      Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name     Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value    Parameter value | 파라미터 값
-     * @param clause   Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param likeMode Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause, LikeMode likeMode) {
-        super.bindWhen(key, value, clause);
-        putParameters(name, value, likeMode);
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode) {
+        super.bindWhen(key, parameterValue, clause, prefix);
+        putParameter(parameterName, parameterValue, likeMode);
         return this;
     }
 
@@ -397,16 +533,144 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * </p>
      * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key    Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param name   Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param value  Parameter value | 파라미터 값
-     * @param clause Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String name, Object value, Object clause) {
-        super.bindWhen(key, value, clause);
-        putParameters(name, value, null);
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode) {
+        super.bindWhen(key, parameters, clause, prefix);
+        putParameters(parameters, likeMode);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix) {
+        super.bindWhen(key, parameterValue, clause, prefix);
+        putParameter(parameterName, parameterValue, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix     String to prepend to the clause | 절 앞에 붙을 문자열
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix) {
+        super.bindWhen(key, parameters, clause, prefix);
+        putParameters(parameters, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, LikeMode likeMode) {
+        super.bindWhen(key, parameterValue, clause);
+        putParameter(parameterName, parameterValue, likeMode);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode   Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, LikeMode likeMode) {
+        super.bindWhen(key, parameters, clause);
+        putParameters(parameters, likeMode);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValue Parameter value | 파라미터 값
+     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause) {
+        super.bindWhen(key, parameterValue, clause);
+        putParameter(parameterName, parameterValue, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     *
+     * @param key        Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param parameters Map of parameter names and their values | 파라미터 이름과 값의 쌍을 담은 맵
+     * @param clause     Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause) {
+        super.bindWhen(key, parameters, clause);
+        putParameters(parameters, null);
         return this;
     }
 
@@ -552,7 +816,13 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         return this;
     }
 
-    private void putParameters(String name, Object value, LikeMode likeMode) {
+    private void putParameters(Map<String, Object> parameters, LikeMode likeMode) {
+        if (parameters != null) {
+            parameters.forEach((name, value) -> this.putParameter(name, value, likeMode));
+        }
+    }
+
+    private void putParameter(String name, Object value, LikeMode likeMode) {
         Object processedValue = value;
         if (value instanceof String && likeMode != null) {
             String stringValue = (String) value;
@@ -562,7 +832,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                 case END -> "%" + stringValue;
             };
         }
-        parameters.put(name, processedValue);
+        boundParameters.put(name, processedValue);
     }
 
     /**
@@ -582,11 +852,11 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         TypedQuery<T> query = entityManager.createQuery(renderedSql, resultClass);
 
         // 2. 자동 바인딩 (S2Template의 rawValues 활용)
-        System.out.println("Parameters to bind: " + parameters);
+        System.out.println("Parameters to bind: " + boundParameters);
         for (Parameter<?> param : query.getParameters()) {
             String name = param.getName();
-            if (name != null && parameters.containsKey(name)) {
-                Object value = parameters.get(name);
+            if (name != null && boundParameters.containsKey(name)) {
+                Object value = boundParameters.get(name);
                 System.out.println("Binding parameter: " + name + " = " + value);
                 query.setParameter(name, value);
             }
