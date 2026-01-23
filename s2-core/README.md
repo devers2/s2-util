@@ -120,4 +120,4 @@ This module utilizes the following high-quality open-source library:
 
 ---
 
-s2-core Version: 1.0.2 (2026-01-22)
+s2-core Version: 1.0.3 (2026-01-23)

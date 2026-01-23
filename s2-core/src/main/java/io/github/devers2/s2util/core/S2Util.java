@@ -20,13 +20,11 @@
  */
 package io.github.devers2.s2util.core;
 
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -176,13 +174,13 @@ public class S2Util {
      * <li><b>인덱스 지원:</b> users[0].name 또는 matrix[1][2]와 같은 대괄호([]) 문법 지원</li>
      * </ul>
      *
-     * @param <T>       The type of the target object
-     * @param <F>       The type of the field identifier
-     * @param <R>       The expected return type
-     * @param target    The object to query
-     * @param fieldName Field identifier or navigation path
-     * @param castClass The Class to cast to (no casting if {@code null})
-     * @return The extracted value
+     * @param <T>       The type of the target object | 대상 객체의 타입
+     * @param <F>       The type of the field identifier | 필드 식별자 타입
+     * @param <R>       The expected return type | 예상되는 반환 타입
+     * @param target    The object to query | 조회 대상 객체
+     * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @param castClass The Class to cast to (no casting if {@code null}) | 형변환할 클래스 (null이면 형변환하지 않음)
+     * @return The extracted value | 추출된 값
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass) {
@@ -206,13 +204,13 @@ public class S2Util {
      * </p>
      * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출하며, {@code null}이거나 오류 발생 시 기본값을 반환합니다.
      *
-     * @param <T>          The type of the target object
-     * @param <F>          The type of the field identifier
-     * @param <R>          The expected return type
-     * @param target       The object to query
-     * @param fieldName    Field identifier or navigation path
-     * @param defaultValue Default value to return if extraction fails
-     * @return Extracted value or default value
+     * @param <T>          The type of the target object | 대상 객체의 타입
+     * @param <F>          The type of the field identifier | 필드 식별자 타입
+     * @param <R>          The expected return type | 예상되는 반환 타입
+     * @param target       The object to query | 조회 대상 객체
+     * @param fieldName    Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @param defaultValue Default value to return if extraction fails | 추출 실패 시 반환할 기본값
+     * @return Extracted value or default value | 추출된 값 또는 기본값
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, R defaultValue) {
@@ -239,14 +237,14 @@ public class S2Util {
      * </ul>
      * </p>
      *
-     * @param <T>          대상 객체의 타입
-     * @param <F>          조회할 필드의 타입
-     * @param <R>          반환값의 타입
-     * @param target       값을 추출할 대상 객체 (Map, List/Array, Record, VO/DTO, Optional 등)
-     * @param fieldName    조회할 필드명 (Map의 Key, List/Array의 Index, 또는 필드 이름, 중첩/인덱스 경로 지원)
-     * @param castClass    반환받을 타입의 Class(defaultValue 값이 있을 때는 생략 가능하고 생략하면 defaultValue 타입으로 형변환, defaultValue 값 없이 생략하면 형변환 수행 안 함)
-     * @param defaultValue 값이 null이거나 오류 발생 시 반환할 기본값
-     * @return 추출된 값 또는 기본값
+     * @param <T>          The type of the target object | 대상 객체의 타입
+     * @param <F>          The type of the field identifier | 필드 식별자 타입
+     * @param <R>          The expected return type | 예상되는 반환 타입
+     * @param target       The object to query | 조회 대상 객체
+     * @param fieldName    Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @param castClass    The Class to cast to (no casting if {@code null}) | 형변환할 클래스 (null이면 형변환하지 않음)
+     * @param defaultValue Default value to return if extraction fails | 추출 실패 시 반환할 기본값
+     * @return Extracted value or default value | 추출된 값 또는 기본값
      */
     @SuppressWarnings("null")
     private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue) {
@@ -454,13 +452,13 @@ public class S2Util {
      * <li><b>인덱스 지원:</b> users[0].name 또는 matrix[1][2]와 같은 대괄호([]) 문법 지원</li>
      * </ul>
      *
-     * @param <T>       The type of the target object
-     * @param <F>       The type of the field identifier (String or Number)
-     * @param <V>       The type of the value to set
-     * @param target    The object to modify
-     * @param fieldName Field identifier or navigation path
-     * @param value     The value to inject
-     * @return {@code true} if the value was successfully set
+     * @param <T>       The type of the target object | 대상 객체의 타입
+     * @param <F>       The type of the field identifier (String or Number) | 필드 식별자 타입 (문자열 또는 숫자)
+     * @param <V>       The type of the value to set | 설정할 값의 타입
+     * @param target    The object to modify | 수정할 객체
+     * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @param value     The value to inject | 주입할 값
+     * @return {@code true} if the value was successfully set | 값이 성공적으로 설정되었으면 {@code true}
      */
     public static <T, F, V> boolean setValue(T target, F fieldName, V value) {
         return setValue(target, fieldName, null, value);
@@ -493,14 +491,14 @@ public class S2Util {
      * <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
      * </p>
      *
-     * @param <T>        대상 객체의 타입
-     * @param <F>        설정할 필드의 타입
-     * @param <V>        설정할 값의 타입
-     * @param target     값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
-     * @param fieldName  설정할 필드명 (Map의 Key, List/Array의 Index, 또는 필드 이름, 중첩/인덱스 경로 지원)
-     * @param valueClass 값의 타입 (null일 경우 value의 타입을 추론)
-     * @param value      설정할 값
-     * @return 값 설정 성공 여부 (true: 성공, false: 실패)
+     * @param <T>        The type of the target object | 대상 객체의 타입
+     * @param <F>        The type of the field identifier | 필드 식별자 타입
+     * @param <V>        The type of the value to set | 설정할 값의 타입
+     * @param target     The object to modify (Map, List/Array, Record, VO/DTO, etc.) | 수정할 객체 (Map, List/Array, Record, VO/DTO 등)
+     * @param fieldName  Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @param valueClass The Class of the value (inferred from value if null) | 값의 클래스 (null이면 value에서 추론)
+     * @param value      The value to set | 설정할 값
+     * @return {@code true} if the value was successfully set, {@code false} otherwise | 값이 성공적으로 설정되었으면 {@code true}, 아니면 {@code false}
      */
     @SuppressWarnings({ "null", "unused" })
     public static <T, F, V> boolean setValue(final T target, final F fieldName, Class<V> valueClass, final V value) {
@@ -642,84 +640,103 @@ public class S2Util {
     }
 
     /**
+     * Extracts all field values from the target object and returns them as a Map.
+     * <p>
+     * Uses {@link java.lang.invoke.MethodHandle} caching instead of reflection to maximize object conversion speed.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 대상 객체의 모든 필드(Property) 값을 추출하여 Map으로 반환한다.
      * <p>
      * 리플렉션 대신 {@link java.lang.invoke.MethodHandle} 캐싱을 사용하여 객체 변환 속도를 극대화했다.
      * </p>
      *
-     * @param <T>    대상 객체의 타입
-     * @param target 값을 추출할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
-     * @return 추출된 필드명(Key)과 값(Value)이 담긴 Map 객체
-     */
-    @SuppressWarnings({ "unchecked", "null" })
-    public static <T> Map<String, Object> getValueAll(T target) {
-        if (target == null) {
-            return new HashMap<>();
-        }
-
-        // 1. Map인 경우 복사본 반환
-        if (target instanceof Map) {
-            return new HashMap<>((Map<String, Object>) target);
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        Class<?> clazz = S2Cache.getRealClass(target); // 프록시 대응 원본 클래스 추출
-
-        // 2. Record인 경우
-        if (clazz.isRecord()) {
-            var components = clazz.getRecordComponents();
-            for (var component : components) {
-                var fieldName = component.getName();
-                Object value = getValue(target, fieldName, Object.class, null);
-                result.put(fieldName, value);
-            }
-            return result;
-        }
-
-        // 3. VO인 경우: 모든 Getter 메서드를 탐색하여 값 추출
-        // 클래스의 메서드 목록 조회는 비용이 크므로, 실제 값 추출 시에는 캐싱된 MethodHandle을 활용
-        Method[] methods = clazz.getMethods();
-        for (Method method : methods) {
-            String name = method.getName();
-            String fieldName = null;
-
-            // Getter 패턴 매칭 (getXXX, isXXX)
-            if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0 && !name.equals("getClass")) {
-                fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
-            } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
-                fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
-            }
-
-            if (fieldName != null) {
-                // 개별 값 추출 시 이미 최적화된 getValue 활용 (MethodHandle 캐시 사용)
-                Object value = getValue(target, fieldName, Object.class, null);
-                result.put(fieldName, value);
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Map에 담긴 데이터를 대상 객체의 필드에 일괄 설정한다. (null 또는 빈 값도 포함하여 설정된다.)
+     * @param <T>    The type of the target object | 대상 객체의 타입
+     * @param target The object to extract values from (Map, List/Array, Record, VO/DTO, etc.) | 값을 추출할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
+     * @return Map containing extracted field names (keys) and values | 추출된 필드명(Key)과 값(Value)이 담긴 Map 객체
+     *         @SuppressWarnings({ "unchecked", "null" })
+     *         public static <T> Map<String, Object> getValueAll(T target) {
+     *         if (target == null) {
+     *         return new HashMap<>();
+     *         }
      *
-     * <p>
-     * <b>JPA 엔티티 지원:</b><br>
-     * Hibernate 프록시 객체를 자동으로 감지하여 원본 엔티티의 Setter를 호출한다.
-     * 필드에 직접 접근하지 않고 캐싱된 {@link java.lang.invoke.MethodHandle}을 통해 Setter 메서드를 실행하므로,
-     * <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
-     * </p>
+     *         // 1. Map인 경우 복사본 반환
+     *         if (target instanceof Map) {
+     *         return new HashMap<>((Map<String, Object>) target);
+     *         }
+     *
+     *         Map<String, Object> result = new HashMap<>();
+     *         Class<?> clazz = S2Cache.getRealClass(target); // 프록시 대응 원본 클래스 추출
+     *
+     *         // 2. Record인 경우
+     *         if (clazz.isRecord()) {
+     *         var components = clazz.getRecordComponents();
+     *         for (var component : components) {
+     *         var fieldName = component.getName();
+     *         Object value = getValue(target, fieldName, Object.class, null);
+     *         result.put(fieldName, value);
+     *         }
+     *         return result;
+     *         }
+     *
+     *         // 3. VO인 경우: 모든 Getter 메서드를 탐색하여 값 추출
+     *         // 클래스의 메서드 목록 조회는 비용이 크므로, 실제 값 추출 시에는 캐싱된 MethodHandle을 활용
+     *         Method[] methods = clazz.getMethods();
+     *         for (Method method : methods) {
+     *         String name = method.getName();
+     *         String fieldName = null;
+     *
+     *         // Getter 패턴 매칭 (getXXX, isXXX)
+     *         if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0 && !name.equals("getClass")) {
+     *         fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
+     *         } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
+     *         fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
+     *         }
+     *
+     *         if (fieldName != null) {
+     *         // 개별 값 추출 시 이미 최적화된 getValue 활용 (MethodHandle 캐시 사용)
+     *         Object value = getValue(target, fieldName, Object.class, null);
+     *         result.put(fieldName, value);
+     *         }
+     *         }
+     *
+     *         return result;
+     *         }
+     *
+     *         /**
+     *         Map에 담긴 데이터를 대상 객체의 필드에 일괄 설정한다. (null 또는 빈 값도 포함하여 설정된다.)
+     *
+     *         <p>
+     *         <b>JPA 엔티티 지원:</b><br>
+     *         Hibernate 프록시 객체를 자동으로 감지하여 원본 엔티티의 Setter를 호출한다.
+     *         필드에 직접 접근하지 않고 캐싱된 {@link java.lang.invoke.MethodHandle}을 통해 Setter 메서드를 실행하므로,
+     *         <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
+     *         </p>
      *
      * @param <T>    대상 객체의 타입
      * @param target 값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
      * @param data   설정할 데이터 Map
-     * @return 설정 성공 여부
+     * @return {@code true} if all values were successfully set, {@code false} otherwise | 모든 값이 성공적으로 설정되었으면 {@code true}, 아니면 {@code false}
      */
     public static <T> boolean setValueAll(T target, Map<String, Object> data) {
         return setValueAll(target, data, false);
     }
 
     /**
+     * Sets all data from the Map to the target object's fields in batch.
+     *
+     * <p>
+     * <b>JPA Entity Support:</b><br>
+     * Automatically detects Hibernate proxy objects and calls the original entity's Setter.
+     * Since Setter methods are executed via cached {@link java.lang.invoke.MethodHandle} without direct field access,
+     * <b>JPA's Dirty Checking mechanism works normally</b>.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * Map에 담긴 데이터를 대상 객체의 필드에 일괄 설정한다.
      *
      * <p>
@@ -729,11 +746,11 @@ public class S2Util {
      * <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
      * </p>
      *
-     * @param <T>           대상 객체의 타입
-     * @param target        값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
-     * @param data          설정할 데이터 Map
-     * @param isIgnoreEmpty true일 경우 빈 값(null, "")은 건너뜀
-     * @return 설정 성공 여부
+     * @param <T>           The type of the target object | 대상 객체의 타입
+     * @param target        The object to set values to (Map, List/Array, Record, VO/DTO, etc.) | 값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
+     * @param data          The data Map to set | 설정할 데이터 Map
+     * @param isIgnoreEmpty If true, skips empty values (null, "") | true일 경우 빈 값(null, "")은 건너뜀
+     * @return Success status | 설정 성공 여부
      */
     public static <T> boolean setValueAll(T target, Map<String, Object> data, boolean isIgnoreEmpty) {
         if (target == null || data == null || data.isEmpty()) {
@@ -799,9 +816,9 @@ public class S2Util {
      * <li><b>Array:</b> {@code null} or {@code length == 0} (primitive arrays supported).</li>
      * </ul>
      *
-     * @param <T>   The type of the object
-     * @param value The value to check
-     * @return {@code true} if empty
+     * @param <T>   The type of the object | 객체의 타입
+     * @param value The value to check | 확인할 값
+     * @return {@code true} if empty | 비어있으면 {@code true}
      */
     public static <T> boolean isEmpty(T value) {
         if (value == null)
@@ -866,63 +883,93 @@ public class S2Util {
     }
 
     /**
+     * Checks if the target object is not empty. (String, List, Map, Array)
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 대상 객체(value)가 비어있지 않은지 확인한다. (String, List, Map, Array)
      *
-     * @param <T>   확인할 객체의 타입
-     * @param value 확인할 대상 값
-     * @return 비어있는지 여부
+     * @param <T>   The type of the object to check | 확인할 객체의 타입
+     * @param value The value to check | 확인할 대상 값
+     * @return Whether it is not empty | 비어있지 않은지 여부
      */
     public static <T> boolean isNotEmpty(T value) {
         return !isEmpty(value);
     }
 
     /**
+     * Gets the length of the String object.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * String 객체의 길이를 가져온다
      *
-     * @param string 문자열
-     * @return 문자열 길이
+     * @param string The string | 문자열
+     * @return The string length | 문자열 길이
      */
     public static int length(String string) {
         return string != null ? string.length() : 0;
     }
 
     /**
+     * Gets the length of the Array object.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * Array 객체의 길이를 가져온다
      *
-     * @param array 배열
-     * @return 배열 길이
+     * @param array The array | 배열
+     * @return The array length | 배열 길이
      */
     public static int length(Object[] array) {
         return array != null ? array.length : 0;
     }
 
     /**
+     * Gets the length of the List object.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * List 객체의 길이를 가져온다
      *
-     * @param list 목록
-     * @return 목록 길이
+     * @param list The list | 목록
+     * @return The list length | 목록 길이
      */
     public static int length(List<?> list) {
         return list != null ? list.size() : 0;
     }
 
     /**
+     * Gets the length of the Map object.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * Map 객체의 길이를 가져온다
      *
-     * @param map 맵
-     * @return 맵 엔트리 개수
+     * @param map The map | 맵
+     * @return The number of map entries | 맵 엔트리 개수
      */
     public static int length(Map<?, ?> map) {
         return map != null ? map.size() : 0;
     }
 
     /**
+     * Casts the target object to the specified type.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 대상 객체를 형변환 한다.
      *
-     * @param <V>   대상 객체의 타입 (Value)
-     * @param <T>   반환할 목표 타입 (Target)
-     * @param value 대상 객체
-     * @return 형변환 객체
+     * @param <V>   The type of the value | 값의 타입
+     * @param <T>   The target type | 목표 타입
+     * @param value The value to cast | 형변환할 값
+     * @return The casted object | 형변환된 객체
      */
     @SuppressWarnings("null")
     public static <V, T> T cast(V value) {
@@ -930,13 +977,18 @@ public class S2Util {
     }
 
     /**
+     * Casts the target object to the specified class.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 대상 객체를 형변환 한다.
      *
-     * @param <V>       대상 객체의 타입 (Value)
-     * @param <T>       반환할 목표 타입 (Target)
-     * @param value     대상 객체
-     * @param castClass 형변환 할 클래스
-     * @return 형변환 객체
+     * @param <V>       The type of the value | 값의 타입
+     * @param <T>       The target type | 목표 타입
+     * @param value     The value to cast | 형변환할 값
+     * @param castClass The class to cast to | 형변환할 클래스
+     * @return The casted object | 형변환된 객체
      */
     @SuppressWarnings("null")
     public static <V, T> T cast(V value, Class<T> castClass) {
@@ -944,13 +996,18 @@ public class S2Util {
     }
 
     /**
+     * Casts the target object to the specified type, returning a default value if null.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 대상 객체를 형변환 한다.
      *
-     * @param <V>          대상 객체의 타입 (Value)
-     * @param <T>          반환할 목표 타입 (Target)
-     * @param value        대상 객체
-     * @param defaultValue 대상객체가 null일때기본값(defaultValue 타입으로 형변환)
-     * @return 형변환 객체
+     * @param <V>          The type of the value | 값의 타입
+     * @param <T>          The target type | 목표 타입
+     * @param value        The value to cast | 형변환할 값
+     * @param defaultValue Default value if the value is null (cast to defaultValue type) | 값이 null일 때 기본값 (defaultValue 타입으로 형변환)
+     * @return The casted object | 형변환된 객체
      */
     public static <V, T> T cast(V value, T defaultValue) {
         return cast(value, null, defaultValue);
@@ -981,7 +1038,7 @@ public class S2Util {
      * @param value        Input value
      * @param castClass    Target class (optional if {@code defaultValue} is provided)
      * @param defaultValue Value to return if input is empty or conversion fails
-     * @return The converted value, or {@code defaultValue}
+     * @return The converted value, or {@code defaultValue} | 변환된 값 또는 {@code defaultValue}
      */
     @SuppressWarnings({ "unchecked", "null" })
     private static <V, T> T cast(V value, Class<T> castClass, T defaultValue) {
@@ -1063,7 +1120,7 @@ public class S2Util {
      * @param clazz 생성할 클래스 타입
      * @param args  생성자에 전달할 인자 (전달하지 않으면 기본 생성자 호출)
      * @param <T>   반환할 인스턴스 타입
-     * @return 생성된 인스턴스 또는 실패 시 null
+     * @return The created instance, or {@code null} if creation fails | 생성된 인스턴스 또는 실패 시 {@code null}
      */
     @SuppressWarnings({ "unchecked", "null" })
     public static <T> T createInstance(Class<T> clazz, Object... args) {

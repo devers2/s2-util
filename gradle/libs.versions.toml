@@ -28,6 +28,7 @@ javax-servlet-api = "4.0.1"
 javax-servlet-jsp = "2.3.3"
 jakarta-servlet-api = "6.1.0"
 jakarta-servlet-jsp = "4.0.0"
+jakarta-persistence-api = "3.1.0"
 
 [libraries]
 # Common
@@ -50,6 +51,7 @@ javax-servlet-api = { group = "javax.servlet", name = "javax.servlet-api", versi
 javax-servlet-jsp = { group = "javax.servlet.jsp", name = "javax.servlet.jsp-api", version.ref = "javax-servlet-jsp" }
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta-servlet-api" }
 jakarta-servlet-jsp = { group = "jakarta.servlet.jsp", name = "jakarta.servlet.jsp-api", version.ref = "jakarta-servlet-jsp" }
+jakarta-persistence-api = { group = "jakarta.persistence", name = "jakarta.persistence-api", version.ref = "jakarta-persistence-api" }
 
 # Testing
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
