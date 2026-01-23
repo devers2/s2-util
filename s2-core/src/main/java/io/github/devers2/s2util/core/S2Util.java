@@ -20,11 +20,13 @@
  */
 package io.github.devers2.s2util.core;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -656,68 +658,81 @@ public class S2Util {
      * @param <T>    The type of the target object | 대상 객체의 타입
      * @param target The object to extract values from (Map, List/Array, Record, VO/DTO, etc.) | 값을 추출할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
      * @return Map containing extracted field names (keys) and values | 추출된 필드명(Key)과 값(Value)이 담긴 Map 객체
-     *         @SuppressWarnings({ "unchecked", "null" })
-     *         public static <T> Map<String, Object> getValueAll(T target) {
-     *         if (target == null) {
-     *         return new HashMap<>();
-     *         }
+     */
+    @SuppressWarnings({ "unchecked", "null" })
+    public static <T> Map<String, Object> getValueAll(T target) {
+        if (target == null) {
+            return new HashMap<>();
+        }
+
+        // 1. Map인 경우 복사본 반환
+        if (target instanceof Map) {
+            return new HashMap<>((Map<String, Object>) target);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        Class<?> clazz = S2Cache.getRealClass(target); // 프록시 대응 원본 클래스 추출
+
+        // 2. Record인 경우
+        if (clazz.isRecord()) {
+            var components = clazz.getRecordComponents();
+            for (var component : components) {
+                var fieldName = component.getName();
+                Object value = getValue(target, fieldName, Object.class, null);
+                result.put(fieldName, value);
+            }
+            return result;
+        }
+
+        // 3. VO인 경우: 모든 Getter 메서드를 탐색하여 값 추출
+        // 클래스의 메서드 목록 조회는 비용이 크므로, 실제 값 추출 시에는 캐싱된 MethodHandle을 활용
+        Method[] methods = clazz.getMethods();
+        for (Method method : methods) {
+            String name = method.getName();
+            String fieldName = null;
+
+            // Getter 패턴 매칭 (getXXX, isXXX)
+            if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0 && !name.equals("getClass")) {
+                fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
+            } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
+                fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
+            }
+
+            if (fieldName != null) {
+                // 개별 값 추출 시 이미 최적화된 getValue 활용 (MethodHandle 캐시 사용)
+                Object value = getValue(target, fieldName, Object.class, null);
+                result.put(fieldName, value);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Sets all data from the Map to the target object's fields in batch. (Includes null or empty values.)
      *
-     *         // 1. Map인 경우 복사본 반환
-     *         if (target instanceof Map) {
-     *         return new HashMap<>((Map<String, Object>) target);
-     *         }
+     * <p>
+     * <b>JPA Entity Support:</b><br>
+     * Automatically detects Hibernate proxy objects and calls the original entity's Setter.
+     * Since Setter methods are executed via cached {@link java.lang.invoke.MethodHandle} without direct field access,
+     * <b>JPA's Dirty Checking mechanism works normally</b>.
+     * </p>
      *
-     *         Map<String, Object> result = new HashMap<>();
-     *         Class<?> clazz = S2Cache.getRealClass(target); // 프록시 대응 원본 클래스 추출
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * Map에 담긴 데이터를 대상 객체의 필드에 일괄 설정한다. (null 또는 빈 값도 포함하여 설정된다.)
      *
-     *         // 2. Record인 경우
-     *         if (clazz.isRecord()) {
-     *         var components = clazz.getRecordComponents();
-     *         for (var component : components) {
-     *         var fieldName = component.getName();
-     *         Object value = getValue(target, fieldName, Object.class, null);
-     *         result.put(fieldName, value);
-     *         }
-     *         return result;
-     *         }
+     * <p>
+     * <b>JPA 엔티티 지원:</b><br>
+     * Hibernate 프록시 객체를 자동으로 감지하여 원본 엔티티의 Setter를 호출한다.
+     * 필드에 직접 접근하지 않고 캐싱된 {@link java.lang.invoke.MethodHandle}을 통해 Setter 메서드를 실행하므로,
+     * <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
+     * </p>
      *
-     *         // 3. VO인 경우: 모든 Getter 메서드를 탐색하여 값 추출
-     *         // 클래스의 메서드 목록 조회는 비용이 크므로, 실제 값 추출 시에는 캐싱된 MethodHandle을 활용
-     *         Method[] methods = clazz.getMethods();
-     *         for (Method method : methods) {
-     *         String name = method.getName();
-     *         String fieldName = null;
-     *
-     *         // Getter 패턴 매칭 (getXXX, isXXX)
-     *         if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0 && !name.equals("getClass")) {
-     *         fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
-     *         } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
-     *         fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
-     *         }
-     *
-     *         if (fieldName != null) {
-     *         // 개별 값 추출 시 이미 최적화된 getValue 활용 (MethodHandle 캐시 사용)
-     *         Object value = getValue(target, fieldName, Object.class, null);
-     *         result.put(fieldName, value);
-     *         }
-     *         }
-     *
-     *         return result;
-     *         }
-     *
-     *         /**
-     *         Map에 담긴 데이터를 대상 객체의 필드에 일괄 설정한다. (null 또는 빈 값도 포함하여 설정된다.)
-     *
-     *         <p>
-     *         <b>JPA 엔티티 지원:</b><br>
-     *         Hibernate 프록시 객체를 자동으로 감지하여 원본 엔티티의 Setter를 호출한다.
-     *         필드에 직접 접근하지 않고 캐싱된 {@link java.lang.invoke.MethodHandle}을 통해 Setter 메서드를 실행하므로,
-     *         <b>JPA의 변경 감지(Dirty Checking) 메커니즘이 정상적으로 작동</b>한다.
-     *         </p>
-     *
-     * @param <T>    대상 객체의 타입
-     * @param target 값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
-     * @param data   설정할 데이터 Map
+     * @param <T>    The type of the target object | 대상 객체의 타입
+     * @param target The object to set values to (Map, List/Array, Record, VO/DTO, etc.) | 값을 설정할 대상 객체 (Map, List/Array, Record, VO/DTO 등)
+     * @param data   The data Map to set | 설정할 데이터 Map
      * @return {@code true} if all values were successfully set, {@code false} otherwise | 모든 값이 성공적으로 설정되었으면 {@code true}, 아니면 {@code false}
      */
     public static <T> boolean setValueAll(T target, Map<String, Object> data) {
