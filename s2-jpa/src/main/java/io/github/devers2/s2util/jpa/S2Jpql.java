@@ -39,9 +39,9 @@ import jakarta.persistence.TypedQuery;
  * </p>
  *
  * <ul>
- * <li><b>SQL Injection Prevention:</b> All condition clauses ({@code setParameter}) use JPA's parameter binding (:name) method.</li>
+ * <li><b>SQL Injection Prevention:</b> All condition clauses ({@code applyClause}) use JPA's parameter binding (:name) method.</li>
  * <li><b>Safe LIKE Handling:</b> Through {@link LikeMode}, wildcards (%) are combined at the Java level and passed as parameters to defend against query manipulation.</li>
- * <li><b>Sort Clause Validation:</b> {@link #setOrder(String, String)} parses the input string based on a whitelist (ASC/DESC check and regex separation),
+ * <li><b>Sort Clause Validation:</b> {@link #applyOrderBy(String, String)} parses the input string based on a whitelist (ASC/DESC check and regex separation),
  * completely blocking malicious query injection using sort clauses.</li>
  * </ul>
  *
@@ -61,10 +61,10 @@ import jakarta.persistence.TypedQuery;
  *                {{=cond_ids}}
  *                {{=cond_order}}
  *                """)
- *         .setParameter("cond_age", "age", age, "AND member.age = :age") // Replace {{=cond_age}} with AND member.age = :age, then handle TypedQuery.setParameter
- *         .setParameter("cond_name", "name", name, "AND member.name LIKE :name", LikeMode.ANYWHERE) // Replace {{=cond_name}} with AND member.name LIKE :name, then handle TypedQuery.setParameter
- *         .setParameter("cond_ids", "ids", ids, "AND member.id IN :ids") // Replace {{=cond_ids}} with AND member.id IN :ids, then handle TypedQuery.setParameter
- *         .setOrder("cond_order", "member.id, member.age DESC") // Replace {{=cond_order}} with ORDER BY member.id, member.age DESC
+ *         .applyClause("cond_age", "age", age, "AND member.age = :age") // Replace {{=cond_age}} with AND member.age = :age, then handle TypedQuery.applyClause
+ *         .applyClause("cond_name", "name", name, "AND member.name LIKE :name", LikeMode.ANYWHERE) // Replace {{=cond_name}} with AND member.name LIKE :name, then handle TypedQuery.applyClause
+ *         .applyClause("cond_ids", "ids", ids, "AND member.id IN :ids") // Replace {{=cond_ids}} with AND member.id IN :ids, then handle TypedQuery.applyClause
+ *         .applyOrderBy("cond_order", "member.id, member.age DESC") // Replace {{=cond_order}} with ORDER BY member.id, member.age DESC
  *         .build();
  * }</pre>
  *
@@ -79,9 +79,9 @@ import jakarta.persistence.TypedQuery;
  * </p>
  *
  * <ul>
- * <li><b>SQL Injection 방지:</b> 모든 조건절({@code setParameter})은 JPA의 파라미터 바인딩(:name) 방식을 사용합니다.</li>
+ * <li><b>SQL Injection 방지:</b> 모든 조건절({@code applyClause})은 JPA의 파라미터 바인딩(:name) 방식을 사용합니다.</li>
  * <li><b>안전한 LIKE 처리:</b> {@link LikeMode}를 통해 와일드카드(%)를 Java 단에서 결합하여 파라미터로 넘김으로써 쿼리 조작을 방어합니다.</li>
- * <li><b>정렬 구문 검증:</b> {@link #setOrder(String, String)}는 입력 문자열을 화이트리스트 기반(ASC/DESC 체크 및 정규식 분리)으로 파싱하여,
+ * <li><b>정렬 구문 검증:</b> {@link #applyOrderBy(String, String)}는 입력 문자열을 화이트리스트 기반(ASC/DESC 체크 및 정규식 분리)으로 파싱하여,
  * 정렬 구문을 이용한 악성 쿼리 삽입을 원천 차단합니다.</li>
  * </ul>
  *
@@ -155,7 +155,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix, suffix);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -179,7 +179,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix, suffix);
         putParameters(parameters, likeMode);
         return this;
@@ -203,7 +203,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, String suffix) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix) {
         super.bindWhen(key, condition, clause, prefix, suffix);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -226,7 +226,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, String suffix) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, String suffix) {
         super.bindWhen(key, condition, clause, prefix, suffix);
         putParameters(parameters, null);
         return this;
@@ -250,7 +250,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -273,7 +273,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix);
         putParameters(parameters, likeMode);
         return this;
@@ -296,7 +296,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, String prefix) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix) {
         super.bindWhen(key, condition, clause, prefix);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -318,7 +318,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, String prefix) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, String prefix) {
         super.bindWhen(key, condition, clause, prefix);
         putParameters(parameters, null);
         return this;
@@ -341,7 +341,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, LikeMode likeMode) {
         super.bindWhen(key, condition, clause);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -363,7 +363,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause, LikeMode likeMode) {
         super.bindWhen(key, condition, clause);
         putParameters(parameters, likeMode);
         return this;
@@ -385,7 +385,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, String parameterName, Object parameterValue, Object clause) {
+    public S2Jpql<T> applyClause(String key, boolean condition, String parameterName, Object parameterValue, String clause) {
         super.bindWhen(key, condition, clause);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -406,7 +406,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, boolean condition, Map<String, Object> parameters, Object clause) {
+    public S2Jpql<T> applyClause(String key, boolean condition, Map<String, Object> parameters, String clause) {
         super.bindWhen(key, condition, clause);
         putParameters(parameters, null);
         return this;
@@ -430,7 +430,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, parameterValue, clause, prefix, suffix);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -453,7 +453,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, parameters, clause, prefix, suffix);
         putParameters(parameters, likeMode);
         return this;
@@ -476,7 +476,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, String suffix) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix) {
         super.bindWhen(key, parameterValue, clause, prefix, suffix);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -498,7 +498,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, String suffix) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, String suffix) {
         super.bindWhen(key, parameters, clause, prefix, suffix);
         putParameters(parameters, null);
         return this;
@@ -521,7 +521,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, parameterValue, clause, prefix);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -543,7 +543,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, parameters, clause, prefix);
         putParameters(parameters, likeMode);
         return this;
@@ -565,7 +565,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, String prefix) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause, String prefix) {
         super.bindWhen(key, parameterValue, clause, prefix);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -586,7 +586,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, String prefix) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause, String prefix) {
         super.bindWhen(key, parameters, clause, prefix);
         putParameters(parameters, null);
         return this;
@@ -608,7 +608,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause, LikeMode likeMode) {
         super.bindWhen(key, parameterValue, clause);
         putParameter(parameterName, parameterValue, likeMode);
         return this;
@@ -629,7 +629,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause, LikeMode likeMode) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause, LikeMode likeMode) {
         super.bindWhen(key, parameters, clause);
         putParameters(parameters, likeMode);
         return this;
@@ -650,7 +650,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, String parameterName, Object parameterValue, Object clause) {
+    public S2Jpql<T> applyClause(String key, String parameterName, Object parameterValue, String clause) {
         super.bindWhen(key, parameterValue, clause);
         putParameter(parameterName, parameterValue, null);
         return this;
@@ -670,7 +670,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setParameter(String key, Map<String, Object> parameters, Object clause) {
+    public S2Jpql<T> applyClause(String key, Map<String, Object> parameters, String clause) {
         super.bindWhen(key, parameters, clause);
         putParameters(parameters, null);
         return this;
@@ -686,18 +686,18 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * 정렬 조건 문자열을 파싱하여 동적으로 ORDER BY 절을 추가합니다.
      * 콤마(,)로 구분된 다중 정렬을 지원하며, 정렬 방향(ASC/DESC)의 유효성을 검사합니다.
      *
-     * @param key       Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
-     * @param condition Whether to apply the sort condition | 정렬 조건 적용 여부
-     * @param sort      Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
+     * @param key            Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param condition      Whether to apply the sort condition | 정렬 조건 적용 여부
+     * @param sortExpression Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setOrder(String key, boolean condition, String sort) {
-        if (!condition || sort == null || sort.isBlank()) {
+    public S2Jpql<T> applyOrderBy(String key, boolean condition, String sortExpression) {
+        if (!condition || sortExpression == null || sortExpression.isBlank()) {
             return this;
         }
 
-        var sortStr = sort.trim();
+        var sortStr = sortExpression.trim();
         if (sortStr.regionMatches(true, 0, ORDER_BY_PREFIX, 0, ORDER_BY_PREFIX.length())) {
             sortStr = sortStr.substring(ORDER_BY_PREFIX.length()).trim();
         }
@@ -734,13 +734,13 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * 정렬 조건 문자열을 파싱하여 동적으로 ORDER BY 절을 추가합니다.
      * 콤마(,)로 구분된 다중 정렬을 지원하며, 정렬 방향(ASC/DESC)의 유효성을 검사합니다.
      *
-     * @param key  Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
-     * @param sort Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
+     * @param key            Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param sortExpression Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> setOrder(String key, String sort) {
-        return setOrder(key, true, sort);
+    public S2Jpql<T> applyOrderBy(String key, String sortExpression) {
+        return applyOrderBy(key, true, sortExpression);
     }
 
     // S2Template methods implementation
@@ -763,38 +763,38 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, boolean condition, Object content, String prefix, String suffix) {
+    public S2Jpql<T> bindWhen(String key, boolean condition, String content, String prefix, String suffix) {
         super.bindWhen(key, condition, content, prefix, suffix);
         return this;
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, boolean condition, Object content, String prefix) {
+    public S2Jpql<T> bindWhen(String key, boolean condition, String content, String prefix) {
         super.bindWhen(key, condition, content, prefix);
         return this;
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, boolean condition, Object content) {
+    public S2Jpql<T> bindWhen(String key, boolean condition, String content) {
         super.bindWhen(key, condition, content);
         return this;
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, Object presence, Object content, String prefix, String suffix) {
-        super.bindWhen(key, presence, content, prefix, suffix);
+    public S2Jpql<T> bindWhen(String key, Object value, String content, String prefix, String suffix) {
+        super.bindWhen(key, value, content, prefix, suffix);
         return this;
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, Object presence, Object content, String prefix) {
-        super.bindWhen(key, presence, content, prefix);
+    public S2Jpql<T> bindWhen(String key, Object value, String content, String prefix) {
+        super.bindWhen(key, value, content, prefix);
         return this;
     }
 
     @Override
-    public S2Jpql<T> bindWhen(String key, Object presence, Object content) {
-        super.bindWhen(key, presence, content);
+    public S2Jpql<T> bindWhen(String key, Object value, String content) {
+        super.bindWhen(key, value, content);
         return this;
     }
 

@@ -19,7 +19,7 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
- version = '1.0.4'
+ version = '1.0.5'
 
 ext {
     /*
