@@ -108,6 +108,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         Executor<T> query(String jpql);
     }
 
+    private static final String ORDER_BY_PREFIX = "ORDER BY ";
+
     private final EntityManager entityManager;
     private final Class<T> resultClass;
     private final Map<String, Object> boundParameters;
@@ -695,7 +697,11 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
             return this;
         }
 
-        String result = java.util.Arrays.stream(sort.split(","))
+        var sortStr = sort.trim();
+        if (sortStr.regionMatches(true, 0, ORDER_BY_PREFIX, 0, ORDER_BY_PREFIX.length())) {
+            sortStr = sortStr.substring(ORDER_BY_PREFIX.length()).trim();
+        }
+        String result = java.util.Arrays.stream(sortStr.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(sortInfo -> {
@@ -714,7 +720,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                 .collect(java.util.stream.Collectors.joining(", "));
 
         // 결과가 있을 때만 부모 템플릿에 바인딩
-        super.bindWhen(key, !result.isBlank(), result, "ORDER BY ");
+        super.bindWhen(key, !result.isBlank(), result, ORDER_BY_PREFIX);
         return this;
     }
 
