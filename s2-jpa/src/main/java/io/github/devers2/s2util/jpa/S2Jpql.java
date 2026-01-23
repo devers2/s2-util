@@ -413,7 +413,26 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     public S2Jpql<T> setOrder(String key, String sort) {
-        if (sort == null || sort.isBlank()) {
+        return setOrder(key, true, sort);
+    }
+
+    /**
+     * Parses the sort condition string and dynamically adds an ORDER BY clause.
+     * Supports multiple sorts separated by commas (,), and validates the sort direction (ASC/DESC).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 정렬 조건 문자열을 파싱하여 동적으로 ORDER BY 절을 추가합니다.
+     * 콤마(,)로 구분된 다중 정렬을 지원하며, 정렬 방향(ASC/DESC)의 유효성을 검사합니다.
+     *
+     * @param key       Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param condition Whether to apply the sort condition | 정렬 조건 적용 여부
+     * @param sort      Sort string (e.g., "m.name DESC, m.age") | 정렬 문자열 (예: "m.name DESC, m.age")
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    public S2Jpql<T> setOrder(String key, boolean condition, String sort) {
+        if (!condition || sort == null || sort.isBlank()) {
             return this;
         }
 
