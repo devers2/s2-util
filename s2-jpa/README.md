@@ -4,11 +4,11 @@
 
 ### [English]
 
-The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQL (Jakarta Persistence Query Language) queries. It extends the S2Template class to offer specialized functionality for JPA operations, including conditional parameter binding, LIKE query safety, and flexible query construction. This module is designed for developers who need to create complex, dynamic database queries with a fluent and readable API.
+The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQL (Jakarta Persistence Query Language) queries. It extends the S2Template class to offer specialized functionality for JPA operations, including conditional parameter binding, LIKE query safety, and flexible query construction. The module features a fluent API design that integrates seamlessly with S2Template's binding methods, making it easy to create complex, dynamic database queries with automatic parameter binding and logging capabilities.
 
 ### [한국어]
 
-**s2-jpa** 모듈은 동적 JPQL (Jakarta Persistence Query Language) 쿼리를 구축하는 강력하고 타입 안전한 방법을 제공합니다. S2Template 클래스를 확장하여 JPA 작업을 위한 특화된 기능을 제공하며, 조건부 파라미터 바인딩, LIKE 쿼리 안전성, 유연한 쿼리 구성을 포함합니다. 복잡하고 동적인 데이터베이스 쿼리를 유연하고 읽기 쉬운 API로 생성해야 하는 개발자를 위해 설계되었습니다.
+**s2-jpa** 모듈은 동적 JPQL (Jakarta Persistence Query Language) 쿼리를 구축하는 강력하고 타입 안전한 방법을 제공합니다. S2Template 클래스를 확장하여 JPA 작업을 위한 특화된 기능을 제공하며, 조건부 파라미터 바인딩, LIKE 쿼리 안전성, 유연한 쿼리 구성을 포함합니다. Fluent API 디자인으로 S2Template의 바인딩 메소드와 완벽하게 통합되어, 자동 파라미터 바인딩과 로깅 기능으로 복잡하고 동적인 데이터베이스 쿼리를 쉽게 생성할 수 있습니다.
 
 ---
 
@@ -29,17 +29,22 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
 3. **LIKE Query Safety**
    - `LikeMode` enum for safe wildcard (%) placement
    - Prevention of SQL injection in LIKE queries
-   - Support for START, END, CONTAIN, and EXACT modes
+   - Support for ANYWHERE, START, and END modes
 
 4. **Fluent API Design**
    - Method chaining for readable query construction
-   - `of()` factory method for easy instantiation
-   - `build()` method to create TypedQuery
+   - `from()` factory method for EntityManager integration
+   - `build()` method to create TypedQuery with automatic parameter binding
 
-5. **Integration with S2Template**
-   - Inherits all S2Template binding capabilities
+5. **Full S2Template Integration**
+   - Inherits all S2Template binding capabilities (bind, bindWhen, bindIn, etc.)
    - Additional JPA-specific enhancements
    - Consistent API across S2Util modules
+
+6. **Built-in Logging**
+   - Automatic logging of rendered JPQL queries
+   - Parameter binding details for debugging
+   - Execution flow visibility for development
 
 ### [한국어]
 
@@ -56,17 +61,22 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
 3. **LIKE 쿼리 안전성**
    - 안전한 와일드카드(%) 배치를 위한 `LikeMode` 열거형
    - LIKE 쿼리에서의 SQL 인젝션 방지
-   - START, END, CONTAIN, EXACT 모드 지원
+   - ANYWHERE, START, END 모드 지원
 
 4. **유연한 API 디자인**
    - 읽기 쉬운 쿼리 구성을 위한 메서드 체이닝
-   - 쉬운 인스턴스화를 위한 `of()` 팩토리 메서드
-   - TypedQuery 생성을 위한 `build()` 메서드
+   - EntityManager 통합을 위한 `from()` 팩토리 메서드
+   - 자동 파라미터 바인딩으로 TypedQuery 생성을 위한 `build()` 메서드
 
-5. **S2Template과의 통합**
-   - 모든 S2Template 바인딩 기능 상속
+5. **완전한 S2Template 통합**
+   - 모든 S2Template 바인딩 기능 상속 (bind, bindWhen, bindIn 등)
    - 추가 JPA 특화 향상
    - S2Util 모듈 전반에 걸친 일관된 API
+
+6. **내장 로깅 기능**
+   - 렌더링된 JPQL 쿼리의 자동 로깅
+   - 디버깅을 위한 파라미터 바인딩 상세 정보
+   - 개발 시 실행 흐름 가시성
 
 ---
 
@@ -78,31 +88,43 @@ Add the following dependency to your `build.gradle`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-jpa:1.0.0'
+    implementation 'io.github.devers2:s2-jpa:1.0.1'
 }
 ```
 
 ### 2. Usage (사용법)
 
 ```java
-// Create a dynamic JPQL query
-String jpql = S2Jpql.of(
-        """
+// Create a dynamic JPQL query with Fluent API
+TypedQuery<Member> query = S2Jpql.from(entityManager)
+    .type(Member.class)
+    .query("""
         SELECT m FROM Member m
         WHERE 1=1
         {{=name_cond}}
         {{=age_cond}}
+        {{=where_clause}}
         {{=order_clause}}
-        """
-)
-.setParameter("name", name, LikeMode.CONTAIN, "AND m.name LIKE :name")
-.setParameter("age", age, "AND m.age > :age")
-.setOrder(orderBy, "ORDER BY m." + orderBy + " " + direction)
-.build();
+        """)
+    .setParameter("name_cond", "name", "John", "AND m.name = :name")
+    .setParameter("age_cond", "age", 30, "AND m.age > :age")
+    .bind("where_clause", "AND m.active = 1")  // S2Template method
+    .bindWhen("order_clause", true, "ORDER BY m.name ASC", "")  // S2Template method
+    .setOrder("order_clause", "m.createdAt DESC")  // JPA-specific method
+    .build();
 
 // Execute the query
-TypedQuery<Member> query = entityManager.createQuery(jpql, Member.class);
 List<Member> results = query.getResultList();
+```
+
+#### Advanced Usage with LIKE Modes
+
+```java
+TypedQuery<Member> searchQuery = S2Jpql.from(entityManager)
+    .type(Member.class)
+    .query("SELECT m FROM Member m WHERE m.name LIKE :name")
+    .setParameter("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)  // %John%
+    .build();
 ```
 
 ---
@@ -141,7 +163,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-jpa Version: 1.0.0 (2026-01-23)
+s2-jpa Version: 1.0.1 (2026-01-23)
 
 [//]: # 'S2_DEPS_INFO_START'
 
