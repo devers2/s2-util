@@ -19,7 +19,7 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
- version = '1.0.0'
+ version = '1.0.1'
 
 ext {
     /*
@@ -69,10 +69,10 @@ dependencies {
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      */
-    // testImplementation(libs.junit.jupiter.api)
-    // testImplementation(libs.junit.jupiter.params)
-    // testRuntimeOnly(libs.junit.jupiter.engine)
-    // testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.jakarta.persistence.api) // 테스트에서 JPA 사용
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 /**
