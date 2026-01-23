@@ -18,8 +18,8 @@
  *
  * For more information, please see the LICENSE file in the root directory.
  */
- 
- version = '1.0.2'
+
+ version = '1.0.0'
 
 ext {
     /*
@@ -46,7 +46,7 @@ ext {
     /*
      * 빌드 완료 후 결과물을 테스트할 클래스 지정 (shadowJar 실행 후 testArtifact 태스크로 수행됨, 여러 개 지정 가능)
      */
-    artifactTestClassNames = ["io.github.devers2.s2util.validation.SmokeTest"]
+    artifactTestClassNames = []
 }
 
 dependencies {
@@ -63,15 +63,16 @@ dependencies {
      * - 런타임 시 사용하지 않는 라이브러리인 경우 이 방식을 사용함
      * - Shadow JAR 생성 시 포함되지 않음
      */
-    compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
+    compileOnly(libs.jakarta.persistence.api) // JPQL
 
     /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      */
-    testImplementation(libs.spring6.context)
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.platform.launcher)
+    // testImplementation(libs.junit.jupiter.api)
+    // testImplementation(libs.junit.jupiter.params)
+    // testRuntimeOnly(libs.junit.jupiter.engine)
+    // testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 /**

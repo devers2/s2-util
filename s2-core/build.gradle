@@ -19,6 +19,8 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
+ version = '1.0.3'
+
 ext {
     /*
      * [추가 소스 목록]

@@ -26,6 +26,7 @@ rootProject.name = 's2-util'
 include 's2-core'
 include 's2-validator'
 include 's2-validator-plugin'
+include 's2-jpa'
 
 def s2BuildSupportDir = file('../s2-build-support')
 if (s2BuildSupportDir.exists()) {
