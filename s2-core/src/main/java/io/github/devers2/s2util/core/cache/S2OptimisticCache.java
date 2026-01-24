@@ -51,6 +51,18 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * only the oldest 50% of entries to maintain a high hit rate.</li>
  * </ul>
  *
+ * <h3>Philosophical Considerations & Guardrails</h3>
+ * <ul>
+ * <li><b>Sequence Overflow:</b> Uses a {@code long} counter. With 1 billion increments per second,
+ * it takes approx. 292 years to overflow. For system stability, this is considered
+ * "effectively infinite" and no reset logic is added to maintain zero-overhead.</li>
+ * <li><b>Double Creation:</b> Optimistic creation is a deliberate trade-off. We prefer occasional
+ * duplicate object creation over mandatory thread blocking (locking) during high concurrency.</li>
+ * <li><b>Size & Eviction Accuracy:</b> The exactness of the size counter and strict serial consistency
+ * during eviction are relaxed to ensure lock-free read/write performance. It is "eventually stable"
+ * and sufficient for cache management.</li>
+ * </ul>
+ *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
@@ -68,6 +80,16 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고 별도의 백그라운드 스레드
  * ({@link S2ThreadUtil})에서 삭제 작업을 수행합니다. 전체를 비우는 대신 오래된 순으로 50%만 삭제하여
  * 캐시 적중률을 안정적으로 유지합니다.</li>
+ * </ul>
+ *
+ * <h3>기술적 고려사항 및 방어 기제</h3>
+ * <ul>
+ * <li><b>Sequence 오버플로우:</b> {@code long} 카운터를 사용합니다. 초당 10억 번의 요청이 발생해도
+ * 약 292년이 소요되므로, 실무적으로 무한한 수치로 간주하며 오버헤드 방지를 위해 별도의 리셋 로직을 두지 않습니다.</li>
+ * <li><b>이중 생성(Double Creation):</b> 여러 스레드가 동시에 같은 값을 생성하는 것은 의도된 트레이드오프입니다.
+ * 값 생성 중 모든 스레드를 블로킹(Lock)하는 비용보다, 아주 가끔 발생하는 중복 생성 비용이 훨씬 저렴합니다.</li>
+ * <li><b>사이즈 및 삭제 정확성:</b> 캐시 사이즈 카운팅과 삭제 시점의 엄격한 일관성은 성능을 위해 의도적으로
+ * 완화되었습니다. 이는 "최종적 일관성(Eventually Consistent)"을 따르며 캐시 관리 목적에는 충분히 정확합니다.</li>
  * </ul>
  *
  * @param <K> Type of cache key | 캐시 키의 타입
@@ -96,6 +118,11 @@ public class S2OptimisticCache<K, V> {
             this.sequence = sequence;
         }
     }
+
+    /**
+     * Sentinel object to support caching of null values.
+     */
+    private static final Object NULL_HOLDER = new Object();
 
     private final ConcurrentHashMap<K, CacheEntry<V>> cache = new ConcurrentHashMap<>();
     private final int maxEntries;
@@ -131,24 +158,25 @@ public class S2OptimisticCache<K, V> {
      * @param mappingFunction Creation function to execute when value is missing | 값이 없을 때 실행할 생성 함수
      * @return Cached value or newly created value | 캐시된 값 또는 새로 생성된 값
      */
-    @SuppressWarnings("null")
+    @SuppressWarnings({ "null", "unchecked" })
     public V get(K key, Function<? super K, ? extends V> mappingFunction) {
         // 1. Non-blocking lookup (99% of cases)
         CacheEntry<V> entry = cache.get(key);
         if (entry != null) {
             // Update sequence - AtomicLong.incrementAndGet() is extremely fast!
             entry.sequence = sequenceGenerator.incrementAndGet();
-            return entry.value;
+            V value = entry.value;
+            return (value == NULL_HOLDER) ? null : value;
         }
 
         // 2. Direct creation in the current thread (no virtual/dedicated thread needed)
         V newValue = mappingFunction.apply(key);
-        if (newValue == null) {
-            return null;
-        }
+
+        // Use sentinel for null to support negative caching
+        V valueToCache = (newValue == null) ? (V) NULL_HOLDER : newValue;
 
         // 3. Atomic registration (first-come, first-served)
-        CacheEntry<V> newEntry = new CacheEntry<>(newValue, sequenceGenerator.incrementAndGet());
+        CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, sequenceGenerator.incrementAndGet());
         CacheEntry<V> existingEntry = cache.putIfAbsent(key, newEntry);
 
         if (existingEntry == null) {
@@ -171,7 +199,8 @@ public class S2OptimisticCache<K, V> {
 
         // If another thread registered first, return that value and update its sequence
         existingEntry.sequence = sequenceGenerator.incrementAndGet();
-        return existingEntry.value;
+        V existingValue = existingEntry.value;
+        return (existingValue == NULL_HOLDER) ? null : existingValue;
     }
 
     /**
