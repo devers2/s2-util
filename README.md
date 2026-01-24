@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.0.3'
+    implementation 'io.github.devers2:s2-core:1.0.4'
     implementation 'io.github.devers2:s2-validator:1.0.2'
 }
 
