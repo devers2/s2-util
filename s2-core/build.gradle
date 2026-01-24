@@ -55,17 +55,18 @@ ext {
 
 dependencies {
     /**
-     * implementation: 컴파일 및 런타임 시 모두 사용함
-     * - 해당 의존성이 프로젝트의 빌드 결과물(JAR)에 직접적인 영향을 미침
-     * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출되지 않음 (API 캡슐화)
-     * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
+     * compileOnly: 컴파일 타임에만 필요하며 런타임에는 선택적
+     * - Caffeine Cache는 사용 가능하면 고성능 캐싱을, 없으면 경량 캐시를 사용
+     * - 소비자 프로젝트에서 Caffeine을 사용하지 않아도 S2Cache가 정상 동작함
      */
-    implementation(libs.caffeine) // Caffeine: 고성능 로컬 캐시 라이브러리
+    compileOnly(libs.caffeine) // Caffeine: 고성능 로컬 캐시 라이브러리 (선택적)
 
     /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
+     * - 테스트 시에는 Caffeine을 포함하여 전체 기능을 테스트함
      */
+    testImplementation(libs.caffeine) // 테스트 시 Caffeine 기능 검증
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

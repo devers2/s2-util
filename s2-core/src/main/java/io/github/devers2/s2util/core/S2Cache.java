@@ -35,60 +35,57 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-
 import io.github.devers2.s2util.core.S2Cache.MethodHandleResolver.LookupType;
 import io.github.devers2.s2util.core.S2Cache.MethodHandleResolver.MethodKey;
+import io.github.devers2.s2util.core.cache.CacheAdapter;
+import io.github.devers2.s2util.core.cache.CaffeineCacheAdapter;
+import io.github.devers2.s2util.core.cache.SimpleCacheAdapter;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 
 /**
- * Central cache management class for the S2Util library (Optimized for Java 17+ and Caffeine).
+ * Central cache management class for the S2Util library (Optimized for Java 17+).
  * <p>
  * This class serves as a high-performance registry for expensive objects such as regex patterns,
- * {@link java.lang.invoke.MethodHandle}s, and reflection metadata. It leverages <b>Caffeine Cache</b>
- * to ensure scalability and stability in high-concurrency environments.
+ * {@link java.lang.invoke.MethodHandle}s, and reflection metadata. It uses <b>Caffeine Cache</b>
+ * when available, or falls back to a lightweight ConcurrentHashMap-based cache to ensure
+ * scalability and stability in high-concurrency environments.
  * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * S2Util 라이브러리 내부에서 사용하는 핵심 캐시 관리 클래스입니다 (Java 17 및 Caffeine 최적화).
+ * S2Util 라이브러리 내부에서 사용하는 핵심 캐시 관리 클래스입니다 (Java 17+ 최적화).
  * <p>
  * 정규식 패턴(Pattern), MethodHandle, 리플렉션 메타데이터 등 생성 비용이 큰 객체들을 메모리에 캐싱하여 재사용합니다.
- * 대규모 트래픽 환경에서의 확장성(Scalability)과 안정성을 위해 <b>Caffeine Cache</b>를 기반으로 설계되었습니다.
+ * Caffeine이 클래스패스에 있으면 고성능 캐싱을 제공하고, 없으면 경량 캐시로 대체됩니다.
  * </p>
  *
  * <h3>Design Philosophy and Infrastructure (설계 철학 및 기반 기술)</h3>
  * <ul>
- * <li><b>Synergy of Technologies:</b> Combines Java 17's {@link java.lang.invoke.MethodHandle} with
- * Caffeine's advanced eviction policies to achieve near-native performance for dynamic operations.</li>
- * <li><b>W-TinyLFU Algorithm:</b> Caffeine's underlying algorithm provides a frequency-and-recency based
- * admission policy, guaranteeing higher hit rates than standard LRU and preventing "Data Explosion"
- * bottlenecks.</li>
+ * <li><b>Adaptive Caching:</b> Automatically selects Caffeine Cache (W-TinyLFU algorithm) when available,
+ * or uses a lightweight ConcurrentHashMap-based cache for minimal dependencies.</li>
  * <li><b>Memory and Thread Safety:</b> Thread-safe by design using {@link java.util.concurrent.ConcurrentHashMap}
- * and Caffeine's internal lock-free/low-contention structures.</li>
+ * and optimized cache implementations.</li>
+ * <li><b>MethodHandle Optimization:</b> Combines Java 17's {@link java.lang.invoke.MethodHandle} with
+ * caching for near-native performance for dynamic operations.</li>
  * </ul>
  *
  * <h3>System Properties for Configuration (시스템 설정 프로퍼티)</h3>
  * <ul>
  * <li><b>{@code s2.cache.stats.enabled}</b> (boolean, default: {@code false}):
- * Enables cache performance statistics collection (via {@code .recordStats()}).</li>
+ * Enables cache performance statistics collection.</li>
  * <li><b>{@code s2.cache.listener.enabled}</b> (boolean, default: {@code false}):
- * Enables removal listeners for logging eviction events.</li>
+ * Enables removal listeners for logging eviction events (Caffeine only).</li>
  * </ul>
  *
  * @author devers2
  * @version 1.5
  * @since 1.0
- * @see com.github.benmanes.caffeine.cache.Caffeine
  * @see java.lang.invoke.MethodHandle
  */
 public class S2Cache {
@@ -171,21 +168,34 @@ public class S2Cache {
     }
 
     /**
-     * Meta-registry storing dynamically created cache instances.
+     * Caffeine 사용 가능 여부를 캐싱하는 변수.
      * <p>
-     * Each cache is subject to W-TinyLFU eviction policy when the maximum size is reached.
+     * 클래스 로더를 통해 Caffeine 클래스 존재 여부를 확인하여 설정됩니다.
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 동적으로 생성된 캐시 인스턴스들을 저장하는 메타 저장소입니다.
+     * Caffeine이 클래스패스에 존재하는지 여부를 저장합니다.
+     */
+    private static final boolean CAFFEINE_AVAILABLE = isCaffeineAvailable();
+
+    /**
+     * Meta-registry storing dynamically created cache adapter instances.
      * <p>
-     * 각 캐시는 최대 크기 도달 시 Caffeine의 W-TinyLFU 알고리즘에 의해 사용 빈도가 낮은 항목부터
-     * 자동으로 제거됩니다.
+     * Each cache uses either Caffeine (W-TinyLFU) or lightweight ConcurrentHashMap implementation
+     * depending on availability.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 동적으로 생성된 캐시 어댑터 인스턴스들을 저장하는 메타 저장소입니다.
+     * <p>
+     * Caffeine 사용 가능 여부에 따라 적절한 캐시 구현체를 사용합니다.
      * </p>
      */
-    private static final Map<CacheKey, Cache<?, ?>> DYNAMIC_CACHES = new ConcurrentHashMap<>();
+    private static final Map<CacheKey, CacheAdapter<?, ?>> DYNAMIC_CACHES = new ConcurrentHashMap<>();
 
     private static final String RESOURCE_BUNDLE_CACHE_NAME = "s2.cache.resource_bundle";
     private static final String FIELDS_CACHE_NAME = "s2.cache.fields";
@@ -195,56 +205,102 @@ public class S2Cache {
     }
 
     /**
-     * Creates a shared Caffeine builder with pre-configured settings.
+     * Caffeine 클래스가 클래스패스에 존재하는지 확인합니다.
      * <p>
-     * Applies maximum size, expiration (with jitter), and optional statistics/listeners.
-     * Uses {@link S2ThreadUtil#getCommonExecutor()} to ensure optimal resource usage across different Java versions.
+     * 클래스 로더를 통해 Caffeine 클래스를 로드하여 존재 여부를 판단합니다.
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 공통 Caffeine 빌더를 생성합니다.
+     * Caffeine이 사용 가능한지 확인합니다.
+     *
+     * @return Caffeine 사용 가능 여부
+     */
+    private static boolean isCaffeineAvailable() {
+        try {
+            Class.forName("com.github.benmanes.caffeine.cache.Caffeine");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Creates a cache adapter instance based on Caffeine availability.
      * <p>
-     * 최대 크기, 만료 시간(Jitter 포함), 통계 수집 여부 등을 설정합니다.
-     * S2ThreadUtil의 공용 실행기를 사용하여 자바 버전에 최적화된 스레드 자원을 활용합니다.
+     * If Caffeine is available, creates a CaffeineCacheAdapter with advanced features.
+     * Otherwise, creates a SimpleCacheAdapter with basic caching functionality.
      * </p>
      *
-     * @param maxSize  Maximum number of entries in the cache
-     * @param expiryMs Expiration time in milliseconds (0 for no expiration)
-     * @return A configured Caffeine builder
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * Caffeine 사용 가능 여부에 따라 적절한 캐시 어댑터를 생성합니다.
+     * <p>
+     * Caffeine이 있으면 고성능 어댑터를, 없으면 경량 어댑터를 생성합니다.
+     * </p>
+     *
+     * @param <K>       캐시 키의 타입
+     * @param <V>       캐시 값의 타입
+     * @param maxSize   최대 캐시 크기
+     * @param expiryMs  만료 시간 (밀리초, 0이면 만료 없음)
+     * @param cacheName 캐시 이름 (로깅용)
+     * @return 생성된 캐시 어댑터
      */
-    @SuppressWarnings("null")
-    private static Caffeine<Object, Object> createBuilder(int maxSize, long expiryMs) {
-        Caffeine<Object, Object> builder = Caffeine.newBuilder().maximumSize(maxSize);
+    @SuppressWarnings("unchecked")
+    private static <K, V> CacheAdapter<K, V> createCacheAdapter(int maxSize, long expiryMs, String cacheName) {
+        if (CAFFEINE_AVAILABLE) {
+            try {
+                // Caffeine 어댑터 생성
+                var caffeineBuilder = CaffeineCacheAdapter.createBuilder(maxSize, expiryMs);
 
-        if (expiryMs > 0) {
-            // Add jitter (0~2000ms) to prevent thundering herd problem
-            long jitter = (long) (Math.random() * 2000);
-            builder.expireAfterAccess(expiryMs + jitter, TimeUnit.MILLISECONDS);
+                if (STATS_ENABLED) {
+                    caffeineBuilder.recordStats();
+                }
+
+                // Executor 설정 (S2ThreadUtil 사용)
+                caffeineBuilder.executor(Objects.requireNonNull(S2ThreadUtil.getCommonExecutor()));
+
+                // Removal Listener 설정
+                if (LISTENER_ENABLED) {
+                    caffeineBuilder.removalListener((key, value, cause) -> {
+                        if (logger.isDebugEnabled()) {
+                            logRemovalEvent(cacheName, key, cause);
+                        }
+                    });
+                }
+
+                var caffeineCache = caffeineBuilder.build();
+                var adapter = new CaffeineCacheAdapter<K, V>((com.github.benmanes.caffeine.cache.Cache<K, V>) caffeineCache);
+
+                if (logger.isDebugEnabled()) {
+                    logger.debug("[S2Cache] Caffeine adapter created for cache: {}", cacheName);
+                }
+
+                return adapter;
+            } catch (Exception e) {
+                logger.warn("[S2Cache] Failed to create Caffeine adapter, falling back to simple cache: {}", e.getMessage());
+                // Caffeine 생성 실패 시 경량 캐시로 폴백
+            }
         }
 
-        if (STATS_ENABLED) {
-            builder.recordStats();
+        // 경량 캐시 어댑터 생성
+        if (logger.isDebugEnabled()) {
+            logger.debug("[S2Cache] Simple cache adapter created for cache: {} (Caffeine not available)", cacheName);
         }
+        return new SimpleCacheAdapter<>(maxSize, STATS_ENABLED);
+    }
 
-        /**
-         * Register the common executor from S2ThreadUtil.
-         * <p>
-         * In virtual thread environments, this allows for non-blocking processing,
-         * while in legacy environments, it uses an optimized shared pool to prevent resource waste.
-         * </p>
-         *
-         * <p>
-         * <b>[한국어 설명]</b>
-         * </p>
-         * S2ThreadUtil의 공용 실행기를 등록합니다.
-         * 가상 스레드 환경에서는 병목 없는 처리가 가능하며, 하위 버전에서는 최적화된 공유 풀을
-         * 사용하여 자원 낭비를 방지합니다.
-         */
-        builder.executor(Objects.requireNonNull(S2ThreadUtil.getCommonExecutor()));
-
-        return builder;
+    /**
+     * 캐시 제거 이벤트를 로깅합니다.
+     */
+    private static void logRemovalEvent(String cacheName, Object key, Object cause) {
+        if (S2Util.isKorean(Locale.getDefault())) {
+            logger.debug("캐시 항목 제거됨. 이름: {}, 키: {}, 사유: {}", cacheName, key, cause);
+        } else {
+            logger.debug("Cache entry removed. name: {}, key: {}, cause: {}", cacheName, key, cause);
+        }
     }
 
     /**
@@ -331,42 +387,10 @@ public class S2Cache {
         // 1. 레코드 기반 고유 식별자 생성함
         CacheKey cacheKey = new CacheKey(cacheName, keyType, valueType);
 
-        // 2. 해당 식별자에 맞는 캐시 인스턴스를 가져오거나 생성함
+        // 2. 해당 식별자에 맞는 캐시 어댑터를 가져오거나 생성함
         @SuppressWarnings("unchecked")
-        Cache<K, Optional<V>> cache = (Cache<K, Optional<V>>) DYNAMIC_CACHES.computeIfAbsent(cacheKey, ck -> {
-            // 캐시 생성 전에 기존 캐시가 있으면 타입 검증 (computeIfAbsent 전에 체크 불가하나, computeIfAbsent 내부에서 안전)
-            // 하지만 computeIfAbsent는 atomic하니, 생성 후 별도 검증 불필요. 대신 아래처럼 생성 시 로그로 타입 기록.
-            Caffeine<Object, Object> builder = createBuilder(maxSize, expiryMs);
-
-            if (LISTENER_ENABLED) {
-                builder.removalListener((k, v, cause) -> {
-                    if (logger.isDebugEnabled()) {
-                        if (S2Util.isKorean(Locale.getDefault())) {
-                            if (cause == RemovalCause.EXPIRED || cause == RemovalCause.SIZE) {
-                                logger.debug("캐시 항목 제거됨. 이름: {}, 키: {}, 사유: {}", ck.name(), k, cause);
-                            } else if (cause == RemovalCause.EXPLICIT) {
-                                logger.warn("캐시 항목 수동 제거됨. 이름: {}, 키: {}, 사유: {}", ck.name(), k, cause);
-                            }
-                        } else {
-                            if (cause == RemovalCause.EXPIRED || cause == RemovalCause.SIZE) {
-                                logger.debug("Cache entry removed. name: {}, key: {}, cause: {}", ck.name(), k, cause);
-                            } else if (cause == RemovalCause.EXPLICIT) {
-                                logger.warn("Cache entry explicitly removed. name: {}, key: {}, cause: {}", ck.name(), k, cause);
-                            }
-                        }
-                    }
-                });
-            }
-
-            if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
-                    logger.debug("새로운 캐시 인스턴스 생성됨. 이름: {}, 타입: <{}, {}>", ck.name(), ck.keyType().getSimpleName(), ck.valueType().getSimpleName());
-                } else {
-                    logger.debug("New cache instance created. name: {}, type: <{}, {}>", ck.name(), ck.keyType().getSimpleName(), ck.valueType().getSimpleName());
-                }
-            }
-
-            return builder.build();
+        CacheAdapter<K, Optional<V>> cache = (CacheAdapter<K, Optional<V>>) DYNAMIC_CACHES.computeIfAbsent(cacheKey, ck -> {
+            return createCacheAdapter(maxSize, expiryMs, ck.name());
         });
 
         // 3. 입력 데이터 타입 검증함 (O(1))
@@ -379,8 +403,7 @@ public class S2Cache {
             );
         }
 
-        // 4. 로딩 수행 (Caffeine이 동일 키에 대한 중복 로딩은 내부적으로 방어함)
-        @SuppressWarnings("null")
+        // 4. 로딩 수행
         Optional<V> value = cache.get(key, Objects.requireNonNull(loader));
 
         // 5. 반환 값 타입 검증 (Optional 내부 데이터 확인, 성능 최적화를 위해 디버그 모드에서만 검증)
@@ -425,8 +448,8 @@ public class S2Cache {
                 - MethodCache: %s
                 - PatternCache: %s
                 """.formatted(
-                        MethodHandleResolver.CACHE.stats(),
-                        PatternResolver.CACHE.stats()
+                        MethodHandleResolver.CACHE.getStats(),
+                        PatternResolver.CACHE.getStats()
                 )
         );
 
@@ -436,7 +459,7 @@ public class S2Cache {
                             "[%s <%s>] %s%n",
                             ck.name(),
                             ck.valueType().getSimpleName(),
-                            cache.stats().toString()
+                            cache.getStats()
                     )
             );
         });
@@ -606,7 +629,7 @@ public class S2Cache {
         /**
          * Central cache for {@link MethodHandle} objects discovered via reflection.
          * <p>
-         * Uses Caffeine's W-TinyLFU eviction policy to manage memory efficiently.
+         * Uses an optimized cache implementation (Caffeine or lightweight) to manage memory efficiently.
          * </p>
          *
          * <p>
@@ -614,25 +637,13 @@ public class S2Cache {
          * </p>
          * 리플렉션을 통해 조회된 {@link MethodHandle} 객체들의 중앙 캐시입니다.
          * <p>
-         * Caffeine의 W-TinyLFU 알고리즘을 사용하여 메모리를 효율적으로 관리합니다.
+         * 사용 가능한 캐시 구현체를 사용하여 메모리를 효율적으로 관리합니다.
          * </p>
          */
-        private static final Cache<MethodKey, Optional<MethodHandle>> CACHE = createMethodCache();
+        private static final CacheAdapter<MethodKey, Optional<MethodHandle>> CACHE = createMethodCache();
 
-        private static Cache<MethodKey, Optional<MethodHandle>> createMethodCache() {
-            Caffeine<Object, Object> builder = createBuilder(10000, 0);
-            if (LISTENER_ENABLED) {
-                builder.removalListener((MethodKey k, Optional<MethodHandle> v, RemovalCause cause) -> {
-                    if (logger.isDebugEnabled()) {
-                        if (cause == RemovalCause.EXPIRED || cause == RemovalCause.SIZE) {
-                            logger.debug("캐시 항목 제거됨. 이름: MethodHandleResolver, 키: {}, 사유: {}", k, cause);
-                        } else if (cause == RemovalCause.EXPLICIT) {
-                            logger.warn("캐시 항목 수동 제거됨. 이름: MethodHandleResolver, 키: {}, 사유: {}", k, cause);
-                        }
-                    }
-                });
-            }
-            return builder.build();
+        private static CacheAdapter<MethodKey, Optional<MethodHandle>> createMethodCache() {
+            return createCacheAdapter(10000, 0, "MethodHandleResolver");
         }
 
         /**
@@ -1281,7 +1292,7 @@ public class S2Cache {
      * </p>
      */
     public static class PatternResolver {
-        private static final Cache<String, Optional<Pattern>> CACHE = createBuilder(1000, 0).build();
+        private static final CacheAdapter<String, Optional<Pattern>> CACHE = createCacheAdapter(1000, 0, "PatternResolver");
 
         /**
          * 정규식 문자열을 통해 캐시된 Pattern 객체를 가져온다.
