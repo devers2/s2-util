@@ -121,3 +121,21 @@ This module utilizes the following high-quality open-source library:
 ---
 
 s2-core Version: 1.0.4 (2026-01-24)
+
+
+[//]: # 'S2_DEPS_INFO_START'
+
+---
+
+**To use certain functionalities (e.g., S2BindValidator), the end-user project must explicitly add the following dependencies to be available at runtime.** Failure to include these dependencies will result in a `java.lang.NoClassDefFoundError` at runtime.
+
+**[For Gradle Users]**
+
+```groovy
+dependencies {
+    // Essential runtime dependencies for optional functionalities
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
+}
+```
+
+[//]: # 'S2_DEPS_INFO_END'
