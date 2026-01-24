@@ -19,7 +19,7 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
- version = '1.0.4'
+ version = '1.0.5'
 
 ext {
     /*
@@ -66,7 +66,10 @@ dependencies {
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      * - 테스트 시에는 Caffeine을 포함하여 전체 기능을 테스트함
      */
-    testImplementation(libs.caffeine) // 테스트 시 Caffeine 기능 검증
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    // 테스트 시 Caffeine 기능 검증
+    // 주의: 주석 처리하더라도 compileOnly 의존성으로 인해 IDE나 기본 test 태스크에서는 Caffeine이 클래스패스에 포함될 수 있어 주의 필요
+    // 빌드 시 자동 실행되는 S2Util Core 기능 검증용 테스트에서는 확인 가능
+    // testImplementation(libs.caffeine)
 }

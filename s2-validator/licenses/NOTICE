@@ -12,17 +12,8 @@ For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
 
-2. Caffeine Cache (via s2-core)
+2. Spring Framework (Context) (Provided/Compile-only Dependency)
 
 - License: Apache License 2.0
-- Copyright: Ben Manes and Caffeine contributors.
-- Notice: Included as a transitive dependency of s2-core.
-
----
-
-3. Gradle API
-
-- License: Apache License 2.0
-- Copyright: Gradle Inc. and its contributors.
-
----
+- Copyright: Pivotal Software, Inc.
+- Note: This library is required at runtime for Spring integration features but is not included in the distribution artifact.

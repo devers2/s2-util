@@ -38,6 +38,8 @@ ext {
                 'README.md',
                 'LICENSE',
                 'licenses/LICENSE-APACHE-2.0',
+                'licenses/LICENSE-EPL-2.0',
+                'licenses/LICENSE-EDL-1.0',
                 'licenses/NOTICE'
             ]
         ]

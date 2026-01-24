@@ -4,10 +4,3 @@ This product includes or depends on the following open source software component
 For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
-
-1. Gradle API
-
-- This product utilizes the Gradle API for plugin development.
-- License: Apache License 2.0
-
----

@@ -25,9 +25,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+
+import io.github.devers2.s2util.core.S2ThreadUtil;
 
 /**
  * 낙관적 생성과 Sequence 기반 LRU를 지원하는 고성능 경량 캐시.
@@ -72,7 +75,8 @@ public class S2OptimisticCache<K, V> {
     private final ConcurrentHashMap<K, CacheEntry<V>> cache = new ConcurrentHashMap<>();
     private final int maxEntries;
     private final AtomicInteger size = new AtomicInteger(0);
-    private final AtomicLong sequenceGenerator = new AtomicLong(0); // 전역 순서 카운터
+    private final AtomicLong sequenceGenerator = new AtomicLong(0);
+    private final AtomicBoolean evicting = new AtomicBoolean(false);
 
     /**
      * S2OptimisticCache 생성자.
@@ -114,7 +118,17 @@ public class S2OptimisticCache<K, V> {
         if (existingEntry == null) {
             // 내가 첫 등록자라면 사이즈 체크 및 관리
             if (size.incrementAndGet() > maxEntries) {
-                evictOldEntries();
+                // 비동기 eviction 시작 (메인 스레드 블로킹 없음!)
+                if (evicting.compareAndSet(false, true)) {
+                    S2ThreadUtil.getCommonExecutor().execute(() -> {
+                        try {
+                            evictOldEntries();
+                        } finally {
+                            evicting.set(false);
+                        }
+                    });
+                }
+                // 이미 eviction 진행 중이면 스킵 (다음에 정리됨)
             }
             return newValue;
         }
@@ -128,8 +142,11 @@ public class S2OptimisticCache<K, V> {
     /**
      * 설정된 임계치를 넘었을 경우 오래된 항목부터 절반을 삭제한다.
      * Sequence가 낮은(오래된) 항목부터 우선 삭제하여 LRU 효과를 얻는다.
+     * <p>
+     * 이 메서드는 백그라운드 스레드에서 실행되므로 synchronized를 사용하지 않습니다.
+     * </p>
      */
-    private synchronized void evictOldEntries() {
+    private void evictOldEntries() {
         if (size.get() <= maxEntries) {
             return; // 다른 스레드가 이미 정리했을 수 있음
         }

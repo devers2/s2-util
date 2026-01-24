@@ -23,7 +23,7 @@ S2Util is highly modular. Add only the extensions you specifically need.
 ```groovy
 dependencies {
     // 필수 코어 및 S2Copier 엔진
-    implementation 'io.github.devers2:s2-core:1.0.4'
+    implementation 'io.github.devers2:s2-core:1.0.5'
 
     // 통합 검증 시스템 (S2Validator)
     implementation 'io.github.devers2:s2-validator:1.0.2'
