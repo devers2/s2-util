@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.0.4'
+    implementation 'io.github.devers2:s2-core:1.0.5'
     implementation 'io.github.devers2:s2-validator:1.0.2'
 }
 
@@ -136,7 +136,7 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 The foundational library providing high-performance core utility classes. Features include:
 
 - **High-Performance Reflection**: Method Handle-based reflection with JIT optimization
-- **Intelligent Caching**: Caffeine cache with W-TinyLFU algorithm for optimal hit rates
+- **Intelligent Caching**: Built-in optimized lightweight cache (concurrent-safe, zero-dependency) with optional Caffeine support for extreme high-concurrency environments
 - **Java Version-Adaptive Thread Factory**: Virtual Thread support (Java 21+) with platform thread fallback
 - **Optimized Data Access**: `getValue()` and `setValue()` with dot notation and bracket indexing support
 - **Comprehensive Utilities**: String manipulation, date/time handling, type conversion, and more
@@ -146,7 +146,7 @@ The foundational library providing high-performance core utility classes. Featur
 고성능 핵심 유틸리티 클래스를 제공하는 기반 라이브러리입니다. 주요 기능:
 
 - **고성능 리플렉션**: Method Handle 기반 리플렉션 (JIT 최적화)
-- **지능형 캐싱**: W-TinyLFU 알고리즘의 Caffeine 캐시
+- **지능형 캐싱**: 외부 의존성 없는 자체 고성능 동시성 경량 캐시 제공 (대규모 트래픽 환경을 위한 선택적 Caffeine 지원)
 - **자바 버전 적응형 스레드 팩토리**: 가상 스레드 지원 (Java 21+) 및 플랫폼 스레드 폴백
 - **최적화된 데이터 접근**: 점 표기법 및 대괄호 인덱싱 지원
 - **종합 유틸리티**: 문자열 조작, 날짜/시간 처리, 타입 변환 등

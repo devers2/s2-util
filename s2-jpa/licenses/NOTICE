@@ -1,4 +1,4 @@
-# S2Util Validator Module (s2-validator) 3rd Party Notices
+# S2Util JPA Module (s2-jpa) 3rd Party Notices
 
 This product includes or depends on the following open source software components.
 For more details, please refer to the 'LICENSE' file in the root directory.
@@ -12,9 +12,8 @@ For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
 
-2. Gradle API
+2. Jakarta Persistence API (Provided/Compile-only Dependency)
 
-- License: Apache License 2.0
-- Copyright: Gradle Inc. and its contributors.
-
----
+- License: Eclipse Public License 2.0 / Eclipse Distribution License 1.0
+- Copyright: Eclipse Foundation and its contributors.
+- Note: This library is required at runtime for JPA features but is not included in the distribution artifact.
