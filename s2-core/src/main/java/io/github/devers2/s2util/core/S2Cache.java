@@ -304,6 +304,18 @@ public class S2Cache {
     }
 
     /**
+     * Caffeine 캐시 사용 여부를 반환합니다.
+     * <p>
+     * true이면 Caffeine 기반 고성능 캐싱, false이면 ConcurrentHashMap 기반 경량 캐싱을 사용합니다.
+     * </p>
+     *
+     * @return Caffeine 사용 가능 여부
+     */
+    public static boolean isCaffeineEnabled() {
+        return CAFFEINE_AVAILABLE;
+    }
+
+    /**
      * A unique key record for identifying cache instances.
      * <p>
      * By including type information for both keys and values, it isolates caches

@@ -246,6 +246,15 @@ public class Test {
     static void setup() {
         logger = S2LogManager.getLogger(Test.class);
         stats = new TestStatistics();
+
+        // 현재 사용 중인 캐시 구현체 로깅
+        if (S2Cache.isCaffeineEnabled()) {
+            logger.info("[Test] Using Caffeine Cache (High Performance)");
+            logger.info("[Test] Caffeine 캐시 사용 중 (고성능)");
+        } else {
+            logger.info("[Test] Using Lightweight Cache (ConcurrentHashMap)");
+            logger.info("[Test] 경량 캐시 사용 중 (ConcurrentHashMap)");
+        }
     }
 
     @AfterAll
