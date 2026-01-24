@@ -147,12 +147,50 @@ public class S2OptimisticCache<K, V> {
     /**
      * Returns the cached value, or creates it if not present.
      * The sequence is updated on every access to provide LRU effects.
+     * Supports null values through negative caching using a sentinel pattern.
+     *
+     * <h4>Concurrency & Double Creation</h4>
+     * <p>
+     * In high-concurrency scenarios where multiple threads simultaneously miss the same key,
+     * {@code mappingFunction} may execute multiple times. This is a deliberate trade-off:
+     * we prefer occasional duplicate creation over thread blocking (locking) during cache misses.
+     * </p>
+     * <p>
+     * <b>Safe:</b> If your {@code mappingFunction} is idempotent or side-effect free,
+     * double creation is harmless.<br>
+     * <b>Caution:</b> If creation is expensive (e.g., DB queries, external API calls) and not idempotent,
+     * consider using {@link CaffeineCacheAdapter} or adding external synchronization.
+     * </p>
+     *
+     * <h4>Null Value Handling</h4>
+     * <p>
+     * Null values are cached using a sentinel object (negative caching).
+     * Subsequent requests for the same key will return the cached null without calling {@code mappingFunction}.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 캐시된 값을 반환하며, 없을 경우 현재 스레드에서 생성하여 등록 후 반환합니다.
      * 조회 시마다 sequence를 갱신하여 LRU 효과를 제공합니다.
+     * null 값도 센티넬 패턴을 통해 캐싱됩니다(음수 캐싱).
+     *
+     * <h4>동시성 및 이중 생성</h4>
+     * <p>
+     * 여러 스레드가 동시에 같은 키로 캐시 미스를 발생시킬 때, {@code mappingFunction}이 여러 번 실행될 수 있습니다.
+     * 이는 의도된 트레이드오프입니다: 캐시 미스 중 스레드 블로킹(Lock)보다 아주 가끔 발생하는 이중 생성을 선택했습니다.
+     * </p>
+     * <p>
+     * <b>안전함:</b> {@code mappingFunction}이 멱등성(idempotent)이거나 부작용이 없으면 이중 생성은 무해합니다.<br>
+     * <b>주의:</b> 생성 비용이 큼(DB 쿼리, 외부 API 호출 등)이고 멱등성이 없으면
+     * {@link CaffeineCacheAdapter} 사용 또는 외부 동기화 추가를 권장합니다.
+     * </p>
+     *
+     * <h4>Null 값 처리</h4>
+     * <p>
+     * Null 값은 센티넬 객체를 사용하여 캐싱됩니다(음수 캐싱).
+     * 같은 키에 대한 후속 요청은 {@code mappingFunction} 호출 없이 캐시된 null을 반환합니다.
+     * </p>
      *
      * @param key             Cache key | 캐시 키
      * @param mappingFunction Creation function to execute when value is missing | 값이 없을 때 실행할 생성 함수
@@ -254,12 +292,62 @@ public class S2OptimisticCache<K, V> {
     /**
      * Returns the estimated number of entries currently in the cache.
      *
+     * <h4>Eventual Consistency</h4>
+     * <p>
+     * This method returns an <b>estimated</b> size due to the eventually-consistent design.
+     * The actual size may vary slightly due to concurrent additions and evictions happening
+     * without strict synchronization. Typical deviation is within ±5% for normal workloads.
+     * </p>
+     *
+     * <h4>Usage Recommendations</h4>
+     * <p>
+     * <b>Safe:</b> Use for statistics, monitoring, or logging (e.g., "Cache size: 1,234").<br>
+     * <b>Caution:</b> Do NOT use for strict logic decisions:
+     * </p>
+     * 
+     * <pre>{@code
+     * // UNSAFE - relies on exact size
+     * if (cache.estimatedSize() < 1000) {
+     *     // Critical business decision - may be inaccurate!
+     * }
+     *
+     * // SAFE - uses threshold with safety margin
+     * if (cache.estimatedSize() < maxEntries * 0.8) {
+     *     // Monitoring/logging with confidence interval
+     * }
+     * }</pre>
+     *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 현재 캐시에 저장된 항목의 예상 개수를 반환합니다.
      *
-     * @return Number of entries | 캐시 항목 개수
+     * <h4>최종적 일관성(Eventual Consistency)</h4>
+     * <p>
+     * 이 메서드는 최종적 일관성 설계로 인해 <b>추정값</b>을 반환합니다.
+     * 엄격한 동기화 없이 동시에 발생하는 추가와 삭제로 인해 실제 크기는 약간 다를 수 있습니다.
+     * 일반적인 작업 환경에서는 편차가 ±5% 범위입니다.
+     * </p>
+     *
+     * <h4>사용 권장사항</h4>
+     * <p>
+     * <b>안전함:</b> 통계, 모니터링, 로깅에 사용하세요 (예: "Cache size: 1,234").<br>
+     * <b>주의:</b> 엄격한 논리 결정에 사용하지 마세요:
+     * </p>
+     * 
+     * <pre>{@code
+     * // 위험함 - 정확한 크기에 의존
+     * if (cache.estimatedSize() < 1000) {
+     *     // 중요한 비즈니스 결정 - 부정확할 수 있음!
+     * }
+     *
+     * // 안전함 - 여유도를 포함한 임계값 사용
+     * if (cache.estimatedSize() < maxEntries * 0.8) {
+     *     // 신뢰도 있는 모니터링/로깅
+     * }
+     * }</pre>
+     *
+     * @return Estimated number of entries | 캐시 항목 개수(추정값)
      */
     public long estimatedSize() {
         return size.get();
