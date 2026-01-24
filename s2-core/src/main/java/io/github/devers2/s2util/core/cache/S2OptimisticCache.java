@@ -33,38 +33,63 @@ import java.util.function.Function;
 import io.github.devers2.s2util.core.S2ThreadUtil;
 
 /**
- * 낙관적 생성과 Sequence 기반 LRU를 지원하는 고성능 경량 캐시.
- * <p>
- * Lock-free 조회를 지향하며, 값이 없을 경우 여러 스레드가 동시에 생성하는 것을 허용하되
- * 저장 시점에 원자성을 보장하여 성능 경합을 최소화한다.
- * 최대치 도달 시 sequence가 낮은(오래된) 항목부터 점진적으로 삭제한다.
- * </p>
+ * High-performance lightweight cache supporting optimistic creation and sequence-based LRU.
+ *
+ * <h3>Design Philosophy & Advantages</h3>
+ * <ul>
+ * <li><b>Lock-free Read:</b> Achieves maximum performance by using {@link ConcurrentHashMap#get(Object)}
+ * without any locking in 99% of cases.</li>
+ * <li><b>Optimistic Creation:</b> Allows multiple threads to create values simultaneously
+ * when a cache miss occurs, but ensures atomicity at the storage stage using {@code putIfAbsent}.
+ * This eliminates wait time for other threads during value creation.</li>
+ * <li><b>Sequence-based LRU:</b> Uses a simple {@link AtomicLong} counter instead of expensive
+ * {@code System.nanoTime()} or {@code System.currentTimeMillis()} to track access order,
+ * minimizing CPU overhead.</li>
+ * <li><b>Asynchronous & Gradual Eviction:</b> When the cache reaches its maximum size,
+ * eviction is performed on a background thread (via {@link S2ThreadUtil}) to prevent
+ * blocking the main thread. Instead of clearing the entire cache, it gradually removes
+ * only the oldest 50% of entries to maintain a high hit rate.</li>
+ * </ul>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * ConcurrentHashMap 기반 경량 캐시 구현체입니다.
- * <p>
- * 조회 시 락을 사용하지 않아 고성능을 제공하며, 여러 스레드가 동시에 값을 생성할 수 있지만
- * putIfAbsent를 통해 저장 시점에만 원자성을 보장합니다.
- * Sequence 기반 LRU를 통해 자주 사용되는 항목을 우선 보호하며,
- * 최대치 도달 시 오래된 항목부터 절반을 삭제하는 점진적 전략을 사용합니다.
- * </p>
+ * 낙관적 생성과 Sequence 기반 LRU를 지원하는 고성능 경량 캐시 구현체입니다.
  *
- * @param <K> 캐시 키의 타입
- * @param <V> 캐시 값의 타입
+ * <h3>설계 철학 및 장점</h3>
+ * <ul>
+ * <li><b>Lock-free 조회:</b> 99%의 케이스에서 별도의 락 없이 {@link ConcurrentHashMap#get(Object)}만으로
+ * 값을 조회하여 극한의 성능을 제공합니다.</li>
+ * <li><b>낙관적 생성:</b> 캐시 미스 발생 시 여러 스레드가 동시에 값을 생성하는 것을 허용하되,
+ * 저장 시점에 {@code putIfAbsent}를 통해 원자성을 보장합니다. 이를 통해 값 생성 중 다른 스레드가
+ * 대기하는 현상을 완벽히 제거합니다.</li>
+ * <li><b>Sequence 기반 LRU:</b> 값 비싼 {@code System.nanoTime()} 호출 대신 단순한 {@link AtomicLong}
+ * 카운터를 사용하여 접근 순서를 추적함으로써 CPU 오버헤드를 최소화합니다.</li>
+ * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고 별도의 백그라운드 스레드
+ * ({@link S2ThreadUtil})에서 삭제 작업을 수행합니다. 전체를 비우는 대신 오래된 순으로 50%만 삭제하여
+ * 캐시 적중률을 안정적으로 유지합니다.</li>
+ * </ul>
+ *
+ * @param <K> Type of cache key | 캐시 키의 타입
+ * @param <V> Type of cache value | 캐시 값의 타입
  * @author devers2
  * @since 1.0.5
  */
 public class S2OptimisticCache<K, V> {
 
     /**
-     * 캐시 항목을 감싸는 래퍼 클래스.
+     * Wrapper class for cache entries.
+     * Stores the value along with a sequence number to track access order.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 캐시 항목을 감싸는 래퍼 클래스입니다.
      * 값과 함께 접근 순서를 추적하기 위한 sequence를 저장합니다.
      */
     private static class CacheEntry<V> {
         final V value;
-        volatile long sequence; // 접근 순서 추적 (작을수록 오래됨)
+        volatile long sequence; // Access sequence (smaller is older) | 접근 순서 추적 (작을수록 오래됨)
 
         CacheEntry(V value, long sequence) {
             this.value = value;
@@ -79,46 +104,57 @@ public class S2OptimisticCache<K, V> {
     private final AtomicBoolean evicting = new AtomicBoolean(false);
 
     /**
-     * S2OptimisticCache 생성자.
+     * Constructs a new S2OptimisticCache.
      *
-     * @param maxEntries 캐시의 최대 허용 개수
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * S2OptimisticCache 생성자입니다.
+     *
+     * @param maxEntries Maximum number of entries allowed | 캐시의 최대 허용 개수
      */
     public S2OptimisticCache(int maxEntries) {
         this.maxEntries = maxEntries;
     }
 
     /**
-     * 캐시된 값을 반환하며, 없을 경우 현재 스레드에서 생성하여 등록 후 반환한다.
-     * 조회 시마다 sequence를 갱신하여 LRU 효과를 얻는다.
+     * Returns the cached value, or creates it if not present.
+     * The sequence is updated on every access to provide LRU effects.
      *
-     * @param key             캐시 키
-     * @param mappingFunction 값이 없을 때 실행할 생성 함수
-     * @return 캐시된 값 또는 새로 생성된 값
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 캐시된 값을 반환하며, 없을 경우 현재 스레드에서 생성하여 등록 후 반환합니다.
+     * 조회 시마다 sequence를 갱신하여 LRU 효과를 제공합니다.
+     *
+     * @param key             Cache key | 캐시 키
+     * @param mappingFunction Creation function to execute when value is missing | 값이 없을 때 실행할 생성 함수
+     * @return Cached value or newly created value | 캐시된 값 또는 새로 생성된 값
      */
     @SuppressWarnings("null")
     public V get(K key, Function<? super K, ? extends V> mappingFunction) {
-        // 1. Non-blocking 조회 (99%의 케이스)
+        // 1. Non-blocking lookup (99% of cases)
         CacheEntry<V> entry = cache.get(key);
         if (entry != null) {
-            // 접근 순서 갱신 - AtomicLong.incrementAndGet()은 매우 빠름!
+            // Update sequence - AtomicLong.incrementAndGet() is extremely fast!
             entry.sequence = sequenceGenerator.incrementAndGet();
             return entry.value;
         }
 
-        // 2. 현재 스레드에서 직접 생성 (가상 스레드/별도 스레드 불필요)
+        // 2. Direct creation in the current thread (no virtual/dedicated thread needed)
         V newValue = mappingFunction.apply(key);
         if (newValue == null) {
             return null;
         }
 
-        // 3. 원자적 등록 (먼저 생성한 스레드의 값만 인정)
+        // 3. Atomic registration (first-come, first-served)
         CacheEntry<V> newEntry = new CacheEntry<>(newValue, sequenceGenerator.incrementAndGet());
         CacheEntry<V> existingEntry = cache.putIfAbsent(key, newEntry);
 
         if (existingEntry == null) {
-            // 내가 첫 등록자라면 사이즈 체크 및 관리
+            // Check and manage size for the successful registerer
             if (size.incrementAndGet() > maxEntries) {
-                // 비동기 eviction 시작 (메인 스레드 블로킹 없음!)
+                // Start asynchronous eviction (doesn't block the main thread!)
                 if (evicting.compareAndSet(false, true)) {
                     S2ThreadUtil.getCommonExecutor().execute(() -> {
                         try {
@@ -128,36 +164,40 @@ public class S2OptimisticCache<K, V> {
                         }
                     });
                 }
-                // 이미 eviction 진행 중이면 스킵 (다음에 정리됨)
+                // Skip if eviction is already in progress (will be cleaned later)
             }
             return newValue;
         }
 
-        // 찰나의 차이로 다른 스레드가 먼저 등록했다면 그 값을 반환
-        // 그리고 그 항목의 sequence도 갱신
+        // If another thread registered first, return that value and update its sequence
         existingEntry.sequence = sequenceGenerator.incrementAndGet();
         return existingEntry.value;
     }
 
     /**
-     * 설정된 임계치를 넘었을 경우 오래된 항목부터 절반을 삭제한다.
-     * Sequence가 낮은(오래된) 항목부터 우선 삭제하여 LRU 효과를 얻는다.
+     * Synchronized method to evict old entries starting from the lowest sequence.
+     * Removes 50% of the oldest entries to provide LRU effects.
+     * Runs on a background thread to avoid blocking the caller.
+     *
      * <p>
-     * 이 메서드는 백그라운드 스레드에서 실행되므로 synchronized를 사용하지 않습니다.
+     * <b>[한국어 설명]</b>
      * </p>
+     * 설정된 임계치를 넘었을 경우 오래된 항목부터 절반을 삭제합니다.
+     * Sequence가 낮은(오래된) 항목부터 우선 삭제하여 LRU 효과를 제공합니다.
+     * 이 메서드는 백그라운드 스레드에서 실행되므로 메인 호출자를 블로킹하지 않습니다.
      */
     private void evictOldEntries() {
         if (size.get() <= maxEntries) {
-            return; // 다른 스레드가 이미 정리했을 수 있음
+            return; // Another thread might have already cleaned it
         }
 
-        // 1. 현재 캐시 항목들을 리스트로 복사
+        // 1. Copy entries to a list
         List<Map.Entry<K, CacheEntry<V>>> entries = new ArrayList<>(cache.entrySet());
 
-        // 2. sequence 기준 오름차순 정렬 (작을수록 오래됨)
+        // 2. Sort by sequence ascending (older first)
         entries.sort(Comparator.comparingLong(e -> e.getValue().sequence));
 
-        // 3. 절반만 남기고 나머지 삭제
+        // 3. Keep half, remove the rest
         int targetSize = maxEntries / 2;
         int toRemove = entries.size() - targetSize;
 
@@ -170,6 +210,11 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
+     * Completely clears the cache.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 캐시를 완전히 비웁니다.
      */
     public void clear() {
@@ -178,9 +223,14 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
+     * Returns the estimated number of entries currently in the cache.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 현재 캐시에 저장된 항목의 예상 개수를 반환합니다.
      *
-     * @return 캐시 항목 개수
+     * @return Number of entries | 캐시 항목 개수
      */
     public long estimatedSize() {
         return size.get();
