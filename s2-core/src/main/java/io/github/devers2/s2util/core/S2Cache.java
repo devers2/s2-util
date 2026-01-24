@@ -293,7 +293,16 @@ public class S2Cache {
     }
 
     /**
+     * Logs a cache removal event.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 캐시 제거 이벤트를 로깅합니다.
+     *
+     * @param cacheName Name of the cache | 캐시 이름
+     * @param key       Removed key | 제거된 키
+     * @param cause     Reason for removal | 제거 사유
      */
     private static void logRemovalEvent(String cacheName, Object key, Object cause) {
         if (S2Util.isKorean(Locale.getDefault())) {
@@ -304,12 +313,21 @@ public class S2Cache {
     }
 
     /**
-     * Caffeine 캐시 사용 여부를 반환합니다.
+     * Returns whether Caffeine Cache is currently being used.
      * <p>
-     * true이면 Caffeine 기반 고성능 캐싱, false이면 ConcurrentHashMap 기반 경량 캐싱을 사용합니다.
+     * Returns true if high-performance caching via Caffeine is enabled,
+     * or false if lightweight caching via ConcurrentHashMap is being used.
      * </p>
      *
-     * @return Caffeine 사용 가능 여부
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * Caffeine 캐시 사용 여부를 반환합니다.
+     * <p>
+     * true이면 Caffeine 기반 고성능 캐싱을, false이면 ConcurrentHashMap 기반 경량 캐싱을 사용 중임을 의미합니다.
+     * </p>
+     *
+     * @return True if Caffeine is enabled | Caffeine 사용 가능 여부
      */
     public static boolean isCaffeineEnabled() {
         return CAFFEINE_AVAILABLE;
@@ -654,6 +672,11 @@ public class S2Cache {
          */
         private static final CacheAdapter<MethodKey, Optional<MethodHandle>> CACHE = createMethodCache();
 
+        /**
+         * Creates a cache adapter for MethodHandles.
+         *
+         * @return CacheAdapter instance for MethodHandles | MethodHandle 전용 캐시 어댑터 인스턴스
+         */
         private static CacheAdapter<MethodKey, Optional<MethodHandle>> createMethodCache() {
             return createCacheAdapter(10000, 0, "MethodHandleResolver");
         }
@@ -780,16 +803,17 @@ public class S2Cache {
             }
 
             /**
-             * 생성자 (fieldName 없이 호출 가능)
-             * <p>
-             * <b>❗주의:</b> fieldName이 누락된 경우, fieldName이 있는 키와 서로 다른 키로 인식됩니다.
-             * Setter 추론(Inference) 기능이 작동하지 않으므로, Map.get/put 등 명확한 메서드 호출 시에만 사용하십시오.
-             * </p>
+             * Creates a MethodKey with two parameter types.
              *
-             * @param targetClass 대상 클래스
-             * @param methodName  메서드 이름(예: "getName", "setName")
-             * @param paramType1  파라미터 타입1
-             * @param paramType2  파라미터 타입2
+             * <p>
+             * <b>[한국어 설명]</b>
+             * </p>
+             * fieldName 없이 두 개의 파라미터 타입을 받는 생성자입니다.
+             *
+             * @param targetClass Target class | 대상 클래스
+             * @param methodName  Method name | 메서드 이름
+             * @param paramType1  First parameter type | 첫 번째 파라미터 타입
+             * @param paramType2  Second parameter type | 두 번째 파라미터 타입
              */
             public MethodKey(Class<?> targetClass, String methodName, Class<?> paramType1, Class<?> paramType2) {
                 this(targetClass, methodName, null, new Class<?>[] { paramType1, paramType2 });
@@ -966,15 +990,24 @@ public class S2Cache {
         }
 
         /**
-         * 지정된 키와 조회 타입을 기반으로 MethodHandle을 조회한다. (캐싱 적용)
+         * Resolves a MethodHandle based on the key and lookup type.
          * <p>
-         * 먼저 하이패스 대상을 조회하며, 캐시에 없을 경우 적절한 대상을 스캔하여 결과를 반환한다.
-         * 내부적으로 {@link S2Cache#resolve}를 사용하여 공통 캐시 저장소에서 관리함.
+         * First checks for fast-pass targets, and scans for the appropriate member if not cached.
+         * Managed via {@link S2Cache#resolve} for centralized cache storage.
          * </p>
          *
-         * @param key  메서드 또는 필드 식별 정보
-         * @param type 검색 대상 범위 (METHOD, FIELD, BOTH 중 하나): ❗METHOD 인 경우 public 메서드만 조회하며, 그 외는 private를 포함한 모든 메서드를 조회한다.
-         * @return 검색된 MethodHandle을 담은 Optional 객체
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 지정된 키와 조회 타입을 기반으로 MethodHandle을 조회합니다. (캐싱 적용)
+         * <p>
+         * 먼저 하이패스 대상을 조회하며, 캐시에 없을 경우 적절한 대상을 스캔하여 결과를 반환합니다.
+         * 내부적으로 {@link S2Cache#resolve}를 사용하여 공통 캐시 저장소에서 관리합니다.
+         * </p>
+         *
+         * @param key  Identification key for method or field | 메서드 또는 필드 식별 정보
+         * @param type Search scope (METHOD, FIELD, or BOTH) | 검색 대상 범위 (METHOD, FIELD, BOTH 중 하나)
+         * @return An Optional containing the resolved MethodHandle | 검색된 MethodHandle을 담은 Optional 객체
          */
         private static Optional<MethodHandle> resolve(MethodKey key, LookupType type) {
             if (key == null)
@@ -1015,11 +1048,17 @@ public class S2Cache {
         }
 
         /**
-         * 하이패스 대상(자주 사용되는 표준 클래스의 메서드)을 캐시 접근 없이 빠르게 조회한다.
-         * Map, List, Collection 및 Object의 기본 메서드들에 대한 핸들을 즉시 반환한다.
+         * Quickly retrieves fast-pass targets (standard methods of common classes).
+         * Returns handles for common methods in Map, List, Collection, and Object directly.
          *
-         * @param key 메서드 식별 정보
-         * @return 미리 정의된 MethodHandle, 해당 사항이 없으면 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 하이패스 대상(자주 사용되는 표준 클래스의 메서드)을 캐시 접근 없이 빠르게 조회합니다.
+         * Map, List, Collection 및 Object의 기본 메서드들에 대한 핸들을 즉시 반환합니다.
+         *
+         * @param key Member identification info | 메서드 식별 정보
+         * @return Pre-defined MethodHandle, or null if not applicable | 미리 정의된 MethodHandle, 해당 사항이 없으면 null 반환
          */
         private static MethodHandle getFastHandle(MethodKey key) {
             Class<?> clazz = key.targetClass();
@@ -1057,12 +1096,18 @@ public class S2Cache {
         }
 
         /**
-         * 메서드를 스캔하여 조건에 맞는 메서드를 스캔한다.
-         * 일반 검색, 타입 변환 기반 검색, 필드 타입 추론 기반 검색을 순차적으로 수행한다.
+         * Scans for a method based on the key.
+         * Performs sequential searches: normal search, type-conversion-based search, and field-type-inference-based search.
          *
-         * @param key          메서드 식별 정보
-         * @param allowPrivate private 메서드 접근 허용 여부
-         * @return 검색된 MethodHandle, 찾지 못한 경우 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 키 정보를 기반으로 메서드를 스캔합니다.
+         * 일반 검색, 타입 변환 기반 검색, 필드 타입 추론 기반 검색을 순차적으로 수행합니다.
+         *
+         * @param key          Member identification info | 메서드 식별 정보
+         * @param allowPrivate Whether to allow private access | private 메서드 접근 허용 여부
+         * @return Resolved MethodHandle, or null if not found | 검색된 MethodHandle, 찾지 못한 경우 null 반환
          */
         private static MethodHandle scanMethod(MethodKey key, boolean allowPrivate) {
             Class<?> clazz = key.targetClass();
@@ -1094,12 +1139,18 @@ public class S2Cache {
         }
 
         /**
-         * 클래스 계층 구조를 올라가며 재귀적으로 메서드를 조회함.
-         * 생성자 요청 시 생성자를 생성하며, 일반 메서드는 선언된 메서드에서 매칭되는 항목을 찾는다.
+         * Recursively searches for a method up the class hierarchy.
+         * Handles constructor requests if methodName is {@code "<init>"}, otherwise searches for matching declared methods.
          *
-         * @param key          메서드 식별 정보
-         * @param allowPrivate 프라이빗 접근 허용 여부
-         * @return 검색된 MethodHandle, 검색 실패 시 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스 계층 구조를 올라가며 재귀적으로 메서드를 조회합니다.
+         * 생성자 요청 시 생성자를 생성하며, 일반 메서드는 선언된 메서드에서 매칭되는 항목을 찾습니다.
+         *
+         * @param key          Member identification info | 메서드 식별 정보
+         * @param allowPrivate Whether to allow private access | 프라이빗 접근 허용 여부
+         * @return Resolved MethodHandle, or null if lookup fails | 검색된 MethodHandle, 검색 실패 시 null 반환
          */
         private static MethodHandle findMethodRecursive(MethodKey key, boolean allowPrivate) {
             Class<?> current = key.targetClass();
@@ -1148,12 +1199,18 @@ public class S2Cache {
         }
 
         /**
-         * 기본형(Primitive)과 래퍼(Wrapper) 타입 간의 오토박싱/언박싱을 고려하여 메서드를 검색한다.
-         * 오토박싱/언박싱 상황에 대응하기 위해 각 맵을 기준으로 타입을 변환하여 재검색한다.
+         * Searches for a method considering autoboxing/unboxing between primitive and wrapper types.
+         * Retries the search by converting types based on mapping rules.
          *
-         * @param key          메서드 식별 정보
-         * @param allowPrivate 프라이빗 접근 허용 여부
-         * @return 변환 후 검색된 MethodHandle, 실패 시 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 기본형(Primitive)과 래퍼(Wrapper) 타입 간의 오토박싱/언박싱을 고려하여 메서드를 검색합니다.
+         * 오토박싱/언박싱 상황에 대응하기 위해 각 맵을 기준으로 타입을 변환하여 재검색합니다.
+         *
+         * @param key          Member identification info | 메서드 식별 정보
+         * @param allowPrivate Whether to allow private access | 프라이빗 접근 허용 여부
+         * @return Resolved MethodHandle, or null if lookup fails | 변환 후 검색된 MethodHandle, 실패 시 null 반환
          */
         private static MethodHandle findWithConvertedTypes(MethodKey key, boolean allowPrivate) {
             // 래퍼 타입을 기본 타입으로 변환하여 조회를 시도함
@@ -1168,12 +1225,18 @@ public class S2Cache {
         }
 
         /**
-         * 주어진 타입 배열을 맵에 정의된 대응 타입으로 변환함.
-         * 대응하는 타입이 맵에 없는 경우 원본 타입을 유지한다.
+         * Converts an array of types to their corresponding counterparts defined in the map.
+         * Keeps the original type if no mapping is found.
          *
-         * @param original 원본 클래스 타입 배열
-         * @param map      변환 규칙을 담은 맵
-         * @return 변환이 완료된 클래스 타입 배열
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 주어진 타입 배열을 맵에 정의된 대응 타입으로 변환합니다.
+         * 대응하는 타입이 맵에 없는 경우 원본 타입을 유지합니다.
+         *
+         * @param original Original array of class types | 원본 클래스 타입 배열
+         * @param map      Mapping rules | 변환 규칙을 담은 맵
+         * @return Converted array of class types | 변환이 완료된 클래스 타입 배열
          */
         private static Class<?>[] convertTypes(Class<?>[] original, Map<Class<?>, Class<?>> map) {
             Class<?>[] converted = new Class<?>[original.length];
@@ -1185,11 +1248,16 @@ public class S2Cache {
         }
 
         /**
-         * 클래스 계층 구조를 순회하며 특정 필드의 타입을 찾음.
+         * Traversing the class hierarchy to find the type of a specific field.
          *
-         * @param clazz     대상 클래스
-         * @param fieldName 필드 이름
-         * @return 찾은 필드의 Class 타입, 없으면 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스 계층 구조를 순회하며 특정 필드의 타입을 찾습니다.
+         *
+         * @param clazz     Target class | 대상 클래스
+         * @param fieldName Field name | 필드 이름
+         * @return Field type, or null if not found | 찾은 필드의 Class 타입, 없으면 null 반환
          */
         private static Class<?> findFieldTypeRecursive(Class<?> clazz, String fieldName) {
             Class<?> current = clazz;
@@ -1204,11 +1272,16 @@ public class S2Cache {
         }
 
         /**
-         * 클래스 계층 구조를 순회하며 조건에 맞는 필드를 스캔한다.
-         * 이름이 일치하는 필드를 찾을 때까지 상위 클래스로 올라가며 검색을 수행한다.
+         * Scans for a field by traversing the class hierarchy.
          *
-         * @param key 필드 식별 정보
-         * @return 검색된 MethodHandle(Getter), 찾지 못한 경우 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스 계층 구조를 순회하며 조건에 맞는 필드를 스캔합니다.
+         * 이름이 일치하는 필드를 찾을 때까지 상위 클래스로 올라가며 검색을 수행합니다.
+         *
+         * @param key Field identification info | 필드 식별 정보
+         * @return MethodHandle for the field (getter), or null if not found | 검색된 MethodHandle(Getter), 찾지 못한 경우 null 반환
          */
         private static MethodHandle scanField(MethodKey key) {
             Class<?> current = key.targetClass();
@@ -1227,13 +1300,19 @@ public class S2Cache {
         }
 
         /**
-         * Method 객체를 이용해 MethodHandle을 생성한다.
-         * 접근 권한을 활성화한 후, 설정에 따라 일반 또는 프라이빗 Lookup을 수행한다.
+         * Creates a MethodHandle from a Method object.
+         * Enables accessibility and performs lookup based on privacy settings.
          *
-         * @param method       대상 메서드 객체
-         * @param clazz        대상 클래스
-         * @param allowPrivate 프라이빗 접근 허용 여부
-         * @return 생성된 MethodHandle, 실패 시 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * Method 객체를 이용해 MethodHandle을 생성합니다.
+         * 접근 권한을 활성화한 후, 설정에 따라 일반 또는 프라이빗 Lookup을 수행합니다.
+         *
+         * @param method       Target method object | 대상 메서드 객체
+         * @param clazz        Target class | 대상 클래스
+         * @param allowPrivate Whether to allow private access | 프라이빗 접근 허용 여부
+         * @return Created MethodHandle, or null if creation fails | 생성된 MethodHandle, 실패 시 null 반환
          */
         private static MethodHandle createHandle(Method method, Class<?> clazz, boolean allowPrivate) {
             try {
@@ -1248,12 +1327,18 @@ public class S2Cache {
         }
 
         /**
-         * Field 객체를 이용해 Getter 목적의 MethodHandle을 생성함.
-         * 프라이빗 조회를 통해 대상 필드의 값을 읽을 수 있는 핸들을 반환한다.
+         * Creates a MethodHandle for a getter from a Field object.
+         * Returns a handle that can read the field's value even with private access.
          *
-         * @param f     대상 필드 객체
-         * @param clazz 대상 클래스
-         * @return 필드 Getter 핸들, 실패 시 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * Field 객체를 이용해 Getter 목적의 MethodHandle을 생성합니다.
+         * 프라이빗 조회를 통해 대상 필드의 값을 읽을 수 있는 핸들을 반환합니다.
+         *
+         * @param f     Target field object | 대상 필드 객체
+         * @param clazz Target class | 대상 클래스
+         * @return Getter MethodHandle, or null if creation fails | 필드 Getter 핸들, 실패 시 null 반환
          */
         private static MethodHandle createFieldHandle(Field f, Class<?> clazz) {
             try {
@@ -1267,13 +1352,19 @@ public class S2Cache {
         }
 
         /**
-         * 클래스 생성자에 접근하는 MethodHandle을 생성함.
-         * 파라미터 타입을 기반으로 생성자 시그니처를 구성하고 적절한 Lookup을 시도한다.
+         * Creates a MethodHandle for a class constructor.
+         * Constructs the method type based on parameter types and performs lookup.
          *
-         * @param clazz 대상 클래스
-         * @param pts   생성자 파라미터 타입 배열
-         * @param priv  프라이빗 접근 허용 여부
-         * @return 생성자 MethodHandle, 실패 시 null 반환
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스 생성자에 접근하는 MethodHandle을 생성합니다.
+         * 파라미터 타입을 기반으로 생성자 시그니처를 구성하고 적절한 Lookup을 시도합니다.
+         *
+         * @param clazz Target class | 대상 클래스
+         * @param pts   Constructor parameter types | 생성자 파라미터 타입 배열
+         * @param priv  Whether to allow private access | 프라이빗 접근 허용 여부
+         * @return Constructor MethodHandle, or null if creation fails | 생성자 MethodHandle, 실패 시 null 반환
          */
         private static MethodHandle createConstructor(Class<?> clazz, Class<?>[] pts, boolean priv) {
             try {
@@ -1307,10 +1398,15 @@ public class S2Cache {
         private static final CacheAdapter<String, Optional<Pattern>> CACHE = createCacheAdapter(1000, 0, "PatternResolver");
 
         /**
-         * 정규식 문자열을 통해 캐시된 Pattern 객체를 가져온다.
+         * Retrieves a cached Pattern object for the given regex string.
          *
-         * @param regex 정규식 문자열
-         * @return 컴파일된 Pattern 객체
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 정규식 문자열을 통해 캐시된 Pattern 객체를 가져옵니다.
+         *
+         * @param regex Regular expression string | 정규식 문자열
+         * @return Compiled Pattern object wrapped in an Optional | 컴파일된 Pattern 객체를 포함한 Optional
          */
         private static Optional<Pattern> resolve(String regex) {
             if (regex == null || regex.isBlank()) {
@@ -1328,19 +1424,33 @@ public class S2Cache {
     }
 
     /**
-     * ResourceBundle 리졸버
+     * Resolver for {@link java.util.ResourceBundle}s.
      * <p>
-     * basename과 locale로 ResourceBundle을 자동으로 로드·캐싱한다.
-     * 실패 시 Optional.empty()를 캐싱하여 반복적인 파일 탐색을 방지한다.
+     * Automatically loads and caches ResourceBundles based on basename and locale.
+     * Implements negative caching for missing resources to prevent repetitive lookups.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * ResourceBundle 리졸버입니다.
+     * <p>
+     * basename과 locale을 기반으로 ResourceBundle을 자동으로 로드 및 캐싱합니다.
+     * 존재하지 않는 리소스에 대해서도 결과를 캐싱(Negative Caching)하여 반복적인 탐색 부하를 방지합니다.
      * </p>
      */
     public static class ResourceBundleResolver {
 
         /**
-         * 리소스 번들 식별을 위한 고유 키 레코드.
+         * Immutable key record for identifying resource bundles.
          *
-         * @param basename 번들 경로
-         * @param locale   로케일 정보
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 리소스 번들 식별을 위한 고유 키 레코드입니다.
+         *
+         * @param basename Bundle path | 번들 경로
+         * @param locale   Locale information | 로케일 정보
          */
         private record BundleKey(String basename, Locale locale) {}
 
@@ -1362,9 +1472,9 @@ public class S2Cache {
          * 본 리졸버는 네거티브 캐싱(Negative Caching)을 통해 부하를 최소화합니다.
          * </p>
          *
-         * @param basename Base name of the resource bundle (e.g. "messages/validation")
-         * @param locale   Target locale (defaults to {@link Locale#getDefault()} if null)
-         * @return An Optional containing the bundle if it exists
+         * @param basename Base name of the resource bundle (e.g. "messages/validation") | 리소스 번들 기본 경로
+         * @param locale   Target locale (defaults to {@link Locale#getDefault()} if null) | 대상 로케일 (null 인 경우 기본값 사용)
+         * @return An Optional containing the bundle if it exists | 번들이 존재할 경우 이를 포함한 Optional
          */
         @SuppressWarnings("null")
         public static Optional<ResourceBundle> resolve(String basename, Locale locale) {
