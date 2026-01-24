@@ -35,7 +35,7 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
 /**
  * High-performance lightweight cache supporting optimistic creation and sequence-based LRU.
  *
- * <h3>Design Philosophy & Advantages</h3>
+ * <h3>Design Philosophy and Advantages</h3>
  * <ul>
  * <li><b>Lock-free Read:</b> Achieves maximum performance by using {@link ConcurrentHashMap#get(Object)}
  * without any locking in 99% of cases.</li>
@@ -45,20 +45,20 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <li><b>Sequence-based LRU:</b> Uses a simple {@link AtomicLong} counter instead of expensive
  * {@code System.nanoTime()} or {@code System.currentTimeMillis()} to track access order,
  * minimizing CPU overhead.</li>
- * <li><b>Asynchronous & Gradual Eviction:</b> When the cache reaches its maximum size,
+ * <li><b>Asynchronous and Gradual Eviction:</b> When the cache reaches its maximum size,
  * eviction is performed on a background thread (via {@link S2ThreadUtil}) to prevent
  * blocking the main thread. Instead of clearing the entire cache, it gradually removes
  * only the oldest 50% of entries to maintain a high hit rate.</li>
  * </ul>
  *
- * <h3>Philosophical Considerations & Guardrails</h3>
+ * <h3>Philosophical Considerations and Guardrails</h3>
  * <ul>
  * <li><b>Sequence Overflow:</b> Uses a {@code long} counter. With 1 billion increments per second,
  * it takes approx. 292 years to overflow. For system stability, this is considered
  * "effectively infinite" and no reset logic is added to maintain zero-overhead.</li>
  * <li><b>Double Creation:</b> Optimistic creation is a deliberate trade-off. We prefer occasional
  * duplicate object creation over mandatory thread blocking (locking) during high concurrency.</li>
- * <li><b>Size & Eviction Accuracy:</b> The exactness of the size counter and strict serial consistency
+ * <li><b>Size and Eviction Accuracy:</b> The exactness of the size counter and strict serial consistency
  * during eviction are relaxed to ensure lock-free read/write performance. It is "eventually stable"
  * and sufficient for cache management.</li>
  * </ul>
@@ -149,7 +149,7 @@ public class S2OptimisticCache<K, V> {
      * The sequence is updated on every access to provide LRU effects.
      * Supports null values through negative caching using a sentinel pattern.
      *
-     * <h4>Concurrency & Double Creation</h4>
+     * <h4>Concurrency and Double Creation</h4>
      * <p>
      * In high-concurrency scenarios where multiple threads simultaneously miss the same key,
      * {@code mappingFunction} may execute multiple times. This is a deliberate trade-off:
@@ -242,6 +242,29 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
+     * Retrieves the value from the cache if present, without creating it.
+     * Updates the LRU sequence if found.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 캐시에 값이 존재하면 반환하고, 없으면 null을 반환합니다.
+     * 값을 생성하지 않으며, 조회 성공 시 LRU 순서를 갱신합니다.
+     *
+     * @param key Cache key | 조회할 키
+     * @return Cached value or null if not present | 캐시된 값 또는 없으면 null
+     */
+    public V getIfPresent(K key) {
+        CacheEntry<V> entry = cache.get(key);
+        if (entry != null) {
+            entry.sequence = sequenceGenerator.incrementAndGet();
+            V value = entry.value;
+            return (value == NULL_HOLDER) ? null : value;
+        }
+        return null;
+    }
+
+    /**
      * Synchronized method to evict old entries starting from the lowest sequence.
      * Removes 50% of the oldest entries to provide LRU effects.
      * Runs on a background thread to avoid blocking the caller.
@@ -304,7 +327,7 @@ public class S2OptimisticCache<K, V> {
      * <b>Safe:</b> Use for statistics, monitoring, or logging (e.g., "Cache size: 1,234").<br>
      * <b>Caution:</b> Do NOT use for strict logic decisions:
      * </p>
-     * 
+     *
      * <pre>{@code
      * // UNSAFE - relies on exact size
      * if (cache.estimatedSize() < 1000) {
@@ -334,7 +357,7 @@ public class S2OptimisticCache<K, V> {
      * <b>안전함:</b> 통계, 모니터링, 로깅에 사용하세요 (예: "Cache size: 1,234").<br>
      * <b>주의:</b> 엄격한 논리 결정에 사용하지 마세요:
      * </p>
-     * 
+     *
      * <pre>{@code
      * // 위험함 - 정확한 크기에 의존
      * if (cache.estimatedSize() < 1000) {
