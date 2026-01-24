@@ -82,10 +82,10 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
     @Override
     public V get(K key, Function<K, V> loader) {
         // Try to look up from the cache first
-        V value = cache.get(key, k -> null);
+        V value = cache.getIfPresent(key);
 
         if (value != null) {
-            // Cache Hit
+            // Cache Hit (including negative caching with NULL_HOLDER)
             if (statsEnabled) {
                 hitCount.incrementAndGet();
             }
@@ -97,7 +97,10 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
             missCount.incrementAndGet();
         }
 
-        return cache.get(key, loader);
+        V result = cache.get(key, loader);
+
+        // Null-safe: result can be null from Optional loaders
+        return result;
     }
 
     /**

@@ -436,7 +436,13 @@ public class S2Cache {
         // 4. 로딩 수행
         Optional<V> value = cache.get(key, Objects.requireNonNull(loader));
 
-        // 5. 반환 값 타입 검증 (Optional 내부 데이터 확인, 성능 최적화를 위해 디버그 모드에서만 검증)
+        // 5. 반환 값 타입 검증 및 Null Safety
+        if (value == null) {
+            // S2OptimisticCache가 Null Holder를 반환했거나, 로더가 null을 반환한 경우
+            // Optional 타입이므로 null 대신 empty를 반환하는 것이 안전함.
+            return Optional.empty();
+        }
+
         if (logger.isDebugEnabled()) {
             if (value.isPresent() && !valueType.isInstance(value.get())) {
                 DYNAMIC_CACHES.remove(cacheKey);
