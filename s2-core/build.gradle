@@ -47,10 +47,6 @@ ext {
     artifactTestClassNames = []
 }
 
-// 동적 의존성 및 라이선스 자동화 설정 적용은 루트에서 일괄 처리됨
-
-
-
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
