@@ -28,6 +28,7 @@ The **s2-core** module is the foundational library of the S2Util project, provid
    - **Optional**: Seamless integration with **Caffeine Cache** for enterprise-grade workloads
      - W-TinyLFU algorithm for maximizing hit rates in high-traffic scenarios
      - Automatically activated when Caffeine is present in the classpath
+     - **Verification**: You can check if Caffeine is enabled by calling `S2Cache.isCaffeineEnabled()`.
 
 3. **Java Version-Adaptive Thread Factory**
    - Virtual Thread support for Java 21+ environments
@@ -64,6 +65,7 @@ The **s2-core** module is the foundational library of the S2Util project, provid
    - **선택 사항**: 엔터프라이즈급 부하 처리를 위한 **Caffeine Cache** 완벽 연동
      - 클래스패스에 Caffeine 라이브러리 존재 시 자동 감지 및 활성화
      - W-TinyLFU 알고리즘을 통한 극한의 캐시 적중률 제공
+     - **확인 방법**: `S2Cache.isCaffeineEnabled()` 메서드로 Caffeine 활성화 여부를 확인할 수 있습니다.
 
 3. **자바 버전별 적응형 스레드 팩토리**
    - Java 21 이상 환경에서 가상 스레드(Virtual Thread) 지원

@@ -110,6 +110,26 @@ public class S2Util {
     }
 
     /**
+     * Checks if the given locale is Korean.
+     * <p>
+     * If the locale is {@code null}, it is treated as Korean by default.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 현재 로케일이 한국어인지 확인하는 메서드입니다.
+     * <p>
+     * 로케일 정보가 {@code null}인 경우에도 한국어로 간주합니다.
+     * </p>
+     *
+     * @return {@code true} if Korean, {@code false} otherwise | 한국어이면 true, 아니면 false
+     */
+    public static boolean isKorean() {
+        return isKorean(Locale.getDefault());
+    }
+
+    /**
      * Extracts a value from the target object based on the given field name or path.
      * <p>
      * Instead of traditional reflection, this method uses cached {@link java.lang.invoke.MethodHandle}s
@@ -398,7 +418,7 @@ public class S2Util {
             }
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
-                if (isKorean(Locale.getDefault())) {
+                if (isKorean()) {
                     logger.debug(
                             "[S2Util] getValue 실행 중 오류가 발생했습니다. (Target: {}, Field: {}). 기본값 {}을(를) 반환합니다.",
                             target.getClass().getSimpleName(), fieldName, defaultValue
@@ -623,7 +643,7 @@ public class S2Util {
 
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
-                if (isKorean(Locale.getDefault())) {
+                if (isKorean()) {
                     logger.debug(
                             "[S2Util] setValue 실행 중 오류가 발생했습니다. (Target: {}, Field: {}).",
                             finalTargetOrigin.getClass().getSimpleName(), fieldName
@@ -1163,7 +1183,7 @@ public class S2Util {
                         return (args == null || args.length == 0) ? handle.invoke() : handle.invokeWithArguments(args);
                     } catch (Throwable e) {
                         if (logger.isDebugEnabled()) {
-                            if (isKorean(Locale.getDefault())) {
+                            if (isKorean()) {
                                 logger.debug(
                                         "[S2Util] 인스턴스 생성 중 오류 발생. (Target: {}, Args: {}).",
                                         clazz.getSimpleName(), Arrays.toString(args)
@@ -1180,7 +1200,7 @@ public class S2Util {
                 })
                 .orElseGet(() -> {
                     if (logger.isDebugEnabled()) {
-                        if (isKorean(Locale.getDefault())) {
+                        if (isKorean()) {
                             logger.debug("[S2Util] 일치하는 생성자를 찾을 수 없음. (Target: {}).", clazz.getSimpleName());
                         } else {
                             logger.debug("[S2Util] No matching constructor found. (Target: {}).", clazz.getSimpleName());

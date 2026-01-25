@@ -297,7 +297,7 @@ public final class S2ValidatorFactory {
      */
     public static String getRulesJson(S2Validator<?> validator, Locale locale) {
         if (validator == null) {
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.warn("해당 키에 등록된 규칙이 없습니다.");
             } else {
                 logger.warn("No rules registered for the given key.");

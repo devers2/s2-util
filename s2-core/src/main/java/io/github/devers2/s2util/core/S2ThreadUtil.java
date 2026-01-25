@@ -23,7 +23,6 @@ package io.github.devers2.s2util.core;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -155,7 +154,7 @@ public class S2ThreadUtil {
             commonExecutor = (ExecutorService) virtualExecutorMh.invokeExact();
 
             // 가상 스레드 감지 및 주의사항을 안내함
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다.");
                 logger.info(
                         "{}[CAUTION_SYNCHRONIZED]{} 가이드: 성능 저하 방지를 위해 {}synchronized{} 대신 {}java.util.concurrent.locks.ReentrantLock{} 사용을 권장합니다.",
@@ -183,7 +182,7 @@ public class S2ThreadUtil {
             );
 
             String javaVersion = System.getProperty("java.version");
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.info(
                         "[PLATFORM_THREAD] 가상 스레드를 지원하지 않는 환경입니다. (Java Version: {})",
                         javaVersion
@@ -206,7 +205,7 @@ public class S2ThreadUtil {
             defaultFactory = platformFactory;
             commonExecutor = Executors.newCachedThreadPool(platformFactory);
             String javaVersion = System.getProperty("java.version");
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.error(
                         "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 기본 CachedThreadPool로 대체합니다.",
                         javaVersion, t
@@ -314,7 +313,7 @@ public class S2ThreadUtil {
             try {
                 return (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
             } catch (Throwable t) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.warn("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.");
                 } else {
                     logger.warn("[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.");
@@ -349,7 +348,7 @@ public class S2ThreadUtil {
                 COMMON_EXECUTOR.shutdownNow();
                 Thread.currentThread().interrupt();
             }
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.info("[COMMON EXECUTOR SHUTDOWN] 공용 실행기를 종료하였습니다.");
             } else {
                 logger.info("[COMMON EXECUTOR SHUTDOWN] Common executor has been shut down.");
