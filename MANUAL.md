@@ -26,7 +26,7 @@ dependencies {
     implementation 'io.github.devers2:s2-core:1.0.5'
 
     // 통합 검증 시스템 (S2Validator)
-    implementation 'io.github.devers2:s2-validator:1.0.2'
+    implementation 'io.github.devers2:s2-validator:1.0.5'
 
     // 동적 쿼리 확장 (S2Jpql - Hibernate 등 JPA 구현체 필요)
     implementation 'io.github.devers2:s2-jpa:1.0.5'
@@ -44,7 +44,7 @@ dependencies {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.0.2'
+    id 'io.github.devers2.validator' version '1.0.5'
 }
 ```
 

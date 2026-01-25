@@ -19,8 +19,6 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
- version = '1.0.5'
-
 ext {
     /*
      * [추가 소스 목록]
@@ -53,12 +51,19 @@ ext {
 
 dependencies {
     /**
+     * api: 컴파일 및 런타임 시 모두 사용함
+     * - 해당 의존성이 프로젝트의 빌드 결과물(JAR)에 직접적인 영향을 미침
+     * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출됨 (API 노출)
+     * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
+     */
+    api project(':s2-core')
+
+    /**
      * implementation: 컴파일 및 런타임 시 모두 사용함
      * - 해당 의존성이 프로젝트의 빌드 결과물(JAR)에 직접적인 영향을 미침
      * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출되지 않음 (API 캡슐화)
      * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
      */
-    implementation project(':s2-core')
 
     /**
      * compileOnly: 컴파일 시 사용함

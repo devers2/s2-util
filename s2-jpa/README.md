@@ -161,7 +161,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-jpa Version: 1.0.5 (2026-01-23)
+s2-jpa Version: 1.0.5 (2026-01-26)
 
 [//]: # 'S2_DEPS_INFO_START'
 
