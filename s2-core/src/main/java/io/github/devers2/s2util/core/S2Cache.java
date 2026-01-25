@@ -279,9 +279,9 @@ public class S2Cache {
                 }
 
                 return adapter;
-            } catch (Exception e) {
-                logger.warn("[S2Cache] Failed to create Caffeine adapter, falling back to simple cache: {}", e.getMessage());
-                // Caffeine 생성 실패 시 경량 캐시로 폴백
+            } catch (Throwable t) {
+                // Caffeine 생성 실패 또는 LinkageError(버전 불일치 등)를 포함한 모든 오류에 대해 경량 캐시로 안전하게 폴백
+                logger.warn("[S2Cache] Failed to initialize Caffeine adapter (fallback to simple cache): {}", t.toString());
             }
         }
 
@@ -305,7 +305,7 @@ public class S2Cache {
      * @param cause     Reason for removal | 제거 사유
      */
     private static void logRemovalEvent(String cacheName, Object key, Object cause) {
-        if (S2Util.isKorean(Locale.getDefault())) {
+        if (S2Util.isKorean()) {
             logger.debug("캐시 항목 제거됨. 이름: {}, 키: {}, 사유: {}", cacheName, key, cause);
         } else {
             logger.debug("Cache entry removed. name: {}, key: {}, cause: {}", cacheName, key, cause);
@@ -330,6 +330,20 @@ public class S2Cache {
      * @return True if Caffeine is enabled | Caffeine 사용 가능 여부
      */
     public static boolean isCaffeineEnabled() {
+        if (CAFFEINE_AVAILABLE) {
+            if (S2Util.isKorean()) {
+                logger.info("\u001B[38;5;221mCaffeine 캐시 사용 중 (고성능)\u001B[0m");
+            } else {
+                logger.info("\u001B[38;5;221mUsing Caffeine Cache (High Performance)\u001B[0m");
+            }
+        } else {
+            if (S2Util.isKorean()) {
+                logger.info("\u001B[38;5;221m경량 캐시 사용 중 (ConcurrentHashMap)\u001B[0m");
+            } else {
+                logger.info("\u001B[38;5;221mUsing Lightweight Cache (ConcurrentHashMap)\u001B[0m");
+            }
+
+        }
         return CAFFEINE_AVAILABLE;
     }
 

@@ -33,7 +33,6 @@ import java.time.format.DateTimeParseException;
 import java.time.temporal.Temporal;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -126,7 +125,7 @@ public class S2DateUtil {
             result = LocalDate.parse(dateString, formatter);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("LocalDate 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateString, pattern);
                 } else {
                     logger.debug("Failed to convert to LocalDate. dateString: {}, pattern: {}", dateString, pattern);
@@ -182,7 +181,7 @@ public class S2DateUtil {
             result = LocalDateTime.parse(dateTimeString, formatter);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("LocalDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                 } else {
                     logger.debug("Failed to convert to LocalDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
@@ -235,7 +234,7 @@ public class S2DateUtil {
                 result = true;
             } catch (DateTimeParseException | IllegalArgumentException e) {
                 if (logger.isDebugEnabled()) {
-                    if (S2Util.isKorean(Locale.getDefault())) {
+                    if (S2Util.isKorean()) {
                         logger.debug("유효한 일시 여부 확인에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                     } else {
                         logger.debug("Failed to validate date/time. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
@@ -374,7 +373,7 @@ public class S2DateUtil {
                 throw new S2RuntimeException("일시 문자열과 패턴은 비어 있을 수 없습니다.");
             } else {
                 if (logger.isDebugEnabled()) {
-                    if (S2Util.isKorean(Locale.getDefault())) {
+                    if (S2Util.isKorean()) {
                         logger.debug("OffsetDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                     } else {
                         logger.debug("Failed to convert to OffsetDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
@@ -477,7 +476,7 @@ public class S2DateUtil {
             return localDateTime.format(formatter);
         } catch (IllegalArgumentException | DateTimeParseException e) {
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("LocalDateTime 문자열 변환에 실패했습니다. {}", e.getMessage());
                 } else {
                     logger.debug("Failed to convert LocalDateTime to string. {}", e.getMessage());
@@ -541,7 +540,7 @@ public class S2DateUtil {
         } catch (IllegalArgumentException | DateTimeParseException e) {
             // 패턴 오류 처리 (주로 오프셋 기호(XXX)가 빠졌을 때 발생)
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("OffsetDateTime 문자열 변환에 실패했습니다. {}", e.getMessage());
                 } else {
                     logger.debug("Failed to convert OffsetDateTime to string. {}", e.getMessage());
@@ -680,7 +679,7 @@ public class S2DateUtil {
             }
         } catch (java.time.DateTimeException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("ZonedDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                 } else {
                     logger.debug("Failed to convert to ZonedDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
@@ -710,7 +709,7 @@ public class S2DateUtil {
             return zdt.format(DateTimeFormatter.ofPattern(pattern));
         } catch (Exception e) {
             if (logger.isDebugEnabled()) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.debug("ZonedDateTime 문자열 변환에 실패했습니다. {}", e.getMessage());
                 } else {
                     logger.debug("Failed to convert ZonedDateTime to string. {}", e.getMessage());
@@ -776,7 +775,7 @@ public class S2DateUtil {
                 } else if (result != null) {
                     // 잘못된 타입이 리턴된 경우 로그를 남기고 무시
                     if (logger.isDebugEnabled()) {
-                        if (S2Util.isKorean(Locale.getDefault())) {
+                        if (S2Util.isKorean()) {
                             logger.debug("사용자 정의 컨버터가 Temporal이 아닌 타입을 반환했습니다: {}", result.getClass().getName());
                         } else {
                             logger.debug("Custom converter returned a non-Temporal type: {}", result.getClass().getName());
@@ -786,7 +785,7 @@ public class S2DateUtil {
             } catch (Exception e) {
                 // 로그 출력 시 경어체를 사용함.
                 if (logger.isDebugEnabled()) {
-                    if (S2Util.isKorean(Locale.getDefault())) {
+                    if (S2Util.isKorean()) {
                         logger.debug("사용자 정의 컨버터 실행 중 예외가 발생했습니다. 값: {}", value, e);
                     } else {
                         logger.debug("Exception occurred while executing custom converter. value: {}", value, e);

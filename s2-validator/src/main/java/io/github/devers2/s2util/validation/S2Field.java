@@ -591,7 +591,7 @@ public class S2Field<T> implements Serializable {
                 T castTarget = (T) target;
                 return logic.test(castValue, castTarget);
             } catch (ClassCastException e) {
-                if (S2Util.isKorean(Locale.getDefault())) {
+                if (S2Util.isKorean()) {
                     logger.warn(
                             "커스텀 검증 중 타입 캐스팅 실패. valueType: {}, targetType: {}",
                             value != null ? value.getClass().getName() : "null",

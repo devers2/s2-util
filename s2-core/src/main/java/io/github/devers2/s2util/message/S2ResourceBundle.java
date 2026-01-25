@@ -111,7 +111,7 @@ public final class S2ResourceBundle {
             throw new IllegalArgumentException("basename cannot be null or blank.");
         }
         if (defaultBasename != null && logger.isInfoEnabled()) {
-            if (S2Util.isKorean(Locale.getDefault())) {
+            if (S2Util.isKorean()) {
                 logger.info("S2ResourceBundle 기본 베이스네임 변경됨: {} → {}", defaultBasename, basename);
             } else {
                 logger.info("S2ResourceBundle default basename changed: {} → {}", defaultBasename, basename);
