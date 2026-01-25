@@ -243,3 +243,23 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 **제3자 라이브러리 고지:** 본 프로젝트는 외부 라이브러리를 사용합니다. 상세한 제3자 라이브러리 고지사항은 **[licenses/NOTICE](./licenses/NOTICE)** 파일을 참조해 주세요.
 
 ---
+
+
+[//]: # 'S2_DEPS_INFO_START'
+
+---
+
+**To use certain functionalities (e.g., S2BindValidator), the end-user project must explicitly add the following dependencies to be available at runtime.** Failure to include these dependencies will result in a `java.lang.NoClassDefFoundError` at runtime.
+
+**[For Gradle Users]**
+
+```groovy
+dependencies {
+    // Essential runtime dependencies for optional functionalities
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
+    implementation 'org.springframework:spring-context:6.1.1'
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+}
+```
+
+[//]: # 'S2_DEPS_INFO_END'

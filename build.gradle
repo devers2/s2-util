@@ -27,6 +27,8 @@
 plugins {
     alias(libs.plugins.s2.build.support)
     id 'signing'
+    id 'java-library'
+    id 'maven-publish'
 
     /*
      * ⭐ 'shadow' 플러그인을 적용하면 -all 타겟이 추가되어 의존성을 추가한 JAR 가 생성된다.
@@ -48,6 +50,11 @@ import io.github.devers2.buildsupport.S2BuildUtils
  */
 group = 'io.github.devers2'
 version = '1.0.5'
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
 
 // 전역 변수 선언
 ext {
@@ -135,14 +142,6 @@ ext {
     RESOURCES_SRC_ROOT = 'src/main/resources'
 }
 
-
-
-// ========================================================================
-// ⭐ [빌드 로직 (Build Logic & Calculations)]
-// 위 설정값들을 기반으로 실제 빌드에 필요한 값 계산 및 유틸리티 호출
-// ※ 특별한 이유가 없다면 수동 수정 지양
-// ========================================================================
-
 /*
  * [Java 버전 오버라이드]
  * -PtargetJavaVersion=21 옵션으로 덮어쓰기 가능
@@ -150,6 +149,162 @@ ext {
 if (project.hasProperty('targetJavaVersion')) {
     project.ext.javaVersion = JavaVersion.toVersion(project.findProperty('targetJavaVersion'))
 }
+
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                's2-core/src/main/java',
+                's2-validator/src/main/java',
+                's2-jpa/src/main/java'
+            ]
+        }
+        resources {
+            srcDirs = [
+                's2-core/src/main/resources',
+                's2-validator/src/main/resources',
+                's2-jpa/src/main/resources'
+            ]
+        }
+    }
+}
+
+dependencies {
+    /**
+     * api: 컴파일 및 런타임 시 모두 사용함
+     * - 해당 의존성이 프로젝트의 빌드 결과물(JAR)에 직접적인 영향을 미침
+     * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출됨 (API 노출)
+     * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
+     */
+
+    /**
+     * implementation: 컴파일 및 런타임 시 모두 사용함
+     * - 해당 의존성이 프로젝트의 빌드 결과물(JAR)에 직접적인 영향을 미침
+     * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출되지 않음 (API 캡슐화)
+     * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
+     */
+
+    /**
+     * compileOnly: 컴파일 타임에만 필요하며 런타임에는 선택적
+     * - Caffeine Cache는 사용 가능하면 고성능 캐싱을, 없으면 경량 캐시를 사용
+     * - 소비자 프로젝트에서 Caffeine을 사용하지 않아도 S2Cache가 정상 동작함
+     */
+    // s2-core 의존성
+    compileOnly(libs.caffeine)
+    // s2-validator 의존성
+    compileOnly(libs.spring6.context)
+    // s2-jpa 의존성
+    compileOnly(libs.jakarta.persistence.api)
+}
+
+/**
+ * 컴파일러 옵션 설정 (서브 프로젝트와 동일하게 유지)
+ * 중요: Java 21로 빌드하고 Java 17 이상에서 실행 가능하도록 설정
+ */
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // 파라미터명 정상적으로 보이도록 수정
+    options.compilerArgs += ['-parameters']
+    if (options.hasProperty('release')) {
+        /**
+         * --release 옵션의 제약을 해제하고, 구형 방식인 -source 및 -target 설정을 강제로 사용
+         * Java 21로 컴파일 하고 결과물을 Java 17으로 실행할 수 있도록 함
+         */
+        options.release.set(null)
+    }
+}
+
+/*
+ * [라이브러리 배포 아티팩트 및 Java 호환성 설정]
+ *
+ * 표준 배포 파일(Artifacts) 생성과 Java 호환성 레벨 정의
+ * - Toolchain: 빌드 실행 환경 (Java 21로 컴파일)
+ * - sourceCompatibility/targetCompatibility: 메타데이터 및 IDE 인식 (Java 17 호환성)
+ */
+java {
+    withJavadocJar()
+    withSourcesJar()
+
+    /**
+     * [Java Toolchain]
+     * 빌드 실행 환경(JAVA_HOME)과 프로젝트 컴파일 환경을 분리하는 현대적인 방식
+     * → Java 21 JDK를 사용하여 컴파일
+     */
+    toolchain {
+        // project.ext.javaVersion (JavaVersion 타입)에서 숫자 버전만 추출하여 설정함
+        languageVersion = JavaLanguageVersion.of(rootProject.ext.javaVersion.majorVersion)
+    }
+
+    /**
+     * sourceCompatibility/targetCompatibility 설정
+     * - Gradle 메타데이터로 IDE, 문서화, 라이브러리 발견 메커니즘에 사용됨
+     * - 실제 컴파일은 위의 tasks.withType(JavaCompile) 설정에서 options.release.set(null)로
+     *   -source 17 -target 17이 전달되어 Java 17 호환성을 보장함
+     * - 결과적으로: Java 21 JDK로 컴파일하되, 생성된 바이트코드는 Java 17 이상에서 실행 가능
+     */
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// 루트 프로젝트 배포 설정
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            // 생성될 pom.xml 상세 설정 (Maven Central 필수 요건)
+            pom {
+                name = project.name
+                description = 'S2Util Library - Unified utility library (Core, Validator, JPA)'
+                url = 'https://github.com/devers2/s2-util'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'devers2'
+                        name = '이승수'
+                        email = 'eseungsu.dev@gmail.com'
+                        organization = 'devers2'
+                        organizationUrl = 'https://github.com/devers2'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/devers2/s2-util.git'
+                    developerConnection = 'scm:git:ssh://github.com/devers2/s2-util.git'
+                    url = 'https://github.com/devers2/s2-util'
+                }
+            }
+        }
+    }
+    repositories {
+        // Central Portal 배포 설정
+        maven {
+            name = "CentralPortal"
+            url = "https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED"
+            credentials {
+                username = project.findProperty("centralUsername")
+                password = project.findProperty("centralPassword")
+            }
+        }
+    }
+}
+
+// GPG 서명 설정
+signing {
+    // 배포(Publish) 태스크가 실행될 때만 서명 필수 (그 외 일반 빌드에서는 건너뜀)
+    required {
+        gradle.taskGraph.allTasks.any {
+            it.name.contains("publish") || it.name.contains("Publish")
+        }
+    }
+    sign publishing.publications.mavenJava
+}
+
+// 프로젝트 통합 설정 호출 (루트 프로젝트를 통합 모듈로 취급하여 표준 빌드/배포 규칙 적용)
+S2BuildUtils.configureProject(project)
 
 /*
  * [동적 기능 모듈 오버라이드]
@@ -319,7 +474,7 @@ subprojects {
                     // 생성될 pom.xml 상세 설정 (Maven Central 필수 요건)
                     pom {
                         name = project.name
-                        description = 'S2Util Library - A comprehensive utility library for Java'
+                        description = "S2Util Library - ${project.name} module"
                         url = 'https://github.com/devers2/s2-util'
                         licenses {
                             license {
@@ -386,9 +541,6 @@ subprojects {
     // 'Tasks → other → copyDependencies' 실행 시 지정 디렉토리로 의존성 복사
     S2BuildUtils.registerCopyDependenciesTask(project)
 }
-
-
-
 
 // --------------------------------------------------------------------------------------
 // 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트
