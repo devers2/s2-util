@@ -10,26 +10,53 @@
 
 ### 1-1. Dependencies & Components (의존성 및 주요 컴포넌트)
 
-S2Util is highly modular. Add only the extensions you specifically need.
-<br>S2Util은 모듈형 구조입니다. 용도에 맞춰 최적화된 의존성을 추가하세요.
+#### 🎯 **Quick Start: All-in-One (모든 기능 한번에)**
 
-| Component (컴포넌트) | Required Libraries (필요 의존성) | Key Functionality (주요 기능)                                                                                      |
-| :------------------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **S2Validator**      | `s2-core` + `s2-validator`       | **Unified Validation**: Server-Client synchronized rules.<br>서버-클라이언트 통합 검증 엔진                        |
-| **S2BindValidator**  | (Same as S2Validator)            | **Spring Integration**: Seamless mapping to `BindingResult`.<br>스프링 표준 BindingResult 매핑 지원                |
-| **S2Jpql**           | `s2-core` + `s2-jpa`             | **Dynamic Query**: Secure, template-based JPA query building.<br>안전한 템플릿 기반 동적 JPQL 생성 (JPA 설정 필요) |
-| **S2Copier**         | `s2-core` (Standalone)           | **High-Perf Mapping**: Reflection-free DTO/Entity data syncing.<br>리플렉션 프리 고성능 객체 매핑                  |
+Add **only one dependency** to unlock all functionality.
+<br>**한 가지 의존성만 추가하면 모든 기능을 즉시 사용할 수 있습니다.**
 
 ```groovy
 dependencies {
-    // 필수 코어 및 S2Copier 엔진
+    // 🚀 S2Util 통합 패키지: 모든 모듈이 포함되어 있으며, 필요한 부분만 선택적으로 사용
+    // [English] Includes: S2Validator, S2Jpql, S2Copier (Simply use what you need)
+    // [한국어] 포함: S2Validator, S2Jpql, S2Copier (필요한 것만 선택적으로 사용)
+    implementation 'io.github.devers2:s2-util:1.0.5'
+}
+```
+
+> **[English]** S2Util is a **unified distribution** containing all modules pre-integrated. You get all capabilities without extra configuration.
+> <br>**[한국어]** S2Util은 모든 모듈이 미리 통합되어 배포되므로, 추가 설정 없이 즉시 모든 기능을 사용할 수 있습니다.
+
+---
+
+#### 🧩 **Selective & Lightweight (선택적 경량 사용)**
+
+S2Util is highly modular. For **minimal footprint**, add only the specific components you need.
+<br>**경량 구조**를 원한다면, 필요한 기능별로 최소 의존성만 추가하세요.
+
+| Component (컴포넌트) | Minimum Dependency (최소 의존성) | Direct Dependencies (직접 의존성) | Key Functionality (주요 기능)                                                                                      |
+| :------------------- | :------------------------------- | :-------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **S2Validator**      | `s2-validator`                   | (자동으로 s2-core 포함)           | **Unified Validation**: Server-Client synchronized rules.<br>서버-클라이언트 통합 검증 엔진                        |
+| **S2BindValidator**  | `s2-validator`                   | (자동으로 s2-core 포함)           | **Spring Integration**: Seamless mapping to `BindingResult`.<br>스프링 표준 BindingResult 매핑 지원                |
+| **S2Jpql**           | `s2-jpa`                         | (자동으로 s2-core 포함)           | **Dynamic Query**: Secure, template-based JPA query building.<br>안전한 템플릿 기반 동적 JPQL 생성 (JPA 설정 필요) |
+| **S2Copier**         | `s2-core`                        | -                                 | **High-Perf Mapping**: Reflection-free DTO/Entity data syncing.<br>리플렉션 프리 고성능 객체 매핑                  |
+
+> **[English]** Each module declares `api project(':s2-core')`, so transitive dependencies are automatically included when you add a sub-module.
+> <br>**[한국어]** 각 모듈이 s2-core를 `api` 의존성으로 선언하고 있어, 서브 모듈 추가 시 자동으로 포함됩니다.
+
+```groovy
+dependencies {
+    // [English] Option 1: Only validation needed
+    // [한국어] 선택지 1: 검증 기능만 필요한 경우
+    implementation 'io.github.devers2:s2-validator:1.0.5'  // (s2-core 자동 포함)
+
+    // [English] Option 2: Only JPA dynamic queries needed
+    // [한국어] 선택지 2: 동적 쿼리 기능만 필요한 경우
+    implementation 'io.github.devers2:s2-jpa:1.0.5'        // (s2-core 자동 포함)
+
+    // [English] Option 3: Only core features needed (most lightweight)
+    // [한국어] 선택지 3: 객체 복사를 포함한 핵심 기능만 필요한 경우 (가장 경량)
     implementation 'io.github.devers2:s2-core:1.0.5'
-
-    // 통합 검증 시스템 (S2Validator)
-    implementation 'io.github.devers2:s2-validator:1.0.5'
-
-    // 동적 쿼리 확장 (S2Jpql - Hibernate 등 JPA 구현체 필요)
-    implementation 'io.github.devers2:s2-jpa:1.0.5'
 }
 ```
 
