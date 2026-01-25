@@ -5,15 +5,9 @@ For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
 
-1. S2Util Core (s2-core)
-
-- This module depends on the s2-core library.
-- License: Apache License 2.0
+1. Jakarta Persistence API (Provided/Compile-only Dependency)
+   - License: Eclipse Public License 2.0
+   - Copyright: Eclipse Foundation and its contributors.
+   - URL: [https://jakarta.ee/specifications/persistence/](https://jakarta.ee/specifications/persistence/)
 
 ---
-
-2. Jakarta Persistence API (Provided/Compile-only Dependency)
-
-- License: Eclipse Public License 2.0 / Eclipse Distribution License 1.0
-- Copyright: Eclipse Foundation and its contributors.
-- Note: This library is required at runtime for JPA features but is not included in the distribution artifact.

@@ -120,7 +120,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.0.5'
+    id 'io.github.devers2.validator' version '1.1.0'
 }
 ```
 
@@ -142,6 +142,18 @@ plugins {
 
 - 이 플러그인을 사용하려면 **Java 17 이상**이 필요합니다.
 - **Gradle 8.0 이상** 사용을 권장합니다.
+
+---
+
+## Compatibility (호환성)
+
+### [English]
+
+This plugin supports **s2-validator version 1.1.0 or higher** to ensure optimal functionality and compatibility with the latest features.
+
+### [한국어]
+
+본 플러그인은 **s2-validator 1.1.0 버전 이상**을 지원하여 최신 기능과의 최적의 호환성을 보장합니다.
 
 ---
 
@@ -167,4 +179,4 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator-plugin Version: 1.0.5 (2026-01-26)
+s2-validator-plugin Version: 1.1.0 (2026-01-26)
