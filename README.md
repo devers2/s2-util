@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:1.0.5'
+    implementation 'io.github.devers2:s2-util:1.0.5'
 }
 
 // [Optional] S2Validator Static Analysis Plugin
@@ -243,7 +243,6 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 **제3자 라이브러리 고지:** 본 프로젝트는 외부 라이브러리를 사용합니다. 상세한 제3자 라이브러리 고지사항은 **[licenses/NOTICE](./licenses/NOTICE)** 파일을 참조해 주세요.
 
 ---
-
 
 [//]: # 'S2_DEPS_INFO_START'
 
