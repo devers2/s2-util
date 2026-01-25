@@ -6,7 +6,8 @@ For more details, please refer to the 'LICENSE' file in the root directory.
 ---
 
 1. Caffeine Cache (Optional/Compile-only Dependency)
+   - License: Apache License 2.0
+   - Copyright: Ben Manes and Caffeine contributors.
+   - URL: [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
 
-- License: Apache License 2.0
-- Copyright: Ben Manes and Caffeine contributors.
-- Note: Used for high-performance caching if available in the runtime environment.
+---

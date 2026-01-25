@@ -5,15 +5,9 @@ For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
 
-1. S2Util Core (s2-core)
-
-- This module depends on the s2-core library.
-- License: Apache License 2.0
+1. Spring Framework (Context) (Provided/Compile-only Dependency)
+   - License: Apache License 2.0
+   - Copyright: Broadcom / Pivotal Software, Inc.
+   - URL: [https://spring.io/projects/spring-framework](https://spring.io/projects/spring-framework)
 
 ---
-
-2. Spring Framework (Context) (Provided/Compile-only Dependency)
-
-- License: Apache License 2.0
-- Copyright: Pivotal Software, Inc.
-- Note: This library is required at runtime for Spring integration features but is not included in the distribution artifact.

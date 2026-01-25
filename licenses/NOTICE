@@ -4,3 +4,20 @@ This product includes or depends on the following open source software component
 For more details, please refer to the 'LICENSE' file in the root directory.
 
 ---
+
+1. Caffeine Cache (Optional/Compile-only Dependency)
+   - License: Apache License 2.0
+   - Copyright: Ben Manes and Caffeine contributors.
+   - URL: [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
+
+2. Spring Framework (Context) (Provided/Compile-only Dependency)
+   - License: Apache License 2.0
+   - Copyright: Broadcom / Pivotal Software, Inc.
+   - URL: [https://spring.io/projects/spring-framework](https://spring.io/projects/spring-framework)
+
+3. Jakarta Persistence API (Provided/Compile-only Dependency)
+   - License: Eclipse Public License 2.0
+   - Copyright: Eclipse Foundation and its contributors.
+   - URL: [https://jakarta.ee/specifications/persistence/](https://jakarta.ee/specifications/persistence/)
+
+---
