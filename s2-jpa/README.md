@@ -106,8 +106,10 @@ TypedQuery<Member> query = S2Jpql.from(entityManager)
         {{=where_clause}}
         {{=order_clause}}
         """)
-    .bindClause("name_cond", "name", "John", "AND m.name = :name")
-    .bindClause("age_cond", "age", 30, "AND m.age > :age")
+    .bindClause("name_cond", "John", "AND m.name = :name")
+        .bindParameter("name", "John")
+    .bindClause("age_cond", 30, "AND m.age > :age")
+        .bindParameter("age", 30)
     .bindOrderBy("order_clause", "m.createdAt DESC")
     .build();
 
@@ -121,7 +123,8 @@ List<Member> results = query.getResultList();
 TypedQuery<Member> searchQuery = S2Jpql.from(entityManager)
     .type(Member.class)
     .query("SELECT m FROM Member m WHERE m.name LIKE :name")
-    .bindParameter("name", "John", LikeMode.ANYWHERE)  // %John%
+    .bindClause("search_cond", "John", "AND m.name LIKE :name")
+        .bindParameter("name", "John", LikeMode.ANYWHERE)  // %John%
     .build();
 ```
 
@@ -131,41 +134,109 @@ TypedQuery<Member> searchQuery = S2Jpql.from(entityManager)
 
 ### [English]
 
-**NEVER** include external or user-provided variables in the `clause` parameter of `bindClause` methods. Only use hardcoded strings for clauses. All dynamic values must be passed through the `parameterValue` parameter, which will be safely bound using JPA's parameter binding mechanism (:name).
+**ARCHITECTURE:** The `bindClause()` method is **EXCLUSIVELY** for binding dynamic SQL clauses conditionally. The `bindParameter()` method is **EXCLUSIVELY** for binding dynamic parameter values. This separation is critical to prevent SQL injection.
+
+**RULE 1: Clauses must be hardcoded**
+
+- The `clause` and `prefix`/`suffix` parameters of `bindClause()` **MUST** always be hardcoded strings
+- **NEVER** concatenate user input into clause strings
+- **NEVER** use `String.format()` or `+` operator to build clauses with variables
+
+**RULE 2: Values go through bindParameter()**
+
+- All dynamic/user-provided values **MUST** go through `bindParameter()`
+- Do NOT pass values to the `conditionValue` parameter of `bindClause()`
+- The `conditionValue` is **ONLY** for checking the condition (null check, boolean check, etc.)
 
 #### SAFE Usage:
 
 ```java
-.bindClause("cond_name", "name", userInput, "AND m.name = :name")  // SAFE: userInput goes to parameter
-.bindParameter("name", userInput, LikeMode.ANYWHERE)  // SAFE: userInput goes to parameter
+// Step 1: Bind the clause conditionally (with hardcoded SQL)
+String userName = userInput;  // From user request
+S2Jpql.from(entityManager)
+    .type(Member.class)
+    .query("SELECT m FROM Member m WHERE 1=1 {{=name_search}}")
+    .bindClause("name_search", userName, "AND m.name LIKE :name")  // Clause is hardcoded!
+        .bindParameter("name", userName, LikeMode.ANYWHERE)  // Value bound safely here
+    .build();
 ```
 
 #### DANGEROUS Usage (DO NOT DO THIS):
 
 ```java
-.bindClause("cond_name", "dummy", null, "AND m.name = " + userInput)  // DANGEROUS: SQL Injection risk!
+// ❌ WRONG: User input in clause string
+String userName = userInput;
+.bindClause("name_search", userName, "AND m.name LIKE '%" + userName + "%'")  // SQL INJECTION!
+
+// ❌ WRONG: Trying to pass user value as parameter name
+.bindClause("search", userName, "AND m.name LIKE :" + userName)  // SQL INJECTION!
+
+// ❌ WRONG: Using String.format for dynamic clause building
+String clause = String.format("AND m.name = %s", userName);  // SQL INJECTION!
+.bindClause("cond", userName, clause)
+
+// ❌ WRONG: No bindParameter call - clause parameters don't get bound
+.bindClause("search", userName, "AND m.name = :name")  // Parameter :name will be NULL!
 ```
 
-Failure to follow this rule can result in **SQL Injection vulnerabilities**.
+**Consequences of Ignoring These Rules:**
+
+- SQL Injection vulnerabilities
+- Unbound JPA parameters causing runtime errors
+- Data breaches or unauthorized access
 
 ### [한국어]
 
-**절대** `bindClause` 메서드의 `clause` 파라미터에 외부 또는 사용자 제공 변수를 포함하지 마세요. 절에는 하드코딩된 문자열만 사용하세요. 모든 동적 값은 `parameterValue` 파라미터를 통해 전달해야 하며, JPA의 파라미터 바인딩 메커니즘(:name)을 통해 안전하게 바인딩됩니다.
+**아키텍처:** `bindClause()` 메서드는 **동적 SQL 절을 조건부로 바인딩하기 위한 것**입니다. `bindParameter()` 메서드는 **동적 파라미터 값을 바인딩하기 위한 것**입니다. 이 분리는 SQL 인젝션을 방지하기 위해 매우 중요합니다.
+
+**규칙 1: 절은 반드시 하드코딩**
+
+- `bindClause()`의 `clause`, `prefix`/`suffix` 파라미터는 **반드시** 하드코딩된 문자열이어야 합니다
+- **절대** 절 문자열에 사용자 입력을 연결하지 마세요
+- **절대** `String.format()` 또는 `+` 연산자로 변수를 포함한 절을 만들지 마세요
+
+**규칙 2: 값은 bindParameter()로**
+
+- 모든 동적/사용자 제공 값은 **반드시** `bindParameter()`를 통해야 합니다
+- `bindClause()`의 `conditionValue` 파라미터에 값을 전달하지 마세요
+- `conditionValue`는 **조건 검사(null 체크, 불린 체크 등)용도만**입니다
 
 #### 안전한 사용:
 
 ```java
-.bindClause("cond_name", "name", userInput, "AND m.name = :name")  // 안전: userInput은 파라미터로
-.bindParameter("age", userAge, LikeMode.ANYWHERE)  // 안전: userAge는 파라미터로
+// Step 1: 절을 조건부로 바인딩 (하드코딩된 SQL)
+String userName = userInput;  // 사용자 입력
+S2Jpql.from(entityManager)
+    .type(Member.class)
+    .query("SELECT m FROM Member m WHERE 1=1 {{=name_search}}")
+    .bindClause("name_search", userName, "AND m.name LIKE :name")  // 절은 하드코딩됨!
+        .bindParameter("name", userName, LikeMode.ANYWHERE)  // 값은 여기서 안전하게 바인딩
+    .build();
 ```
 
 #### 위험한 사용 (절대 하지 마세요):
 
 ```java
-.bindClause("cond_name", "dummy", null, "AND m.name = " + userInput)  // 위험: SQL 인젝션 가능!
+// ❌ 잘못됨: 사용자 입력이 절 문자열에 있음
+String userName = userInput;
+.bindClause("name_search", userName, "AND m.name LIKE '%" + userName + "%'")  // SQL 인젝션!
+
+// ❌ 잘못됨: 사용자 값을 파라미터 이름으로 전달
+.bindClause("search", userName, "AND m.name LIKE :" + userName)  // SQL 인젝션!
+
+// ❌ 잘못됨: String.format으로 동적 절 만들기
+String clause = String.format("AND m.name = %s", userName);  // SQL 인젝션!
+.bindClause("cond", userName, clause)
+
+// ❌ 잘못됨: bindParameter 호출 없음 - 절 파라미터가 바인딩되지 않음
+.bindClause("search", userName, "AND m.name = :name")  // 파라미터 :name이 NULL 상태!
 ```
 
-이 규칙을 따르지 않으면 **SQL 인젝션 취약점**이 발생할 수 있습니다.
+**이 규칙을 무시한 경우의 결과:**
+
+- SQL 인젝션 취약점
+- 바인딩되지 않은 JPA 파라미터로 인한 런타임 오류
+- 데이터 유출 또는 무단 접근
 
 ---
 

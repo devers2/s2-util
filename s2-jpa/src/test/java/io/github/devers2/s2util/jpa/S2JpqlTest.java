@@ -140,8 +140,10 @@ public class S2JpqlTest {
             TypedQuery<Member> result = S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .bindClause("cond_name", "name", "John", "AND m.name = :name")
-                    .bindClause("cond_age", "age", 30, "AND m.age = :age")
+                    .bindClause("cond_name", "John", "AND m.name = :name")
+                    .bindClause("cond_age", 30, "AND m.age = :age")
+                    .bindParameter("name", "John")
+                    .bindParameter("age", 30)
                     .bindOrderBy("cond_order", "m.name ASC")
                     .build();
 
@@ -177,7 +179,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .bindClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
+                    .bindParameter("name", "John", LikeMode.ANYWHERE)
                     .build();
 
             // Then
@@ -209,7 +211,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .bindClause("dummy", "name", "John", "dummy", LikeMode.START)
+                    .bindParameter("name", "John", LikeMode.START)
                     .build();
 
             // Then
@@ -242,7 +244,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .bindClause("dummy", "name", "John", "dummy", LikeMode.END)
+                    .bindParameter("name", "John", LikeMode.END)
                     .build();
 
             // Then
