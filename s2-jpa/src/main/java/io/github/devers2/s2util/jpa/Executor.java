@@ -13,7 +13,7 @@ public interface Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -43,7 +43,7 @@ public interface Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -72,7 +72,7 @@ public interface Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -101,7 +101,7 @@ public interface Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
