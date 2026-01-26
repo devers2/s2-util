@@ -20,8 +20,11 @@
  */
 package io.github.devers2.s2util.core;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -67,7 +70,10 @@ public class S2Copier<S> {
     private final S source;
     private final Map<String, String> fieldMapping = new HashMap<>();
     private final Set<String> excludedFields = new HashSet<>();
+    private final Set<String> deepCopyFields = new HashSet<>();
     private boolean ignoreNulls = false;
+    private boolean deepCopyAll = false;
+    private static final int MAX_DEPTH = 100; // 순환참조 방지를 위한 깊이 제한
 
     private S2Copier(S source) {
         this.source = source;
@@ -182,6 +188,62 @@ public class S2Copier<S> {
     }
 
     /**
+     * Enables deep copying for all object fields.
+     * <p>
+     * Deep copy creates independent copies of nested objects, collections, and maps,
+     * preventing unintended modifications to shared reference objects.
+     * Circular references are automatically detected and handled to prevent infinite loops.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 모든 객체 필드에 대해 깊은 복사를 활성화합니다.
+     * <p>
+     * 깊은 복사는 중첩 객체, 컬렉션, Map을 독립적으로 복사하여
+     * 공유 참조 객체의 의도하지 않은 수정을 방지합니다.
+     * 순환참조는 자동으로 감지되어 무한 루프를 방지합니다.
+     * </p>
+     *
+     * @return This S2Copier instance for method chaining | 메서드 체이닝을 위한 이 인스턴스
+     */
+    public S2Copier<S> deep() {
+        this.deepCopyAll = true;
+        return this;
+    }
+
+    /**
+     * Enables deep copying for specific fields only.
+     * <p>
+     * Only the specified fields will be deeply copied; all other fields are shallow copied.
+     * This is useful when you want deep copies of collection fields while keeping reference copies
+     * of simple object fields for performance reasons.
+     * Circular references within specified fields are automatically detected and handled.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 지정된 필드에 대해서만 깊은 복사를 활성화합니다.
+     * <p>
+     * 지정된 필드만 깊은 복사되며, 나머지는 얕은 복사됩니다.
+     * 컬렉션 필드는 깊게 복사하면서 단순 객체 필드는 참조 복사로 유지하고 싶을 때 유용합니다.
+     * 지정된 필드 내의 순환참조는 자동으로 감지되고 처리됩니다.
+     * </p>
+     *
+     * @param fieldNames The field names to deep copy (varargs) | 깊은 복사할 필드명 목록 (가변 인자)
+     * @return This S2Copier instance for method chaining | 메서드 체이닝을 위한 이 인스턴스
+     */
+    public S2Copier<S> deepOnly(String... fieldNames) {
+        if (fieldNames != null) {
+            for (var name : fieldNames) {
+                this.deepCopyFields.add(name);
+            }
+        }
+        return this;
+    }
+
+    /**
      * Executes the copy operation, transferring data from the source to the specified target object.
      * <p>
      * This method respects all previously configured rules (field mappings, exclusions, and null-handling).
@@ -239,6 +301,9 @@ public class S2Copier<S> {
         }
 
         var fields = optionalFields.get();
+        // Create a new visited map for deep copy tracking
+        var visited = new IdentityHashMap<Object, Object>();
+
         for (var field : fields) {
             var targetFieldName = field.getName();
 
@@ -258,7 +323,12 @@ public class S2Copier<S> {
                     continue;
                 }
 
-                // 5. Target에 값을 설정한다.
+                // 5. Deep copy 필요 여부 확인
+                if (value != null && (deepCopyAll || deepCopyFields.contains(sourceFieldName))) {
+                    value = deepCopyValue(value, field.getType(), visited, 0);
+                }
+
+                // 6. Target에 값을 설정한다.
                 S2Util.setValue(target, targetFieldName, null, value);
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
@@ -296,6 +366,9 @@ public class S2Copier<S> {
             return (T) targetMap;
         }
 
+        // Create a new visited map for deep copy tracking
+        var visited = new IdentityHashMap<Object, Object>();
+
         var fields = optionalFields.get();
         for (var field : fields) {
             var sourceFieldName = field.getName();
@@ -324,7 +397,12 @@ public class S2Copier<S> {
                     continue;
                 }
 
-                // 5. Map에 값을 저장한다.
+                // 5. Deep copy 필요 여부 확인
+                if (value != null && (deepCopyAll || deepCopyFields.contains(sourceFieldName))) {
+                    value = deepCopyValue(value, field.getType(), visited, 0);
+                }
+
+                // 6. Map에 값을 저장한다.
                 targetMap.put(mapKey, value);
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
@@ -370,5 +448,159 @@ public class S2Copier<S> {
                     e
             );
         }
+    }
+
+    /**
+     * Internal helper method for deep copying object values.
+     * <p>
+     * Recursively copies nested objects, collections, and maps while detecting and preventing
+     * circular references using IdentityHashMap. Primitive wrappers are returned as-is.
+     * Collections (List, Set) and Maps are recursively copied with deep copies of their elements.
+     * Custom objects are copied by recursively copying all their fields.
+     * </p>
+     *
+     * <p>
+     * <b>Circular Reference Handling:</b>
+     * When a circular reference is detected (an object that has already been visited),
+     * the previously copied instance is returned instead of attempting to copy again.
+     * This prevents infinite loops and stack overflow. The MAX_DEPTH limit provides
+     * a secondary safeguard against unexpectedly deep object graphs.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 객체 값을 깊게 복사하기 위한 내부 헬퍼 메서드입니다.
+     * <p>
+     * 중첩 객체, 컬렉션, Map을 재귀적으로 복사하면서 IdentityHashMap으로
+     * 순환참조를 감지하고 방지합니다. 원시 래퍼는 그대로 반환됩니다.
+     * 컬렉션(List, Set)과 Map은 요소에 대한 깊은 복사와 함께 재귀적으로 복사됩니다.
+     * 사용자 정의 객체는 모든 필드를 재귀적으로 복사하여 복사됩니다.
+     * </p>
+     *
+     * <p>
+     * <b>순환참조 처리:</b>
+     * 순환참조가 감지되면(이미 방문한 객체), 다시 복사하는 대신
+     * 이전에 복사한 인스턴스를 반환합니다. 이는 무한 루프와 스택 오버플로우를 방지합니다.
+     * MAX_DEPTH 제한은 예상치 못하게 깊은 객체 그래프에 대한 2차 보호를 제공합니다.
+     * </p>
+     *
+     * @param source     The object to be deep copied | 깊게 복사할 객체
+     * @param targetType The target type for the copied object | 복사된 객체의 대상 타입
+     * @param visited    Map tracking already-copied objects (IdentityHashMap) | 이미 복사된 객체 추적 맵
+     * @param depth      Current recursion depth for circular reference safeguarding | 순환참조 보호를 위한 현재 재귀 깊이
+     * @return The deep copy of the source object | 원본 객체의 깊은 복사본
+     * @throws Exception if the maximum recursion depth is exceeded | 최대 재귀 깊이 초과 시
+     */
+    private Object deepCopyValue(Object source, Class<?> targetType, Map<Object, Object> visited, int depth) throws Exception {
+        if (source == null) {
+            return null;
+        }
+
+        // Check depth limit to prevent infinite recursion
+        if (depth > MAX_DEPTH) {
+            throw new RuntimeException(
+                    "Maximum deep copy depth exceeded (MAX_DEPTH=" + MAX_DEPTH + ")" +
+                            " (한국어: 최대 깊은 복사 깊이 초과)"
+            );
+        }
+
+        // Check if this object has already been copied (circular reference detection)
+        if (visited.containsKey(source)) {
+            return visited.get(source);
+        }
+
+        var sourceClass = source.getClass();
+
+        // Primitive wrappers and immutable objects - return as-is
+        if (isPrimitiveWrapper(sourceClass) || sourceClass == String.class) {
+            return source;
+        }
+
+        // Handle List/ArrayList
+        if (source instanceof List) {
+            var sourceList = (List<?>) source;
+            var copiedList = new ArrayList<>(sourceList.size());
+            visited.put(source, copiedList);
+
+            for (var element : sourceList) {
+                if (element != null) {
+                    copiedList.add(deepCopyValue(element, element.getClass(), visited, depth + 1));
+                } else {
+                    copiedList.add(null);
+                }
+            }
+            return copiedList;
+        }
+
+        // Handle Map/HashMap
+        if (source instanceof Map) {
+            var sourceMap = (Map<?, ?>) source;
+            var copiedMap = new HashMap<>(sourceMap.size());
+            visited.put(source, copiedMap);
+
+            for (var entry : sourceMap.entrySet()) {
+                var key = entry.getKey();
+                var value = entry.getValue();
+                var copiedValue = value != null ? deepCopyValue(value, value.getClass(), visited, depth + 1) : null;
+                copiedMap.put(key, copiedValue);
+            }
+            return copiedMap;
+        }
+
+        // Handle custom objects
+        var optionalFields = S2Cache.getFields(sourceClass);
+        if (optionalFields.isPresent()) {
+            try {
+                // Try to create a new instance
+                var copiedObject = sourceClass.getDeclaredConstructor().newInstance();
+                visited.put(source, copiedObject);
+
+                var fields = optionalFields.get();
+                for (var field : fields) {
+                    var fieldName = field.getName();
+                    try {
+                        var fieldValue = S2Util.getValue(source, fieldName);
+                        if (fieldValue != null) {
+                            var copiedFieldValue = deepCopyValue(fieldValue, field.getType(), visited, depth + 1);
+                            S2Util.setValue(copiedObject, fieldName, null, copiedFieldValue);
+                        } else {
+                            S2Util.setValue(copiedObject, fieldName, null, null);
+                        }
+                    } catch (Exception e) {
+                        // Skip problematic fields
+                        continue;
+                    }
+                }
+                return copiedObject;
+            } catch (Exception e) {
+                // If instantiation fails, return the original object
+                return source;
+            }
+        }
+
+        // For objects without fields information, return the original
+        return source;
+    }
+
+    /**
+     * Internal helper method to determine if a class is a primitive wrapper.
+     * <p>
+     * Primitive wrappers (Integer, Long, Double, etc.) are immutable and don't need
+     * to be deep copied; they can be safely returned as-is.
+     * </p>
+     *
+     * @param cls The class to check | 확인할 클래스
+     * @return true if the class is a primitive wrapper | 클래스가 원시 래퍼인 경우 true
+     */
+    private boolean isPrimitiveWrapper(Class<?> cls) {
+        return cls == Integer.class ||
+                cls == Long.class ||
+                cls == Double.class ||
+                cls == Float.class ||
+                cls == Boolean.class ||
+                cls == Byte.class ||
+                cls == Short.class ||
+                cls == Character.class;
     }
 }
