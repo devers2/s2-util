@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.1.0'
+    implementation 'io.github.devers2:s2-util:1.1.1'
 }
 
 // [Optional] S2Validator Static Analysis Plugin

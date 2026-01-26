@@ -793,10 +793,170 @@ public class Test {
 
     // ===== Test Summary =====
 
+    @DisplayName("S2Copier - Deep Copy with Nested Objects")
+    @org.junit.jupiter.api.Test
+    void testCopierDeepCopyNested() {
+        String testName = "testCopierDeepCopyNested";
+        try {
+            // 원본 생성
+            var address = new AddressDto("123 Main St", "Seoul", "12345");
+            var source = new UserWithAddressDto("user001", "John Doe", address);
+
+            // Shallow copy 먼저 (비교용)
+            var shallowCopy = S2Copier.from(source).to(UserWithAddressDto.class);
+
+            // Deep copy 수행
+            var deepCopy = S2Copier.from(source).deep().to(UserWithAddressDto.class);
+
+            // Shallow copy는 같은 주소 객체 참조
+            assert shallowCopy.getAddress() == source.getAddress() : "Shallow copy should reference same address object";
+
+            // Deep copy는 다른 주소 객체
+            assert deepCopy.getAddress() != source.getAddress() : "Deep copy should create new address object";
+
+            // 하지만 값은 같아야 함
+            assert "123 Main St".equals(deepCopy.getAddress().getStreet());
+            assert "Seoul".equals(deepCopy.getAddress().getCity());
+            assert "12345".equals(deepCopy.getAddress().getZipCode());
+
+            // 원본 수정이 deep copy에 영향을 주지 않음
+            source.getAddress().setCity("Busan");
+            assert "Seoul".equals(deepCopy.getAddress().getCity()) : "Deep copy should not be affected by source changes";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - Deep Copy Specific Fields Only")
+    @org.junit.jupiter.api.Test
+    void testCopierDeepCopySpecificFields() {
+        String testName = "testCopierDeepCopySpecificFields";
+        try {
+            // 원본 생성
+            var address = new AddressDto("456 Oak Ave", "Daegu", "54321");
+            var source = new UserWithAddressDto("user002", "Jane Smith", address);
+
+            // 특정 필드만 deep copy (address만)
+            var copy = S2Copier.from(source).deepOnly("address").to(UserWithAddressDto.class);
+
+            // address는 다른 객체여야 함 (deep copy)
+            assert copy.getAddress() != source.getAddress() : "address should be deep copied";
+
+            // 값은 같음
+            assert "456 Oak Ave".equals(copy.getAddress().getStreet());
+            assert "Daegu".equals(copy.getAddress().getCity());
+
+            // 다른 필드들도 복사되어야 함
+            assert "user002".equals(copy.getId());
+            assert "Jane Smith".equals(copy.getName());
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - Deep Copy List Fields")
+    @org.junit.jupiter.api.Test
+    void testCopierDeepCopyList() {
+        String testName = "testCopierDeepCopyList";
+        try {
+            // 주소 객체로 깊은 복사 테스트 (중첩 객체)
+            var address = new AddressDto("789 Oak St", "Seoul", "11111");
+            var sourceWithAddrs = new UserWithAddressDto("user003", "Bob Johnson", address);
+
+            // Deep copy를 통한 복사
+            var deepCopy = S2Copier.from(sourceWithAddrs).deep().to(UserWithAddressDto.class);
+
+            // 주소가 복사되었는지 확인 (다른 객체)
+            assert deepCopy.getAddress() != sourceWithAddrs.getAddress() : "Address should be deep copied";
+            assert "789 Oak St".equals(deepCopy.getAddress().getStreet());
+
+            // 원본 수정이 복사본에 영향을 주지 않음
+            sourceWithAddrs.getAddress().setCity("Busan");
+            assert "Seoul".equals(deepCopy.getAddress().getCity()) : "Deep copy should not be affected by source changes";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - Circular Reference Handling")
+    @org.junit.jupiter.api.Test
+    void testCopierCircularReferenceHandling() {
+        String testName = "testCopierCircularReferenceHandling";
+        try {
+            // 중첩된 객체 구조로 순환 참조 시뮬레이션
+            // AddressDto를 포함한 UserWithAddressDto에서 깊은 복사
+            var address1 = new AddressDto("100 First St", "Seoul", "10000");
+            var address2 = new AddressDto("200 Second Ave", "Busan", "20000");
+
+            var user1 = new UserWithAddressDto("user001", "Alice", address1);
+            var user2 = new UserWithAddressDto("user002", "Bob", address2);
+
+            // Deep copy 수행
+            var copy1 = S2Copier.from(user1).deep().to(UserWithAddressDto.class);
+            var copy2 = S2Copier.from(user2).deep().to(UserWithAddressDto.class);
+
+            // 각 복사본이 올바른 독립적인 주소 객체를 가지고 있는지 확인
+            assert copy1.getAddress() != address1 : "copy1 address should be different from source";
+            assert copy2.getAddress() != address2 : "copy2 address should be different from source";
+            assert copy1.getAddress() != copy2.getAddress() : "copy1 and copy2 should have different address objects";
+
+            // 원본 수정 후 복사본 검증
+            address1.setCity("Incheon");
+            address2.setCity("Daegu");
+
+            assert "Seoul".equals(copy1.getAddress().getCity()) : "copy1 city should not be affected";
+            assert "Busan".equals(copy2.getAddress().getCity()) : "copy2 city should not be affected";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED (Circular reference handled correctly)");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - Deep Copy with Null Values")
+    @org.junit.jupiter.api.Test
+    void testCopierDeepCopyWithNulls() {
+        String testName = "testCopierDeepCopyWithNulls";
+        try {
+            // null 주소를 가진 사용자 생성
+            var source = new UserWithAddressDto("user005", "Diana Prince", null);
+
+            // Deep copy 수행
+            var deepCopy = S2Copier.from(source).deep().to(UserWithAddressDto.class);
+
+            // 복사 결과 검증
+            assert "user005".equals(deepCopy.getId());
+            assert "Diana Prince".equals(deepCopy.getName());
+            assert deepCopy.getAddress() == null : "Null address should remain null";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    // ===== Test Summary =====
+
     @DisplayName("SmokeTest - 전체 테스트 통계")
     @org.junit.jupiter.api.Test
     void testSummary() {
-        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion)");
+        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion and Deep Copy)");
     }
 
 }
