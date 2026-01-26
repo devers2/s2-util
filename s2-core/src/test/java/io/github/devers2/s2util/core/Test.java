@@ -670,11 +670,133 @@ public class Test {
         }
     }
 
+    @DisplayName("S2Copier - DTO to Map (필드 매핑 포함)")
+    @org.junit.jupiter.api.Test
+    void testCopierDtoToMapWithMapping() {
+        String testName = "S2Copier - DTO to Map with field mapping";
+        try {
+            UserDto source = new UserDto("user001", "John", 30, "john@example.com");
+            Map<String, Object> target = new HashMap<>();
+
+            // DTO → Map 복사, 필드명 매핑 적용
+            S2Copier.from(source)
+                    .map("id", "userId") // source의 id → Map의 userId 키
+                    .map("name", "userName") // source의 name → Map의 userName 키
+                    .map("age", "userAge") // source의 age → Map의 userAge 키
+                    .map("email", "userEmail") // source의 email → Map의 userEmail 키
+                    .to(target);
+
+            // 검증: 매핑된 키로 값이 저장되어야 함
+            assert "user001".equals(target.get("userId"));
+            assert "John".equals(target.get("userName"));
+            assert 30 == ((Number) target.get("userAge")).intValue();
+            assert "john@example.com".equals(target.get("userEmail"));
+
+            // 검증: 원본 필드명 키는 없어야 함
+            assert target.get("id") == null;
+            assert target.get("name") == null;
+            assert target.get("age") == null;
+            assert target.get("email") == null;
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - DTO to Map (필드 매핑 없음)")
+    @org.junit.jupiter.api.Test
+    void testCopierDtoToMapWithoutMapping() {
+        String testName = "S2Copier - DTO to Map without field mapping";
+        try {
+            UserDto source = new UserDto("user002", "Jane", 25, "jane@example.com");
+            Map<String, Object> target = new HashMap<>();
+
+            // DTO → Map 복사, 매핑 없음 (필드명 그대로 사용)
+            S2Copier.from(source)
+                    .exclude("email") // email 필드는 제외
+                    .to(target);
+
+            // 검증: 필드명 그대로 저장되어야 함
+            assert "user002".equals(target.get("id"));
+            assert "Jane".equals(target.get("name"));
+            assert 25 == ((Number) target.get("age")).intValue();
+
+            // 검증: 제외된 필드는 없어야 함
+            assert target.get("email") == null;
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - DTO to Map (ignoreNulls)")
+    @org.junit.jupiter.api.Test
+    void testCopierDtoToMapWithIgnoreNulls() {
+        String testName = "S2Copier - DTO to Map with ignoreNulls";
+        try {
+            UserDto source = new UserDto("user003", "Bob", 0, null); // email이 null
+            Map<String, Object> target = new HashMap<>();
+            target.put("email", "default@example.com"); // 기존 값
+
+            // DTO → Map 복사, null 무시
+            S2Copier.from(source)
+                    .ignoreNulls()
+                    .to(target);
+
+            // 검증: null인 email은 복사되지 않아야 함
+            assert "user003".equals(target.get("id"));
+            assert "Bob".equals(target.get("name"));
+            assert 0 == ((Number) target.get("age")).intValue();
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Copier - Map to DTO (기존 기능 확인)")
+    @org.junit.jupiter.api.Test
+    void testCopierMapToDto() {
+        String testName = "S2Copier - Map to DTO";
+        try {
+            Map<String, Object> source = new HashMap<>();
+            source.put("id", "user004");
+            source.put("name", "Alice");
+            source.put("age", 28);
+            source.put("email", "alice@example.com");
+
+            // Map → DTO 복사
+            UserDto target = S2Copier.from(source)
+                    .to(UserDto.class);
+
+            // 검증
+            assert "user004".equals(target.getId());
+            assert "Alice".equals(target.getName());
+            assert 28 == target.getAge();
+            assert "alice@example.com".equals(target.getEmail());
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
     // ===== Test Summary =====
 
     @DisplayName("SmokeTest - 전체 테스트 통계")
     @org.junit.jupiter.api.Test
     void testSummary() {
-        stats.printReport("getValue, setValue, S2Copier");
+        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion)");
     }
+
 }
