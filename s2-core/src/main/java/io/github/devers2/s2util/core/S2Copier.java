@@ -36,7 +36,7 @@ import java.util.Set;
  * <p>
  * <b>Usage Example:</b>
  * </p>
- * 
+ *
  * <pre>{@code
  * UserDto userDto = S2Copier.from(userEntity)
  *         .map("userId", "id")
@@ -191,14 +191,30 @@ public class S2Copier<S> {
      * </p>
      *
      * <p>
+     * <b>Behavior by Target Type:</b>
+     * <ul>
+     * <li><b>Map Target:</b> Uses source object's fields as the basis. Iterates through source fields and copies values to Map keys.
+     * If a field mapping exists for a source field, the mapped key name is used; otherwise, the source field name is used as the Map key.</li>
+     * <li><b>Typed Object Target (DTO/VO/Entity):</b> Uses target object's fields as the basis. Iterates through target fields and copies values from source.
+     * If a field mapping exists for a target field, the mapped source field name is used to fetch the value.</li>
+     * </ul>
+     * </p>
+     *
+     * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 원본에서 지정된 대상 객체로 데이터를 복사합니다.
      * <p>
-     * 이전에 설정한 모든 규칙(필드 매핑, 제외 목록, null 처리)을 준수하며,
-     * {@link S2Util#getValue(Object, Object)}와 {@link S2Util#setValue(Object, Object, Class, Object)}을
-     * 사용하여 필드에 접근하므로 MethodHandle 캐싱을 통한 최적 성능을 보장합니다.
-     * 필드 단위 복사 오류는 전체 복사 프로세스 중단을 방지하기 위해 무시됩니다.
+     * 이전에 설정한 모든 규칙(필드 매핑, 제외 목록, null 처리)을 준수합니다.
+     * </p>
+     * <p>
+     * <b>대상 타입별 동작:</b>
+     * <ul>
+     * <li><b>Map 대상:</b> 원본 객체의 필드를 기준으로 사용합니다. 원본의 각 필드를 읽어 Map 키에 저장합니다.
+     * 필드 매핑이 있으면 매핑된 키 이름을 사용하고, 없으면 원본 필드명을 Map 키로 사용합니다.</li>
+     * <li><b>일반 객체 대상 (DTO/VO/Entity):</b> 대상 객체의 필드를 기준으로 사용합니다. 대상의 각 필드에 대해 원본에서 값을 읽습니다.
+     * 필드 매핑이 있으면 매핑된 원본 필드명을 사용하여 값을 가져옵니다.</li>
+     * </ul>
      * </p>
      *
      * @param <T>    Target object type | 대상 객체의 타입
@@ -211,6 +227,12 @@ public class S2Copier<S> {
             throw new IllegalArgumentException("Target object cannot be null.");
         }
 
+        // Map 타겟의 경우: source의 필드를 기준으로 복사
+        if (target instanceof Map) {
+            return toMap((Map<String, Object>) target);
+        }
+
+        // 일반 객체 타겟: target의 필드를 기준으로 복사 (기존 방식)
         var optionalFields = S2Cache.getFields(target.getClass());
         if (optionalFields.isEmpty()) {
             return target;
@@ -244,6 +266,72 @@ public class S2Copier<S> {
             }
         }
         return target;
+    }
+
+    /**
+     * Internal helper method for copying to Map targets.
+     * <p>
+     * Iterates through source object's fields and copies values to the target Map.
+     * If a field mapping exists that has this source field as the value, the mapped key is used.
+     * Otherwise, the source field name is used as the Map key.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * Map 대상으로 복사하기 위한 내부 헬퍼 메서드입니다.
+     * <p>
+     * 원본 객체의 필드를 반복하면서 값을 대상 Map에 복사합니다.
+     * 이 원본 필드를 값으로 가지는 필드 매핑이 존재하면 매핑된 키를 사용하고,
+     * 그렇지 않으면 원본 필드명을 Map 키로 사용합니다.
+     * </p>
+     *
+     * @param targetMap The target Map to populate | 채워넣을 대상 Map
+     * @return The target Map with copied values | 복사된 값으로 채워진 Map
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T toMap(Map<String, Object> targetMap) {
+        var optionalFields = S2Cache.getFields(source.getClass());
+        if (optionalFields.isEmpty()) {
+            return (T) targetMap;
+        }
+
+        var fields = optionalFields.get();
+        for (var field : fields) {
+            var sourceFieldName = field.getName();
+
+            // 1. 제외 목록에 포함된 필드인지 확인
+            if (excludedFields.contains(sourceFieldName)) {
+                continue;
+            }
+
+            // 2. 매핑 설정에서 이 source 필드와 매칭되는 target 키 찾기
+            // fieldMapping: {targetKey -> sourceFieldName}
+            // 역방향으로 찾아서 targetKey를 결정
+            String mapKey = sourceFieldName;
+            for (var entry : fieldMapping.entrySet()) {
+                if (entry.getValue().equals(sourceFieldName)) {
+                    mapKey = entry.getKey();
+                    break;
+                }
+            }
+
+            try {
+                // 3. Source에서 값을 가져온다.
+                var value = S2Util.getValue(source, sourceFieldName);
+                // 4. Null 무시 설정 체크
+                if (value == null && ignoreNulls) {
+                    continue;
+                }
+
+                // 5. Map에 값을 저장한다.
+                targetMap.put(mapKey, value);
+            } catch (Exception e) {
+                // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
+                continue;
+            }
+        }
+        return (T) targetMap;
     }
 
     /**
