@@ -170,6 +170,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     private final EntityManager entityManager;
     private final Class<T> resultClass;
     private final Map<String, Object> boundParameters;
+    private int offset = -1;
+    private int limit = -1;
 
     private S2Jpql(String sql, EntityManager entityManager, Class<T> resultClass) {
         super(sql);
@@ -705,6 +707,52 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         return bindOrderBy(key, true, sortExpression);
     }
 
+    /**
+     * Sets pagination parameters conditionally.
+     *
+     * <p>
+     * When {@code condition} is {@code true}, applies the given {@code offset} and {@code limit}
+     * to the resulting query. If {@code condition} is {@code false}, pagination is not applied.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code condition}이 {@code true}인 경우에만 주어진 {@code offset}와 {@code limit}을 쿼리에 적용합니다.
+     * {@code condition}이 {@code false}이면 페이지네이션은 적용되지 않습니다.
+     *
+     * @param condition Whether to apply pagination | 페이지네이션 적용 여부
+     * @param offset    The number of rows to skip (0-based) | 건너뛸 행의 개수 (0부터 시작)
+     * @param limit     The maximum number of rows to return | 반환할 최대 행 수
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> limit(boolean condition, int offset, int limit) {
+        if (!condition) {
+            return this;
+        }
+        this.offset = offset;
+        this.limit = limit;
+        return this;
+    }
+
+    /**
+     * Sets pagination parameters (offset and limit) for the query.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 쿼리의 페이지네이션 파라미터(offset, limit)를 설정합니다.
+     *
+     * @param offset The number of rows to skip (0-based) | 건너뛸 행의 개수 (0부터 시작)
+     * @param limit  The maximum number of rows to return | 반환할 최대 행 수
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> limit(int offset, int limit) {
+        return limit(true, offset, limit);
+    }
+
     private void putParameter(String name, Object value, LikeMode likeMode) {
         Object processedValue = value;
         if (value instanceof String && likeMode != null) {
@@ -743,6 +791,14 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                 System.out.println("Binding parameter: " + name + " = " + value);
                 query.setParameter(name, value);
             }
+        }
+
+        // 3. 페이지네이션 적용
+        if (offset >= 0) {
+            query.setFirstResult(offset);
+        }
+        if (limit >= 0) {
+            query.setMaxResults(limit);
         }
 
         return query;

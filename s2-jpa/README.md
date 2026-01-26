@@ -130,6 +130,27 @@ TypedQuery<Member> searchQuery = S2Jpql.from(entityManager)
 
 ---
 
+### Pagination
+
+You can apply pagination directly in the builder using `limit(offset, limit)`, which sets
+JPA's `setFirstResult` and `setMaxResults` on the resulting `TypedQuery`.
+
+```java
+TypedQuery<Member> q = S2Jpql.from(entityManager)
+    .type(Member.class)
+    .query("SELECT m FROM Member m WHERE 1=1 {{=name_cond}}")
+    .bindClause("name_cond", name, "AND m.name = :name")
+        .bindParameter("name", name)
+    .limit(0, 10) // offset 0, max 10 rows
+    .build();
+
+List<Member> page = q.getResultList();
+```
+
+Use `limit(offset, limit)` for simple pagination; for conditional application use the overload `limit(condition, offset, limit)`.
+
+---
+
 ## ⚠️ Critical Security Warning: SQL Injection Prevention
 
 ### [English]
