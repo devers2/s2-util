@@ -20,6 +20,7 @@
  */
 package io.github.devers2.s2util.jpa;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -61,11 +62,11 @@ import jakarta.persistence.TypedQuery;
  *                {{=cond_order}}
  *                """)
  *         .bindClause("cond_age", age, "AND member.age = :age")
- *             .bindParameter("age", age)
+ *         .bindParameter("age", age)
  *         .bindClause("cond_name", name, "AND member.name LIKE :name")
- *             .bindParameter("name", name, LikeMode.ANYWHERE)
+ *         .bindParameter("name", name, LikeMode.ANYWHERE)
  *         .bindClause("cond_ids", ids, "AND member.id IN :ids")
- *             .bindParameter("ids", ids)
+ *         .bindParameter("ids", ids)
  *         .bindOrderBy("cond_order", "member.id, member.age DESC")
  *         .build();
  * }</pre>
@@ -616,6 +617,24 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindParameter(String parameterName, Object parameterValue) {
         putParameter(parameterName, parameterValue, null);
+        return this;
+    }
+
+    /**
+     * Sets the parameter with the specified name and collection values.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 지정된 이름과 컬렉션 값으로 파라미터를 설정합니다. IN 절에서 사용하기 위한 메서드입니다.
+     *
+     * @param parameterName   Parameter name (e.g., "ids") | 파라미터 이름 (예: "ids")
+     * @param parameterValues Collection of parameter values for IN clause | IN 절에 사용될 파라미터 값들의 컬렉션
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> bindParameter(String parameterName, Collection<?> parameterValues) {
+        putParameter(parameterName, parameterValues, null);
         return this;
     }
 

@@ -1,5 +1,7 @@
 package io.github.devers2.s2util.jpa;
 
+import java.util.Collection;
+
 import jakarta.persistence.TypedQuery;
 
 /**
@@ -377,6 +379,20 @@ public interface Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     Executor<T> bindParameter(String parameterName, Object parameterValue);
+
+    /**
+     * Sets the parameter with the specified name and collection values.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 지정된 이름과 컬렉션 값으로 파라미터를 설정합니다. IN 절에서 사용하기 위한 메서드입니다.
+     *
+     * @param parameterName   Parameter name (e.g., "ids") | 파라미터 이름 (예: "ids")
+     * @param parameterValues Collection of parameter values for IN clause | IN 절에 사용될 파라미터 값들의 컬렉션
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> bindParameter(String parameterName, Collection<?> parameterValues);
 
     /**
      * Parses the sort condition string and dynamically adds an ORDER BY clause.
