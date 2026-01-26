@@ -376,6 +376,21 @@ return S2Jpql.from(em).type(Product.class).query(jpql)
     .build().getResultList();
 ```
 
+### Pagination (페이징)
+
+You can apply pagination via the builder using `limit(offset, limit)` which will call
+`setFirstResult(offset)` and `setMaxResults(limit)` on the resulting `TypedQuery`.
+
+```java
+S2Jpql.from(em).type(Product.class).query(jpql)
+    .bindClause("cond_name", name, "AND p.name LIKE :name")
+        .bindParameter("name", name, LikeMode.ANYWHERE)
+    .limit(0, 20) // first page: rows 0..19
+    .build().getResultList();
+```
+
+Use the conditional overload `limit(condition, offset, limit)` when you want to apply pagination only when a condition is met.
+
 ### ⚠️ Critical Security Warning: SQL Injection Prevention
 
 > [!WARNING]

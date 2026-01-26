@@ -427,6 +427,47 @@ public interface Executor<T> {
      */
     Executor<T> bindOrderBy(String key, String sortExpression);
 
+    /**
+     * Sets pagination parameters conditionally.
+     *
+     * <p>
+     * When {@code condition} is {@code true}, applies the given {@code offset} and {@code limit}
+     * to the resulting query. If {@code condition} is {@code false}, pagination is not applied.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code condition}이 {@code true}인 경우에만 주어진 {@code offset}와 {@code limit}을 쿼리에 적용합니다.
+     * {@code condition}이 {@code false}이면 페이지네이션은 적용되지 않습니다.
+     *
+     * @param condition Whether to apply pagination | 페이지네이션 적용 여부
+     * @param offset    The number of rows to skip (0-based) | 건너뛸 행의 개수 (0부터 시작)
+     * @param limit     The maximum number of rows to return | 반환할 최대 행 수
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> limit(boolean condition, int offset, int limit);
+
+    /**
+     * Sets pagination parameters for the query.
+     *
+     * <p>
+     * Applies OFFSET and LIMIT to the resulting query. The offset parameter determines the starting row,
+     * and the limit parameter determines the maximum number of rows to return.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 쿼리에 페이지네이션 파라미터를 설정합니다.
+     * offset 파라미터는 시작 행을 결정하고, limit 파라미터는 반환할 최대 행 수를 결정합니다.
+     *
+     * @param offset The number of rows to skip (0-based) | 건너뛸 행의 개수 (0부터 시작)
+     * @param limit  The maximum number of rows to return | 반환할 최대 행 수
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    Executor<T> limit(int offset, int limit);
+
     TypedQuery<T> build();
 
 }
