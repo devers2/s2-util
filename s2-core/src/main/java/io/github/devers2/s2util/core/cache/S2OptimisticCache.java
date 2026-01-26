@@ -290,12 +290,26 @@ public class S2OptimisticCache<K, V> {
         // 3. Keep half, remove the rest
         int targetSize = maxEntries / 2;
         int toRemove = entries.size() - targetSize;
+        int removedCount = 0;
 
         for (int i = 0; i < toRemove && i < entries.size(); i++) {
             K keyToRemove = entries.get(i).getKey();
             if (cache.remove(keyToRemove) != null) {
                 size.decrementAndGet();
+                removedCount++;
             }
+        }
+
+        // 4. Check if eviction is still needed after cleanup (only if we actually removed something)
+        if (removedCount > 0 && size.get() > maxEntries && evicting.compareAndSet(false, true)) {
+            // If still over capacity and we removed items, schedule another eviction
+            S2ThreadUtil.getCommonExecutor().execute(() -> {
+                try {
+                    evictOldEntries();
+                } finally {
+                    evicting.set(false);
+                }
+            });
         }
     }
 
