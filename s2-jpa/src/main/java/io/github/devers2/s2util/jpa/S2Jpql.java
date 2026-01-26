@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.github.devers2.s2util.core.S2Template;
+import io.github.devers2.s2util.log.S2LogManager;
+import io.github.devers2.s2util.log.S2Logger;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Parameter;
 import jakarta.persistence.TypedQuery;
@@ -150,6 +152,8 @@ import jakarta.persistence.TypedQuery;
  */
 
 public class S2Jpql<T> extends S2Template implements Executor<T> {
+
+    S2Logger logger = S2LogManager.getLogger(S2Jpql.class);
 
     /**
      * Step 1: Specify EntityManager
@@ -779,16 +783,16 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public TypedQuery<T> build() {
         // 1. 템플릿 렌더링
         String renderedSql = super.render();
-        System.out.println("Rendered JPQL: " + renderedSql);
+        logger.debug("Rendered JPQL: {}", renderedSql);
         TypedQuery<T> query = entityManager.createQuery(renderedSql, resultClass);
 
         // 2. 자동 바인딩 (S2Template의 rawValues 활용)
-        System.out.println("Parameters to bind: " + boundParameters);
+        logger.debug("Parameters to bind: {}", boundParameters);
         for (Parameter<?> param : query.getParameters()) {
             String name = param.getName();
             if (name != null && boundParameters.containsKey(name)) {
                 Object value = boundParameters.get(name);
-                System.out.println("Binding parameter: " + name + " = " + value);
+                logger.debug("Binding parameter: {} = {}", name, value);
                 query.setParameter(name, value);
             }
         }
