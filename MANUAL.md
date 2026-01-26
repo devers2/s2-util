@@ -352,23 +352,49 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
 
 ## 6. S2Jpql: Secure Dynamic Query (안전한 동적 쿼리 빌더) 🔎
 
-Utilize Java Text Blocks (`"""`) for cleaner JPQL. `applyClause` handles both clause generation and **Parameter Binding** safely.
-<br>Java Text Block(`"""`)으로 쿼리 가독성을 높입니다. `applyClause`는 구문 생성과 **파라미터 바인딩**을 동시 처리하여 SQL Injection을 방지합니다.
+Utilize Java Text Blocks (`"""`) for cleaner JPQL. `bindClause` handles both clause generation and **Parameter Binding** safely.
+<br>Java Text Block(`"""`)으로 쿼리 가독성을 높입니다. `bindClause`는 구문 생성과 **파라미터 바인딩**을 동시 처리하여 SQL Injection을 방지합니다.
 
 ```java
 String jpql = """
-    SELECT p FROM Product p WHERE 1=1
-    {{=cond_name}} {{=cond_price}} {{=sort}}
+    SELECT p
+    FROM Product p
+    WHERE 1=1
+        {{=cond_name}}
+        {{=cond_price}}
+    {{=sort}}
 """;
 
 return S2Jpql.from(em).type(Product.class).query(jpql)
     // [English] Safely appends "AND p.name LIKE :name" and sets the :name parameter
     // [한국어] "AND p.name LIKE :name" 구문을 추가하고 :name 파라미터를 안전하게 바인딩
-    .applyClause("cond_name", "p.name", name, "AND p.name LIKE :name", LikeMode.ANYWHERE)
-    .applyClause("cond_price", "p.price", price, "AND p.price >= :price")
-    .applyOrderBy("sort", sort)
+    .bindClause("cond_name", "p.name", name, "AND p.name LIKE :name", LikeMode.ANYWHERE)
+    .bindClause("cond_price", "p.price", price, "AND p.price >= :price")
+    .bindOrderBy("sort", sort)
     .build().getResultList();
 ```
+
+### ⚠️ Critical Security Warning: SQL Injection Prevention
+
+> [!WARNING]
+> **[English]** **NEVER** include external or user-provided variables in the `clause` parameter of `bindClause` methods. Only use hardcoded strings for clauses. All dynamic values must be passed through the `parameterValue` parameter, which will be safely bound using JPA's parameter binding mechanism (:name).
+> <br>**[한국어]** **절대** `bindClause` 메서드의 `clause` 파라미터에 외부 또는 사용자 제공 변수를 포함하지 마세요. 절에는 하드코딩된 문자열만 사용하세요. 모든 동적 값은 `parameterValue` 파라미터를 통해 전달해야 하며, JPA의 파라미터 바인딩 메커니즘(:name)을 통해 안전하게 바인딩됩니다.
+
+#### SAFE Usage (안전한 사용):
+
+```java
+.bindClause("cond_name", "name", userInput, "AND m.name = :name")  // SAFE: userInput goes to parameter
+.bindParameter("name", userInput, LikeMode.ANYWHERE)  // SAFE: userInput goes to parameter
+```
+
+#### DANGEROUS Usage (위험한 사용 - 절대 하지 마세요):
+
+```java
+.bindClause("cond_name", "dummy", null, "AND m.name = " + userInput)  // DANGEROUS: SQL Injection risk!
+```
+
+Failure to follow this rule can result in **SQL Injection vulnerabilities**.
+<br>이 규칙을 따르지 않으면 **SQL 인젝션 취약점**이 발생할 수 있습니다.
 
 ---
 

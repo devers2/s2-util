@@ -140,9 +140,9 @@ public class S2JpqlTest {
             TypedQuery<Member> result = S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .applyClause("cond_name", "name", "John", "AND m.name = :name")
-                    .applyClause("cond_age", "age", 30, "AND m.age = :age")
-                    .applyOrderBy("cond_order", "m.name ASC")
+                    .bindClause("cond_name", "name", "John", "AND m.name = :name")
+                    .bindClause("cond_age", "age", 30, "AND m.age = :age")
+                    .bindOrderBy("cond_order", "m.name ASC")
                     .build();
 
             // Then
@@ -177,7 +177,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .applyClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
+                    .bindClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
                     .build();
 
             // Then
@@ -209,7 +209,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .applyClause("dummy", "name", "John", "dummy", LikeMode.START)
+                    .bindClause("dummy", "name", "John", "dummy", LikeMode.START)
                     .build();
 
             // Then
@@ -242,7 +242,7 @@ public class S2JpqlTest {
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .applyClause("dummy", "name", "John", "dummy", LikeMode.END)
+                    .bindClause("dummy", "name", "John", "dummy", LikeMode.END)
                     .build();
 
             // Then
@@ -256,31 +256,33 @@ public class S2JpqlTest {
         }
     }
 
-    @DisplayName("S2Jpql - 템플릿 메서드 (bind, bindWhen)")
+    @DisplayName("S2Jpql - bindParameter")
     @SuppressWarnings({ "null", "unchecked" })
     @Test
-    void testS2TemplateMethods() {
-        String testName = "S2Jpql - Template Methods";
+    void testBindParameter() {
+        String testName = "S2Jpql - bindParameter";
         try {
             // Given
-            String jpql = "SELECT m FROM Member m {{=where}} {{=order}}";
+            String jpql = "SELECT m FROM Member m WHERE m.name LIKE :name AND m.age = :age";
 
             // Mock parameters
             Parameter<Object> nameParam = mock(Parameter.class);
             when(nameParam.getName()).thenReturn("name");
-            when(typedQuery.getParameters()).thenReturn(java.util.Set.of(nameParam));
+            Parameter<Object> ageParam = mock(Parameter.class);
+            when(ageParam.getName()).thenReturn("age");
+            when(typedQuery.getParameters()).thenReturn(java.util.Set.of(nameParam, ageParam));
 
             // When
             S2Jpql.from(entityManager)
                     .type(Member.class)
                     .query(jpql)
-                    .bind("where", "WHERE m.active = 1")
-                    .bindWhen("order", true, "ORDER BY m.name", "")
-                    .applyClause("dummy", "name", "John", "dummy", LikeMode.ANYWHERE)
+                    .bindParameter("name", "John", LikeMode.ANYWHERE)
+                    .bindParameter("age", 30)
                     .build();
 
             // Then
             verify(typedQuery).setParameter("name", "%John%");
+            verify(typedQuery).setParameter("age", 30);
 
             stats.recordSuccess();
             System.out.println("✓ " + testName + " PASSED");
