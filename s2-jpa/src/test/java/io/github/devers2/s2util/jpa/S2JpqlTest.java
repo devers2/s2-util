@@ -64,7 +64,7 @@ public class S2JpqlTest {
         void printReport(String categoryName) {
             System.out.println("");
             System.out.println("╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║ Test Report: " + String.format("%-48s", categoryName) + "║");
+            System.out.println("║ Test Report: " + String.format("%-46s", categoryName) + "║");
             System.out.println("╠════════════════════════════════════════════════════════════╣");
             System.out.println("║ Total: " + String.format("%-52d", total) + "║");
             System.out.println("║ ✓ Success: " + String.format("%-48d", success) + "║");

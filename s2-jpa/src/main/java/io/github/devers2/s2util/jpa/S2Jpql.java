@@ -60,10 +60,13 @@ import jakarta.persistence.TypedQuery;
  *                {{=cond_ids}}
  *                {{=cond_order}}
  *                """)
- *         .bindClause("cond_age", "age", age, "AND member.age = :age") // Replace {{=cond_age}} with AND member.age = :age, then handle TypedQuery.setParameter
- *         .bindClause("cond_name", "name", name, "AND member.name LIKE :name", LikeMode.ANYWHERE) // Replace {{=cond_name}} with AND member.name LIKE :name, then handle TypedQuery.setParameter
- *         .bindClause("cond_ids", "ids", ids, "AND member.id IN :ids") // Replace {{=cond_ids}} with AND member.id IN :ids, then handle TypedQuery.setParameter
- *         .bindOrderBy("cond_order", "member.id, member.age DESC") // Replace {{=cond_order}} with ORDER BY member.id, member.age DESC
+ *         .bindClause("cond_age", age, "AND member.age = :age")
+ *             .bindParameter("age", age)
+ *         .bindClause("cond_name", name, "AND member.name LIKE :name")
+ *             .bindParameter("name", name, LikeMode.ANYWHERE)
+ *         .bindClause("cond_ids", ids, "AND member.id IN :ids")
+ *             .bindParameter("ids", ids)
+ *         .bindOrderBy("cond_order", "member.id, member.age DESC")
  *         .build();
  * }</pre>
  *
@@ -80,15 +83,15 @@ import jakarta.persistence.TypedQuery;
  * </p>
  *
  * <pre>{@code
- * .bindClause("cond_name", "name", userInput, "AND m.name = :name")  // SAFE: userInput goes to parameter
- * .bindParameter("name", userInput, LikeMode.ANYWHERE)  // SAFE: userInput goes to parameter
+ * .bindClause("cond_name", userInput, "AND m.name = :name")  // Clause is hardcoded
+ * .bindParameter("name", userInput, LikeMode.ANYWHERE)  // Value bound safely here
  * }</pre>
  * <p>
  * <b>Example of DANGEROUS usage (DO NOT DO THIS):</b>
  * </p>
  *
  * <pre>{@code
- * .bindClause("cond_name", "dummy", null, "AND m.name = " + userInput)  // DANGEROUS: SQL Injection risk!
+ * .bindClause("cond_name", userInput, "AND m.name = " + userInput)  // DANGEROUS: SQL Injection risk!
  * }</pre>
  * <p>
  * Failure to follow this rule can result in <b>SQL Injection vulnerabilities</b>.
@@ -124,15 +127,15 @@ import jakarta.persistence.TypedQuery;
  * </p>
  *
  * <pre>{@code
- * .bindClause("cond_name", "name", userInput, "AND m.name = :name")  // 안전: userInput은 파라미터로
- * .bindParameter("age", userAge, LikeMode.ANYWHERE)  // 안전: userAge는 파라미터로
+ * .bindClause("cond_name", userInput, "AND m.name = :name")  // 절은 하드코딩됨
+ * .bindParameter("name", userInput, LikeMode.ANYWHERE)  // 값은 여기서 안전하게 바인딩
  * }</pre>
  * <p>
  * <b>위험한 사용 예시 (절대 하지 마세요):</b>
  * </p>
  *
  * <pre>{@code
- * .bindClause("cond_name", "dummy", null, "AND m.name = " + userInput)  // 위험: SQL 인젝션 가능!
+ * .bindClause("cond_name", userInput, "AND m.name = " + userInput)  // 위험: SQL 인젝션 가능!
  * }</pre>
  * <p>
  * 이 규칙을 따르지 않으면 <b>SQL 인젝션 취약점</b>이 발생할 수 있습니다.
@@ -195,7 +198,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -229,7 +232,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -262,7 +265,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
@@ -295,7 +298,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * <p>
      * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
      * Never include external variables in these parameters to prevent SQL injection.
-     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
