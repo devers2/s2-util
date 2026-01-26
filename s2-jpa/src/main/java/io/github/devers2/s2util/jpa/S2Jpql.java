@@ -190,61 +190,36 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
      *
      * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
-     *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
-     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
-     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
-     */
-    @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode) {
-        super.bindWhen(key, condition, clause, prefix, suffix);
-        putParameter(parameterName, parameterValue, likeMode);
-        return this;
-    }
-
-    /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
-     *
-     * <p>
-     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} parameter must be a hardcoded string. Never include external variables in the clause to prevent SQL injection.
-     * Use {@code parameterValue} for dynamic values, which are safely bound as parameters.
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
      * <p>
-     * <b>⚠️ 보안 경고:</b> {@code clause} 파라미터는 하드코딩된 문자열만 사용해야 합니다. SQL 인젝션을 방지하기 위해 절에 외부 변수를 포함하지 마세요.
-     * 동적 값은 {@code parameterValue}를 통해 안전하게 파라미터로 바인딩하세요.
+     * <b>⚠️ 보안 경고:</b> {@code clause}, {@code prefix}, {@code suffix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
      * </p>
      *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
+     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
+     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
+     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, String suffix) {
+    public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix, String suffix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix, suffix);
-        putParameter(parameterName, parameterValue, null);
         return this;
     }
 
@@ -252,12 +227,24 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
      *
      * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * </p>
+     *
+     * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}, {@code prefix}, {@code suffix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
+     *
      * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
      * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
      * @param suffix    String to append to the clause | 절 뒤에 붙을 문자열
@@ -270,49 +257,35 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)}} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
-     *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
-     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
-     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
-     */
-    @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode) {
-        super.bindWhen(key, condition, clause, prefix);
-        putParameter(parameterName, parameterValue, likeMode);
-        return this;
-    }
-
-    /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
      * <p>
-     * <b>[한국어 설명]</b>
+     * <b>⚠️ 보안 경고:</b> {@code clause}와 {@code prefix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
      * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
+     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
+     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, String prefix) {
+    public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix, LikeMode likeMode) {
         super.bindWhen(key, condition, clause, prefix);
-        putParameter(parameterName, parameterValue, null);
         return this;
     }
 
@@ -320,12 +293,24 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
      *
      * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)}} for dynamic values, which are safely bound as parameters.
+     * </p>
+     *
+     * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}와 {@code prefix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
+     *
      * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
      * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix    String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
@@ -337,47 +322,34 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} parameter must be a hardcoded string.
+     * Never include external variables in the clause to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
-     *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
-     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
-     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
-     */
-    @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause, LikeMode likeMode) {
-        super.bindWhen(key, condition, clause);
-        putParameter(parameterName, parameterValue, likeMode);
-        return this;
-    }
-
-    /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
+     * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
      * <p>
-     * <b>[한국어 설명]</b>
+     * <b>⚠️ 보안 경고:</b> {@code clause} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 절에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
      * </p>
-     * 조건({@code condition})이 true 일때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
      *
-     * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition      Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
+     * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
+     * @param likeMode  Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, String parameterName, Object parameterValue, String clause) {
+    public S2Jpql<T> bindClause(String key, boolean condition, String clause, LikeMode likeMode) {
         super.bindWhen(key, condition, clause);
-        putParameter(parameterName, parameterValue, null);
         return this;
     }
 
@@ -385,12 +357,24 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
      *
      * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} parameter must be a hardcoded string.
+     * Never include external variables in the clause to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
+     * </p>
+     *
+     * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 조건({@code condition})이 true 일때만 해당 조건절을 쿼리에 추가합니다.
      *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 절에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
+     *
      * @param key       Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param condition Condition to check before setting the parameter | 파라미터 설정 전 확인할 조건
+     * @param condition Condition to check before adding the clause | 절 추가 전 확인할 조건
      * @param clause    Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
@@ -401,16 +385,27 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}, {@code prefix}, {@code suffix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
@@ -418,120 +413,169 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix, LikeMode likeMode) {
-        super.bindWhen(key, parameterValue, clause, prefix, suffix);
-        putParameter(parameterName, parameterValue, likeMode);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix, String suffix, LikeMode likeMode) {
+        super.bindWhen(key, conditionValue, clause, prefix, suffix);
         return this;
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause}, {@code prefix}, and {@code suffix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}, {@code prefix}, {@code suffix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @param suffix         String to append to the clause | 절 뒤에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause, String prefix, String suffix) {
-        super.bindWhen(key, parameterValue, clause, prefix, suffix);
-        putParameter(parameterName, parameterValue, null);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix, String suffix) {
+        super.bindWhen(key, conditionValue, clause, prefix, suffix);
         return this;
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}와 {@code prefix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause, String prefix, LikeMode likeMode) {
-        super.bindWhen(key, parameterValue, clause, prefix);
-        putParameter(parameterName, parameterValue, likeMode);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix, LikeMode likeMode) {
+        super.bindWhen(key, conditionValue, clause, prefix);
         return this;
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} and {@code prefix} parameters must be hardcoded strings.
+     * Never include external variables in these parameters to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause}와 {@code prefix} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 이 파라미터들에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param prefix         String to prepend to the clause | 절 앞에 붙을 문자열
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause, String prefix) {
-        super.bindWhen(key, parameterValue, clause, prefix);
-        putParameter(parameterName, parameterValue, null);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix) {
+        super.bindWhen(key, conditionValue, clause, prefix);
         return this;
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} parameter must be a hardcoded string.
+     * Never include external variables in the clause to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object, LikeMode)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 절에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object, LikeMode)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause, LikeMode likeMode) {
-        super.bindWhen(key, parameterValue, clause);
-        putParameter(parameterName, parameterValue, likeMode);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, LikeMode likeMode) {
+        super.bindWhen(key, conditionValue, clause);
         return this;
     }
 
     /**
-     * Sets the parameter and adds the corresponding condition clause to the query only if the parameter value ({@code value}) is present.
+     * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.
+     *
+     * <p>
+     * <b>⚠️ SECURITY WARNING:</b> The {@code clause} parameter must be a hardcoded string.
+     * Never include external variables in the clause to prevent SQL injection.
+     * Use {@link #bindParameter(String, Object)} for dynamic values, which are safely bound as parameters.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파라미터 값({@code value})이 있을때만 파라미터를 설정하고 해당 조건절을 쿼리에 추가합니다.
+     * 조건 값({@code conditionValue})이 있을 때만 해당 조건절을 쿼리에 추가합니다.
+     *
+     * <p>
+     * <b>⚠️ 보안 경고:</b> {@code clause} 파라미터는 반드시 하드코딩된 문자열만 사용해야 합니다.
+     * SQL 인젝션을 방지하기 위해 절에 외부 변수를 포함하지 마세요.
+     * 동적 값은 {@link #bindParameter(String, Object)}를 통해 안전하게 파라미터로 바인딩하세요.
+     * </p>
      *
      * @param key            Template key to be replaced (e.g., "where_clause") | 치환 대상 템플릿 키 (예: "where_clause")
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param conditionValue Criteria value used to determine if the clause should be added | 절 추가 여부를 판단하는 기준 값
      * @param clause         Query clause to be added (e.g., "AND m.name = :name") | 추가될 쿼리 절 (예: "AND m.name = :name")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, String parameterName, Object parameterValue, String clause) {
-        super.bindWhen(key, parameterValue, clause);
-        putParameter(parameterName, parameterValue, null);
+    public S2Jpql<T> bindClause(String key, Object conditionValue, String clause) {
+        super.bindWhen(key, conditionValue, clause);
         return this;
     }
 
