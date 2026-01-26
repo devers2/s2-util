@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import io.github.devers2.s2util.log.S2LogManager;
+import io.github.devers2.s2util.log.S2Logger;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Parameter;
 import jakarta.persistence.TypedQuery;
@@ -38,6 +40,8 @@ public class S2JpqlTest {
 
     @Mock
     private Parameter<String> parameter;
+
+    private static S2Logger logger;
 
     private static TestStatistics stats;
 
@@ -62,27 +66,27 @@ public class S2JpqlTest {
         }
 
         void printReport(String categoryName) {
-            System.out.println("");
-            System.out.println("╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║ Test Report: " + String.format("%-46s", categoryName) + "║");
-            System.out.println("╠════════════════════════════════════════════════════════════╣");
-            System.out.println("║ Total: " + String.format("%-52d", total) + "║");
-            System.out.println("║ ✓ Success: " + String.format("%-48d", success) + "║");
-            System.out.println("║ ✗ Failed: " + String.format("%-49d", failed) + "║");
+            logger.info("");
+            logger.info("╔════════════════════════════════════════════════════════════╗");
+            logger.info("║ Test Report: " + String.format("%-46s", categoryName) + "║");
+            logger.info("╠════════════════════════════════════════════════════════════╣");
+            logger.info("║ Total: " + String.format("%-52d", total) + "║");
+            logger.info("║ ✓ Success: " + String.format("%-48d", success) + "║");
+            logger.info("║ ✗ Failed: " + String.format("%-49d", failed) + "║");
             if (!failures.isEmpty()) {
-                System.out.println("╠════════════════════════════════════════════════════════════╣");
-                System.out.println("║ Failed Tests:                                              ║");
+                logger.info("╠════════════════════════════════════════════════════════════╣");
+                logger.info("║ Failed Tests:                                              ║");
                 for (String failure : failures) {
                     String shortened = failure.length() > 56 ? failure.substring(0, 56) : failure;
                     String line = "║  " + String.format("%-56s", shortened) + "║";
-                    System.out.println(line);
+                    logger.info(line);
                     if (failure.length() > 56) {
                         String rest = failure.substring(56);
-                        System.out.println("║  " + String.format("%-56s", rest) + "║");
+                        logger.info("║  " + String.format("%-56s", rest) + "║");
                     }
                 }
             }
-            System.out.println("╚════════════════════════════════════════════════════════════╝");
+            logger.info("╚════════════════════════════════════════════════════════════╝");
         }
 
         void reset() {
@@ -95,6 +99,7 @@ public class S2JpqlTest {
 
     @BeforeAll
     static void initStats() {
+        logger = S2LogManager.getLogger(S2JpqlTest.class);
         stats = new TestStatistics();
     }
 
@@ -154,10 +159,10 @@ public class S2JpqlTest {
             verify(typedQuery).setParameter("age", 30);
 
             stats.recordSuccess();
-            System.out.println("✓ " + testName + " PASSED");
+            logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {
             stats.recordFailure(testName, e);
-            System.err.println("✗ " + testName + " FAILED: " + e.getMessage());
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
     }
 
@@ -186,10 +191,10 @@ public class S2JpqlTest {
             verify(typedQuery).setParameter("name", "%John%");
 
             stats.recordSuccess();
-            System.out.println("✓ " + testName + " PASSED");
+            logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {
             stats.recordFailure(testName, e);
-            System.err.println("✗ " + testName + " FAILED: " + e.getMessage());
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
     }
 
@@ -218,10 +223,10 @@ public class S2JpqlTest {
             verify(typedQuery).setParameter("name", "John%");
 
             stats.recordSuccess();
-            System.out.println("✓ " + testName + " PASSED");
+            logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {
             stats.recordFailure(testName, e);
-            System.err.println("✗ " + testName + " FAILED: " + e.getMessage());
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
     }
 
@@ -251,10 +256,10 @@ public class S2JpqlTest {
             verify(typedQuery).setParameter("name", "%John");
 
             stats.recordSuccess();
-            System.out.println("✓ " + testName + " PASSED");
+            logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {
             stats.recordFailure(testName, e);
-            System.err.println("✗ " + testName + " FAILED: " + e.getMessage());
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
     }
 
@@ -287,10 +292,10 @@ public class S2JpqlTest {
             verify(typedQuery).setParameter("age", 30);
 
             stats.recordSuccess();
-            System.out.println("✓ " + testName + " PASSED");
+            logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {
             stats.recordFailure(testName, e);
-            System.err.println("✗ " + testName + " FAILED: " + e.getMessage());
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
     }
 
@@ -298,7 +303,7 @@ public class S2JpqlTest {
     @Test
     void testSummary() {
         // 이 테스트는 통계 리포트를 출력하기 위함
-        System.out.println("\n[TEST SUMMARY]");
+        logger.info("\n[TEST SUMMARY]");
     }
 
     // ===== Dummy entity class for testing =====
