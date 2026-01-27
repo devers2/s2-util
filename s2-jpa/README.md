@@ -308,7 +308,7 @@ s2-jpa Version: 1.1.2 (2026-01-27)
 ```groovy
 dependencies {
     // Essential runtime dependencies for optional functionalities
-    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```
 
