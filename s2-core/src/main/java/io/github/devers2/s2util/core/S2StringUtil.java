@@ -82,7 +82,7 @@ public class S2StringUtil {
      * @return The resulting string
      */
     public static String replaceAll(String source, String regex, String replacement) {
-        if (source == null || source.isBlank() || regex == null || regex.isBlank() || replacement == null || replacement.isBlank()) {
+        if (source == null || source.isBlank() || regex == null || regex.isBlank() || replacement == null) {
             return source;
         }
 

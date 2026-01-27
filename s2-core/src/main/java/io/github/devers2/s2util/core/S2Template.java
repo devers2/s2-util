@@ -185,7 +185,8 @@ public class S2Template {
     private S2Template doBind(String key, Object value, String prefix, String suffix) {
         String p = (prefix != null && !prefix.isBlank()) ? prefix : "";
         String s = (suffix != null && !suffix.isBlank()) ? suffix : "";
-        bindings.put(key, isValid(value) ? p + value.toString() + s : "");
+        String bindValue = isValid(value) ? p + value.toString() + s : "";
+        putBinding(key, bindValue);
         return this;
     }
 
@@ -416,8 +417,8 @@ public class S2Template {
     private S2Template doBindWhen(String key, Object condition, Object content, String prefix, String suffix) {
         String p = (prefix != null && !prefix.isBlank()) ? prefix : "";
         String s = (suffix != null && !suffix.isBlank()) ? suffix : "";
-        String value = isValid(condition) && S2Util.isNotEmpty(content) ? p + content.toString() + s : "";
-        bindings.put(key, value);
+        String bindValue = isValid(condition) && S2Util.isNotEmpty(content) ? p + content.toString() + s : "";
+        putBinding(key, bindValue);
         return this;
     }
 
@@ -541,11 +542,18 @@ public class S2Template {
                                     (suffix != null ? suffix : "")
                             )
                     );
-            bindings.put(key, result);
-        } else {
-            bindings.put(key, "");
+            putBinding(key, result);
         }
         return this;
+    }
+
+    /**
+     * Stores the binding value if it's not null or blank.
+     */
+    private void putBinding(String key, String bindValue) {
+        if (bindValue != null && !bindValue.isBlank()) {
+            bindings.put(key, bindValue);
+        }
     }
 
     /**

@@ -253,9 +253,7 @@ public class Test {
 
     @AfterAll
     static void tearDown() {
-        if (stats != null && stats.total > 0) {
-            stats.printReport("Final Summary");
-        }
+        // Teardown logic if needed
     }
 
     // ===== getValue Tests =====
@@ -956,7 +954,95 @@ public class Test {
     @DisplayName("SmokeTest - 전체 테스트 통계")
     @org.junit.jupiter.api.Test
     void testSummary() {
-        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion and Deep Copy)");
+        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion and Deep Copy), S2Template");
+    }
+
+    // ===== S2Template Tests =====
+
+    @DisplayName("S2Template - Basic Binding")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateBasicBinding() {
+        String testName = "testS2TemplateBasicBinding";
+        try {
+            String result = S2Template.of("SELECT * FROM users WHERE id = {{=id}}")
+                    .bind("id", 123)
+                    .render();
+            assert "SELECT * FROM users WHERE id = 123".equals(result) : "Basic binding failed";
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Template - Empty Binding Should Not Override")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateEmptyBindingNotOverride() {
+        String testName = "testS2TemplateEmptyBindingNotOverride";
+        try {
+            String result = S2Template.of("SELECT * FROM users WHERE {{=filter}}")
+                    .bind("filter", "status = 'active'", "AND ") // Valid binding
+                    .bind("filter", null) // Invalid binding - should not override
+                    .render();
+            assert "SELECT * FROM users WHERE AND status = 'active'".equals(result) : "Empty binding should not override valid one";
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Template - BindWhen with Condition")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateBindWhen() {
+        String testName = "testS2TemplateBindWhen";
+        try {
+            String result = S2Template.of("SELECT * FROM users {{=order}}")
+                    .bindWhen("order", true, "id DESC", "ORDER BY ")
+                    .render();
+            assert "SELECT * FROM users ORDER BY id DESC".equals(result) : "BindWhen with true condition failed";
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Template - BindWhen False Condition Should Not Bind")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateBindWhenFalse() {
+        String testName = "testS2TemplateBindWhenFalse";
+        try {
+            String result = S2Template.of("SELECT * FROM users {{=order}}")
+                    .bindWhen("order", false, "id DESC", "ORDER BY ")
+                    .render();
+            assert "SELECT * FROM users".equals(result) : "BindWhen with false condition should not bind, result: " + result;
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Template - BindIn with Collection")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateBindIn() {
+        String testName = "testS2TemplateBindIn";
+        try {
+            String result = S2Template.of("SELECT * FROM users WHERE id IN ({{=ids}})")
+                    .bindIn("ids", List.of(1, 2, 3), "(", ")")
+                    .render();
+            assert "SELECT * FROM users WHERE id IN ((1, 2, 3))".equals(result) : "BindIn failed";
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
     }
 
 }
