@@ -257,7 +257,7 @@ dependencies {
     // Essential runtime dependencies for optional functionalities
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
     implementation 'org.springframework:spring-context:6.1.1'
-    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```
 
