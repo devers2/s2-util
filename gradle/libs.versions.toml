@@ -19,7 +19,7 @@ mockito = "5.21.0"
 uuid-creator = "6.1.1"
 
 # Spring Framework
-spring-framework-6 = "6.1.1"
+spring-framework-6 = "6.2.15"
 
 # Servlet / JSP
 jakarta-servlet-api = "6.1.0"
