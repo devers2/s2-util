@@ -471,6 +471,7 @@ const getFormData = (form) => {
  * <p>
  * For array data (checkboxes, etc.), checks for inclusion; for single values, checks for equality.
  * Implements OR logic between condition groups and AND logic within each group.
+ * Normalizes Boolean, Enum, Number, and String values for consistent comparison.
  * </p>
  *
  * <p>
@@ -480,6 +481,7 @@ const getFormData = (form) => {
  * <p>
  * 배열(체크박스 등) 데이터일 경우 포함 여부를 확인하며, 단일 값은 일치 여부를 확인합니다.
  * 조건 그룹 간에는 OR 로직을, 각 그룹 내에서는 AND 로직을 적용합니다.
+ * Boolean, Enum, Number, String 값을 정규화하여 일관된 비교를 수행합니다.
  * </p>
  *
  * @param {Object} rule - Validation rule object | 검증 규칙 객체
@@ -497,24 +499,73 @@ const isConditionSatisfied = (rule, formData, prefix = '') => {
     return group.every((cond) => {
       const fullPath = prefix + cond.field;
       const actualValue = formData[fullPath];
-      const expectedValue = String(cond.value);
+      const normalizedActual = normalizeConditionValue(actualValue);
+      const normalizedExpected = normalizeConditionValue(cond.value);
 
-      if (actualValue === undefined || actualValue === null) {
-        return cond.value === null;
+      if (normalizedActual === undefined || normalizedActual === null) {
+        return normalizedExpected === null;
       }
-      if (cond.value === null) {
+      if (normalizedExpected === null) {
         return false;
       }
 
       // 실제 값이 배열(체크박스/멀티셀렉트)인 경우 포함 여부 확인
-      if (Array.isArray(actualValue)) {
-        return actualValue.some((v) => String(v) === expectedValue);
+      if (Array.isArray(normalizedActual)) {
+        return normalizedActual.some((v) => v === normalizedExpected);
       }
 
       // 단일 값 비교
-      return String(actualValue) === expectedValue;
+      return normalizedActual === normalizedExpected;
     });
   });
+};
+
+/**
+ * Normalizes condition values for consistent comparison (Boolean, String, etc.).
+ * <p>
+ * Boolean values are normalized to "true"/"false" (lowercase).
+ * String values are trimmed and Boolean strings are normalized.
+ * Other values are converted to string.
+ * </p>
+ *
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 조건 비교를 위해 Boolean, String 등의 값을 정규화합니다.
+ * <p>
+ * Boolean 값은 "true"/"false" (소문자)로 정규화되고,
+ * String 값은 공백이 제거되며 Boolean 문자열은 소문자로 정규화됩니다.
+ * 다른 타입은 문자열로 변환됩니다.
+ * </p>
+ *
+ * @function normalizeConditionValue
+ * @param {any} val - Value to normalize | 정규화할 값
+ * @returns {string|null} Normalized value | 정규화된 값
+ */
+const normalizeConditionValue = (val) => {
+  if (val === null || val === undefined) {
+    return null;
+  }
+
+  // Boolean 처리: true -> "true", false -> "false"
+  if (typeof val === 'boolean') {
+    return val ? 'true' : 'false';
+  }
+
+  // String 처리: 공백 제거, Boolean 문자열 정규화
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === 'true') {
+      return 'true';
+    }
+    if (trimmed.toLowerCase() === 'false') {
+      return 'false';
+    }
+    return trimmed;
+  }
+
+  // Number 및 기타: 문자열로 변환
+  return String(val);
 };
 
 /**
