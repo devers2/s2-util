@@ -276,24 +276,49 @@ public class S2Util {
 
         Object value = null;
         try {
+            boolean isStringField = fieldName instanceof String;
+            String fieldNameStr = isStringField ? (String) fieldName : String.valueOf(fieldName);
+
             // 0. Dot Notation (Nested Access) & Bracket Notation ([0]) 처리
-            if (fieldName instanceof String s) {
-                // Bracket Notation Normalization: "users[0]" -> "users.0"
-                if (s.indexOf('[') > -1) {
-                    s = S2StringUtil.replaceAll(s, "\\[(\\d+)\\]", ".$1"); // [0] -> .0
-                    // .으로 시작하면 제거 (.0 -> 0) - 루트 배열 접근 시
-                    if (s.startsWith("."))
-                        s = s.substring(1);
+            if (isStringField) {
+                // 1. Bracket Notation 정규화 (S2StringUtil.replaceAll 유지)
+                if (fieldNameStr.indexOf('[') > -1) {
+                    fieldNameStr = S2StringUtil.replaceAll(fieldNameStr, "\\[(\\d+)\\]", ".$1");
+
+                    // ".0" -> "0" 처리 (startsWith 대신 charAt으로 미세 최적화)
+                    if (!fieldNameStr.isEmpty() && fieldNameStr.charAt(0) == '.') {
+                        fieldNameStr = fieldNameStr.substring(1);
+                    }
                 }
 
-                if (s.indexOf('.') > -1) {
-                    String[] parts = s.split("\\.");
+                // 2. 중첩 경로 처리 (Split 제거 및 Single-pass 탐색)
+                int dotIndex = fieldNameStr.indexOf('.');
+                if (dotIndex > -1) {
                     Object current = target;
-                    for (String part : parts) {
+                    int start = 0;
+
+                    // 점(.)을 기준으로 모든 파트를 순회하며 getValue 호출
+                    while (true) {
                         if (current == null)
                             return defaultValue;
+
+                        // 현재 파트 추출 (다음 점이 있으면 그 전까지, 없으면 끝까지)
+                        String part = (dotIndex > -1)
+                                ? fieldNameStr.substring(start, dotIndex)
+                                : fieldNameStr.substring(start);
+
                         current = getValue(current, part, Object.class, null);
+
+                        // 더 이상 진행할 점(.)이 없으면 루프 종료
+                        if (dotIndex == -1)
+                            break;
+
+                        // 다음 탐색 위치 업데이트
+                        start = dotIndex + 1;
+                        dotIndex = fieldNameStr.indexOf('.', start);
                     }
+
+                    // 모든 경로를 탐색한 최종 결과 할당
                     value = current;
                 }
             }
@@ -381,7 +406,6 @@ public class S2Util {
                 // 6. Record 및 일반 VO 처리
                 else {
                     Class<?> clazz = finalTarget.getClass();
-                    String fieldNameStr = fieldName instanceof String s ? s : String.valueOf(fieldName); // String 캐스트 최적화 (instanceof 체크 후 직접 사용)
 
                     // 6-1. Record는 필드명과 동일한 메서드를 가짐 (METHOD 타입 즉시 조회)
                     if (clazz.isRecord()) {
@@ -398,20 +422,22 @@ public class S2Util {
                     }
                     // 6-2. 일반 VO는 Getter(get+Name)를 우선 탐색하고, 실패 시 필드 직접 접근(BOTH)으로 폴백한다.
                     else {
-                        String getterName = "get" + Character.toUpperCase(fieldNameStr.charAt(0)) + fieldNameStr.substring(1);
-
+                        String getterName = toGetterName(fieldNameStr, false);
                         var methodHandle = S2Cache.getMethodHandle(
                                 new MethodKey(clazz, getterName),
                                 LookupType.METHOD
-                        ).or(
-                                () -> S2Cache.getMethodHandle(
-                                        new MethodKey(clazz, fieldNameStr),
-                                        LookupType.BOTH
-                                )
-                        ).orElse(null);
+                        );
 
-                        if (methodHandle != null) {
-                            value = methodHandle.invoke(finalTarget);
+                        // getterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
+                        if (methodHandle.isEmpty() && !getterName.equals(fieldNameStr)) {
+                            methodHandle = S2Cache.getMethodHandle(
+                                    new MethodKey(clazz, fieldNameStr),
+                                    LookupType.BOTH
+                            );
+                        }
+
+                        if (methodHandle.isPresent()) {
+                            value = methodHandle.get().invoke(finalTarget);
                         }
                     }
                 }
@@ -538,30 +564,46 @@ public class S2Util {
         final Object finalTargetOrigin = currentTarget;
 
         try {
+            boolean isStringField = fieldName instanceof String;
+            String fieldNameStr = isStringField ? (String) fieldName : String.valueOf(fieldName);
+
             // 0. Dot Notation (Nested Access) & Bracket Notation ([0]) 처리
-            if (fieldName instanceof String s) {
-                // Bracket Notation Normalization: "users[0]" -> "users.0"
-                if (s.indexOf('[') > -1) {
-                    s = S2StringUtil.replaceAll(s, "\\[(\\d+)\\]", ".$1"); // [0] -> .0
-                    if (s.startsWith("."))
-                        s = s.substring(1);
+            if (isStringField) {
+                // 1. Bracket Notation Normalization: "users[0]" -> "users.0"
+                // S2StringUtil.replaceAll은 내부 캐싱을 사용하므로 그대로 유지합니다.
+                if (fieldNameStr.indexOf('[') > -1) {
+                    fieldNameStr = S2StringUtil.replaceAll(fieldNameStr, "\\[(\\d+)\\]", ".$1");
+                    if (fieldNameStr.startsWith(".")) {
+                        fieldNameStr = fieldNameStr.substring(1);
+                    }
                 }
 
-                if (s.indexOf('.') > -1) {
-                    String[] parts = s.split("\\.");
+                // 2. Nested Path Processing (Optimized: split 대신 indexOf 사용)
+                int dotIndex = fieldNameStr.indexOf('.');
+                if (dotIndex > -1) {
                     Object current = target;
-                    if (parts.length > 1) {
-                        // 마지막 요소 직전까지 탐색
-                        for (int i = 0; i < parts.length - 1; i++) {
-                            if (current == null)
-                                return false;
-                            current = getValue(current, parts[i], Object.class, null);
-                        }
+                    int start = 0;
+
+                    // 마지막 점(.)이 나오기 전까지 계층 구조를 탐색합니다.
+                    while (dotIndex > -1) {
                         if (current == null)
                             return false;
-                        // 마지막 요소에 대해 단일 레벨 setValue 호출
-                        return setValue(current, parts[parts.length - 1], valueClass, value);
+
+                        String part = fieldNameStr.substring(start, dotIndex);
+                        // getValue를 통해 다음 단계 객체 획득
+                        current = getValue(current, part, Object.class, null);
+
+                        start = dotIndex + 1;
+                        dotIndex = fieldNameStr.indexOf('.', start);
                     }
+
+                    // 루프 종료 후 'start'는 마지막 요소의 시작 위치를 가리킴
+                    if (current == null)
+                        return false;
+                    String lastPart = fieldNameStr.substring(start);
+
+                    // 마지막 요소에 대해 단일 레벨 setValue 호출 (기존 parts[parts.length - 1]과 동일)
+                    return setValue(current, lastPart, valueClass, value);
                 }
             }
 
@@ -621,26 +663,31 @@ public class S2Util {
 
             // 4. 일반 VO/DTO 처리: Setter(set+Name)를 우선 탐색하고, 실패 시 필드 직접 접근(BOTH)으로 폴백함
             Class<?> clazz = finalTargetOrigin.getClass();
-            String fieldNameStr = fieldName instanceof String s ? s : String.valueOf(fieldName); // String 캐스트 최적화 (instanceof 체크 후 직접 사용)
+            if (clazz.isRecord()) {
+                // Records are immutable (no setters) — short-circuit to avoid expensive lookups
+                // record 필드는 final 이므로 설정 불가
+                return false;
+            }
             Class<?> pType = (valueClass != null) ? valueClass : (value != null ? value.getClass() : Object.class);
 
-            String setterName = "set" + Character.toUpperCase(fieldNameStr.charAt(0)) + fieldNameStr.substring(1);
-
+            String setterName = toSetterName(fieldNameStr);
             var methodHandle = S2Cache.getMethodHandle(
                     new MethodKey(clazz, setterName, null, new Class<?>[] { pType }),
                     LookupType.METHOD
-            ).or(
-                    () -> S2Cache.getMethodHandle(
-                            new MethodKey(clazz, fieldNameStr, null, new Class<?>[] { pType }),
-                            LookupType.BOTH
-                    )
-            ).orElse(null);
+            );
 
-            if (methodHandle != null) {
-                methodHandle.invoke(finalTargetOrigin, value);
-                return true;
+            // setterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
+            if (methodHandle.isEmpty() && !setterName.equals(fieldNameStr)) {
+                methodHandle = S2Cache.getMethodHandle(
+                        new MethodKey(clazz, fieldNameStr, null, new Class<?>[] { pType }),
+                        LookupType.BOTH
+                );
             }
 
+            if (methodHandle.isPresent()) {
+                methodHandle.get().invoke(finalTargetOrigin, value);
+                return true;
+            }
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
                 if (isKorean()) {
@@ -659,6 +706,131 @@ public class S2Util {
         }
 
         return false;
+    }
+
+    /**
+     * Checks if the given method name follows the Getter naming convention.
+     * <p>
+     * [한국어 설명]
+     * 주어진 메서드 이름이 Getter 명명 규칙을 따르는지 확인합니다.
+     * <p>
+     * "get"으로 시작하고 4번째 문자가 소문자가 아니거나,
+     * "is"로 시작하고 3번째 문자가 소문자가 아닌 경우를 Getter로 판단합니다.
+     * </p>
+     *
+     * @param name Method name to check | 체크할 메서드 이름
+     * @return {@code true} if it's a getter name | Getter 규칙에 맞으면 true
+     */
+    private static boolean isGetter(String name) {
+        if (name == null || name.length() <= 2) {
+            return false;
+        }
+
+        char c0 = name.charAt(0);
+        char c1 = name.charAt(1);
+
+        // 1. "is"로 시작하는 경우 (길이 최소 3 이상: is + [대문자/숫자/_])
+        if (c0 == 'i' && c1 == 's') {
+            char c2 = name.charAt(2);
+            return (c2 < 'a' || c2 > 'z'); // 다국어 프로그래밍을 고려한다면 !Character.isLowerCase(name.charAt(3)) 로 교체 필요
+        }
+
+        // 2. "get"으로 시작하는 경우 (길이 최소 4 이상: get + [대문자/숫자/_])
+        if (name.length() > 3 && c0 == 'g' && c1 == 'e' && name.charAt(2) == 't') {
+            char c3 = name.charAt(3);
+            return (c3 < 'a' || c3 > 'z'); // 다국어 프로그래밍을 고려한다면 !Character.isLowerCase(name.charAt(3)) 로 교체 필요
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if the given method name follows the Setter naming convention.
+     * <p>
+     * A valid setter starts with "set" and is followed by a non-lowercase character
+     * (e.g., setName, set_age, set1st).
+     * </p>
+     * *
+     * <p>
+     * [한국어 설명]
+     * 주어진 메서드 이름이 Setter 명명 규칙을 따르는지 확인합니다.
+     * <p>
+     * "set"으로 시작하고 바로 뒤에 소문자가 아닌 문자(대문자, 숫자, 기호 등)가 오는 경우를 Setter로 판단합니다.
+     * </p>
+     *
+     * @param name Method name to check | 체크할 메서드 이름
+     * @return {@code true} if it's a setter name | Setter 규칙에 맞으면 true
+     */
+    private static boolean isSetter(String name) {
+        if (name == null || name.length() <= 3)
+            return false;
+        return name.charAt(0) == 's' &&
+                name.charAt(1) == 'e' &&
+                name.charAt(2) == 't' &&
+                (name.charAt(3) < 'a' || name.charAt(3) > 'z'); // 다국어 프로그래밍을 고려한다면 !Character.isLowerCase(name.charAt(3)) 로 교체 필요
+    }
+
+    /**
+     * Converts a field name to a CamelCase getter method name.
+     * <p>
+     * [한국어 설명]
+     * 필드 이름을 자바 빈즈 규약에 따른 Getter 메서드 이름으로 변환합니다.
+     *
+     * @param fieldName Field name (e.g., "name") | 필드 이름 (예: "name")
+     * @param isBoolean Whether the field type is boolean | 필드 타입이 boolean인지 여부
+     * @return Getter method name (e.g., "getName", "isActive") | 변환된 Getter 메서드 이름
+     */
+    private static String toGetterName(String fieldName, boolean isBoolean) {
+        if (fieldName == null || fieldName.isBlank() || isGetter(fieldName))
+            return fieldName;
+
+        String prefix = isBoolean ? "is" : "get";
+        return buildMethodName(prefix, fieldName);
+    }
+
+    /**
+     * Converts a field name to a CamelCase setter method name.
+     * <p>
+     * [한국어 설명]
+     * 필드 이름을 자바 빈즈 규약에 따른 Setter 메서드 이름으로 변환합니다.
+     *
+     * @param fieldName Field name (e.g., "name") | 필드 이름 (예: "name")
+     * @return Setter method name (e.g., "setName") | 변환된 Setter 메서드 이름
+     */
+    private static String toSetterName(String fieldName) {
+        if (fieldName == null || fieldName.isBlank() || isSetter(fieldName))
+            return fieldName;
+
+        return buildMethodName("set", fieldName);
+    }
+
+    /**
+     * Internal helper to build method names efficiently.
+     * <p>
+     * Uses char array for high-speed string manipulation.
+     * </p>
+     */
+    private static String buildMethodName(String prefix, String fieldName) {
+        int prefixLen = prefix.length();
+        int fieldLen = fieldName.length();
+        char[] result = new char[prefixLen + fieldLen];
+
+        // 1. 접두사 복사 (set, get, is)
+        for (int i = 0; i < prefixLen; i++) {
+            result[i] = prefix.charAt(i);
+        }
+
+        // 2. 첫 글자 대문자화 및 나머지 복사
+        char firstChar = fieldName.charAt(0);
+        result[prefixLen] = (firstChar >= 'a' && firstChar <= 'z')
+                ? (char) (firstChar - 32)
+                : firstChar;
+
+        for (int i = 1; i < fieldLen; i++) {
+            result[prefixLen + i] = fieldName.charAt(i);
+        }
+
+        return new String(result);
     }
 
     /**
