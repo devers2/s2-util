@@ -867,7 +867,8 @@ public class S2Template {
         String result = resultBuilder.toString();
 
         // 2. 미치환된 {{=...}} 패턴 제거 (JS 스타일 호환)
-        result = S2StringUtil.replaceAll(result, "\\{\\{=.*?\\}\\}", "");
+        // DOTALL 플래그를 사용하여 . 메타문자가 줄바꿈 문자도 매칭하도록 함 (리눅스/Windows 환경 호환)
+        result = S2StringUtil.replaceAll(result, "(?s)\\{\\{=.*?\\}\\}", "");
 
         // 3. 디테일 정리: 빈 줄 제거 및 줄 끝 공백 정리
         return result.lines()
