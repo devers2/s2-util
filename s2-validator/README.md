@@ -177,7 +177,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 1.1.2 (2026-01-27)
+s2-validator Version: 1.1.4 (2026-01-29)
 
 [//]: # 'S2_DEPS_INFO_START'
 

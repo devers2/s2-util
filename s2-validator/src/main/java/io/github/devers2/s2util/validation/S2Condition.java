@@ -84,15 +84,67 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
         if (value == null)
             return false;
 
+        // 기대값을 미리 정규화 (한 번만 수행)
+        String normalizedValue = normalizeValue(value);
+
         // 실제 값이 컬렉션(체크박스 등)인 경우 포함 여부 확인
         if (actualValue instanceof Collection<?> collection) {
             return collection.stream()
-                    .map(Object::toString)
-                    .anyMatch(v -> v.equals(value.toString()));
+                    .map(this::normalizeValue)
+                    .anyMatch(v -> v.equals(normalizedValue));
         }
 
-        // 단일 값인 경우 문자열 비교
-        return actualValue.toString().equals(value.toString());
+        // 단일 값인 경우 정규화된 값 비교
+        return normalizeValue(actualValue).equals(normalizedValue);
+    }
+
+    /**
+     * 모든 값을 정규화하여 일관된 형태의 문자열로 변환합니다.
+     *
+     * <ul>
+     * <li>Boolean: "true"/"false"로 정규화</li>
+     * <li>Number: toString() 후 정규화 (1과 1.0은 구분)</li>
+     * <li>Enum: name()으로 정규화</li>
+     * <li>String: 양쪽 공백 제거 (필요시 Boolean 문자열 소문자 정규화)</li>
+     * </ul>
+     *
+     * @param val 정규화할 값
+     * @return 정규화된 문자열 값
+     */
+    private String normalizeValue(Object val) {
+        if (val == null)
+            return null;
+
+        // instanceof 순서 최적화: 자주 나타나는 타입부터 체크
+        if (val instanceof String str) {
+            // String: 양쪽 공백 제거, Boolean 문자열 정규화
+            String trimmed = str.trim();
+            if (trimmed.equalsIgnoreCase("true")) {
+                return "true";
+            }
+            if (trimmed.equalsIgnoreCase("false")) {
+                return "false";
+            }
+            return trimmed;
+        }
+
+        if (val instanceof Boolean bool) {
+            // Boolean: 직접 비교로 toString() 호출 최소화
+            return bool ? "true" : "false";
+        }
+
+        if (val instanceof Enum<?> enumVal) {
+            // Enum: name() 사용
+            return enumVal.name();
+        }
+
+        // Number: toString() 사용 (Integer, Long, Double 등)
+        if (val instanceof Number) {
+            return val.toString();
+        }
+
+        // 기타 타입: toString()
+        return val.toString();
     }
 
     /**

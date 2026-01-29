@@ -116,6 +116,9 @@ public class SmokeTest {
         // 10. S2Validator 조건부 유효성 검증 테스트 (when)
         testS2ValidatorConditional();
 
+        // 10-1. S2Validator Boolean 타입 조건부 검증 테스트 (when with Boolean)
+        testS2ValidatorConditionalBoolean();
+
         // 11. S2Validator 복합 규칙 및 체이닝 테스트
         testS2ValidatorComplexRules();
 
@@ -825,6 +828,152 @@ public class SmokeTest {
 
         record(errors.isEmpty(), "조건부 (모두 스킵) 테스트");
 
+    }
+
+    /**
+     * Tests when conditions with boolean type comparison.
+     * <p>
+     * Verifies that boolean fields and boolean conditions work correctly with when(),
+     * including boolean-to-string conversions (true/false) and direct boolean comparisons.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * Boolean 타입 조건부 검증을 테스트합니다.
+     * <p>
+     * Boolean 필드가 when() 조건과 정상적으로 비교되는지 확인하고,
+     * true/false 문자열과 Boolean 값의 변환을 검증합니다.
+     * </p>
+     */
+    private void testS2ValidatorConditionalBoolean() {
+        logger.info(">>> 10-1. S2Validator Boolean 타입 조건부 검증 테스트");
+
+        // 테스트 1: Boolean 필드와 boolean 값으로 조건 검증
+        Map<String, Object> data = new HashMap<>();
+        data.put("isPremium", true); // Boolean 필드
+        data.put("premiumEmail", ""); // isPremium=true일 때만 필수
+        data.put("basicEmail", "basic@example.com"); // isPremium=false일 때만 필수
+
+        S2Validator<Object> booleanValidator = S2Validator.builder()
+                .field("premiumEmail", "프리미엄 이메일")
+                .when("isPremium", true) // boolean true 조건
+                .rule(S2RuleType.REQUIRED)
+                .field("basicEmail", "기본 이메일")
+                .when("isPremium", false) // boolean false 조건
+                .rule(S2RuleType.REQUIRED)
+                .build();
+
+        // 1-1. isPremium=true 일 때 -> premiumEmail 검증 실패 (빈 값)
+        List<S2ValidationError> errors = new ArrayList<>();
+        booleanValidator.validate(data, errors::add);
+
+        record(errors.size() == 1 && errors.get(0).fieldName().equals("premiumEmail"),
+                "Boolean 조건 (true) 검증 테스트");
+
+        logger.info("      [검증결과] 필드: {}, 메시지: {}", errors.get(0).fieldName(), errors.get(0).defaultMessage());
+
+        // 1-2. isPremium=false 로 변경 -> basicEmail은 이미 값이 있으므로 통과, premiumEmail 검증 스킵
+        data.put("isPremium", false);
+        errors.clear();
+        booleanValidator.validate(data, errors::add);
+
+        record(errors.isEmpty(), "Boolean 조건 (false) 검증 테스트");
+
+        // 테스트 2: "true"/"false" 문자열과 Boolean 값 혼합 비교
+        logger.info("  [테스트 2] Boolean과 문자열 값 혼합 비교");
+        Map<String, Object> mixedData = new HashMap<>();
+        mixedData.put("isActive", true); // Boolean
+        mixedData.put("confirmAction", ""); // isActive=true 또는 "true" 문자열일 때 필수
+        mixedData.put("description", "test"); // isActive=false 또는 "false" 문자열일 때만 필수
+
+        S2Validator<Object> mixedValidator = S2Validator.builder()
+                .field("confirmAction", "확인 액션")
+                .when("isActive", true) // Boolean true와 비교
+                .rule(S2RuleType.REQUIRED)
+                .field("description", "설명")
+                .when("isActive", false) // Boolean false와 비교
+                .rule(S2RuleType.REQUIRED)
+                .build();
+
+        // 2-1. isActive=true (Boolean) -> confirmAction 필수 검증 실패
+        errors.clear();
+        mixedValidator.validate(mixedData, errors::add);
+
+        record(errors.size() == 1 && errors.get(0).fieldName().equals("confirmAction"),
+                "Boolean-String 혼합 비교 (Boolean true) 테스트");
+
+        // 2-2. isActive를 문자열 "true"로 변경해도 동일하게 작동해야 함
+        logger.info("  [테스트 3] String true vs Boolean true 비교");
+        mixedData.put("isActive", "true"); // String "true"
+        errors.clear();
+        mixedValidator.validate(mixedData, errors::add);
+
+        boolean isStringTrueOk = errors.size() == 1 && errors.get(0).fieldName().equals("confirmAction");
+        record(isStringTrueOk, "Boolean-String 혼합 비교 (String \"true\") 테스트");
+
+        // 2-3. isActive를 "false" 문자열로 변경
+        logger.info("  [테스트 4] String false vs Boolean false 비교");
+        mixedData.put("isActive", "false"); // String "false"
+        errors.clear();
+        mixedValidator.validate(mixedData, errors::add);
+
+        boolean isStringFalseOk = errors.isEmpty();
+        record(isStringFalseOk, "Boolean-String 혼합 비교 (String \"false\") 테스트");
+
+        // 테스트 3: AND 조건에 Boolean 포함
+        logger.info("  [테스트 5] AND 조건에 Boolean 포함");
+        Map<String, Object> andData = new HashMap<>();
+        andData.put("hasPermission", true); // Boolean
+        andData.put("isVerified", true); // Boolean
+        andData.put("secretToken", ""); // hasPermission=true AND isVerified=true 일 때만 필수
+
+        S2Validator<Object> andBooleanValidator = S2Validator.builder()
+                .field("secretToken", "비밀 토큰")
+                .when("hasPermission", true).and("isVerified", true)
+                .rule(S2RuleType.REQUIRED)
+                .build();
+
+        // 5-1. 두 조건 모두 true -> secretToken 검증 실패
+        errors.clear();
+        andBooleanValidator.validate(andData, errors::add);
+
+        record(errors.size() == 1 && errors.get(0).fieldName().equals("secretToken"),
+                "AND Boolean 조건 (모두 true) 검증 테스트");
+
+        // 5-2. 하나라도 false -> secretToken 검증 스킵
+        andData.put("hasPermission", false);
+        errors.clear();
+        andBooleanValidator.validate(andData, errors::add);
+
+        record(errors.isEmpty(), "AND Boolean 조건 (하나 false) 검증 스킵 테스트");
+
+        // 테스트 4: OR 조건에 Boolean 포함
+        logger.info("  [테스트 6] OR 조건에 Boolean 포함");
+        Map<String, Object> orData = new HashMap<>();
+        orData.put("isAdmin", false); // Boolean
+        orData.put("isDeveloper", true); // Boolean
+        orData.put("accessCode", ""); // isAdmin=true 또는 isDeveloper=true 일 때 필수
+
+        S2Validator<Object> orBooleanValidator = S2Validator.builder()
+                .field("accessCode", "접근 코드")
+                .when("isAdmin", true).when("isDeveloper", true) // OR 조건
+                .rule(S2RuleType.REQUIRED)
+                .build();
+
+        // 6-1. isDeveloper=true -> accessCode 검증 실패 (OR 조건 만족)
+        errors.clear();
+        orBooleanValidator.validate(orData, errors::add);
+
+        record(errors.size() == 1 && errors.get(0).fieldName().equals("accessCode"),
+                "OR Boolean 조건 (하나 true) 검증 테스트");
+
+        // 6-2. 둘 다 false -> accessCode 검증 스킵
+        orData.put("isDeveloper", false);
+        errors.clear();
+        orBooleanValidator.validate(orData, errors::add);
+
+        record(errors.isEmpty(), "OR Boolean 조건 (모두 false) 검증 스킵 테스트");
     }
 
     /**
