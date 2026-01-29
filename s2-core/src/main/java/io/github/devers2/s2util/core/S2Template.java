@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -227,6 +228,45 @@ public class S2Template {
     }
 
     /**
+     * [Supplier-based Condition Binding] Injects content with prefix and suffix only when the condition is true.
+     * <p>
+     * Uses the logical {@code condition} as a trigger.
+     * The {@code contentSupplier.get()} is executed only if the condition is true,
+     * providing a safe way to wrap content with both prefix and suffix without NullPointerExceptions.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 조건 바인딩] 조건(condition)이 true일 때만 접두사 및 접미사와 함께 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code condition} 논리 값을 트리거로 사용합니다.
+     * 조건이 true일 경우에만 {@code contentSupplier.get()}을 호출하여 접두사({@code prefix}) 및 접미사({@code suffix})와 결합하므로,
+     * 복잡한 데이터 추출 시 발생할 수 있는 NullPointerException을 안전하게 방지합니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param condition       Boolean condition to check | 유효성을 검사할 논리 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when condition is true | 조건이 true일 때 실행될 내용 생성 함수 (지연 평가)
+     * @param prefix          Prefix to prepend when content is injected (e.g., "ORDER BY ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ")
+     * @param suffix          Suffix to append when content is injected (e.g., " DESC") | 내용 주입 시 뒤에 붙일 접미사 (예: " DESC")
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          Use this method for complex dynamic clauses where content generation depends on objects that might be null.
+     *          <p>
+     *          내용 생성 로직이 null일 가능성이 있는 객체에 의존하면서, 접두사와 접미사를 동시에 붙여야 하는 복잡한 동적 절 생성 시 사용하십시오.
+     *          </p>
+     *
+     *          <pre>{@code
+     * .bindWhen("order", pageable != null && pageable.isSorted(), () -> pageable.getSort().toString().replace(":", ""), "ORDER BY ", "")
+     * // Safely evaluates sort string only if pageable is not null and sorted
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier, String prefix, String suffix) {
+        return doBindWhen(key, condition, contentSupplier, prefix, suffix);
+    }
+
+    /**
      * [Condition-based binding] Injects specified content when condition is true.
      * <p>
      * Uses the logical condition as a trigger. When valid, combines prefix and content
@@ -262,6 +302,44 @@ public class S2Template {
     }
 
     /**
+     * [Supplier-based Condition Binding] Injects content with a prefix only when the condition is true.
+     * <p>
+     * Uses the logical {@code condition} as a trigger.
+     * The {@code contentSupplier.get()} is only executed if the condition is true,
+     * allowing for safe concatenation of prefix and content without NullPointerExceptions.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 조건 바인딩] 조건(condition)이 true일 때만 접두사와 함께 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code condition} 논리 값을 트리거로 사용합니다.
+     * 조건이 true일 경우에만 {@code contentSupplier.get()}을 호출하여 접두사({@code prefix})와 결합하므로,
+     * 데이터 추출 대상 객체가 null인 상황에서도 NullPointerException 발생을 원천적으로 차단합니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param condition       Boolean condition to check | 유효성을 검사할 논리 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when condition is true | 조건이 true일 때 실행될 내용 생성 함수 (지연 평가)
+     * @param prefix          Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          Highly recommended when the content string is derived from an object that might be null (e.g., Optional, Pageable).
+     *          <p>
+     *          내용 문자열을 생성할 대상 객체(예: Optional, Pageable)가 null일 가능성이 있는 경우 이 메서드 사용을 강력히 권장합니다.
+     *          </p>
+     *
+     *          <pre>{@code
+     * .bindWhen("order", pageable != null && pageable.isSorted(), () -> pageable.getSort().toString(), "ORDER BY ")
+     * // Result: "ORDER BY id: ASC" if pageable is sorted, safely skips if null
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier, String prefix) {
+        return doBindWhen(key, condition, contentSupplier, prefix, null);
+    }
+
+    /**
      * [Condition-based binding] Injects specified content when condition is true.
      * <p>
      * Uses the logical condition as a trigger. When valid, replaces the template key with content.
@@ -292,6 +370,43 @@ public class S2Template {
      */
     public S2Template bindWhen(String key, boolean condition, Object content) {
         return doBindWhen(key, condition, content, null, null);
+    }
+
+    /**
+     * [Supplier-based Condition Binding] Injects content from Supplier only when the condition is true.
+     * <p>
+     * Uses the logical {@code condition} as a trigger.
+     * The {@code contentSupplier.get()} is only executed if the condition is true,
+     * which prevents potential NullPointerExceptions from the source of the content.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 조건 바인딩] 조건(condition)이 true일 때만 Supplier를 통해 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code condition} 논리 값을 트리거로 사용합니다.
+     * 조건이 true일 경우에만 {@code contentSupplier.get()}을 호출하여 내용을 생성하므로,
+     * 데이터 추출 대상 객체가 null인 상황에서도 NullPointerException 없이 안전하게 동작합니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param condition       Boolean condition to check | 유효성을 검사할 논리 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when condition is true | 조건이 true일 때 실행될 내용 생성 함수 (지연 평가)
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          Use this method when the content generation logic depends on an object that might be null.
+     *          <p>
+     *          내용 생성 로직이 null일 가능성이 있는 객체에 의존할 때 이 메서드를 사용하십시오.
+     *          </p>
+     *
+     *          <pre>{@code
+     * .bindWhen("order", pageable != null && pageable.isSorted(), () -> pageable.getSort().toString())
+     * // Safely skips getSort() if pageable is null
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier) {
+        return doBindWhen(key, condition, contentSupplier, null, null);
     }
 
     /**
@@ -331,6 +446,47 @@ public class S2Template {
     }
 
     /**
+     * [Supplier-based Lazy Binding] Injects content with prefix and suffix only when presence value exists.
+     * <p>
+     * Uses the validity of presence (not null, not empty, or true) as a trigger.
+     * The {@code contentSupplier.get()} is executed only if the presence is valid,
+     * providing a safe way to wrap content with both prefix and suffix without NullPointerExceptions.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 지연 바인딩] 값(presence)이 존재할 때 접두사 및 접미사와 함께 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음, 혹은 true)을 트리거로 사용합니다.
+     * 유효할 경우에만 {@code contentSupplier.get()}을 실행하여 접두사({@code prefix}) 및 접미사({@code suffix})와 결합하므로,
+     * 복잡한 데이터 추출 시 발생할 수 있는 NullPointerException을 안전하게 방지합니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param presence        Reference value or Boolean condition to check validity | 유효성을 검사할 기준 값 혹은 Boolean 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when valid | 값이 유효할 때 실행될 내용 생성 함수 (지연 평가)
+     * @param prefix          Prefix to prepend when content is injected (e.g., "AND s.id IN (") | 내용 주입 시 앞에 붙일 접두사 (예: "AND s.id IN (")
+     * @param suffix          Suffix to append when content is injected (e.g., ")") | 내용 주입 시 뒤에 붙일 접미사 (예: ")")
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          The {@code contentSupplier} call is deferred until the {@code presence} is validated.
+     *          Ideal for wrapping dynamic values in SQL clauses like 'IN' or 'EXISTS' only when the filter is provided.
+     *          <p>
+     *          {@code presence}가 유효할 때만 {@code contentSupplier}가 호출됩니다.
+     *          필터 값이 제공되었을 때만 'IN'이나 'EXISTS' 같은 SQL 절로 내용을 감싸야 하는 경우에 매우 유용합니다.
+     *          </p>
+     *
+     *          <pre>{@code
+     * .bindWhen("ids", idList, () -> String.join(", ", idList), "AND s.id IN (", ")")
+     * // Result: "AND s.id IN (id1, id2, id3)" if idList exists
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier, String prefix, String suffix) {
+        return doBindWhen(key, presence, contentSupplier, prefix, suffix);
+    }
+
+    /**
      * [Presence-based binding] Injects specified content when presence value exists.
      * <p>
      * Uses the validity of presence (not null, not empty) as a trigger.
@@ -363,6 +519,46 @@ public class S2Template {
      */
     public S2Template bindWhen(String key, Object presence, Object content, String prefix) {
         return doBindWhen(key, presence, content, prefix, null);
+    }
+
+    /**
+     * [Supplier-based Lazy Binding] Injects content with a prefix only when presence value exists.
+     * <p>
+     * Uses the validity of presence (not null, not empty, or true) as a trigger.
+     * The {@code contentSupplier.get()} is only executed if the presence is valid,
+     * allowing for safe prefix-content combination without NullPointerExceptions.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 지연 바인딩] 값(presence)이 존재할 때 접두사와 함께 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음, 혹은 true)을 트리거로 사용합니다.
+     * 유효할 경우에만 {@code contentSupplier.get()}을 실행하여 접두사({@code prefix})와 결합하므로,
+     * 데이터 추출 과정에서 발생할 수 있는 NullPointerException을 안전하게 방지합니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param presence        Reference value or Boolean condition to check validity | 유효성을 검사할 기준 값 혹은 Boolean 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when valid | 값이 유효할 때 실행될 내용 생성 함수 (지연 평가)
+     * @param prefix          Prefix to prepend when content is injected (e.g., "ORDER BY ", "AND ") | 내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          The {@code contentSupplier} is only called when {@code presence} is determined to be valid.
+     *          Useful for dynamic queries where a prefix (like AND/OR) is needed only when a field exists.
+     *          <p>
+     *          {@code presence}가 유효하다고 판단될 때만 {@code contentSupplier}를 호출합니다.
+     *          필드가 존재할 때만 접두사(AND/OR 등)가 필요한 동적 쿼리 작성 시 유용합니다.
+     *          </p>
+     *
+     *          <pre>{@code
+     * .bindWhen("search", searchTerm, () -> "workspace.name LIKE :searchTerm", "AND ")
+     * // Result: "AND workspace.name LIKE :searchTerm" if searchTerm exists
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier, String prefix) {
+        return doBindWhen(key, presence, contentSupplier, prefix, null);
     }
 
     /**
@@ -400,6 +596,43 @@ public class S2Template {
     }
 
     /**
+     * [Supplier-based Lazy Binding] Injects content from Supplier only when presence value exists.
+     * <p>
+     * Uses the validity of presence (not null, not empty, or true) as a trigger.
+     * The {@code contentSupplier.get()} is only called if the presence is valid,
+     * which prevents NullPointerExceptions and unnecessary computations.
+     * </p>
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * [Supplier 기반 지연 바인딩] 값(presence)이 존재할 때만 Supplier를 통해 내용을 주입합니다.
+     * <p>
+     * 이 메서드는 {@code presence}의 유효성(null 아님, 비어 있지 않음, 혹은 true)을 트리거로 사용합니다.
+     * 유효할 경우에만 {@code contentSupplier.get()}을 호출하여 내용을 생성하므로,
+     * 호출 시점의 NullPointerException을 방지하고 불필요한 연산을 수행하지 않습니다.
+     * </p>
+     *
+     * @param key             Template key to be replaced (e.g., "where_clause") | 템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param presence        Reference object to check validity | 유효성을 검사할 기준 객체 또는 조건
+     * @param contentSupplier Lazy-evaluated supplier to provide content when valid | 값이 유효할 때 실행될 내용 생성 함수 (지연 평가)
+     * @return S2Template instance for method chaining | 메서드 체이닝을 위한 S2Template 인스턴스
+     * @apiNote
+     *          The supplier is only executed if {@code presence} is valid.
+     *          Useful when deriving content from objects that might be null.
+     *          {@code presence}가 유효할 때만 supplier가 실행됩니다.
+     *          null일 가능성이 있는 객체로부터 내용을 추출할 때 유용합니다.
+     *
+     *          <pre>{@code
+     * .bindWhen("order", pageable, () -> pageable.getSort().toString())
+     * // Safe even if pageable is null
+     * }</pre>
+     */
+    public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier) {
+        return doBindWhen(key, presence, contentSupplier, null, null);
+    }
+
+    /**
      * [Condition/Presence 기반 바인딩] 조건이 충족되거나 값이 존재할 때 지정된 내용(content)을 주입합니다.
      * <p>
      * 이 메서드는 {@code value}의 유효성(null 아님, 비어 있지 않음, 혹은 true)을 트리거로 사용합니다.
@@ -420,6 +653,25 @@ public class S2Template {
         String bindValue = isValid(condition) && S2Util.isNotEmpty(content) ? p + content.toString() + s : "";
         putBinding(key, bindValue);
         return this;
+    }
+
+    /**
+     * [Supplier 기반 지연 평가 바인딩] 조건이 충족될 때만 Supplier를 실행하여 내용을 주입합니다.
+     * <p>
+     * {@code condition}이 유효할 경우(null 아님, 비어 있지 않음, 혹은 true)에만
+     * {@code contentSupplier.get()}을 호출하여 실제 내용을 가져옵니다.
+     * 이를 통해 호출 시점에 발생할 수 있는 NullPointerException을 방지하고 불필요한 연산을 줄입니다.
+     * </p>
+     *
+     * @param key             템플릿 내의 치환 대상 키 (예: "where_clause")
+     * @param condition       유효성을 검사할 기준 값 혹은 Boolean 조건
+     * @param contentSupplier 조건이 유효할 때 실행될 내용 생성 함수 (지연 평가)
+     * @param prefix          내용 주입 시 앞에 붙일 접두사 (예: "ORDER BY ", "AND ")
+     * @param suffix          내용 주입 시 뒤에 붙일 접미사
+     * @return 메서드 체이닝을 위한 S2Template 인스턴스
+     */
+    private S2Template doBindWhen(String key, Object condition, Supplier<Object> contentSupplier, String prefix, String suffix) {
+        return doBindWhen(key, condition, isValid(condition) && contentSupplier != null ? contentSupplier.get() : null, prefix, suffix);
     }
 
     /**
