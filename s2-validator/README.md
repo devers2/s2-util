@@ -190,7 +190,7 @@ s2-validator Version: 1.1.2 (2026-01-27)
 ```groovy
 dependencies {
     // Essential runtime dependencies for optional functionalities
-    implementation 'org.springframework:spring-context:6.1.1'
+    implementation 'org.springframework:spring-context:6.2.15'
 }
 ```
 
