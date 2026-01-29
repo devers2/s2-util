@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import io.github.devers2.s2util.core.S2Template;
+import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 import jakarta.persistence.EntityManager;
@@ -170,11 +171,44 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         Executor<T> query(String jpql);
     }
 
+    /**
+     * Interface for binding Supplier-based parameters after bindClause.
+     * Provides Supplier-based bindParameter methods that can be chained after bindClause.
+     * The Supplier is executed only when the preceding bindClause condition is true.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * bindClause 뒤에 Supplier 기반 파라미터를 바인딩하기 위한 인터페이스입니다.
+     * 직전의 bindClause 조건이 참일 때만 Supplier가 실행됩니다.
+     */
+    public interface SupplierBindStep<T> extends Executor<T> {
+        /**
+         * Binds a parameter using a Supplier, which is executed only if the preceding bindClause condition is true.
+         *
+         * @param parameterName          Parameter name | 파라미터 이름
+         * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
+         * @param likeMode               LIKE mode for wildcard handling | LIKE 모드
+         * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+         */
+        SupplierBindStep<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier, LikeMode likeMode);
+
+        /**
+         * Binds a parameter using a Supplier, which is executed only if the preceding bindClause condition is true.
+         *
+         * @param parameterName          Parameter name | 파라미터 이름
+         * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
+         * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+         */
+        SupplierBindStep<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier);
+    }
+
     private static final String ORDER_BY_PREFIX = "ORDER BY ";
 
     private final EntityManager entityManager;
     private final Class<T> resultClass;
     private final Map<String, Object> boundParameters;
+    private boolean lastBindClauseCondition = true;
     private int offset = -1;
     private int limit = -1;
 
@@ -230,6 +264,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix, String suffix) {
         super.bindWhen(key, condition, clause, prefix, suffix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -271,6 +306,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix, String suffix) {
         super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -303,6 +339,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix) {
         super.bindWhen(key, condition, clause, prefix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -343,6 +380,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix) {
         super.bindWhen(key, condition, clauseSupplier, prefix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -374,6 +412,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause) {
         super.bindWhen(key, condition, clause);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -413,6 +452,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier) {
         super.bindWhen(key, condition, clauseSupplier);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -445,7 +485,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix, String suffix) {
-        super.bindWhen(key, conditionValue, clause, prefix, suffix);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clause, prefix, suffix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -486,7 +528,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix, String suffix) {
-        super.bindWhen(key, conditionValue, clauseSupplier, prefix, suffix);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -518,7 +562,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix) {
-        super.bindWhen(key, conditionValue, clause, prefix);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clause, prefix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -558,7 +604,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix) {
-        super.bindWhen(key, conditionValue, clauseSupplier, prefix);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clauseSupplier, prefix);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -589,7 +637,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause) {
-        super.bindWhen(key, conditionValue, clause);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clause);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -628,7 +678,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier) {
-        super.bindWhen(key, conditionValue, clauseSupplier);
+        boolean condition = isConditionValid(conditionValue);
+        super.bindWhen(key, condition, clauseSupplier);
+        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -652,21 +704,30 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter with the specified name and value, applying the LIKE mode for wildcard handling if provided.
+     * Sets the parameter with the specified name and Supplier value, applying the LIKE mode for wildcard handling if provided.
+     * The Supplier is executed only if the preceding bindClause condition is true.
+     *
+     * <p>
+     * <b>⚠️ IMPORTANT:</b> This method must be called immediately after {@link #bindClause(String, boolean, String, String)}
+     * or similar bindClause methods. The Supplier is executed only when the preceding bindClause condition was true.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 지정된 이름과 값으로 파라미터를 설정하며, 제공된 경우 LIKE 모드를 적용하여 와일드카드를 처리합니다.
+     * 직전의 bindClause 조건이 참일 때만 Supplier를 실행하여 파라미터를 설정합니다.
+     * LIKE 모드를 적용하여 와일드카드를 처리합니다.
      *
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
-     * @param likeMode       Mode determining wildcard (%) placement for LIKE searches | LIKE 검색 시 와일드카드(%) 위치 결정 모드
+     * @param parameterName          Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
+     * @param likeMode               LIKE mode for wildcard handling | LIKE 검색 시 와일드카드(%) 위치 결정 모드
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
     public S2Jpql<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier, LikeMode likeMode) {
-        putParameter(parameterName, parameterValueSupplier.get(), likeMode);
+        if (lastBindClauseCondition && parameterValueSupplier != null) {
+            putParameter(parameterName, parameterValueSupplier.get(), likeMode);
+        }
         return this;
     }
 
@@ -689,20 +750,28 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
-     * Sets the parameter with the specified name and value.
+     * Sets the parameter with the specified name and Supplier value.
+     * The Supplier is executed only if the preceding bindClause condition is true.
+     *
+     * <p>
+     * <b>⚠️ IMPORTANT:</b> This method must be called immediately after {@link #bindClause(String, boolean, String, String)}
+     * or similar bindClause methods. The Supplier is executed only when the preceding bindClause condition was true.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 지정된 이름과 값으로 파라미터를 설정합니다.
+     * 직전의 bindClause 조건이 참일 때만 Supplier를 실행하여 파라미터를 설정합니다.
      *
-     * @param parameterName  Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
-     * @param parameterValue Parameter value | 파라미터 값
+     * @param parameterName          Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
+     * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
     public S2Jpql<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier) {
-        putParameter(parameterName, parameterValueSupplier.get(), null);
+        if (lastBindClauseCondition && parameterValueSupplier != null) {
+            putParameter(parameterName, parameterValueSupplier.get(), null);
+        }
         return this;
     }
 
@@ -934,6 +1003,21 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
             };
         }
         boundParameters.put(name, processedValue);
+    }
+
+    /**
+     * Validates if the condition value is not empty/null.
+     * This is a helper method used internally for Object-based bindClause methods.
+     *
+     * @param value The condition value to check
+     * @return true if the value is not empty/null, false otherwise
+     */
+    private boolean isConditionValid(Object value) {
+        if (value == null)
+            return false;
+        if (value instanceof Boolean b)
+            return b;
+        return S2Util.isNotEmpty(value);
     }
 
     /**
