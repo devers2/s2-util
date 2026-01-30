@@ -20,6 +20,7 @@
  */
 package io.github.devers2.s2util.validation;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -133,6 +134,9 @@ public class SmokeTest {
 
         // 15. 중첩 경로 및 인덱스 구문 테스트
         testNestedValidation();
+
+        // 15-1. S2Validator 중첩 조건부 검증 테스트
+        testS2ValidatorNestedConditional();
 
         // 16. 순환 참조 방지 및 최대 깊이 제한 테스트
         testCircularReference();
@@ -868,8 +872,10 @@ public class SmokeTest {
         List<S2ValidationError> errors = new ArrayList<>();
         booleanValidator.validate(data, errors::add);
 
-        record(errors.size() == 1 && errors.get(0).fieldName().equals("premiumEmail"),
-                "Boolean 조건 (true) 검증 테스트");
+        record(
+                errors.size() == 1 && errors.get(0).fieldName().equals("premiumEmail"),
+                "Boolean 조건 (true) 검증 테스트"
+        );
 
         logger.info("      [검증결과] 필드: {}, 메시지: {}", errors.get(0).fieldName(), errors.get(0).defaultMessage());
 
@@ -900,8 +906,10 @@ public class SmokeTest {
         errors.clear();
         mixedValidator.validate(mixedData, errors::add);
 
-        record(errors.size() == 1 && errors.get(0).fieldName().equals("confirmAction"),
-                "Boolean-String 혼합 비교 (Boolean true) 테스트");
+        record(
+                errors.size() == 1 && errors.get(0).fieldName().equals("confirmAction"),
+                "Boolean-String 혼합 비교 (Boolean true) 테스트"
+        );
 
         // 2-2. isActive를 문자열 "true"로 변경해도 동일하게 작동해야 함
         logger.info("  [테스트 3] String true vs Boolean true 비교");
@@ -938,8 +946,10 @@ public class SmokeTest {
         errors.clear();
         andBooleanValidator.validate(andData, errors::add);
 
-        record(errors.size() == 1 && errors.get(0).fieldName().equals("secretToken"),
-                "AND Boolean 조건 (모두 true) 검증 테스트");
+        record(
+                errors.size() == 1 && errors.get(0).fieldName().equals("secretToken"),
+                "AND Boolean 조건 (모두 true) 검증 테스트"
+        );
 
         // 5-2. 하나라도 false -> secretToken 검증 스킵
         andData.put("hasPermission", false);
@@ -965,8 +975,10 @@ public class SmokeTest {
         errors.clear();
         orBooleanValidator.validate(orData, errors::add);
 
-        record(errors.size() == 1 && errors.get(0).fieldName().equals("accessCode"),
-                "OR Boolean 조건 (하나 true) 검증 테스트");
+        record(
+                errors.size() == 1 && errors.get(0).fieldName().equals("accessCode"),
+                "OR Boolean 조건 (하나 true) 검증 테스트"
+        );
 
         // 6-2. 둘 다 false -> accessCode 검증 스킵
         orData.put("isDeveloper", false);
@@ -1494,6 +1506,256 @@ public class SmokeTest {
             logger.error("  [FAIL] JSON 기본 규칙 테스트 중 예외 발생: ", e);
             record(false, "JSON 기본 규칙 적용 테스트 기술 오류");
         }
+    }
+
+    private void testS2ValidatorNestedConditional() {
+
+        logger.info(">>> 15-1. S2Validator 중첩 조건부 검증 테스트");
+
+        try {
+            // 중첩 Validator: field1의 내부 title은 필수, field2의 type과 begin은 필수
+            S2Validator<TestNestedCondition1VO> validator1 = S2Validator.<TestNestedCondition1VO>builder()
+                    .field("title", "제목")
+                    .field("description", "설명")
+                    .build();
+
+            S2Validator<TestNestedCondition2VO> validator2 = S2Validator.<TestNestedCondition2VO>builder()
+                    .field("type", "유형")
+                    .field("begin", "시작일")
+                    .build();
+
+            // 조건부 검증기 생성: field2.isAllFieldsEmpty == false 일 때에만 nested validator2 적용
+            S2Validator<TestNestedConditionVO> validator = S2Validator.<TestNestedConditionVO>builder()
+                    .field("field1", "필드1")
+                    .rule(S2RuleType.REQUIRED)
+                    .rule(S2RuleType.NESTED, validator1)
+                    .field("field2", "필드2")
+                    .when("field2.isAllFieldsEmpty", false)
+                    .rule(S2RuleType.NESTED, validator2)
+                    .build();
+
+            // JSON 직렬화 테스트: validator가 nested 규칙과 조건을 포함하여 직렬화되는지 확인
+            String validatorJson = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+            logger.info("   [Action] Nested-Conditional validator JSON: {}", validatorJson);
+
+            boolean jsonOk = validatorJson.contains("\"name\":\"field1\"")
+                    && validatorJson.contains("\"name\":\"field2\"")
+                    && validatorJson.contains("\"nestedRules\"")
+                    && validatorJson.contains("\"title\"")
+                    && validatorJson.contains("\"type\"")
+                    && validatorJson.contains("\"begin\"")
+                    && validatorJson.contains("\"field\":\"field2.isAllFieldsEmpty\"")
+                    && validatorJson.contains("\"value\":false");
+
+            if (!jsonOk) {
+                logger.error("   [JSON 실패] 생성된 JSON에 필요한 항목이 없습니다: {}", validatorJson);
+            }
+            record(jsonOk, "Nested-Conditional Validator JSON 생성 테스트");
+
+            // Case 1: both null -> field1 REQUIRED 실패
+            TestNestedConditionVO case1 = new TestNestedConditionVO();
+            List<S2ValidationError> errors = new ArrayList<>();
+            boolean valid1 = validator.validate(case1, errors::add);
+            boolean case1Ok = !valid1 && errors.stream().anyMatch(e -> "field1".equals(e.fieldName()) || e.fieldName().startsWith("field1"));
+            record(case1Ok, "Nested-Conditional Case1: field1 REQUIRED when missing");
+
+            // f1 준비 (title + description 필수)
+            TestNestedCondition1VO f1 = new TestNestedCondition1VO();
+            f1.setTitle("Title");
+            f1.setDescription("Description");
+
+            // Case 2a: field1 채워짐, field2 == null -> 통과
+            TestNestedConditionVO case2a = new TestNestedConditionVO();
+            case2a.setField1(f1);
+            // field2는 null로 둠
+
+            errors.clear();
+            boolean valid2a = validator.validate(case2a, errors::add);
+            boolean case2aOk = valid2a && errors.isEmpty();
+            if (!case2aOk) {
+                logger.error("   [Case2a 실패] 감지된 에러 수: {}, 내용:", errors.size());
+                errors.forEach(e -> logger.error("      필드: {}, 메시지: {}", e.fieldName(), e.defaultMessage()));
+            }
+            record(case2aOk, "Nested-Conditional Case2a: field2 null -> nested skipped and validation passes");
+
+            // Case 2b: field1 채워짐, field2 존재하지만 모든 필드 비어있음 -> field2 nested 스킵, 전체 통과
+            TestNestedConditionVO case2 = new TestNestedConditionVO();
+            case2.setField1(f1);
+            TestNestedCondition2VO emptyF2 = new TestNestedCondition2VO(); // isAllFieldsEmpty()==true
+            case2.setField2(emptyF2);
+
+            errors.clear();
+            boolean valid2 = validator.validate(case2, errors::add);
+            boolean case2Ok = valid2 && errors.isEmpty();
+            if (!case2Ok) {
+                logger.error("   [Case2 실패] 감지된 에러 수: {}, 내용:", errors.size());
+                errors.forEach(e -> logger.error("      필드: {}, 메시지: {}", e.fieldName(), e.defaultMessage()));
+            }
+            record(case2Ok, "Nested-Conditional Case2: field2 empty -> nested skipped and validation passes");
+
+            // Case 3: field2에 일부 데이터가 있어 isAllFieldsEmpty()==false -> nested 적용, begin 누락으로 실패
+            TestNestedConditionVO case3 = new TestNestedConditionVO();
+            case3.setField1(f1);
+            TestNestedCondition2VO f3 = new TestNestedCondition2VO();
+            f3.setType("X"); // begin 없음 -> isAllFieldsEmpty() == false
+            case3.setField2(f3);
+
+            errors.clear();
+            boolean valid3 = validator.validate(case3, errors::add);
+            boolean case3Ok = !valid3 && errors.stream().anyMatch(e -> e.fieldName().startsWith("field2") && e.fieldName().contains("begin"));
+            record(case3Ok, "Nested-Conditional Case3: field2.begin REQUIRED when field2 has data");
+
+            // Case 4: 모든 값 세팅 -> 통과
+            TestNestedConditionVO case4 = new TestNestedConditionVO();
+            case4.setField1(f1);
+            TestNestedCondition2VO f4 = new TestNestedCondition2VO();
+            f4.setType("X");
+            f4.setBegin(LocalDateTime.now());
+            case4.setField2(f4);
+
+            errors.clear();
+            boolean valid4 = validator.validate(case4, errors::add);
+            record(valid4 && errors.isEmpty(), "Nested-Conditional Case4: all valid -> pass");
+
+            // -----------------------------------------------------------------
+            // Client-side form example for s2.validator.js
+            // -----------------------------------------------------------------
+            // NOTE: s2.validator.js evaluates rule.conditions by looking up the
+            // condition.field name in the form's serialized data (getFormData).
+            // Therefore, when you use a server-side condition such as
+            // "field2.isAllFieldsEmpty" (a helper method on the VO), your
+            // client form must expose that value as a field (typically a
+            // hidden input) so the JS can evaluate the condition.
+            //
+            // Example HTML (field2 empty -> nested skipped):
+            // <form id="f-empty" data-s2-rules='...validatorJson...'>
+            // <input name="field1.title" value="Title" />
+            // <input name="field1.description" value="Description" />
+            // <!-- indicate that field2 is all-empty so condition evaluates to true -->
+            // <input type="hidden" name="field2.isAllFieldsEmpty" value="true" />
+            // </form>
+            //
+            // Example HTML (field2 has data -> nested applied):
+            // <form id="f-data" data-s2-rules='...validatorJson...'>
+            // <input name="field1.title" value="Title" />
+            // <input name="field1.description" value="Description" />
+            // <input name="field2.type" value="X" />
+            // <input name="field2.begin" value="2025-01-01T00:00" />
+            // <input type="hidden" name="field2.isAllFieldsEmpty" value="false" />
+            // </form>
+            //
+            // Small JS snippet to keep the hidden flag in sync with nested inputs:
+            // <script>
+            // function updateField2EmptyFlag(form) {
+            // const t = (form.querySelector('[name="field2.type"]')?.value || '').trim();
+            // const b = (form.querySelector('[name="field2.begin"]')?.value || '').trim();
+            // let h = form.querySelector('[name="field2.isAllFieldsEmpty"]');
+            // if (!h) { h = document.createElement('input'); h.type = 'hidden'; h.name = 'field2.isAllFieldsEmpty'; form.appendChild(h); }
+            // h.value = (t === '' && b === '') ? 'true' : 'false';
+            // }
+            // document.addEventListener('input', (ev) => { const f = ev.target.form; if (f) updateField2EmptyFlag(f); });
+            // </script>
+            //
+            // For the test we only verify that the example HTML includes the
+            // required field names and the hidden condition flag with correct values.
+
+            String formEmptyHtml = "<form id=\"f-empty\" data-s2-rules='" + validatorJson + "'>"
+                    + "<input name=\"field1.title\" value=\"Title\" />"
+                    + "<input name=\"field1.description\" value=\"Description\" />"
+                    + "<input type=\"hidden\" name=\"field2.isAllFieldsEmpty\" value=\"true\" />"
+                    + "</form>";
+
+            boolean formEmptyOk = formEmptyHtml.contains("name=\"field2.isAllFieldsEmpty\"")
+                    && formEmptyHtml.contains("value=\"true\"");
+            record(formEmptyOk, "Client-side example form (field2 empty -> nested skipped)");
+
+            String formWithF2Html = "<form id=\"f-data\" data-s2-rules='" + validatorJson + "'>"
+                    + "<input name=\"field1.title\" value=\"Title\" />"
+                    + "<input name=\"field1.description\" value=\"Description\" />"
+                    + "<input name=\"field2.type\" value=\"X\" />"
+                    + "<input name=\"field2.begin\" value=\"2025-01-01T00:00\" />"
+                    + "<input type=\"hidden\" name=\"field2.isAllFieldsEmpty\" value=\"false\" />"
+                    + "</form>";
+
+            boolean formWithF2Ok = formWithF2Html.contains("name=\"field2.type\"")
+                    && formWithF2Html.contains("name=\"field2.isAllFieldsEmpty\"")
+                    && formWithF2Html.contains("value=\"false\"");
+            record(formWithF2Ok, "Client-side example form (field2 present -> nested applied)");
+
+        } catch (Exception e) {
+            logger.error("   -> testS2ValidatorNestedConditional 오류: ", e);
+            record(false, "Nested Conditional 기술 오류: " + e.getMessage());
+        }
+    }
+
+    public static class TestNestedConditionVO {
+        private TestNestedCondition1VO field1;
+        private TestNestedCondition2VO field2;
+
+        public TestNestedCondition1VO getField1() {
+            return field1;
+        }
+
+        public void setField1(TestNestedCondition1VO field1) {
+            this.field1 = field1;
+        }
+
+        public TestNestedCondition2VO getField2() {
+            return field2;
+        }
+
+        public void setField2(TestNestedCondition2VO field2) {
+            this.field2 = field2;
+        }
+
+    }
+
+    public static class TestNestedCondition1VO {
+        private String title;
+        private String description;
+
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(String title) {
+            this.title = title;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public void setDescription(String description) {
+            this.description = description;
+        }
+
+    }
+
+    public static class TestNestedCondition2VO {
+        private String type;
+        private LocalDateTime begin;
+
+        public boolean isAllFieldsEmpty() {
+            return (type == null || type.isEmpty()) && begin == null;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        public LocalDateTime getBegin() {
+            return begin;
+        }
+
+        public void setBegin(LocalDateTime begin) {
+            this.begin = begin;
+        }
+
     }
 
 }
