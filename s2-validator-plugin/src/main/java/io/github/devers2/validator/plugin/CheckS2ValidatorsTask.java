@@ -166,8 +166,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     errors.forEach(
                             error -> getLogger().error(
-                                    "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' 필드가 " + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
-                                    error.lineNumber, error.fieldName, error.targetClass
+                                    "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {}) 필드가 " + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
+                                    error.lineNumber, error.fieldName, error.methodName, error.targetClass
                             )
                     );
                 });
@@ -207,11 +207,13 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 return errors;
             }
 
-            // 모든 .field("fieldName") 호출 찾기
+            // 모든 .field/.when/.and("fieldName") 호출 찾기
             List<MethodCallExpr> fieldCalls = cu.findAll(
-                    MethodCallExpr.class, call -> "field".equals(call.getNameAsString()) &&
-                            !call.getArguments().isEmpty() &&
-                            call.getArguments().get(0) instanceof StringLiteralExpr
+                    MethodCallExpr.class, call -> ("field".equals(call.getNameAsString())
+                            || "when".equals(call.getNameAsString())
+                            || "and".equals(call.getNameAsString()))
+                            && !call.getArguments().isEmpty()
+                            && call.getArguments().get(0) instanceof StringLiteralExpr
             );
 
             for (MethodCallExpr fieldCall : fieldCalls) {
@@ -234,6 +236,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                             new ValidationError(
                                     fieldName,
                                     targetClassName,
+                                    fieldCall.getNameAsString(),
                                     fieldCall.getBegin().map(pos -> pos.line).orElse(0)
                             )
                     );
@@ -394,11 +397,13 @@ public class CheckS2ValidatorsTask extends DefaultTask {
     static class ValidationError {
         final String fieldName;
         final String targetClass;
+        final String methodName;
         final int lineNumber;
 
-        ValidationError(String fieldName, String targetClass, int lineNumber) {
+        ValidationError(String fieldName, String targetClass, String methodName, int lineNumber) {
             this.fieldName = fieldName;
             this.targetClass = targetClass;
+            this.methodName = methodName;
             this.lineNumber = lineNumber;
         }
     }
