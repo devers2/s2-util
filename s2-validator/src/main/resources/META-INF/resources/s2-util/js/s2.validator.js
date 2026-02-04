@@ -221,6 +221,13 @@ export const S2Validator = {
       if (typeof el.setCustomValidity === 'function') {
         el.setCustomValidity('');
 
+        // 커스텀 에러 엘리먼트 초기화
+        const errorEl = form.querySelector(`[name="${el.name}_error"]`);
+        if (errorEl) {
+          if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
+          errorEl.textContent = '';
+        }
+
         // HTML5 Validation 연동: 사용자가 입력을 시작하면 즉시 에러 상태를 해제
         if (!el.__s2_val_bound__) {
           const clearValidity = () => {
@@ -230,6 +237,12 @@ export const S2Validator = {
               group.forEach((groupEl) => groupEl.setCustomValidity(''));
             } else {
               el.setCustomValidity('');
+            }
+            // 커스텀 에러 엘리먼트 초기화
+            const errorEl = form.querySelector(`[name="${el.name}_error"]`);
+            if (errorEl) {
+              if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
+              errorEl.textContent = '';
             }
           };
 
@@ -344,11 +357,21 @@ export const S2Validator = {
               errors[actualFieldName] = fieldErrors;
               // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
               const firstMessage = fieldErrors[0];
-              fieldElements.forEach((el) => {
-                if (typeof el.setCustomValidity === 'function') {
-                  el.setCustomValidity(firstMessage);
+
+              const errorEl = form.querySelector(`[name="${actualFieldName}_error"]`);
+              if (errorEl) {
+                if (typeof errorEl.setCustomValidity === 'function') {
+                  errorEl.setCustomValidity(firstMessage);
+                } else {
+                  errorEl.textContent = firstMessage;
                 }
-              });
+              } else {
+                fieldElements.forEach((el) => {
+                  if (typeof el.setCustomValidity === 'function') {
+                    el.setCustomValidity(firstMessage);
+                  }
+                });
+              }
             }
 
             processedFields.add(fullPath);
@@ -402,15 +425,25 @@ export const S2Validator = {
           errors[fullPath] = fieldErrors;
           // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
           const firstMessage = fieldErrors[0];
-          const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-          fieldElements.forEach((el) => {
-            if (typeof el.setCustomValidity === 'function') {
-              // 화면에 보이지 않는(offsetParent가 없는) 요소는 브라우저가 포커스하지 못하므로,
-              // 검증 메시지를 설정하되 포커스 문제로 인한 오류가 발생하지 않도록 주의가 필요함.
-              // CSS 수정을 통해 시각적으로만 숨기는 것을 검토할 필요가 있다.
-              el.setCustomValidity(firstMessage);
+
+          const errorEl = form.querySelector(`[name="${fullPath}_error"]`);
+          if (errorEl) {
+            if (typeof errorEl.setCustomValidity === 'function') {
+              errorEl.setCustomValidity(firstMessage);
+            } else {
+              errorEl.textContent = firstMessage;
             }
-          });
+          } else {
+            const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
+            fieldElements.forEach((el) => {
+              if (typeof el.setCustomValidity === 'function') {
+                // 화면에 보이지 않는(offsetParent가 없는) 요소는 브라우저가 포커스하지 못하므로,
+                // 검증 메시지를 설정하되 포커스 문제로 인한 오류가 발생하지 않도록 주의가 필요함.
+                // CSS 수정을 통해 시각적으로만 숨기는 것을 검토할 필요가 있다.
+                el.setCustomValidity(firstMessage);
+              }
+            });
+          }
         }
       });
     };
