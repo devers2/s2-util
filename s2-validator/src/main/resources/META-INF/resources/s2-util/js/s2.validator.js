@@ -209,8 +209,13 @@ export const S2Validator = {
    *   { name: 'email', rules: [{ type: 'EMAIL', message: '올바른 이메일 형식이 아닙니다.' }] }
    * ];
    * const errors = S2Validator.validate('#myForm', myRules);
+   *
+   * // 3. With additional data (prioritizes additionalData over form fields)
+   * // 3. 추가 데이터와 함께 사용 (폼 필드보다 additionalData 우선)
+   * const additionalData = { 'files': myFilesArray };
+   * const errors = S2Validator.validate('#myForm', rules, additionalData);
    */
-  validate(formSource, rulesSource) {
+  validate(formSource, rulesSource, additionalData) {
     const form = typeof formSource === 'string' ? document.querySelector(formSource) : formSource;
     if (!form || !(form instanceof HTMLFormElement)) {
       return { __system_error__: ['유효한 폼 요소를 찾을 수 없습니다.'] };
@@ -289,6 +294,9 @@ export const S2Validator = {
 
     const errors = {};
     const formData = getFormData(form); // 전체 필드 값 맵 (cross-field용)
+    if (additionalData && typeof additionalData === 'object') {
+      Object.assign(formData, additionalData);
+    }
     const allFieldNames = Object.keys(formData); // 모든 등록된 필드명 리스트
     const processedFields = new Set(); // 이미 처리한 와일드카드 필드
 
@@ -339,9 +347,15 @@ export const S2Validator = {
             // 실제 필드명: products[0].name
             const actualFieldName = collectionPrefix + '[' + idx + ']' + suffix;
             const fieldElements = form.querySelectorAll(`[name="${actualFieldName}"]`);
-            if (fieldElements.length === 0) return;
 
-            const value = getFieldValue(fieldElements);
+            let value;
+            if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, actualFieldName)) {
+              value = additionalData[actualFieldName];
+            } else {
+              if (fieldElements.length === 0) return;
+              value = getFieldValue(fieldElements);
+            }
+
             const fieldErrors = [];
 
             rule.rules.forEach((check) => {
@@ -412,9 +426,15 @@ export const S2Validator = {
           } else {
             // 일반 규칙 검증
             const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-            if (fieldElements.length === 0) return;
 
-            const value = getFieldValue(fieldElements);
+            let value;
+            if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, fullPath)) {
+              value = additionalData[fullPath];
+            } else {
+              if (fieldElements.length === 0) return;
+              value = getFieldValue(fieldElements);
+            }
+
             if (!validateCheck(value, check, formData, prefix)) {
               fieldErrors.push(check.message);
             }
