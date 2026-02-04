@@ -173,10 +173,26 @@ export const S2Validator = {
    * <pre>
    * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt; ... &lt;/form&gt;
    * </pre>
+   * <p>
+   * <b>Proxy Error Element: (프록시 에러 엘리먼트)</b><br>
+   * If validation fails for a hidden field or a field where browser tooltips cannot be shown,
+   * you can provide a proxy element with the name <code>"{fieldName}_error"</code> to display the error.
+   * This is useful for file uploads or custom UI widgets where the actual input is hidden.
+   * <br>
+   * 히든 필드나 브라우저 툴팁을 표시할 수 없는 필드의 경우, <code>"{fieldName}_error"</code> 라는 이름의
+   * 프록시 엘리먼트를 두어 에러를 표시할 수 있습니다. 파일 업로드나 커스텀 UI 위젯 등 실제 input이 숨겨진 경우 유용합니다.
+   * </p>
+   * <pre>
+   * &lt;!-- Example: Hidden file input with proxy error element --&gt;
+   * &lt;input type="hidden" name="files" ...&gt;
+   * &lt;!-- Tooltip needed? Use a creating transparent input or just use span/div for text --&gt;
+   * &lt;input name="files_error" style="width: 1px; opacity: 0;" /&gt;
+   * </pre>
    *
    * @function validate
    * @param {string|HTMLFormElement} formSource - Form element selector or HTMLFormElement object | 검증할 폼 요소의 셀렉터 또는 HTMLFormElement 객체
    * @param {string|Object} [rulesSource] - Validation rules (JSON/Object). If omitted, searches element's data-s2-rules | 검증 규칙(JSON/Object). 생략 시 엘리먼트의 data-s2-rules를 탐색
+   * @param {Object} [additionalData] - Additional data for validation (priority: additionalData > DOM). Use this to validate data not present in the form DOM (e.g., file arrays). | 검증을 위한 추가 데이터 (우선순위: additionalData > DOM). 폼 DOM에 없는 데이터(예: 파일 배열)를 검증할 때 사용합니다.
    * @returns {Object} Error object {fieldName: [errorMessages]} – empty object if valid | 에러 객체 {fieldName: [errorMessages]} – 빈 객체 시 유효
    * @example
    * import { S2Validator } from '/s2-util/js/s2.validator.js';
