@@ -30,6 +30,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.Comparator;
 import java.util.List;
@@ -970,6 +971,88 @@ public class S2DateUtil {
             return IntStream.rangeClosed(finalStartYy, finalEndYy)
                     .boxed()
                     .collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * Converts the time difference between the target and now into a human-readable relative string.
+     * Maintains the 'day' unit up to 364 days and switches to the 'year' unit starting from 365 days.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 입력된 시간을 현재와 비교하여 언어 설정에 맞는 상대적 시간 문자열을 반환합니다.
+     * 364일까지는 일 단위를 유지하며, 365일부터 년 단위로 전환합니다.
+     *
+     * @param target    The target LocalDateTime to compare with now
+     * @param isEnglish Whether to return the result in English
+     * @return Formatted relative time string
+     */
+    public static String formatRelativeTime(LocalDateTime target, boolean isEnglish) {
+        if (target == null)
+            return "";
+
+        LocalDateTime now = LocalDateTime.now();
+        boolean isPast = target.isBefore(now);
+
+        // 1. 년 단위 체크 (365일 기준)
+        long totalDays = Math.abs(ChronoUnit.DAYS.between(now, target));
+        if (totalDays >= 365) {
+            return getFormattedText(totalDays / 365, "년", "year", isPast, isEnglish);
+        }
+
+        // 2. 일 단위 체크 (1일 ~ 364일)
+        if (totalDays > 0) {
+            return getFormattedText(totalDays, "일", "day", isPast, isEnglish);
+        }
+
+        // 3. 시간 단위 체크
+        long totalHours = Math.abs(ChronoUnit.HOURS.between(now, target));
+        if (totalHours > 0) {
+            return getFormattedText(totalHours, "시간", "hour", isPast, isEnglish);
+        }
+
+        // 4. 분 단위 특수 로직 (10분/30분 구간화)
+        long mins = Math.abs(ChronoUnit.MINUTES.between(now, target));
+        String suffix = isPast ? (isEnglish ? " ago" : " 전") : (isEnglish ? " later" : " 후");
+
+        if (mins > 30) {
+            return "30" + (isEnglish ? " minutes" : "분") + suffix;
+        }
+        if (mins > 10) {
+            return "10" + (isEnglish ? " minutes" : "분") + suffix;
+        }
+
+        // 5. 아주 짧은 시간
+        if (isEnglish) {
+            return isPast ? "just now" : "soon";
+        }
+        return isPast ? "방금 전" : "잠시 후";
+    }
+
+    /**
+     * Assembles the numeric value and unit into a final string based on the language.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 수치와 단위를 조합하여 최종 문자열을 생성합니다.
+     *
+     * @param value     The time difference value
+     * @param korUnit   The time unit in Korean
+     * @param engUnit   The time unit in English
+     * @param isPast    Whether the time is in the past
+     * @param isEnglish Whether to format in English
+     * @return Assembled string
+     */
+    private static String getFormattedText(long value, String korUnit, String engUnit, boolean isPast, boolean isEnglish) {
+        if (isEnglish) {
+            String unit = value > 1 ? engUnit + "s" : engUnit;
+            String suffix = isPast ? " ago" : " later";
+            return value + " " + unit + suffix;
+        } else {
+            String suffix = isPast ? " 전" : " 후";
+            return value + korUnit + suffix;
         }
     }
 
