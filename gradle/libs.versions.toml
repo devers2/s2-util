@@ -15,7 +15,7 @@ javaparser = "3.28.0"
 jsch = "0.1.55"
 junit = "6.0.3"
 lz4 = "1.10.3"
-mockito = "5.22.0"
+mockito = "5.23.0"
 uuid-creator = "6.1.1"
 
 # Spring Framework
