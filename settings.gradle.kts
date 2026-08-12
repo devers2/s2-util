@@ -1,9 +1,9 @@
 pluginManagement {
     // pluginManagement 블록 평가 시점에 사용자 홈의 gradle.properties 를 읽어올 수 없어 직접 읽어온다.
-    def globalProperties = new Properties()
-    def globalFile = new File(gradle.gradleUserHomeDir, 'gradle.properties')
+    val globalProperties = java.util.Properties()
+    val globalFile = java.io.File(gradle.gradleUserHomeDir, "gradle.properties")
     if (globalFile.exists()) {
-        globalFile.withInputStream { stream ->
+        globalFile.inputStream().use { stream ->
             globalProperties.load(stream)
         }
     }
@@ -21,15 +21,15 @@ plugins {
 }
 
 // JAR 파일의 기본 이름(BaseName, artifactId를 의미) 지정
-rootProject.name = 's2-util'
+rootProject.name = "s2-util"
 
-include 's2-core'
-include 's2-validator'
-include 's2-validator-plugin'
-include 's2-jpa'
+include("s2-core")
+include("s2-validator")
+include("s2-validator-plugin")
+include("s2-jpa")
 
-def s2BuildSupportDir = file('../s2-build-support')
+val s2BuildSupportDir = file("../s2-build-support")
 if (s2BuildSupportDir.exists()) {
     // 로컬 개발용: s2-build-support 디렉토리가 존재하는 경우에만 포함 (없어도 빌드 오류 발생 방지)
-    includeBuild s2BuildSupportDir
+    includeBuild(s2BuildSupportDir)
 }

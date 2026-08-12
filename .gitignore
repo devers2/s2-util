@@ -22,7 +22,9 @@ target/
 *.iws
 *.ipr
 *.iml
+.nvim.lua
 .vscode/
+.claude/
 .apt_generated/
 .classpath
 .factorypath

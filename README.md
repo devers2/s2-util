@@ -27,7 +27,7 @@ Add the following dependencies to your `build.gradle` (using Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.1.6'
+    implementation 'io.github.devers2:s2-util:1.1.7'
 }
 
 // [Optional] S2Validator Static Analysis Plugin
@@ -40,7 +40,7 @@ dependencies {
 // 명시된 DTO에 실제 필드가 있는지 확인하여, 오타 등으로 존재하지 않는 필드를 참조하면
 // 빌드 에러를 발생시켜 런타임 오류를 완벽히 예방합니다.)
 plugins {
-    id 'io.github.devers2.validator' version '1.1.1'
+    id 'io.github.devers2.validator' version '1.1.2'
 }
 ```
 
@@ -256,7 +256,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 dependencies {
     // Essential runtime dependencies for optional functionalities
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
-    implementation 'org.springframework:spring-context:6.2.15'
+    implementation 'org.springframework:spring-context:6.2.17'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```

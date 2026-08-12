@@ -19,33 +19,31 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
-ext {
-    /*
-     * [추가 소스 목록]
-     * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
-     */
-    activeFeatures = ['licensesInfo'] as Set
+/*
+ * [추가 소스 목록]
+ * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
+ */
+extra["activeFeatures"] = setOf("licensesInfo")
 
-    /**
-     * [동적 기능 소스 정보 (Feature Toggles)]
-     * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
-     */
-    dynamicSourceInfoMap = [
-        'licensesInfo': [
-            licenses: [
-                'README.md',
-                'LICENSE',
-                'licenses/LICENSE-APACHE-2.0',
-                'licenses/NOTICE'
-            ]
-        ]
-    ]
+/**
+ * [동적 기능 소스 정보 (Feature Toggles)]
+ * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
+ */
+extra["dynamicSourceInfoMap"] = mapOf(
+    "licensesInfo" to mapOf(
+        "licenses" to listOf(
+            "README.md",
+            "LICENSE",
+            "licenses/LICENSE-APACHE-2.0",
+            "licenses/NOTICE"
+        )
+    )
+)
 
-    /*
-     * 빌드 완료 후 결과물을 테스트할 클래스 지정 (shadowJar 실행 후 testArtifact 태스크로 수행됨, 여러 개 지정 가능)
-     */
-    artifactTestClassNames = []
-}
+/*
+ * 빌드 완료 후 결과물을 테스트할 클래스 지정 (shadowJar 실행 후 testArtifact 태스크로 수행됨, 여러 개 지정 가능)
+ */
+extra["artifactTestClassNames"] = emptyList<String>()
 
 dependencies {
     /**
