@@ -19,35 +19,35 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
-ext {
-    /*
-     * [추가 소스 목록]
-     * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
-     */
-    activeFeatures = ['licensesInfo'] as Set
+import org.gradle.api.tasks.bundling.Jar
 
-    /**
-     * [동적 기능 소스 정보 (Feature Toggles)]
-     * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
-     */
-    dynamicSourceInfoMap = [
-        'licensesInfo': [
-            licenses: [
-                'README.md',
-                'LICENSE',
-                'licenses/LICENSE-APACHE-2.0',
-                'licenses/LICENSE-EPL-2.0',
-                'licenses/LICENSE-EDL-1.0',
-                'licenses/NOTICE'
-            ]
-        ]
-    ]
+/*
+ * [추가 소스 목록]
+ * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
+ */
+extra["activeFeatures"] = setOf("licensesInfo")
 
-    /*
-     * 빌드 완료 후 결과물을 테스트할 클래스 지정 (shadowJar 실행 후 testArtifact 태스크로 수행됨, 여러 개 지정 가능)
-     */
-    artifactTestClassNames = []
-}
+/**
+ * [동적 기능 소스 정보 (Feature Toggles)]
+ * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
+ */
+extra["dynamicSourceInfoMap"] = mapOf(
+    "licensesInfo" to mapOf(
+        "licenses" to listOf(
+            "README.md",
+            "LICENSE",
+            "licenses/LICENSE-APACHE-2.0",
+            "licenses/LICENSE-EPL-2.0",
+            "licenses/LICENSE-EDL-1.0",
+            "licenses/NOTICE"
+        )
+    )
+)
+
+/*
+ * 빌드 완료 후 결과물을 테스트할 클래스 지정 (shadowJar 실행 후 testArtifact 태스크로 수행됨, 여러 개 지정 가능)
+ */
+extra["artifactTestClassNames"] = listOf("io.github.devers2.s2util.validation.SmokeTest")
 
 dependencies {
     /**
@@ -56,7 +56,7 @@ dependencies {
      * - 이 라이브러리를 사용하는 다른 프로젝트(상위 모듈)에는 의존성이 노출됨 (API 노출)
      * - 런타임에 반드시 필요한 라이브러리인 경우 이 방식을 사용함
      */
-    api project(':s2-core')
+    api(project(":s2-core"))
 
     /**
      * implementation: 컴파일 및 런타임 시 모두 사용함
@@ -70,15 +70,14 @@ dependencies {
      * - 런타임 시 사용하지 않는 라이브러리인 경우 이 방식을 사용함
      * - Shadow JAR 생성 시 포함되지 않음
      */
-    compileOnly(libs.jakarta.persistence.api) // JPQL
+    compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
 
     /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      */
+    testImplementation(libs.spring6.context)
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.mockito.core)
-    testImplementation(libs.jakarta.persistence.api) // 테스트에서 JPA 사용
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -87,15 +86,15 @@ dependencies {
  * Gradle 9.x 이상의 엄격한 태스크 유효성 검사를 해결합니다.
  * :s2-validator의 태스크들이 :s2-core의 아티팩트를 사용하므로 명시적 의존성을 부여합니다.
  */
-tasks.configureEach { task ->
-    if (task.name == 'jar' || task.name == 'shadowJar' || task.name == 'downloadLicenses') {
+tasks.configureEach {
+    if (name == "jar" || name == "shadowJar" || name == "downloadLicenses") {
 
         // s2-core:jar가 반드시 먼저 완료되도록 순서 보장
-        task.dependsOn(':s2-core:jar')
+        dependsOn(":s2-core:jar")
 
         // jar 태스크의 경우, 버전 변화에 상관없이 생성된 결과물을 입력 파일로 자동 연결
-        if (task.name == 'jar') {
-            task.inputs.file(project(':s2-core').tasks.named('jar').map { it.archiveFile })
+        if (name == "jar") {
+            inputs.file(project(":s2-core").tasks.named<Jar>("jar").map { it.archiveFile })
         }
     }
 }

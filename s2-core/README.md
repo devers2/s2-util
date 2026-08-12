@@ -128,7 +128,7 @@ This module has **ZERO mandatory runtime dependencies**.
 
 ---
 
-s2-core Version: 1.1.6 (2026-02-23)
+s2-core Version: 1.1.7 (2026-08-12)
 
 [//]: # 'S2_DEPS_INFO_START'
 

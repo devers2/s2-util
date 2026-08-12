@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
@@ -74,6 +75,7 @@ import com.github.javaparser.ast.type.Type;
  * @version 1.5
  * @since 1.0
  */
+@DisableCachingByDefault(because = "입출력 파일이 선언되지 않은 채 멀티 프로젝트 소스 전체를 직접 스캔하므로 캐시할 수 없다.")
 public class CheckS2ValidatorsTask extends DefaultTask {
 
     // ANSI 제어 문자를 사용한 로그 색상 정의

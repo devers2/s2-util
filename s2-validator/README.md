@@ -177,7 +177,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 1.1.6 (2026-02-23)
+s2-validator Version: 1.1.7 (2026-08-12)
 
 [//]: # 'S2_DEPS_INFO_START'
 
@@ -190,7 +190,7 @@ s2-validator Version: 1.1.6 (2026-02-23)
 ```groovy
 dependencies {
     // Essential runtime dependencies for optional functionalities
-    implementation 'org.springframework:spring-context:6.2.15'
+    implementation 'org.springframework:spring-context:6.2.17'
 }
 ```
 

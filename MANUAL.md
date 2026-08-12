@@ -20,7 +20,7 @@ dependencies {
     // 🚀 S2Util 통합 패키지: 모든 모듈이 포함되어 있으며, 필요한 부분만 선택적으로 사용
     // [English] Includes: S2Validator, S2Jpql, S2Copier (Simply use what you need)
     // [한국어] 포함: S2Validator, S2Jpql, S2Copier (필요한 것만 선택적으로 사용)
-    implementation 'io.github.devers2:s2-util:1.1.6'
+    implementation 'io.github.devers2:s2-util:1.1.7'
 }
 ```
 
@@ -48,15 +48,15 @@ S2Util is highly modular. For **minimal footprint**, add only the specific compo
 dependencies {
     // [English] Option 1: Only validation needed
     // [한국어] 선택지 1: 검증 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-validator:1.1.6'  // (s2-core 자동 포함)
+    implementation 'io.github.devers2:s2-validator:1.1.7'  // (s2-core 자동 포함)
 
     // [English] Option 2: Only JPA dynamic queries needed
     // [한국어] 선택지 2: 동적 쿼리 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-jpa:1.1.6'        // (s2-core 자동 포함)
+    implementation 'io.github.devers2:s2-jpa:1.1.7'        // (s2-core 자동 포함)
 
     // [English] Option 3: Only core features needed (most lightweight)
     // [한국어] 선택지 3: 객체 복사를 포함한 핵심 기능만 필요한 경우 (가장 경량)
-    implementation 'io.github.devers2:s2-core:1.1.6'
+    implementation 'io.github.devers2:s2-core:1.1.7'
 }
 ```
 
@@ -71,7 +71,7 @@ dependencies {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.1.6'
+    id 'io.github.devers2.validator' version '1.1.7'
 }
 ```
 

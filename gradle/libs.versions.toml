@@ -1,6 +1,6 @@
 [versions]
 # Plugin Versions
-s2-build-support = "0.1.5"
+s2-build-support = "0.1.6"
 shadow = "9.4.0"
 
 
