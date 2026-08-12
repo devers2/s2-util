@@ -25,6 +25,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -46,9 +48,12 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * {@code System.nanoTime()} or {@code System.currentTimeMillis()} to track access order,
  * minimizing CPU overhead.</li>
  * <li><b>Asynchronous and Gradual Eviction:</b> When the cache reaches its maximum size,
- * eviction is performed on a background thread (via {@link S2ThreadUtil}) to prevent
- * blocking the main thread. Instead of clearing the entire cache, it gradually removes
- * only the oldest 50% of entries to maintain a high hit rate.</li>
+ * eviction is performed on a dedicated maintenance thread (separate from application-facing
+ * executors, see {@link MaintenanceExecutorHolder}) to prevent blocking the main thread and
+ * to keep eviction timely even when the application saturates its own executors. Instead of
+ * clearing the entire cache, it gradually removes only the oldest 50% of entries to maintain
+ * a high hit rate. A CAS-guarded synchronous fallback bounds growth in the rare case where
+ * eviction cannot keep up.</li>
  * </ul>
  *
  * <h3>Philosophical Considerations and Guardrails</h3>
@@ -77,9 +82,11 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * 대기하는 현상을 완벽히 제거합니다.</li>
  * <li><b>Sequence 기반 LRU:</b> 값 비싼 {@code System.nanoTime()} 호출 대신 단순한 {@link AtomicLong}
  * 카운터를 사용하여 접근 순서를 추적함으로써 CPU 오버헤드를 최소화합니다.</li>
- * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고 별도의 백그라운드 스레드
- * ({@link S2ThreadUtil})에서 삭제 작업을 수행합니다. 전체를 비우는 대신 오래된 순으로 50%만 삭제하여
- * 캐시 적중률을 안정적으로 유지합니다.</li>
+ * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고, 애플리케이션이 쓰는
+ * 실행기와 분리된 전용 유지보수 스레드({@link MaintenanceExecutorHolder})에서 삭제 작업을 수행하여
+ * 애플리케이션 부하와 무관하게 축출이 지연되지 않도록 합니다. 전체를 비우는 대신 오래된 순으로 50%만
+ * 삭제하여 캐시 적중률을 안정적으로 유지하며, 축출이 따라가지 못하는 드문 상황에는 CAS로 보호된 동기
+ * 폴백이 무한 증가를 막습니다.</li>
  * </ul>
  *
  * <h3>기술적 고려사항 및 방어 기제</h3>
@@ -98,6 +105,27 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * @since 1.0.5
  */
 public class S2OptimisticCache<K, V> {
+
+    /**
+     * Lazily-initialized, dedicated single-thread executor for background eviction.
+     * <p>
+     * Kept separate from {@link S2ThreadUtil#getCommonExecutor()} so that application-submitted
+     * work cannot delay eviction under load; only created on first use, since it stays unused
+     * whenever Caffeine (which manages its own eviction) is available.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 백그라운드 축출 전용 지연 초기화 단일 스레드 실행기입니다.
+     * <p>
+     * 애플리케이션이 제출한 작업 때문에 축출이 밀리지 않도록 {@link S2ThreadUtil#getCommonExecutor()}와
+     * 분리했습니다. Caffeine이 있으면(자체적으로 축출을 관리) 사용되지 않으므로 최초 사용 시점에만 생성됩니다.
+     * </p>
+     */
+    private static final class MaintenanceExecutorHolder {
+        private static final ExecutorService INSTANCE = Executors.newSingleThreadExecutor(S2ThreadUtil.getPlatformFactory());
+    }
 
     /**
      * Wrapper class for cache entries.
@@ -124,11 +152,19 @@ public class S2OptimisticCache<K, V> {
      */
     private static final Object NULL_HOLDER = new Object();
 
+    /**
+     * Overshoot multiplier that triggers the synchronous eviction fallback, guarding against
+     * unbounded growth if the maintenance executor is starved. | 유지보수 실행기가 정체되었을 때 무한
+     * 증가를 막기 위해 동기 축출로 전환하는 초과 배수
+     */
+    private static final int SYNC_FALLBACK_MULTIPLIER = 2;
+
     private final ConcurrentHashMap<K, CacheEntry<V>> cache = new ConcurrentHashMap<>();
     private final int maxEntries;
     private final AtomicInteger size = new AtomicInteger(0);
     private final AtomicLong sequenceGenerator = new AtomicLong(0);
     private final AtomicBoolean evicting = new AtomicBoolean(false);
+    private final AtomicBoolean syncEvicting = new AtomicBoolean(false);
 
     /**
      * Constructs a new S2OptimisticCache.
@@ -222,13 +258,26 @@ public class S2OptimisticCache<K, V> {
             if (size.incrementAndGet() > maxEntries) {
                 // Start asynchronous eviction (doesn't block the main thread!)
                 if (evicting.compareAndSet(false, true)) {
-                    S2ThreadUtil.getCommonExecutor().execute(() -> {
+                    MaintenanceExecutorHolder.INSTANCE.execute(() -> {
                         try {
                             evictOldEntries();
                         } finally {
                             evicting.set(false);
                         }
                     });
+                } else if (size.get() > (long) maxEntries * SYNC_FALLBACK_MULTIPLIER && syncEvicting.compareAndSet(false, true)) {
+                    /*
+                     * Safety valve: reached only when async eviction is already running yet the cache
+                     * has grown well past its bound (maintenance executor likely starved). CAS-guarded
+                     * so a single caller thread absorbs the one-off cost; normal load never reaches here.
+                     * 안전장치: 비동기 축출이 이미 진행 중인데도 한계치를 크게 초과했을 때만(유지보수 실행기
+                     * 정체 추정) 동작하며, CAS로 단일 스레드만 일회성 비용을 부담해 평시 성능에는 영향이 없다.
+                     */
+                    try {
+                        evictOldEntries();
+                    } finally {
+                        syncEvicting.set(false);
+                    }
                 }
                 // Skip if eviction is already in progress (will be cleaned later)
             }
@@ -303,7 +352,7 @@ public class S2OptimisticCache<K, V> {
         // 4. Check if eviction is still needed after cleanup (only if we actually removed something)
         if (removedCount > 0 && size.get() > maxEntries && evicting.compareAndSet(false, true)) {
             // If still over capacity and we removed items, schedule another eviction
-            S2ThreadUtil.getCommonExecutor().execute(() -> {
+            MaintenanceExecutorHolder.INSTANCE.execute(() -> {
                 try {
                     evictOldEntries();
                 } finally {
