@@ -21,6 +21,7 @@
 package io.github.devers2.s2util.core.cache;
 
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -193,6 +194,42 @@ public class CaffeineCacheAdapter<K, V> implements CacheAdapter<K, V> {
             long expiryMs,
             boolean statsEnabled,
             RemovalListener<K, V> removalListener) {
+        return createCache(maxSize, expiryMs, statsEnabled, removalListener, null);
+    }
+
+    /**
+     * Factory method for creating a Caffeine Cache instance with a custom maintenance executor.
+     * <p>
+     * Same as {@link #createCache(int, long, boolean, RemovalListener)}, but also lets callers
+     * (e.g. {@code S2Cache}) supply the executor Caffeine uses for async maintenance/listener
+     * callbacks, instead of Caffeine's default {@link java.util.concurrent.ForkJoinPool#commonPool()}.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 유지보수용 실행기를 직접 지정할 수 있는 Caffeine Cache 생성 팩토리 메서드입니다.
+     * <p>
+     * {@link #createCache(int, long, boolean, RemovalListener)}와 동일하되, Caffeine이 비동기
+     * 유지보수/리스너 콜백에 사용할 실행기를 호출부(예: {@code S2Cache})가 직접 지정할 수 있습니다
+     * (기본값은 Caffeine 내장 {@link java.util.concurrent.ForkJoinPool#commonPool()}).
+     * </p>
+     *
+     * @param <K>             Type of cache key | 캐시 키의 타입
+     * @param <V>             Type of cache value | 캐시 값의 타입
+     * @param maxSize         Maximum cache size | 최대 캐시 크기
+     * @param expiryMs        Expiry time (ms, 0 for no expiration) | 만료 시간 (밀리초, 0이면 만료 없음)
+     * @param statsEnabled    Whether to enable statistics collection | 통계 수집 활성화 여부
+     * @param removalListener Removal listener (can be null) | 제거 리스너 (null 가능)
+     * @param executor        Maintenance executor to use (can be null to keep Caffeine's default) | 유지보수 실행기 (null이면 Caffeine 기본값 사용)
+     * @return Created Caffeine Cache instance | 생성된 Caffeine Cache 인스턴스
+     */
+    public static <K, V> Cache<K, V> createCache(
+            int maxSize,
+            long expiryMs,
+            boolean statsEnabled,
+            RemovalListener<K, V> removalListener,
+            Executor executor) {
         Caffeine<Object, Object> builder = createBuilder(maxSize, expiryMs);
 
         if (statsEnabled) {
@@ -201,6 +238,10 @@ public class CaffeineCacheAdapter<K, V> implements CacheAdapter<K, V> {
 
         if (removalListener != null) {
             builder.removalListener(removalListener);
+        }
+
+        if (executor != null) {
+            builder.executor(executor);
         }
 
         @SuppressWarnings("unchecked")
