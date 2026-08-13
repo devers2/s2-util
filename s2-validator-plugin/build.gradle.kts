@@ -181,18 +181,11 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = "CentralPortal"
-            url = uri("https://central.sonatype.com/api/v1/publisher/upload?publishingType=USER_MANAGED")
-            credentials {
-                username = project.findProperty("centralUsername")?.toString()
-                password = project.findProperty("centralPassword")?.toString()
-            }
-        }
-    }
 }
+
+// 배포 리포지토리 설정 (S2BuildUtils 공통 로직 재사용 - CentralPortal 등록 + 서명 필수화까지 자동 처리됨.
+// .all()로 반응형 서명을 적용하므로, 아래 s2ValidatorPluginMarkerMaven처럼 나중에 등록되는 Publication도 서명 대상에 포함됨)
+S2BuildUtils.configureCentralPortalRepository(project)
 
 // Marker Artifact에 대한 메타데이터 설정 (이미 존재하는 Publication 설정)
 project.afterEvaluate {
@@ -227,13 +220,4 @@ project.afterEvaluate {
             }
         }
     }
-}
-
-configure<SigningExtension> {
-    setRequired({
-        gradle.taskGraph.allTasks.any {
-            it.name.contains("publish") || it.name.contains("Publish")
-        }
-    })
-    sign(publishing.publications)
 }
