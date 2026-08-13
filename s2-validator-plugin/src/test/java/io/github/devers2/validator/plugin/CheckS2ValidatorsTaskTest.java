@@ -339,6 +339,39 @@ public class CheckS2ValidatorsTaskTest {
         }
     }
 
+    @Test
+    void apply_doesNotThrow_regardlessOfJavaPluginApplicationOrder() {
+        // S2ValidatorPlugin.apply()는 'check'/'compileJava' 태스크(java 플러그인이 등록함)에
+        // named(...)로 즉시 연결을 시도했었는데, java 플러그인보다 먼저(또는 아예 없이) 적용되면
+        // UnknownTaskException으로 즉시 실패했었다. withPlugin("java", ...)으로 지연 연결하도록
+        // 고쳐, 적용 순서와 무관하게 항상 안전해야 한다.
+
+        // 1) java 플러그인 없이 적용해도 예외가 없어야 함
+        Project withoutJava = ProjectBuilder.builder().build();
+        assertDoesNotThrow(() -> withoutJava.getPluginManager().apply(S2ValidatorPlugin.class));
+
+        // 2) 이 플러그인을 먼저 적용하고 java를 나중에 적용해도, check/compileJava에 태스크
+        // 의존성이 지연 연결되어야 함
+        Project javaAfter = ProjectBuilder.builder().build();
+        javaAfter.getPluginManager().apply(S2ValidatorPlugin.class);
+        assertDoesNotThrow(() -> javaAfter.getPluginManager().apply("java"));
+
+        boolean checkDependsOnIt = javaAfter.getTasks().getByName("check").getDependsOn().stream()
+                .anyMatch(dep -> "checkS2Validators".equals(dep));
+        boolean compileDependsOnIt = javaAfter.getTasks().getByName("compileJava").getDependsOn().stream()
+                .anyMatch(dep -> "checkS2Validators".equals(dep));
+        org.junit.jupiter.api.Assertions.assertTrue(checkDependsOnIt, "check should depend on checkS2Validators even when java is applied after this plugin");
+        org.junit.jupiter.api.Assertions.assertTrue(compileDependsOnIt, "compileJava should depend on checkS2Validators even when java is applied after this plugin");
+
+        // 3) 기존처럼 java를 먼저 적용하는 순서도 계속 정상 동작해야 함 (회귀 방지)
+        Project javaFirst = ProjectBuilder.builder().build();
+        javaFirst.getPluginManager().apply("java");
+        assertDoesNotThrow(() -> javaFirst.getPluginManager().apply(S2ValidatorPlugin.class));
+        boolean checkDependsOnItToo = javaFirst.getTasks().getByName("check").getDependsOn().stream()
+                .anyMatch(dep -> "checkS2Validators".equals(dep));
+        org.junit.jupiter.api.Assertions.assertTrue(checkDependsOnItToo);
+    }
+
     private static void record(boolean isSuccess, String testName) {
         if (isSuccess) {
             successCount++;

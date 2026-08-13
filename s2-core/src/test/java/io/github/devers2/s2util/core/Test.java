@@ -103,6 +103,19 @@ public class Test {
     /** Java Record */
     public record UserRecord(String id, String name, int age, String email) {}
 
+    /** Set 필드를 가진 DTO (deep copy 테스트용) */
+    public static class TagsHolderDto {
+        private java.util.Set<String> tags;
+
+        public java.util.Set<String> getTags() {
+            return tags;
+        }
+
+        public void setTags(java.util.Set<String> tags) {
+            this.tags = tags;
+        }
+    }
+
     /** 중첩 객체를 포함한 DTO */
     public static class AddressDto {
         private String street;
@@ -358,6 +371,62 @@ public class Test {
         }
     }
 
+    @DisplayName("getValue - 정상적인 null 리프값이 리터럴 dotted 키로 오염되지 않음")
+    @org.junit.jupiter.api.Test
+    void testGetValue_NestedPathNullLeafNotPoisoned() {
+        String testName = "getValue - Nested path null leaf not poisoned by literal-key fallback";
+        try {
+            Map<String, Object> addr = new HashMap<>();
+            addr.put("street", null); // 정상적으로 null인 리프값
+            Map<String, Object> user = new HashMap<>();
+            user.put("address", addr);
+            Map<String, Object> target = new HashMap<>();
+            target.put("user", user);
+            // Poison key: 버그가 있는 fallback이 dotted 문자열을 리터럴 키로 재해석할 때만 이 값이 나옴
+            target.put("user.address.street", "WRONG_FALLBACK_VALUE");
+
+            Object result = S2Util.getValue(target, "user.address.street");
+            assert result == null : "정상적인 null 리프값이 오염된 리터럴 키 fallback으로 새면 안됨. result=" + result;
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("getValue - 백킹 필드 없는 isXxx() boolean getter 조회")
+    @org.junit.jupiter.api.Test
+    void testGetValue_BooleanGetterWithoutBackingField() {
+        String testName = "getValue - isXxx() boolean getter without backing field";
+        try {
+            class ComputedBooleanVO {
+                private final int status;
+
+                ComputedBooleanVO(int status) {
+                    this.status = status;
+                }
+
+                public boolean isActive() {
+                    return status == 1;
+                }
+            }
+
+            ComputedBooleanVO active = new ComputedBooleanVO(1);
+            ComputedBooleanVO inactive = new ComputedBooleanVO(0);
+
+            assert Boolean.TRUE.equals(S2Util.getValue(active, "active")) : "isActive()=true 조회 실패";
+            assert Boolean.FALSE.equals(S2Util.getValue(inactive, "active")) : "isActive()=false 조회 실패";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
     @DisplayName("getValue - Array 인덱스 조회")
     @org.junit.jupiter.api.Test
     void testGetValue_Array() {
@@ -488,6 +557,66 @@ public class Test {
             assert "element0".equals(arr[0]);
             assert "element1".equals(arr[1]);
             assert "element2".equals(arr[2]);
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("setValue - 인터페이스 타입 필드 설정 (List/Map/Set)")
+    @org.junit.jupiter.api.Test
+    void testSetValue_InterfaceTypedFields() {
+        String testName = "setValue - Interface-typed fields (List/Map/Set)";
+        try {
+            class CollectionsDto {
+                private List<String> items;
+                private Map<String, String> attrs;
+                private java.util.Set<String> tags;
+
+                public List<String> getItems() {
+                    return items;
+                }
+
+                public void setItems(List<String> items) {
+                    this.items = items;
+                }
+
+                public Map<String, String> getAttrs() {
+                    return attrs;
+                }
+
+                public void setAttrs(Map<String, String> attrs) {
+                    this.attrs = attrs;
+                }
+
+                public java.util.Set<String> getTags() {
+                    return tags;
+                }
+
+                public void setTags(java.util.Set<String> tags) {
+                    this.tags = tags;
+                }
+            }
+
+            CollectionsDto dto = new CollectionsDto();
+            List<String> list = new ArrayList<>(List.of("a", "b"));
+            Map<String, String> map = new HashMap<>();
+            map.put("k", "v");
+            java.util.Set<String> set = new java.util.HashSet<>(List.of("x"));
+
+            boolean listOk = S2Util.setValue(dto, "items", null, list);
+            boolean mapOk = S2Util.setValue(dto, "attrs", null, map);
+            boolean setOk = S2Util.setValue(dto, "tags", null, set);
+
+            assert listOk : "List 타입 세터에 대한 setValue가 실패함";
+            assert mapOk : "Map 타입 세터에 대한 setValue가 실패함";
+            assert setOk : "Set 타입 세터에 대한 setValue가 실패함";
+            assert list.equals(dto.getItems());
+            assert map.equals(dto.getAttrs());
+            assert set.equals(dto.getTags());
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
@@ -949,6 +1078,32 @@ public class Test {
         }
     }
 
+    @DisplayName("S2Copier - Deep Copy Set Field")
+    @org.junit.jupiter.api.Test
+    void testCopierDeepCopySetField() {
+        String testName = "testCopierDeepCopySetField";
+        try {
+            TagsHolderDto source = new TagsHolderDto();
+            java.util.Set<String> originalTags = new java.util.HashSet<>(List.of("a", "b"));
+            source.setTags(originalTags);
+
+            TagsHolderDto copy = S2Copier.from(source).deep().to(TagsHolderDto.class);
+
+            assert copy.getTags() != null : "deep copy로 Set 필드가 유실되면 안됨";
+            assert copy.getTags().equals(java.util.Set.of("a", "b"));
+            assert copy.getTags() != source.getTags() : "deep copy는 원본과 같은 Set 참조를 공유하면 안됨";
+
+            copy.getTags().add("c");
+            assert !source.getTags().contains("c") : "복사본 변경이 원본으로 새면 안됨";
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
     // ===== Test Summary =====
 
     @DisplayName("SmokeTest - 전체 테스트 통계")
@@ -1037,6 +1192,80 @@ public class Test {
                     .bindIn("ids", List.of(1, 2, 3), "(", ")")
                     .render();
             assert "SELECT * FROM users WHERE id IN ((1, 2, 3))".equals(result) : "BindIn failed";
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    @DisplayName("S2Template - bind() 4-인자 오버로드의 suffix 적용")
+    @org.junit.jupiter.api.Test
+    void testS2TemplateBindFourArgSuffix() {
+        String testName = "testS2TemplateBindFourArgSuffix";
+        try {
+            String result = S2Template.of("{{=id}}")
+                    .bind("id", 10, "ID(", ")")
+                    .render();
+            assert "ID(10)".equals(result) : "4-인자 bind()는 prefix와 suffix를 모두 적용해야 함. result=" + result;
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    // ===== S2StringUtil Tests =====
+
+    @DisplayName("S2StringUtil - appendJosa 조사 정확성 (이/가, 으로/로, 와/과 등)")
+    @org.junit.jupiter.api.Test
+    void testAppendJosaCorrectness() {
+        String testName = "testAppendJosaCorrectness";
+        try {
+            assert "사과가".equals(S2StringUtil.appendJosa("사과", "이/가"));
+            assert "책이".equals(S2StringUtil.appendJosa("책", "이/가"));
+            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "은/는"));
+            assert "이름은".equals(S2StringUtil.appendJosa("이름", "은/는"));
+            assert "나무를".equals(S2StringUtil.appendJosa("나무", "을/를"));
+            assert "책을".equals(S2StringUtil.appendJosa("책", "을/를"));
+            assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로/로"));
+            assert "집으로".equals(S2StringUtil.appendJosa("집", "으로/로"));
+            assert "차로".equals(S2StringUtil.appendJosa("차", "으로/로"));
+            assert "사과와".equals(S2StringUtil.appendJosa("사과", "와/과"));
+            assert "책과".equals(S2StringUtil.appendJosa("책", "와/과"));
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED", e);
+        }
+    }
+
+    // ===== Cache Adapter Tests =====
+
+    @DisplayName("SimpleCacheAdapter - Negative Cache 히트가 정확히 집계됨")
+    @org.junit.jupiter.api.Test
+    void testSimpleCacheAdapterNegativeCacheStats() {
+        String testName = "testSimpleCacheAdapterNegativeCacheStats";
+        try {
+            var adapter = new io.github.devers2.s2util.core.cache.SimpleCacheAdapter<String, String>(100, true);
+            var loaderCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+
+            for (int i = 0; i < 5; i++) {
+                adapter.get("nullKey", k -> {
+                    loaderCalls.incrementAndGet();
+                    return null;
+                });
+            }
+
+            assert loaderCalls.get() == 1 : "loader는 negative caching으로 인해 1회만 호출되어야 함. 실제: " + loaderCalls.get();
+            String statsStr = adapter.getStats();
+            assert statsStr.contains("hits=4") : "5회 중 4회는 캐시 히트로 집계되어야 함. stats=" + statsStr;
+
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
         } catch (Exception e) {

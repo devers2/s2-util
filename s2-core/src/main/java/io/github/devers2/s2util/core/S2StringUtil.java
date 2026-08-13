@@ -413,6 +413,24 @@ public class S2StringUtil {
      * @param josa The postposition pair (e.g., "이/가", "을/를")
      * @return The combined string with its correct postposition
      */
+    /**
+     * 자주 쓰이는 한글 조사쌍(양방향 표기 모두 포함)에서 "받침이 있는 단어에 붙는 쪽" 조사를 미리 정의한다.
+     * <p>
+     * 조사 자체의 글자에 받침이 있는지({@link #hasBatchim(char)})로 용도를 추론하면 "은/는", "을/를"처럼
+     * 우연히 맞아떨어지는 쌍도 있지만, "이/가"(받침용 "이"는 자기 자신은 받침이 없음)나 "으로/로"처럼
+     * 정반대로 뒤집히는 쌍도 있어 신뢰할 수 없다. 실제로 자주 쓰이는 쌍은 정해져 있으므로 정확한 값을
+     * 하드코딩하고, 목록에 없는 사용자 정의 조사쌍에 한해서만 기존 휴리스틱으로 폴백한다.
+     */
+    private static final java.util.Map<String, String> BATCHIM_JOSA_MAP = java.util.Map.ofEntries(
+            java.util.Map.entry("은/는", "은"), java.util.Map.entry("는/은", "은"),
+            java.util.Map.entry("이/가", "이"), java.util.Map.entry("가/이", "이"),
+            java.util.Map.entry("을/를", "을"), java.util.Map.entry("를/을", "을"),
+            java.util.Map.entry("과/와", "과"), java.util.Map.entry("와/과", "과"),
+            java.util.Map.entry("으로/로", "으로"), java.util.Map.entry("로/으로", "으로"),
+            java.util.Map.entry("이나/나", "이나"), java.util.Map.entry("나/이나", "이나"),
+            java.util.Map.entry("이란/란", "이란"), java.util.Map.entry("란/이란", "이란")
+    );
+
     public static String appendJosa(String word, String josa) {
         if (word == null || word.isBlank() || josa == null || josa.isBlank()) {
             return word;
@@ -430,18 +448,24 @@ public class S2StringUtil {
                 String first = josa.substring(0, slashIdx);
                 String second = josa.substring(slashIdx + 1);
 
-                // 사용자가 순서를 바꿔 썼을 경우(예: 는/은)를 대비한 로직
-                // 첫 번째 조사가 받침이 있을 때 사용하는 것인지 확인
-                boolean firstIsForBatchim = hasBatchim(first.charAt(0));
+                String targetJosa;
+                String knownBatchimVariant = BATCHIM_JOSA_MAP.get(josa);
+                if (knownBatchimVariant != null) {
+                    // 알려진 조사쌍: 정확한 받침용 조사를 그대로 사용
+                    targetJosa = wordHasBatchim ? knownBatchimVariant
+                            : (knownBatchimVariant.equals(first) ? second : first);
+                } else {
+                    // 목록에 없는 사용자 정의 조사쌍: 기존 휴리스틱으로 폴백
+                    // (조사 자체 글자의 받침 유무로 용도를 추정 — 부정확할 수 있음)
+                    boolean firstIsForBatchim = hasBatchim(first.charAt(0));
+                    targetJosa = (wordHasBatchim == firstIsForBatchim) ? first : second;
+                }
 
-                // 단어의 받침 유무와 조사의 용도가 일치하면 first, 아니면 second 선택
-                String targetJosa = (wordHasBatchim == firstIsForBatchim) ? first : second;
-
-                // [특수 예외] "으로/로" 처리: 'ㄹ' 받침인 경우 "로"를 선택해야 함
-                if (wordHasBatchim && "으로/로".equals(josa)) {
+                // [특수 예외] "으로/로" 계열: 'ㄹ' 받침인 경우 "로"를 선택해야 함
+                if (wordHasBatchim && ("으로/로".equals(josa) || "로/으로".equals(josa))) {
                     // 한글 유니코드 상 'ㄹ' 종성 인덱스는 8임
                     if (lastChar >= 0xAC00 && (lastChar - 0xAC00) % 28 == 8) {
-                        targetJosa = second; // "서울으로" -> "서울로"
+                        targetJosa = "로"; // "서울으로" -> "서울로"
                     }
                 }
 
