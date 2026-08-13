@@ -204,7 +204,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                         String.format(
                                 "%d개 파일에서 총 %d개의 잘못된 필드명이 발견되었습니다.",
                                 validatorFiles,
-                                errorsByFile.values().stream().mapToInt(List::size).sum()
+                                errorsByFile.values().stream().mapToInt(list -> list.size()).sum()
                         )
                 );
             }
@@ -230,7 +230,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             return;
         }
 
-        int totalWarnings = warningsByFile.values().stream().mapToInt(List::size).sum();
+        int totalWarnings = warningsByFile.values().stream().mapToInt(list -> list.size()).sum();
         getLogger().warn("");
         getLogger().warn(ANSI_YELLOW + ANSI_BOLD + "[S2BindValidator Usage Warning]" + ANSI_RESET);
         getLogger().warn(

@@ -116,7 +116,7 @@ export const initS2Validator = () => {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['data-s2-rules'],
+    attributeFilter: ['data-s2-rules']
   });
 
   document.addEventListener('submit', (e) => {
@@ -654,7 +654,12 @@ const isConditionSatisfied = (rule, formData, prefix = '', wildcardIndex = null)
       let condField = cond.field;
       if (wildcardIndex !== null && condField.includes('[]')) {
         const bracketIndex = condField.indexOf('[]');
-        condField = condField.substring(0, bracketIndex) + '[' + wildcardIndex + ']' + condField.substring(bracketIndex + 2);
+        condField =
+          condField.substring(0, bracketIndex) +
+          '[' +
+          wildcardIndex +
+          ']' +
+          condField.substring(bracketIndex + 2);
       }
       const fullPath = prefix + condField;
       const actualValue = formData[fullPath];
