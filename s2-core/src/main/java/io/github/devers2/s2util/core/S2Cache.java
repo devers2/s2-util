@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -181,21 +182,51 @@ public class S2Cache {
     private static final boolean CAFFEINE_AVAILABLE = isCaffeineAvailable();
 
     /**
-     * Meta-registry storing dynamically created cache adapter instances.
+     * Meta-registry storing dynamically created cache adapter instances, keyed by
+     * {@code (cacheName, keyType, valueType)} and paired with the {@code maxSize}/{@code expiryMs}
+     * that instance was created with (see {@link DynamicCacheEntry}).
      * <p>
      * Each cache uses either Caffeine (W-TinyLFU) or lightweight ConcurrentHashMap implementation
      * depending on availability.
+     * </p>
+     * <p>
+     * <b>Caution:</b> entries in this registry itself are never evicted (only the entries
+     * *inside* each individual cache adapter are); it is instead hard-capped at
+     * {@link #MAX_DYNAMIC_CACHES}. Callers must use a fixed, bounded set of cache names —
+     * never a dynamically generated one (e.g. per request/tenant ID).
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 동적으로 생성된 캐시 어댑터 인스턴스들을 저장하는 메타 저장소입니다.
+     * 동적으로 생성된 캐시 어댑터 인스턴스들을 {@code (cacheName, keyType, valueType)}로 식별하여
+     * 저장하는 메타 저장소이며, 생성 시점의 {@code maxSize}/{@code expiryMs}도 함께 보관합니다
+     * ({@link DynamicCacheEntry} 참고).
      * <p>
      * Caffeine 사용 가능 여부에 따라 적절한 캐시 구현체를 사용합니다.
      * </p>
+     * <p>
+     * <b>상한:</b> 이 레지스트리 자체의 항목은 개별 캐시처럼 오래된 순으로 축출되지 않으므로,
+     * {@link #MAX_DYNAMIC_CACHES}개로 물리적 상한을 둡니다. {@link #resolve}에 전달된
+     * {@code (cacheName, keyType, valueType)} 조합마다 항목이 하나씩 생기므로, cacheName은 반드시
+     * 고정된 유한 개의 상수만 사용해야 합니다. 상한을 넘어서는 새 조합은 캐싱 없이(매 호출마다 재계산)
+     * 동작하도록 우아하게 저하되며, 예외를 던지거나 기존 캐시를 밀어내지 않습니다.
+     * </p>
      */
-    private static final Map<CacheKey, CacheAdapter<?, ?>> DYNAMIC_CACHES = new ConcurrentHashMap<>();
+    private static final Map<CacheKey, DynamicCacheEntry> DYNAMIC_CACHES = new ConcurrentHashMap<>();
+
+    /**
+     * Hard cap on the number of distinct dynamic cache instances (see {@link #DYNAMIC_CACHES}).
+     * Internal usage only ever needs 2 (fields, resource bundles); the generous default headroom
+     * is purely a guardrail against external misuse (e.g. a dynamically generated cacheName).
+     * Configurable via {@code s2.cache.dynamic.max_caches}. | 동적 캐시 인스턴스 최대 개수(하드 상한).
+     * 내부 사용은 2개(필드, 리소스 번들)면 충분하고, 넉넉한 기본값은 순수히 외부 오용(동적으로 생성된
+     * cacheName 등) 방어용이다. {@code s2.cache.dynamic.max_caches}로 조정 가능.
+     */
+    private static final int MAX_DYNAMIC_CACHES = Integer.getInteger("s2.cache.dynamic.max_caches", 500);
+
+    /** Ensures the capacity-limit warning below is logged only once, not on every overflowing call. | 아래 상한 초과 경고를 매 호출이 아닌 최초 1회만 로깅하도록 보장 */
+    private static final AtomicBoolean DYNAMIC_CACHE_LIMIT_WARNED = new AtomicBoolean(false);
 
     private static final String RESOURCE_BUNDLE_CACHE_NAME = "s2.cache.resource_bundle";
     private static final String FIELDS_CACHE_NAME = "s2.cache.fields";
@@ -218,11 +249,41 @@ public class S2Cache {
      * @return Caffeine 사용 가능 여부
      */
     private static boolean isCaffeineAvailable() {
+        boolean available;
         try {
             Class.forName("com.github.benmanes.caffeine.cache.Caffeine");
-            return true;
+            available = true;
         } catch (ClassNotFoundException e) {
-            return false;
+            available = false;
+        }
+        // 클래스 로딩 시점에 한 번만 로깅함 (isCaffeineEnabled()는 순수 getter로 유지하기 위함) | Logged once at class-init, so isCaffeineEnabled() stays a side-effect-free getter
+        logCacheBackend(available);
+        return available;
+    }
+
+    /**
+     * Logs which cache backend is active. Called exactly once during static initialization.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 현재 사용 중인 캐시 백엔드를 로깅합니다. 정적 초기화 시점에 단 한 번만 호출됩니다.
+     *
+     * @param caffeineAvailable Whether Caffeine is on the classpath | Caffeine 사용 가능 여부
+     */
+    private static void logCacheBackend(boolean caffeineAvailable) {
+        if (caffeineAvailable) {
+            if (S2Util.isKorean()) {
+                logger.info("\u001B[38;5;221mCaffeine 캐시 사용 중 (고성능)\u001B[0m");
+            } else {
+                logger.info("\u001B[38;5;221mUsing Caffeine Cache (High Performance)\u001B[0m");
+            }
+        } else {
+            if (S2Util.isKorean()) {
+                logger.info("\u001B[38;5;221m경량 캐시 사용 중 (ConcurrentHashMap)\u001B[0m");
+            } else {
+                logger.info("\u001B[38;5;221mUsing Lightweight Cache (ConcurrentHashMap)\u001B[0m");
+            }
         }
     }
 
@@ -248,31 +309,24 @@ public class S2Cache {
      * @param cacheName 캐시 이름 (로깅용)
      * @return 생성된 캐시 어댑터
      */
-    @SuppressWarnings("unchecked")
     private static <K, V> CacheAdapter<K, V> createCacheAdapter(int maxSize, long expiryMs, String cacheName) {
         if (CAFFEINE_AVAILABLE) {
             try {
-                // Caffeine 어댑터 생성
-                var caffeineBuilder = CaffeineCacheAdapter.createBuilder(maxSize, expiryMs);
-
-                if (STATS_ENABLED) {
-                    caffeineBuilder.recordStats();
-                }
-
-                // Executor 설정 (S2ThreadUtil 사용)
-                caffeineBuilder.executor(Objects.requireNonNull(S2ThreadUtil.getCommonExecutor()));
-
                 // Removal Listener 설정
-                if (LISTENER_ENABLED) {
-                    caffeineBuilder.removalListener((key, value, cause) -> {
-                        if (logger.isDebugEnabled()) {
-                            logRemovalEvent(cacheName, key, cause);
+                com.github.benmanes.caffeine.cache.RemovalListener<K, V> removalListener = LISTENER_ENABLED
+                        ? (key, value, cause) -> {
+                            if (logger.isDebugEnabled()) {
+                                logRemovalEvent(cacheName, key, cause);
+                            }
                         }
-                    });
-                }
+                        : null;
 
-                var caffeineCache = caffeineBuilder.build();
-                var adapter = new CaffeineCacheAdapter<K, V>((com.github.benmanes.caffeine.cache.Cache<K, V>) caffeineCache);
+                // Caffeine 어댑터 생성 (Executor는 S2ThreadUtil의 공용 실행기 사용)
+                var caffeineCache = CaffeineCacheAdapter.<K, V>createCache(
+                        maxSize, expiryMs, STATS_ENABLED, removalListener,
+                        Objects.requireNonNull(S2ThreadUtil.getCommonExecutor())
+                );
+                var adapter = new CaffeineCacheAdapter<K, V>(caffeineCache);
 
                 if (logger.isDebugEnabled()) {
                     logger.debug("[S2Cache] Caffeine adapter created for cache: {}", cacheName);
@@ -290,6 +344,62 @@ public class S2Cache {
             logger.debug("[S2Cache] Simple cache adapter created for cache: {} (Caffeine not available)", cacheName);
         }
         return new SimpleCacheAdapter<>(maxSize, STATS_ENABLED);
+    }
+
+    /**
+     * Pass-through adapter used once {@link #MAX_DYNAMIC_CACHES} is reached: stores nothing and
+     * simply invokes the loader on every call, so overflowing cache names still work correctly,
+     * just without caching. | {@link #MAX_DYNAMIC_CACHES} 도달 시 사용되는 통과형 어댑터. 아무것도
+     * 저장하지 않고 매 호출마다 loader를 실행하므로, 상한을 넘는 캐시 이름도 캐싱만 없을 뿐 정상 동작한다.
+     */
+    private static final class NoOpCacheAdapter<K, V> implements CacheAdapter<K, V> {
+        @Override
+        public V get(K key, Function<K, V> loader) {
+            return loader.apply(key);
+        }
+
+        @Override
+        public String getStats() {
+            return "Disabled (DYNAMIC_CACHES capacity limit of " + MAX_DYNAMIC_CACHES + " reached)";
+        }
+
+        @Override
+        public void clear() {
+            // No state to clear.
+        }
+
+        @Override
+        public long estimatedSize() {
+            return 0;
+        }
+    }
+
+    /**
+     * Value type stored in {@link #DYNAMIC_CACHES}: the adapter plus the {@code maxSize}/
+     * {@code expiryMs} it was created with, so later {@link #resolve} calls for the same
+     * {@link CacheKey} can cheaply detect a config mismatch (two comparisons, no allocation).
+     * {@code mismatchWarned} gates that warning to once per entry regardless of how many
+     * mismatching calls follow.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@link #DYNAMIC_CACHES}에 저장되는 값 타입입니다: 어댑터와 함께 생성 당시의
+     * {@code maxSize}/{@code expiryMs}를 보관하여, 이후 같은 {@link CacheKey}로 들어오는
+     * {@link #resolve} 호출에서 설정 불일치를 값 비교 두 번만으로(할당 없이) 저렴하게 감지합니다.
+     * {@code mismatchWarned}는 이후 몇 번을 더 불일치해도 경고를 항목당 한 번만 남기도록 막습니다.
+     */
+    private static final class DynamicCacheEntry {
+        final CacheAdapter<?, ?> adapter;
+        final int maxSize;
+        final long expiryMs;
+        final AtomicBoolean mismatchWarned = new AtomicBoolean(false);
+
+        DynamicCacheEntry(CacheAdapter<?, ?> adapter, int maxSize, long expiryMs) {
+            this.adapter = adapter;
+            this.maxSize = maxSize;
+            this.expiryMs = expiryMs;
+        }
     }
 
     /**
@@ -317,6 +427,8 @@ public class S2Cache {
      * <p>
      * Returns true if high-performance caching via Caffeine is enabled,
      * or false if lightweight caching via ConcurrentHashMap is being used.
+     * Side-effect-free: the backend choice is logged once at class-init
+     * time ({@link #logCacheBackend}), not on every call.
      * </p>
      *
      * <p>
@@ -325,25 +437,13 @@ public class S2Cache {
      * Caffeine 캐시 사용 여부를 반환합니다.
      * <p>
      * true이면 Caffeine 기반 고성능 캐싱을, false이면 ConcurrentHashMap 기반 경량 캐싱을 사용 중임을 의미합니다.
+     * 부작용이 없는 순수 조회 메서드이며, 백엔드 선택 로그는 매 호출이 아닌 클래스 초기화 시점에 한 번만
+     * 남습니다({@link #logCacheBackend}).
      * </p>
      *
      * @return True if Caffeine is enabled | Caffeine 사용 가능 여부
      */
     public static boolean isCaffeineEnabled() {
-        if (CAFFEINE_AVAILABLE) {
-            if (S2Util.isKorean()) {
-                logger.info("\u001B[38;5;221mCaffeine 캐시 사용 중 (고성능)\u001B[0m");
-            } else {
-                logger.info("\u001B[38;5;221mUsing Caffeine Cache (High Performance)\u001B[0m");
-            }
-        } else {
-            if (S2Util.isKorean()) {
-                logger.info("\u001B[38;5;221m경량 캐시 사용 중 (ConcurrentHashMap)\u001B[0m");
-            } else {
-                logger.info("\u001B[38;5;221mUsing Lightweight Cache (ConcurrentHashMap)\u001B[0m");
-            }
-
-        }
         return CAFFEINE_AVAILABLE;
     }
 
@@ -385,12 +485,22 @@ public class S2Cache {
      *
      * @param <K>       The type of the cache key | 캐시 키의 타입
      * @param <V>       The type of the cache value | 캐시 값의 타입
-     * @param cacheName Unique name of the cache instance | 캐시 인스턴스의 고유 이름
+     * @param cacheName Unique name of the cache instance. Must be a fixed, bounded constant
+     *                  (never dynamically generated, e.g. per request/tenant ID) — see
+     *                  {@link #DYNAMIC_CACHES} | 캐시 인스턴스의 고유 이름. 반드시 고정된 상수를 사용해야
+     *                  하며(요청/테넌트 ID처럼 동적으로 생성하면 안 됨) {@link #DYNAMIC_CACHES} 참고
      * @param key       The key to look up | 조회할 키
      * @param keyType   Class of the key (used for registry isolation) | 키 클래스 (메타 저장소 격리용)
      * @param valueType Class of the value (used for registry isolation) | 값 클래스 (메타 저장소 격리용)
      * @param maxSize   Maximum size if a new cache instance needs to be created | 새 캐시 인스턴스 생성 시 최대 크기
-     * @param loader    Function to generate the value if not in cache | 캐시에 없을 경우 값을 생성할 함수
+     * @param loader    Function to generate the value if not in cache. Should return
+     *                  {@code Optional.empty()}, never a raw {@code null} — a raw null is
+     *                  defensively substituted with {@code Optional.empty()}, but only after
+     *                  paying for an extra wrapper allocation on the Caffeine-backed path (see
+     *                  {@link #resolve}'s implementation) | 캐시에 없을 경우 값을 생성할 함수. 반드시
+     *                  {@code Optional.empty()}를 반환해야 하며, raw {@code null}은 안 됨 — raw null이
+     *                  와도 {@code Optional.empty()}로 방어적으로 치환되지만, 그 경우 Caffeine 백엔드에서만
+     *                  래퍼 할당 비용이 추가로 든다({@link #resolve} 구현 참고)
      * @return An Optional containing the value, or empty if generation fails | 값을 포함한 Optional, 생성 실패 시 빈 Optional
      */
     public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize, Function<K, Optional<V>> loader) {
@@ -414,13 +524,23 @@ public class S2Cache {
      *
      * @param <K>       The type of the cache key | 캐시 키의 타입
      * @param <V>       The type of the cache value | 캐시 값의 타입
-     * @param cacheName Unique name of the cache instance | 캐시 인스턴스의 고유 이름
+     * @param cacheName Unique name of the cache instance. Must be a fixed, bounded constant
+     *                  (never dynamically generated, e.g. per request/tenant ID) — see
+     *                  {@link #DYNAMIC_CACHES} | 캐시 인스턴스의 고유 이름. 반드시 고정된 상수를 사용해야
+     *                  하며(요청/테넌트 ID처럼 동적으로 생성하면 안 됨) {@link #DYNAMIC_CACHES} 참고
      * @param key       The key to look up | 조회할 키
      * @param keyType   Class of the key (used for registry isolation) | 키 클래스 (메타 저장소 격리용)
      * @param valueType Class of the value (used for registry isolation) | 값 클래스 (메타 저장소 격리용)
      * @param maxSize   Maximum size if a new cache instance needs to be created | 새 캐시 인스턴스 생성 시 최대 크기
      * @param expiryMs  Expiration time in milliseconds (0 for no expiration) | 만료 시간 (ms, 0은 만료 없음)
-     * @param loader    Function to generate the value if not in cache | 캐시에 없을 경우 값을 생성할 함수
+     * @param loader    Function to generate the value if not in cache. Should return
+     *                  {@code Optional.empty()}, never a raw {@code null} — a raw null is
+     *                  defensively substituted with {@code Optional.empty()}, but only after
+     *                  paying for an extra wrapper allocation on the Caffeine-backed path (see
+     *                  {@link #resolve}'s implementation) | 캐시에 없을 경우 값을 생성할 함수. 반드시
+     *                  {@code Optional.empty()}를 반환해야 하며, raw {@code null}은 안 됨 — raw null이
+     *                  와도 {@code Optional.empty()}로 방어적으로 치환되지만, 그 경우 Caffeine 백엔드에서만
+     *                  래퍼 할당 비용이 추가로 든다({@link #resolve} 구현 참고)
      * @return An Optional containing the value, or empty if generation fails | 값을 포함한 Optional, 생성 실패 시 빈 Optional
      */
     public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize, long expiryMs, Function<K, Optional<V>> loader) {
@@ -431,11 +551,53 @@ public class S2Cache {
         // 1. 레코드 기반 고유 식별자 생성함
         CacheKey cacheKey = new CacheKey(cacheName, keyType, valueType);
 
-        // 2. 해당 식별자에 맞는 캐시 어댑터를 가져오거나 생성함
-        @SuppressWarnings("unchecked")
-        CacheAdapter<K, Optional<V>> cache = (CacheAdapter<K, Optional<V>>) DYNAMIC_CACHES.computeIfAbsent(cacheKey, ck -> {
-            return createCacheAdapter(maxSize, expiryMs, ck.name());
+        // 2. 해당 식별자에 맞는 캐시 어댑터를 가져오거나 생성함 (상한 초과 시 캐싱 없이 매번 재계산하도록 저하됨)
+        DynamicCacheEntry entry = DYNAMIC_CACHES.computeIfAbsent(cacheKey, ck -> {
+            if (DYNAMIC_CACHES.size() >= MAX_DYNAMIC_CACHES) {
+                if (DYNAMIC_CACHE_LIMIT_WARNED.compareAndSet(false, true)) {
+                    if (S2Util.isKorean()) {
+                        logger.warn(
+                                "[S2Cache] 동적 캐시 레지스트리 상한({}개)에 도달했습니다. cacheName을 고정 상수로 사용 중인지 확인하세요. "
+                                        + "상한을 넘는 신규 캐시 이름은 캐싱 없이 매번 재계산됩니다.",
+                                MAX_DYNAMIC_CACHES
+                        );
+                    } else {
+                        logger.warn(
+                                "[S2Cache] Dynamic cache registry hit its cap ({}). Check that cacheName is a fixed constant. "
+                                        + "Names beyond the cap will bypass caching and recompute on every call.",
+                                MAX_DYNAMIC_CACHES
+                        );
+                    }
+                }
+                return new DynamicCacheEntry(new NoOpCacheAdapter<>(), maxSize, expiryMs);
+            }
+            return new DynamicCacheEntry(createCacheAdapter(maxSize, expiryMs, ck.name()), maxSize, expiryMs);
         });
+
+        // 2-1. 설정 불일치 감지: 값 비교 두 번뿐이라 핫패스 비용은 사실상 0 (같은 캐시 이름을 다른
+        // maxSize/expiryMs로 재요청하면 최초 생성 시 설정이 그대로 유지되고 이후 값은 무시되므로,
+        // 항목당 1회만 경고해 원인 파악을 돕는다) | Config-mismatch guard: just two comparisons, so the
+        // hot-path cost is effectively zero (re-requesting the same cache name with a different
+        // maxSize/expiryMs keeps the settings from the first creation and silently drops the rest,
+        // so this warns once per entry to aid diagnosis)
+        if ((entry.maxSize != maxSize || entry.expiryMs != expiryMs) && entry.mismatchWarned.compareAndSet(false, true)) {
+            if (S2Util.isKorean()) {
+                logger.warn(
+                        "[S2Cache] 캐시 '{}'가 이미 다른 설정(maxSize={}, expiryMs={})으로 생성되어 있어, "
+                                + "이번 요청의 설정(maxSize={}, expiryMs={})은 무시됩니다.",
+                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs
+                );
+            } else {
+                logger.warn(
+                        "[S2Cache] Cache '{}' was already created with different settings (maxSize={}, expiryMs={}); "
+                                + "this call's settings (maxSize={}, expiryMs={}) are ignored.",
+                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs
+                );
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        CacheAdapter<K, Optional<V>> cache = (CacheAdapter<K, Optional<V>>) entry.adapter;
 
         // 3. 입력 데이터 타입 검증함 (O(1))
         if (!keyType.isInstance(key)) {
@@ -448,7 +610,22 @@ public class S2Cache {
         }
 
         // 4. 로딩 수행
-        Optional<V> value = cache.get(key, Objects.requireNonNull(loader));
+        // Caffeine 백엔드는 loader가 raw null을 반환하면 캐싱을 건너뛰고 매번 재계산하므로(SimpleCacheAdapter는
+        // NULL_HOLDER로 이미 안전하게 처리함), Caffeine 경로에서만 null -> Optional.empty() 방어 래퍼를 씌운다.
+        // 삼항 연산자의 두 분기는 서로 다른 람다 콜사이트라 실행되지 않는 쪽은 할당되지 않으므로, 정상적으로
+        // Optional을 반환하는 loader(내부 loader 전부 포함)의 핫패스 비용은 instanceof 검사 한 번뿐이다. |
+        // The Caffeine backend skips caching (and recomputes every time) when loader returns raw null
+        // (SimpleCacheAdapter already handles it safely via NULL_HOLDER), so the null -> Optional.empty()
+        // guard is only applied on the Caffeine path. Each ternary branch is a distinct lambda call
+        // site, so the unused one is never allocated — well-behaved loaders (all internal ones included)
+        // pay only a single instanceof check on the hot path.
+        Function<K, Optional<V>> safeLoader = (cache instanceof CaffeineCacheAdapter)
+                ? k -> {
+                    Optional<V> result = loader.apply(k);
+                    return result != null ? result : Optional.empty();
+                }
+                : loader;
+        Optional<V> value = cache.get(key, Objects.requireNonNull(safeLoader));
 
         // 5. 반환 값 타입 검증 및 Null Safety
         if (value == null) {
@@ -503,13 +680,13 @@ public class S2Cache {
                 )
         );
 
-        DYNAMIC_CACHES.forEach((ck, cache) -> {
+        DYNAMIC_CACHES.forEach((ck, entry) -> {
             sb.append(
                     String.format(
                             "[%s <%s>] %s%n",
                             ck.name(),
                             ck.valueType().getSimpleName(),
-                            cache.getStats()
+                            entry.adapter.getStats()
                     )
             );
         });
@@ -536,9 +713,19 @@ public class S2Cache {
     /**
      * Resolves the actual class type from a given class, stripping away proxies.
      * <p>
-     * Detects and unwraps common proxy patterns such as Hibernate Proxies ({@code $$HibernateProxy})
-     * or Spring CGLIB proxies. This ensures that reflection and caching lookups target the
-     * correct underlying entity and not the temporary proxy wrapper.
+     * Detects and unwraps common proxy patterns: legacy CGLIB/Javassist proxies
+     * ({@code Entity$$EnhancerByCGLIB$$...}, {@code Entity_$$_javassist_0}) and modern
+     * Hibernate ByteBuddy proxies ({@code Entity$HibernateProxy$...}, no double-dollar).
+     * This ensures that reflection and caching lookups target the correct underlying
+     * entity and not the temporary proxy wrapper.
+     * </p>
+     * <p>
+     * <b>Why name matching, not {@code instanceof}/type identity:</b> this is a multi-module
+     * Gradle build where the root artifact re-compiles the same sources as the submodules
+     * (e.g. {@code s2-util} bundles {@code s2-core}'s sources). If both end up on the same
+     * classpath, the "same" class can exist as two distinct {@code Class} objects. A
+     * classloader-agnostic name check still recognizes both as proxies; a type/identity
+     * check (e.g. {@code HibernateProxy.class.isInstance(obj)}) could silently miss one.
      * </p>
      *
      * <p>
@@ -546,16 +733,30 @@ public class S2Cache {
      * </p>
      * 클래스 타입으로부터 프록시가 제거된 실제 클래스 타입을 추출합니다.
      * <p>
-     * Hibernate 프록시나 Spring CGLIB 프록시가 전달될 경우, 해당 프록시의 부모인 실제 엔티티 클래스를 반환합니다.
-     * 이를 통해 정확한 메서드 탐색 및 캐싱 키 생성을 보장합니다.
+     * 구형 CGLIB/Javassist 프록시({@code Entity$$EnhancerByCGLIB$$...}, {@code Entity_$$_javassist_0})와
+     * 현재 Hibernate 기본값인 ByteBuddy 프록시({@code Entity$HibernateProxy$...}, 더블 달러 없음)를 모두 탐지하여
+     * 해당 프록시의 부모인 실제 엔티티 클래스를 반환합니다. 이를 통해 정확한 메서드 탐색 및 캐싱 키 생성을 보장합니다.
+     * </p>
+     * <p>
+     * <b>{@code instanceof}/타입 동일성이 아닌 이름 매칭을 쓰는 이유:</b> 이 프로젝트는 루트 아티팩트가
+     * 서브모듈과 동일한 소스를 다시 컴파일하는 멀티 모듈 구조입니다(예: {@code s2-util}이 {@code s2-core}의
+     * 소스를 함께 번들링). 두 아티팩트가 같은 클래스패스(같은 앱 컨텍스트)에 함께 있으면 "같은" 클래스가
+     * 서로 다른 {@code Class} 객체 두 개로 존재할 수 있습니다. 클래스로더에 의존하지 않는 이름 기반 검사는
+     * 이런 상황에서도 둘 다 프록시로 인식하지만, 타입/식별자 비교({@code HibernateProxy.class.isInstance(obj)} 등)는
+     * 한쪽을 조용히 놓칠 수 있습니다.
      * </p>
      *
      * @param clazz The class to inspect | 조사할 클래스
      * @return The underlying target class, or the original class if it's not a proxy | 실제 대상 클래스 (프록시가 아니면 원본 클래스)
      */
     private static Class<?> getRealClass(Class<?> clazz) {
-        if (clazz != null && (clazz.getName().contains("$$") || clazz.getName().contains("CGLIB"))) {
-            return clazz.getSuperclass();
+        if (clazz == null) {
+            return null;
+        }
+        String name = clazz.getName();
+        if (name.contains("$$") || name.contains("CGLIB") || name.contains("HibernateProxy")) {
+            Class<?> superclass = clazz.getSuperclass();
+            return superclass != null ? superclass : clazz;
         }
         return clazz;
     }
@@ -603,6 +804,10 @@ public class S2Cache {
      * <p>
      * Fields are pre-processed with {@link java.lang.reflect.Field#setAccessible(boolean)} set to true.
      * Returns a cloned array to prevent external modification of the cache origin.
+     * If {@code clazz} is a proxy (Hibernate/CGLIB), it is resolved to the real entity
+     * class via {@link #getRealClass(Class)} first, so callers get the entity's actual
+     * fields (not the proxy's synthetic ones) and share one cache entry regardless of
+     * which proxy subclass was passed in.
      * </p>
      *
      * <p>
@@ -611,6 +816,9 @@ public class S2Cache {
      * 캐싱을 적용하여 클래스의 모든 선언된 필드(Declared Fields)를 반환합니다.
      * <p>
      * 조회된 필드들은 즉시 접근 가능하도록 설정되어 있으며, 캐시 수정을 방지하기 위해 복사본을 반환합니다.
+     * {@code clazz}가 프록시(Hibernate/CGLIB)라면 먼저 {@link #getRealClass(Class)}로 실제 엔티티 클래스를
+     * 구해서 사용하므로, 프록시의 합성 필드가 아닌 엔티티의 실제 필드를 얻으며 어떤 프록시 서브클래스가
+     * 들어와도 캐시 항목을 공유합니다.
      * </p>
      *
      * @param clazz Target class | 대상 클래스
@@ -620,9 +828,11 @@ public class S2Cache {
         if (clazz == null)
             return Optional.empty();
 
+        Class<?> realClass = getRealClass(clazz);
+
         return resolve(
                 FIELDS_CACHE_NAME,
-                clazz, Class.class,
+                realClass, Class.class,
                 Field[].class,
                 1000,
                 key -> {

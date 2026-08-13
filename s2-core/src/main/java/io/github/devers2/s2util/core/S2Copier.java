@@ -510,7 +510,11 @@ public class S2Copier<S> {
             return visited.get(source);
         }
 
-        var sourceClass = source.getClass();
+        // Resolve proxies (e.g. lazily-loaded Hibernate associations) to the real entity class;
+        // otherwise getDeclaredConstructor() below would try to instantiate the proxy itself.
+        // 프록시(예: 지연 로딩된 Hibernate 연관 엔티티)를 실제 엔티티 클래스로 해석함 — 그렇지 않으면
+        // 아래 getDeclaredConstructor()가 프록시 자체를 인스턴스화하려고 시도하게 됨.
+        var sourceClass = S2Cache.getRealClass(source);
 
         // Primitive wrappers and immutable objects - return as-is
         if (isPrimitiveWrapper(sourceClass) || sourceClass == String.class) {
