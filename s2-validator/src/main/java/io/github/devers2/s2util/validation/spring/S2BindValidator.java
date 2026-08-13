@@ -197,7 +197,7 @@ public final class S2BindValidator {
      * // Example 2: Thymeleaf Template (member/join.html)
      * <!-- HTML Form -->
      * <form id="joinForm" th:action="@{/member/join}" method="post"
-     *       th:object="${member}" th:data-rules="${validationRules}">
+     *       th:object="${member}" th:data-s2-rules="${validationRules}">
      *
      *     <input type="text" th:field="*{userId}" />
      *     <span th:errors="*{userId}"></span>
@@ -337,7 +337,7 @@ public final class S2BindValidator {
          * model.addAttribute("validationRules", validator.getRulesJson());
          *
          * // View (HTML/Thymeleaf)
-         * &lt;form id="saveForm" th:data-rules="${validationRules}"&gt;
+         * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
          *     &lt;input type="text" name="userId" /&gt;
          *     &lt;button type="button" onclick="doSave()"&gt;저장&lt;/button&gt;
          * &lt;/form&gt;
