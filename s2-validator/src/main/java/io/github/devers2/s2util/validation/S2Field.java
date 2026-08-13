@@ -198,6 +198,9 @@ public class S2Field<T> implements Serializable {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public S2Field<T> message(Locale locale, String message) {
+        if (locale == null) {
+            return this;
+        }
         return storeMessage(locale.getLanguage(), message);
     }
 

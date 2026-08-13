@@ -415,11 +415,12 @@ public class CheckS2ValidatorsTask extends DefaultTask {
      * 없으면, 그 변수가 아예 다시 참조되지 않는지(확실한 실수) 아니면 다른 방식으로 쓰이는지(위임 가능성 있음)에
      * 따라 다른 문구의 경고를 추가합니다.
      *
-     * @param variableName 검증기 획득 호출 결과가 담긴 변수 이름
-     * @param contextCall  원본 {@code context(...)} 호출 (탐색 범위 결정용)
-     * @param contextKey   {@code context(...)}의 첫 번째 인자(컨텍스트 키)
-     * @param line         원본 호출의 소스 라인 번호
-     * @param warnings     경고를 누적할 리스트
+     * @param variableName    검증기 획득 호출 결과가 담긴 변수 이름
+     * @param acquisitionCall 원본 검증기 획득 호출 (탐색 범위 결정용)
+     * @param contextKey      획득 호출의 첫 번째 인자(컨텍스트 키)
+     * @param calledAs        원본 호출의 표시용 문자열 (예: {@code "context(...)"})
+     * @param line            원본 호출의 소스 라인 번호
+     * @param warnings        경고를 누적할 리스트
      */
     private void checkVariableValidated(String variableName, MethodCallExpr acquisitionCall, String contextKey, String calledAs, int line, List<BindValidatorWarning> warnings) {
         Node scopeNode = findEnclosingCallableBody(acquisitionCall);

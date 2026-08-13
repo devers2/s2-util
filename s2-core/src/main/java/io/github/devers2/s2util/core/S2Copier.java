@@ -537,6 +537,26 @@ public class S2Copier<S> {
             return copiedList;
         }
 
+        // Handle Set (LinkedHashSet: HashSet 등 원본 구현체가 리플렉션으로 재귀 순회되어(내부
+        // backing HashMap 필드까지 파고들며) 깨지는 것을 막고, List와 동일하게 명시적으로 처리함 |
+        // Handles Set explicitly (as a LinkedHashSet) so it isn't left to fall through to the
+        // generic "custom object" branch below, which would reflect into a HashSet's internal
+        // backing HashMap field instead of actually copying the set's elements.
+        if (source instanceof Set) {
+            var sourceSet = (Set<?>) source;
+            var copiedSet = new java.util.LinkedHashSet<>(sourceSet.size());
+            visited.put(source, copiedSet);
+
+            for (var element : sourceSet) {
+                if (element != null) {
+                    copiedSet.add(deepCopyValue(element, element.getClass(), visited, depth + 1));
+                } else {
+                    copiedSet.add(null);
+                }
+            }
+            return copiedSet;
+        }
+
         // Handle Map/HashMap
         if (source instanceof Map) {
             var sourceMap = (Map<?, ?>) source;

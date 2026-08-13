@@ -129,7 +129,15 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         if (ruleType == null) {
             throw new IllegalArgumentException("[S2Rule] ruleType cannot be null.");
         }
-        if ((ruleType == S2RuleType.REGEX || (ruleType.getErrorMessageTemplate(null) != null && ruleType.getErrorMessageTemplate(null).contains("{1}"))) && S2Util.isEmpty(checkValue)) {
+        // NESTED/EACH는 메시지 템플릿에 {1}이 없어 아래 템플릿 기반 검사망을 피해가지만, 하위 S2Validator가
+        // checkValue로 반드시 필요하므로 별도로 명시함 | NESTED/EACH have no "{1}" in their message
+        // templates so the template-based check below misses them, but a sub-S2Validator is functionally
+        // required as checkValue, so it is checked explicitly.
+        if ((ruleType == S2RuleType.REGEX
+                || ruleType == S2RuleType.NESTED
+                || ruleType == S2RuleType.EACH
+                || (ruleType.getErrorMessageTemplate(null) != null && ruleType.getErrorMessageTemplate(null).contains("{1}")))
+                && S2Util.isEmpty(checkValue)) {
             throw new IllegalArgumentException("[S2Rule] checkValue cannot be null.");
         }
 
