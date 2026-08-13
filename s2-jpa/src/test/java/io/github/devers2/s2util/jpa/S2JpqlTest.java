@@ -58,7 +58,7 @@ public class S2JpqlTest {
             this.success++;
         }
 
-        void recordFailure(String testName, Exception e) {
+        void recordFailure(String testName, Throwable e) {
             this.total++;
             this.failed++;
             String msg = testName + " [FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage() + "]";
@@ -160,7 +160,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -192,7 +192,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -224,7 +224,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -257,7 +257,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -293,7 +293,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -332,7 +332,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -365,7 +365,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -398,7 +398,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -445,7 +445,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -484,7 +484,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -518,7 +518,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -555,7 +555,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }
@@ -588,7 +588,7 @@ public class S2JpqlTest {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED: " + e.getMessage());
         }

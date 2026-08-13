@@ -39,12 +39,23 @@
  *
  * @function initS2Validator
  * @example
- * // Import only - applies to all forms with data-s2-rules
- * // 임포트만 하면 data-s2-rules가 있는 모든 폼에 적용된다.
+ * // ⚠️ Both forms below assume the consuming app hasn't disabled/overridden its framework's
+ * // default "serve static files from classpath:/META-INF/resources/" behavior (e.g. Spring
+ * // Boot's default static resource handling) — that's what actually serves this file.
+ * // ⚠️ 아래 두 방식 모두, 소비 프로젝트가 프레임워크의 기본 "classpath:/META-INF/resources/
+ * // 정적 파일 서빙"(예: Spring Boot 기본 정적 리소스 핸들링)을 끄거나 오버라이드하지 않았다는
+ * // 전제가 있습니다 — 이 파일이 실제로 서빙되는 것도 그 기본 동작 덕분입니다.
+ * //
+ * // Import only - absolute path. Only works if the app is deployed at the server ROOT
+ * // context path ("/"); breaks under any other context path (e.g. "/app").
+ * // 임포트만 하면 되지만 절대경로라서, 앱이 서버 루트 컨텍스트 경로("/")로 배포된 경우에만
+ * // 동작한다. "/app"처럼 컨텍스트 경로가 있으면 깨진다.
  * import '/s2-util/js/s2.validator.js';
  *
- * or With Thymeleaf
- *
+ * // With Thymeleaf (recommended) - @{...} resolves the actual context path at render time,
+ * // so this works regardless of the deployment's context path.
+ * // With Thymeleaf (권장) - @{...}가 렌더링 시점에 실제 컨텍스트 경로를 채워주므로,
+ * // 배포 컨텍스트 경로와 무관하게 항상 동작한다.
  * const contextPath = \/*[[@{/}]]*\/ '';
  * import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
  *
@@ -54,6 +65,59 @@
  */
 export const initS2Validator = () => {
   if (isS2ValidatorInitialized) return;
+
+  // 네이티브 제약(required, pattern, type="email" 등)이 하나라도 걸려 있으면, 브라우저가 submit
+  // 이벤트 자체를 발생시키지 않고(스펙상 "제약 조건 대화형 검증" 단계에서 자체 차단) 자체 기본
+  // 메시지만 띄운 뒤 끝나버린다. 그러면 아래 submit 리스너가 아예 실행되지 않아 S2Validator의
+  // 커스텀 메시지는커녕 같은 폼의 다른 필드 검증까지 통째로 건너뛰게 된다. data-s2-rules가 붙은
+  // 폼은 noValidate를 강제하여 네이티브 검증이 끼어들지 못하게 하고, 이 라이브러리가 검증을 전담한
+  // 뒤 setCustomValidity()+reportValidity()로 동일한 네이티브 UI를 그대로 활용한다. |
+  // If a field carries any native constraint (required, pattern, type="email", ...), the browser
+  // blocks the submit event entirely during its own "interactively validate the constraints" step
+  // and shows only its own default message — so the submit listener below never runs at all,
+  // silently skipping validation for every other field in the form too, not just that one. Forms
+  // with data-s2-rules get noValidate forced on so native validation can never intercept; this
+  // library then owns validation end-to-end while still reusing the same native UI via
+  // setCustomValidity()+reportValidity().
+  const disableNativeValidation = (form) => {
+    if (form instanceof HTMLFormElement) {
+      form.noValidate = true;
+    }
+  };
+
+  // 페이지 로드 시점에 이미 존재하는 폼 처리
+  document.querySelectorAll('form[data-s2-rules]').forEach(disableNativeValidation);
+
+  // 이후 동적으로 추가되거나(SPA/AJAX) data-s2-rules 속성이 나중에 붙는 폼까지 확실하게 커버함.
+  // "사용자가 제출 전 필드를 먼저 포커스한다"처럼 상호작용 타이밍에 기대는 방식은, 필드를 한 번도
+  // 건드리지 않고 곧장 제출 버튼만 누르는 극단적인 경우 놓칠 수 있어 채택하지 않는다. 대신
+  // MutationObserver로 DOM 삽입/속성 변경 시점에 직접, 확정적으로 처리한다. | Also reliably covers
+  // forms added dynamically (SPA/AJAX) or that get data-s2-rules set later. A timing-based
+  // approach (e.g. "the user focuses a field before submitting") can miss the case where the user
+  // never touches any field and goes straight for the submit button, so a MutationObserver is used
+  // instead to react deterministically to DOM insertion / attribute changes.
+  const scanAndDisable = (root) => {
+    if (root.matches?.('form[data-s2-rules]')) disableNativeValidation(root);
+    root.querySelectorAll?.('form[data-s2-rules]').forEach(disableNativeValidation);
+  };
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof Element) scanAndDisable(node);
+        });
+      } else if (mutation.type === 'attributes' && mutation.target instanceof HTMLFormElement) {
+        disableNativeValidation(mutation.target);
+      }
+    }
+  });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-s2-rules'],
+  });
 
   document.addEventListener('submit', (e) => {
     const form = e.target;
@@ -195,10 +259,18 @@ export const S2Validator = {
    * @param {Object} [additionalData] - Additional data for validation (priority: additionalData > DOM). Use this to validate data not present in the form DOM (e.g., file arrays). | 검증을 위한 추가 데이터 (우선순위: additionalData > DOM). 폼 DOM에 없는 데이터(예: 파일 배열)를 검증할 때 사용합니다.
    * @returns {Object} Error object {fieldName: [errorMessages]} – empty object if valid | 에러 객체 {fieldName: [errorMessages]} – 빈 객체 시 유효
    * @example
+   * // ⚠️ Absolute path. Only works if the app is deployed at the server ROOT context path
+   * // ("/"); breaks under any other context path (e.g. "/app"). Also assumes the consuming
+   * // app hasn't disabled/overridden its framework's default static-resource-from-JAR serving.
+   * // ⚠️ 절대경로라서 앱이 서버 루트 컨텍스트 경로("/")로 배포된 경우에만 동작하며, 그 외
+   * // 컨텍스트 경로(예: "/app")에서는 깨진다. 또한 프레임워크의 기본 JAR 정적 리소스 서빙을
+   * // 끄거나 오버라이드하지 않았다는 전제도 필요하다.
    * import { S2Validator } from '/s2-util/js/s2.validator.js';
    *
-   * or With Thymeleaf
-   *
+   * // With Thymeleaf (recommended) - @{...} resolves the actual context path at render time,
+   * // so this works regardless of the deployment's context path.
+   * // With Thymeleaf (권장) - @{...}가 렌더링 시점에 실제 컨텍스트 경로를 채워주므로,
+   * // 배포 컨텍스트 경로와 무관하게 항상 동작한다.
    * <script type="importmap" th:inline="javascript">
    *   {
    *     "imports": {
