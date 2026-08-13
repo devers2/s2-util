@@ -81,26 +81,21 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
      */
     @Override
     public V get(K key, Function<K, V> loader) {
-        // Try to look up from the cache first
-        V value = cache.getIfPresent(key);
-
-        if (value != null) {
-            // Cache Hit (including negative caching with NULL_HOLDER)
-            if (statsEnabled) {
-                hitCount.incrementAndGet();
-            }
-            return value;
-        }
-
-        // Cache Miss - create using the loader
+        // containsKey()로 히트/미스를 먼저 판별한다. getIfPresent()의 반환값(null 언래핑됨)만으로는
+        // "캐시에 없음"과 "null로 음성 캐싱됨"을 구분할 수 없어 negative-cache 히트가 항상 미스로
+        // 잘못 집계되던 문제를 막는다 | Determines hit/miss via containsKey() first — using
+        // getIfPresent()'s unwrapped return alone can't distinguish "not cached" from "cached as
+        // null", which previously mis-counted every negative-cache hit as a miss.
         if (statsEnabled) {
-            missCount.incrementAndGet();
+            if (cache.containsKey(key)) {
+                hitCount.incrementAndGet();
+            } else {
+                missCount.incrementAndGet();
+            }
         }
 
-        V result = cache.get(key, loader);
-
-        // Null-safe: result can be null from Optional loaders
-        return result;
+        // Null-safe: result can be null from Optional loaders (or a negatively-cached entry)
+        return cache.get(key, loader);
     }
 
     /**

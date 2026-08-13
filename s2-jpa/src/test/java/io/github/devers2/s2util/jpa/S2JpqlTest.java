@@ -524,6 +524,76 @@ public class S2JpqlTest {
         }
     }
 
+    @DisplayName("S2Jpql - bindOrderBy 화이트리스트가 인젝션 페이로드를 차단함")
+    @SuppressWarnings({ "null", "unchecked" })
+    @Test
+    void testBindOrderByRejectsInjectionPayload() {
+        String testName = "S2Jpql - bindOrderBy rejects injection payload";
+        try {
+            // Given: bindOrderBy는 클래스 Javadoc상 "화이트리스트 기반"으로 정렬 구문 인젝션을 막는다고
+            // 명시되어 있으나, 과거에는 ASC/DESC 방향만 검증하고 필드/표현식 부분은 그대로 통과시켰다.
+            String jpql = "SELECT m FROM Member m WHERE 1=1 {{=cond_order}}";
+            when(typedQuery.getParameters()).thenReturn(java.util.Set.of());
+
+            org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+            // When: 공백 없는 악성 페이로드(서브쿼리/함수 호출)를 정렬 문자열로 주입 시도
+            S2Jpql.from(entityManager)
+                    .type(Member.class)
+                    .query(jpql)
+                    .bindOrderBy("cond_order", "(select1from User)")
+                    .build();
+
+            // Then: 화이트리스트에 걸러져 렌더링된 JPQL에 ORDER BY 절 자체가 포함되면 안됨
+            verify(entityManager).createQuery(sqlCaptor.capture(), eq(Member.class));
+            String renderedSql = sqlCaptor.getValue();
+
+            boolean rejected = !renderedSql.contains("ORDER BY") && !renderedSql.contains("select1from");
+            if (!rejected) {
+                throw new AssertionError("악성 정렬 페이로드가 화이트리스트를 통과해 렌더링된 JPQL에 포함됨: " + renderedSql);
+            }
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
+        }
+    }
+
+    @DisplayName("S2Jpql - bindOrderBy 화이트리스트가 정상적인 다중 컬럼 정렬은 통과시킴")
+    @SuppressWarnings({ "null", "unchecked" })
+    @Test
+    void testBindOrderByAcceptsLegitimateMultiColumnSort() {
+        String testName = "S2Jpql - bindOrderBy accepts legitimate multi-column sort";
+        try {
+            String jpql = "SELECT m FROM Member m WHERE 1=1 {{=cond_order}}";
+            when(typedQuery.getParameters()).thenReturn(java.util.Set.of());
+
+            org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+            S2Jpql.from(entityManager)
+                    .type(Member.class)
+                    .query(jpql)
+                    .bindOrderBy("cond_order", "m.name DESC, m.age")
+                    .build();
+
+            verify(entityManager).createQuery(sqlCaptor.capture(), eq(Member.class));
+            String renderedSql = sqlCaptor.getValue();
+
+            boolean accepted = renderedSql.contains("ORDER BY m.name DESC, m.age");
+            if (!accepted) {
+                throw new AssertionError("정상적인 정렬 문자열이 렌더링된 JPQL에 정확히 반영되지 않음: " + renderedSql);
+            }
+
+            stats.recordSuccess();
+            logger.info("✓ " + testName + " PASSED");
+        } catch (Exception e) {
+            stats.recordFailure(testName, e);
+            logger.error("✗ " + testName + " FAILED: " + e.getMessage());
+        }
+    }
+
     @DisplayName("SmokeTest - 전체 테스트 통계")
     @Test
     void testSummary() {

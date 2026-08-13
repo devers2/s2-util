@@ -314,6 +314,34 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
+     * Checks whether an entry exists for the given key, including negatively-cached
+     * ({@code null}-valued) entries.
+     * <p>
+     * Unlike {@link #getIfPresent(K)}, which unwraps the internal null sentinel and therefore
+     * cannot distinguish "not cached" from "cached as null", this method reports raw entry
+     * presence — useful for callers (e.g. hit/miss statistics) that need that distinction.
+     * Does not affect the LRU sequence.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 음성 캐싱({@code null} 값)된 항목을 포함하여, 주어진 키에 대한 엔트리 존재 여부를 확인합니다.
+     * <p>
+     * 내부 null 센티널을 해제하여 반환하는 {@link #getIfPresent(K)}와 달리, "캐시에 없음"과
+     * "null로 캐싱됨"을 구분할 수 없는 문제가 없어, 히트/미스 통계처럼 그 구분이 필요한 호출자에게
+     * 유용합니다. LRU 순서에는 영향을 주지 않습니다.
+     * </p>
+     *
+     * @param key Cache key | 조회할 키
+     * @return {@code true} if an entry (including a negatively-cached one) exists | 엔트리가
+     *         존재하면(음성 캐싱 포함) {@code true}
+     */
+    public boolean containsKey(K key) {
+        return cache.get(key) != null;
+    }
+
+    /**
      * Synchronized method to evict old entries starting from the lowest sequence.
      * Removes 50% of the oldest entries to provide LRU effects.
      * Runs on a background thread to avoid blocking the caller.

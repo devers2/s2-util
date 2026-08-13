@@ -120,7 +120,7 @@ public class S2Template {
      * }</pre>
      */
     public S2Template bind(String key, Object value, String prefix, String suffix) {
-        return doBind(key, value, prefix, null);
+        return doBind(key, value, prefix, suffix);
     }
 
     /**

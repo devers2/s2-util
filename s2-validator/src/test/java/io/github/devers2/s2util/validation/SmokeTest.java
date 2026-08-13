@@ -144,6 +144,15 @@ public class SmokeTest {
         // 17. JSON 생성 시 기본 REQUIRED 규칙 적용 테스트 (규칙 없는 필드)
         testS2ValidatorDefaultRequiredJson();
 
+        // 18. NESTED/EACH 규칙 하위 검증기 누락 시 생성 시점 예외 테스트
+        testS2ValidatorNestedRequiresSubValidator();
+
+        // 19. null Locale 관련 NPE 회귀 방지 테스트 (message/storeMessage)
+        testS2ValidatorNullLocaleSafety();
+
+        // 20. 와일드카드 필드 조건부(.when/.and) 검증 테스트
+        testS2ValidatorWildcardConditional();
+
         logger.info("================================================================================");
         logger.info("[요약] 테스트 결과 보고서");
         logger.info("--------------------------------------------------------------------------------");
@@ -1505,6 +1514,131 @@ public class SmokeTest {
         } catch (Exception e) {
             logger.error("  [FAIL] JSON 기본 규칙 테스트 중 예외 발생: ", e);
             record(false, "JSON 기본 규칙 적용 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * NESTED/EACH 규칙에 하위 검증기(checkValue)를 빠뜨렸을 때 생성 시점에 예외가 발생하는지,
+     * 그리고 정상적으로 하위 검증기를 전달한 기존 사용법은 그대로 동작하는지 확인한다.
+     */
+    private void testS2ValidatorNestedRequiresSubValidator() {
+        logger.info(">>> 18. NESTED/EACH 규칙 하위 검증기 누락 시 생성 시점 예외 테스트");
+
+        boolean threwOnMissingSubValidator = false;
+        try {
+            S2Validator.builder()
+                    .field("shippingAddress", "배송지")
+                    .rule(S2RuleType.NESTED)
+                    .build();
+        } catch (IllegalArgumentException e) {
+            threwOnMissingSubValidator = true;
+        } catch (Exception e) {
+            logger.error("  [FAIL] 예상치 못한 예외 타입 발생: ", e);
+        }
+        record(threwOnMissingSubValidator, "NESTED 규칙에 하위 검증기 누락 시 생성 시점 예외 발생 테스트");
+
+        try {
+            S2Validator<Map<String, Object>> addressValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("zip", "우편번호").rule(S2RuleType.REQUIRED)
+                    .build();
+
+            S2Validator<Map<String, Object>> orderValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("address", "주소").rule(S2RuleType.NESTED, addressValidator)
+                    .build();
+
+            Map<String, Object> target = new HashMap<>();
+            Map<String, Object> address = new HashMap<>();
+            address.put("zip", "");
+            target.put("address", address);
+
+            List<S2ValidationError> errors = new ArrayList<>();
+            boolean valid = orderValidator.validate(target, errors::add);
+
+            record(!valid && errors.size() == 1, "NESTED 규칙 정상 사용 시 기존 동작 유지 테스트 (회귀 방지)");
+        } catch (Exception e) {
+            logger.error("  [FAIL] NESTED 정상 사용 테스트 중 예외 발생: ", e);
+            record(false, "NESTED 정상 사용 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * null Locale이 message()/storeMessage() 경로로 흘러가도 NPE 없이 안전하게 처리되는지 확인한다.
+     */
+    private void testS2ValidatorNullLocaleSafety() {
+        logger.info(">>> 19. null Locale 관련 NPE 회귀 방지 테스트 (message/storeMessage)");
+
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("f", "");
+            List<S2ValidationError> errors = new ArrayList<>();
+
+            S2Validator.of(data)
+                    .field("f", "F").rule(S2RuleType.REQUIRED)
+                    .message(null, "무시되어야 하는 메시지")
+                    .validate(errors::add, Locale.KOREAN);
+
+            boolean messageNullOk = errors.size() == 1 && !"무시되어야 하는 메시지".equals(errors.get(0).defaultMessage());
+            record(messageNullOk, "message(null, ...) 호출 시 NPE 없이 안전하게 무시되는지 테스트");
+        } catch (Exception e) {
+            logger.error("  [FAIL] message(null,...) 테스트 중 예외 발생: ", e);
+            record(false, "message(null,...) 안전성 테스트 기술 오류");
+        }
+
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("f", "");
+            List<S2ValidationError> errors = new ArrayList<>();
+
+            S2Validator.of(data)
+                    .field("f", "F").rule(S2RuleType.REQUIRED)
+                    .storeMessage("ko", "커스텀 메시지")
+                    .validate(errors::add, Locale.KOREAN);
+
+            boolean storeMessageOk = errors.size() == 1 && "커스텀 메시지".equals(errors.get(0).defaultMessage());
+            record(storeMessageOk, "storeMessage() 직접 호출 시 NPE 없이 정상 동작하는지 테스트");
+        } catch (Exception e) {
+            logger.error("  [FAIL] storeMessage() 테스트 중 예외 발생: ", e);
+            record(false, "storeMessage() 안전성 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * 와일드카드({@code "collection[].field"}) 필드에 걸린 {@code .when()} 조건이 아이템별로
+     * 올바르게 평가되어, 조건을 만족하는 아이템만 검증되는지 확인한다.
+     */
+    private void testS2ValidatorWildcardConditional() {
+        logger.info(">>> 20. 와일드카드 필드 조건부(.when/.and) 검증 테스트");
+
+        try {
+            Map<String, Object> target = new HashMap<>();
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            Map<String, Object> item0 = new HashMap<>();
+            item0.put("type", "REQUIRE_ID");
+            item0.put("id", ""); // 조건 만족 -> 검증 실패해야 함
+
+            Map<String, Object> item1 = new HashMap<>();
+            item1.put("type", "SKIP");
+            item1.put("id", ""); // 조건 불만족 -> 검증 스킵되어야 함
+
+            items.add(item0);
+            items.add(item1);
+            target.put("items", items);
+
+            S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                    .field("items[].id", "아이디")
+                    .when("items[].type", "REQUIRE_ID")
+                    .rule(S2RuleType.REQUIRED)
+                    .build();
+
+            List<S2ValidationError> errors = new ArrayList<>();
+            boolean valid = validator.validate(target, errors::add);
+
+            boolean isOk = !valid && errors.size() == 1 && "items[0].id".equals(errors.get(0).fieldName());
+            record(isOk, "와일드카드 필드의 .when() 조건이 아이템별로 올바르게 평가되는지 테스트");
+        } catch (Exception e) {
+            logger.error("  [FAIL] 와일드카드 조건부 테스트 중 예외 발생: ", e);
+            record(false, "와일드카드 조건부 검증 테스트 기술 오류");
         }
     }
 

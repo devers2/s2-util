@@ -78,13 +78,24 @@ public class S2ValidatorPlugin implements Plugin<Project> {
         // checkS2Validators Task 등록
         project.getTasks().register("checkS2Validators", CheckS2ValidatorsTask.class);
 
-        // 'check' 태스크 실행 시 자동으로 검증 수행
-        project.getTasks().named("check").configure(task -> task.dependsOn("checkS2Validators"));
+        // 'check'/'compileJava'는 java 플러그인이 등록하므로, 이 플러그인이 java보다 먼저(또는
+        // 없이) 적용되면 named("check")/named("compileJava")가 UnknownTaskException으로 즉시
+        // 실패한다. withPlugin으로 java 플러그인이 적용된 시점(이미 적용됐으면 즉시, 나중에
+        // 적용되면 그때)에 의존성을 구성하여 build.gradle의 plugins{} 선언 순서와 무관하게
+        // 동작하도록 한다 | 'check'/'compileJava' are registered by the java plugin, so calling
+        // named(...) eagerly would crash with UnknownTaskException if this plugin is applied
+        // before (or without) java. withPlugin defers the wiring until java is present — firing
+        // immediately if already applied, or later when it is — making this independent of
+        // plugin declaration order in the consumer's build.gradle.
+        project.getPluginManager().withPlugin("java", appliedPlugin -> {
+            // 'check' 태스크 실행 시 자동으로 검증 수행
+            project.getTasks().named("check").configure(task -> task.dependsOn("checkS2Validators"));
 
-        // 'compileJava' 태스크 실행 전 자동으로 검증 수행 (빌드, 실행 등 컴파일이 필요한 모든 경우 포함)
-        project.getTasks().named("compileJava").configure(task -> task.dependsOn("checkS2Validators"));
+            // 'compileJava' 태스크 실행 전 자동으로 검증 수행 (빌드, 실행 등 컴파일이 필요한 모든 경우 포함)
+            project.getTasks().named("compileJava").configure(task -> task.dependsOn("checkS2Validators"));
+        });
 
-        // 'bootRun' 등 JavaExec 타입의 실행 태스크 실행 전에도 검증 수행
+        // 'bootRun' 등 JavaExec 타입의 실행 태스크 실행 전에도 검증 수행 (withType은 지연 조회라 순서 무관하게 안전함)
         project.getTasks().withType(org.gradle.api.tasks.JavaExec.class).configureEach(task -> task.dependsOn("checkS2Validators"));
     }
 }

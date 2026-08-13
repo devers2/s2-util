@@ -205,6 +205,31 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
 
     private static final String ORDER_BY_PREFIX = "ORDER BY ";
 
+    /**
+     * Whitelist pattern for a single sortable field/path (e.g. {@code m.name}, {@code user.address.city}).
+     * <p>
+     * {@link #bindOrderBy(String, boolean, String)} previously validated only the ASC/DESC direction
+     * keyword and passed the field portion through unchecked, so any whitespace-free token (e.g. a
+     * cross-entity field reference or a parenthesized expression) was injected into the rendered JPQL
+     * verbatim. This pattern restricts the field portion to simple dotted JPQL identifiers, matching
+     * the class-level Javadoc's documented "whitelist-based" guarantee.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 정렬 가능한 단일 필드/경로(예: {@code m.name}, {@code user.address.city})에 대한 화이트리스트
+     * 패턴입니다.
+     * <p>
+     * {@link #bindOrderBy(String, boolean, String)}는 기존에 ASC/DESC 방향 키워드만 검증하고 필드
+     * 부분은 그대로 통과시켰기 때문에, 공백 없는 임의의 토큰(다른 엔티티 필드 참조나 괄호 표현식 등)이
+     * 렌더링된 JPQL에 그대로 삽입될 수 있었습니다. 이 패턴은 필드 부분을 단순한 점(.) 구분 JPQL
+     * 식별자로 제한하여, 클래스 레벨 Javadoc이 명시한 "화이트리스트 기반" 보장을 실제로 충족시킵니다.
+     * </p>
+     */
+    private static final java.util.regex.Pattern SAFE_SORT_FIELD_PATTERN =
+            java.util.regex.Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*$");
+
     private final EntityManager entityManager;
     private final Class<T> resultClass;
     private final Map<String, Object> boundParameters;
@@ -823,9 +848,9 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                 .filter(s -> !s.isEmpty())
                 .map(sortInfo -> {
                     String[] parts = sortInfo.split("\\s+");
-                    if (parts.length == 1)
+                    if (parts.length == 1 && SAFE_SORT_FIELD_PATTERN.matcher(parts[0]).matches())
                         return parts[0];
-                    if (parts.length == 2) {
+                    if (parts.length == 2 && SAFE_SORT_FIELD_PATTERN.matcher(parts[0]).matches()) {
                         String direction = parts[1].toUpperCase();
                         if (direction.equals("ASC") || direction.equals("DESC")) {
                             return parts[0] + " " + direction;
