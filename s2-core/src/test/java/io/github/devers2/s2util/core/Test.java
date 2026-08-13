@@ -218,7 +218,7 @@ public class Test {
             this.success++;
         }
 
-        void recordFailure(String testName, Exception e) {
+        void recordFailure(String testName, Throwable e) {
             this.total++;
             this.failed++;
             String msg = testName + " [FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage() + "]";
@@ -266,7 +266,10 @@ public class Test {
 
     @AfterAll
     static void tearDown() {
-        // Teardown logic if needed
+        // 이 클래스의 모든 @Test가 끝난 뒤(JUnit이 보장)에만 정확한 합계로 통계 요약을 출력한다 |
+        // Prints the stats summary only after every @Test in this class has finished (guaranteed
+        // by @AfterAll), so the totals are always accurate.
+        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion and Deep Copy), S2Template");
     }
 
     // ===== getValue Tests =====
@@ -285,7 +288,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -304,7 +307,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -326,7 +329,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -345,7 +348,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -365,7 +368,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -390,7 +393,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -421,7 +424,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -440,7 +443,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -467,7 +470,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -490,7 +493,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -513,7 +516,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -537,7 +540,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -560,7 +563,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -620,7 +623,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -643,7 +646,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -666,7 +669,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -699,7 +702,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -724,7 +727,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -749,7 +752,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -791,7 +794,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -827,7 +830,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -856,7 +859,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -880,10 +883,11 @@ public class Test {
             assert "user003".equals(target.get("id"));
             assert "Bob".equals(target.get("name"));
             assert 0 == ((Number) target.get("age")).intValue();
+            assert "default@example.com".equals(target.get("email")) : "null 값이 ignoreNulls를 무시하고 기존 값을 덮어씀. actual=" + target.get("email");
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -912,7 +916,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -952,7 +956,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -983,7 +987,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1011,7 +1015,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1048,7 +1052,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED (Circular reference handled correctly)");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1072,7 +1076,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1098,18 +1102,10 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
-    }
-
-    // ===== Test Summary =====
-
-    @DisplayName("SmokeTest - 전체 테스트 통계")
-    @org.junit.jupiter.api.Test
-    void testSummary() {
-        stats.printReport("getValue, setValue, S2Copier (including DTO-Map conversion and Deep Copy), S2Template");
     }
 
     // ===== S2Template Tests =====
@@ -1125,7 +1121,7 @@ public class Test {
             assert "SELECT * FROM users WHERE id = 123".equals(result) : "Basic binding failed";
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1143,7 +1139,7 @@ public class Test {
             assert "SELECT * FROM users WHERE AND status = 'active'".equals(result) : "Empty binding should not override valid one";
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1160,7 +1156,7 @@ public class Test {
             assert "SELECT * FROM users ORDER BY id DESC".equals(result) : "BindWhen with true condition failed";
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1177,7 +1173,7 @@ public class Test {
             assert "SELECT * FROM users".equals(result) : "BindWhen with false condition should not bind, result: " + result;
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1194,7 +1190,7 @@ public class Test {
             assert "SELECT * FROM users WHERE id IN ((1, 2, 3))".equals(result) : "BindIn failed";
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1212,7 +1208,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1239,7 +1235,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }
@@ -1268,7 +1264,7 @@ public class Test {
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
         }

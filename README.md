@@ -114,9 +114,23 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 <form id="myForm" th:data-s2-rules="${rules}">...</form>
 
 <script type="module">
-  // s2.validator.js is served automatically from the JAR's META-INF/resources.
-  // (s2.validator.js는 라이브러리 내부(META-INF/resources)에 포함되어 있어 별도 설정 없이 바로 로드됩니다.)
-  import '/s2-util/js/s2.validator.js';
+  // s2.validator.js is served automatically from the JAR's META-INF/resources
+  // (assuming the app hasn't disabled its framework's default static-resource-from-JAR
+  // serving, e.g. Spring Boot's default static resource handling).
+  // (s2.validator.js는 라이브러리 내부(META-INF/resources)에 포함되어 있어 별도 설정 없이 로드됩니다.
+  // 단, 프레임워크의 기본 JAR 정적 리소스 서빙(예: Spring Boot 기본 정적 리소스 핸들링)을
+  // 끄거나 오버라이드하지 않았다는 전제입니다.)
+  //
+  // The path below is context-path-safe (works no matter what path the app is deployed under),
+  // via Thymeleaf's @{...} link-URL expression. A plain absolute import like
+  // `import '/s2-util/js/s2.validator.js'` only works when the app is deployed at the server
+  // ROOT context path ("/") - it breaks under any other context path (e.g. "/app").
+  // 아래 경로는 Thymeleaf의 @{...} 링크 표현식을 사용해 컨텍스트 경로에 안전합니다(앱이 어떤
+  // 경로로 배포되든 항상 동작). `import '/s2-util/js/s2.validator.js'`처럼 절대경로로 바로
+  // 임포트하면 앱이 서버 루트 컨텍스트 경로("/")로 배포된 경우에만 동작하고, 그 외 컨텍스트
+  // 경로(예: "/app")에서는 깨집니다.
+  const contextPath = /*[[@{/}]]*/ '';
+  import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
   // Just importing the script automatically performs validation using the browser's native UI during submit, matching the server-side rules.
   // (임포트만 하면 폼 전송 시 브라우저 네이티브 UI를 통해 서버와 동일한 검증이 자동으로 수행됩니다.)
 </script>
