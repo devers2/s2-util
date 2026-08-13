@@ -680,9 +680,6 @@ public class S2Validator<T> implements Serializable {
 
         @Override
         public S2RuleStep.ValidateRuleStep<T> storeMessage(String lang, String template) {
-            doMessage(null, null); // Dummy or ignored as we use ko/en
-            // doMessage expects Locale, but storeMessage expects String lang.
-            // Let's refine doMessage or currentField.storeMessage directly.
             ensureField();
             currentField.storeMessage(lang, template);
             return this;
@@ -1132,6 +1129,10 @@ public class S2Validator<T> implements Serializable {
             boolean isValid = true;
 
             for (S2Field<?> field : groupFields) {
+                if (!field.shouldValidate(target, index)) {
+                    continue;
+                }
+
                 String fullFieldName = String.valueOf(field.getName());
 
                 // "items[].name" -> "name" 추출

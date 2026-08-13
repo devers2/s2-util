@@ -354,8 +354,8 @@ export const S2Validator = {
         // 각 인덱스별로 그룹 내 모든 필드 검증
         indices.forEach((idx) => {
           groupRules.forEach((rule) => {
-            // 조건 체크
-            if (!isConditionSatisfied(rule, formData, prefix)) return;
+            // 조건 체크 (조건 필드명에 '[]'가 있으면 현재 아이템 인덱스로 치환하여 평가)
+            if (!isConditionSatisfied(rule, formData, prefix, idx)) return;
 
             const fullPath = prefix + rule.name;
             // "products[].name" -> ".name" 추출
@@ -564,9 +564,14 @@ const getFormData = (form) => {
  * @param {Object} rule - Validation rule object | 검증 규칙 객체
  * @param {Object} formData - Current form data object | 현재 폼의 데이터 객체
  * @param {string} prefix - Field name prefix (for nested paths) | 필드명 접두사 (중첩 경로용)
+ * @param {string|number} [wildcardIndex] - Current wildcard item's index. When given, a condition
+ *   field name containing "[]" (e.g. "items[].type") is resolved against this item (e.g.
+ *   "items[3].type") instead of being looked up as a literal, always-undefined key. | 현재
+ *   와일드카드 아이템의 인덱스. 지정되면 조건의 필드명에 포함된 "[]"(예: "items[].type")를 해당
+ *   아이템 기준으로 치환하여(예: "items[3].type") 조회합니다.
  * @returns {boolean} True if conditions are satisfied or no conditions exist, false otherwise | 조건을 만족하거나 조건이 없으면 true, 만족하지 않으면 false
  */
-const isConditionSatisfied = (rule, formData, prefix = '') => {
+const isConditionSatisfied = (rule, formData, prefix = '', wildcardIndex = null) => {
   // 조건이 없으면 항상 검증 수행
   if (!rule.conditions || rule.conditions.length === 0) return true;
 
@@ -574,7 +579,12 @@ const isConditionSatisfied = (rule, formData, prefix = '') => {
   return rule.conditions.some((group) => {
     // AND 연산: 그룹 내 모든 조건이 일치해야 함
     return group.every((cond) => {
-      const fullPath = prefix + cond.field;
+      let condField = cond.field;
+      if (wildcardIndex !== null && condField.includes('[]')) {
+        const bracketIndex = condField.indexOf('[]');
+        condField = condField.substring(0, bracketIndex) + '[' + wildcardIndex + ']' + condField.substring(bracketIndex + 2);
+      }
+      const fullPath = prefix + condField;
       const actualValue = formData[fullPath];
       const normalizedActual = normalizeConditionValue(actualValue);
       const normalizedExpected = normalizeConditionValue(cond.value);

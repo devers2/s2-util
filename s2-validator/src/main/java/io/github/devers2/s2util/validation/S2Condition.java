@@ -148,6 +148,37 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
     }
 
     /**
+     * Resolves this condition against a concrete wildcard item index.
+     * <p>
+     * If {@link #fieldName} contains the {@code "[]"} wildcard marker (e.g. {@code "items[].type"}),
+     * it is substituted with the concrete index (e.g. {@code "items[3].type"}) so the condition can be
+     * evaluated against a specific array element while validating a {@code field("collection[].x")}
+     * group. Non-wildcard field names (referring to an outer/root-level field) are returned unchanged.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 와일드카드 그룹 검증 중 특정 아이템 인덱스를 기준으로 조건을 재해석합니다.
+     * <p>
+     * {@link #fieldName}에 {@code "[]"} 와일드카드 표기가 포함된 경우(예: {@code "items[].type"}),
+     * 이를 실제 인덱스로 치환하여(예: {@code "items[3].type"}) 배열의 특정 요소를 기준으로 조건을 평가할 수
+     * 있게 합니다. 와일드카드 표기가 없는 필드명(상위/루트 레벨 필드를 가리킴)은 그대로 반환됩니다.
+     * </p>
+     *
+     * @param index The concrete array index of the current wildcard item | 현재 와일드카드 아이템의 실제 인덱스
+     * @return A resolved {@link S2Condition} usable against the root target | 루트 대상 객체에 사용 가능한 재해석된 조건
+     */
+    S2Condition resolveForWildcardIndex(int index) {
+        if (fieldName instanceof String path && path.contains("[]")) {
+            int bracketIndex = path.indexOf("[]");
+            String resolved = path.substring(0, bracketIndex) + "[" + index + "]" + path.substring(bracketIndex + 2);
+            return new S2Condition(resolved, value);
+        }
+        return this;
+    }
+
+    /**
      * Static factory method for creating a new S2Condition instance.
      *
      * <p>
