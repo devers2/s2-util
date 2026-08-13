@@ -240,26 +240,17 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield targetValue.getBytes().length <= maxByte;
             }
             case MIN_VALUE -> {
-                if (value instanceof Integer targetValue && checkValue instanceof Integer minValue) {
-                    yield targetValue >= minValue;
-                } else if (value instanceof Long targetValue && checkValue instanceof Long minValue) {
-                    yield targetValue >= minValue;
-                } else if (value instanceof Float targetValue && checkValue instanceof Float minValue) {
-                    yield targetValue >= minValue;
-                } else if (value instanceof Double targetValue && checkValue instanceof Double minValue) {
-                    yield targetValue >= minValue;
+                // Number로 비교해 value/checkValue의 박싱 타입이 달라도(Integer 규칙 vs Long 필드 등)
+                // 정상 비교되도록 함 | Compares via Number so differing boxed types (e.g. an Integer
+                // rule against a Long field) still compare correctly instead of always failing
+                if (value instanceof Number targetValue && checkValue instanceof Number minValue) {
+                    yield targetValue.doubleValue() >= minValue.doubleValue();
                 }
                 yield false;
             }
             case MAX_VALUE -> {
-                if (value instanceof Integer targetValue && checkValue instanceof Integer maxValue) {
-                    yield targetValue <= maxValue;
-                } else if (value instanceof Long targetValue && checkValue instanceof Long maxValue) {
-                    yield targetValue <= maxValue;
-                } else if (value instanceof Float targetValue && checkValue instanceof Float maxValue) {
-                    yield targetValue <= maxValue;
-                } else if (value instanceof Double targetValue && checkValue instanceof Double maxValue) {
-                    yield targetValue <= maxValue;
+                if (value instanceof Number targetValue && checkValue instanceof Number maxValue) {
+                    yield targetValue.doubleValue() <= maxValue.doubleValue();
                 }
                 yield false;
             }

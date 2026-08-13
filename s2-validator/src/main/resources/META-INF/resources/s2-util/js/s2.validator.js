@@ -305,7 +305,9 @@ export const S2Validator = {
     }
 
     if (rules.length === 0) {
-      return { __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.'] };
+      return {
+        __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
+      };
     }
 
     const errors = {};
@@ -365,7 +367,10 @@ export const S2Validator = {
             const fieldElements = form.querySelectorAll(`[name="${actualFieldName}"]`);
 
             let value;
-            if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, actualFieldName)) {
+            if (
+              additionalData &&
+              Object.prototype.hasOwnProperty.call(additionalData, actualFieldName)
+            ) {
               value = additionalData[actualFieldName];
             } else {
               if (fieldElements.length === 0) return;
@@ -378,7 +383,7 @@ export const S2Validator = {
               // 와일드카드에서는 NESTED/EACH 지원 안 함 (이미 서브 validator로 처리 가능)
               if (check.type === 'NESTED' || check.type === 'EACH') return;
 
-              if (!validateCheck(value, check, formData, prefix)) {
+              if (!validateCheck(value, check, formData, prefix, actualFieldName)) {
                 fieldErrors.push(check.message);
               }
             });
@@ -451,7 +456,7 @@ export const S2Validator = {
               value = getFieldValue(fieldElements);
             }
 
-            if (!validateCheck(value, check, formData, prefix)) {
+            if (!validateCheck(value, check, formData, prefix, fullPath)) {
               fieldErrors.push(check.message);
             }
           }
@@ -491,7 +496,10 @@ export const S2Validator = {
       try {
         form.reportValidity();
       } catch (e) {
-        console.warn('S2Validator: 브라우저가 에러 메시지를 표시할 수 없습니다. 비표시 필드 설정을 확인하세요.', e);
+        console.warn(
+          'S2Validator: 브라우저가 에러 메시지를 표시할 수 없습니다. 비표시 필드 설정을 확인하세요.',
+          e
+        );
       }
     }
 
@@ -662,22 +670,23 @@ const getFieldValue = (elements) => {
 
   // 그룹 내에 하나의 라디오 버튼이라도 있으면 전체를 라디오 그룹으로 처리
   const isRadio = Array.from(elements).some((el) => el.type?.toLowerCase() === 'radio');
-  const isCheckbox = !isRadio && Array.from(elements).some((el) => el.type?.toLowerCase() === 'checkbox');
+  const isCheckbox =
+    !isRadio && Array.from(elements).some((el) => el.type?.toLowerCase() === 'checkbox');
 
   if (isRadio) {
-    for (let el of elements) {
+    for (const el of elements) {
       if (el.checked) return el.value;
     }
     return null;
   } else if (isCheckbox) {
     const values = [];
-    for (let el of elements) {
+    for (const el of elements) {
       if (el.checked) values.push(el.value);
     }
     return values.length > 0 ? values : null;
   } else if (elements[0].type?.toLowerCase() === 'select-multiple') {
     const values = [];
-    for (let option of elements[0].options) {
+    for (const option of elements[0].options) {
       if (option.selected) values.push(option.value);
     }
     return values;
@@ -711,17 +720,26 @@ const getFieldValue = (elements) => {
  * @param {Object} rule - Rule object {type, value, regex, message} | 규칙 객체 {type, value, regex, message}
  * @param {Object} formData - Complete form data map | 전체 폼 데이터 맵
  * @param {string} prefix - Field name prefix (for nested paths) | 필드명 접두사 (중첩 경로용)
+ * @param {string} [fieldName] - Full field name, used only for the "unsupported rule type" diagnostic log | 전체 필드명, "미지원 규칙 타입" 진단 로그에만 사용
  * @returns {boolean} Validity status | 유효 여부
  */
-const validateCheck = (value, rule, formData, prefix = '') => {
+const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   // ASSERT_TRUE, ASSERT_FALSE는 null이나 빈 값이어도 검증을 수행해야 함 (체크 안 된 상태를 잡아야 하므로)
-  if ((value === null || value === '') && rule.type !== 'ASSERT_TRUE' && rule.type !== 'ASSERT_FALSE') {
+  if (
+    (value === null || value === '') &&
+    rule.type !== 'ASSERT_TRUE' &&
+    rule.type !== 'ASSERT_FALSE'
+  ) {
     return rule.type !== 'REQUIRED'; // REQUIRED만 실패, 나머지 empty 무시
   }
 
   // ASSERT_TRUE, ASSERT_FALSE는 단일 값(체크박스 하나 등)에 대해서만 유효함
   // 여러 개가 선택된 경우(배열 길이가 1보다 큰 경우)는 불리언 판단이 부적절하므로 실패(false) 처리
-  if (Array.isArray(value) && value.length > 1 && (rule.type === 'ASSERT_TRUE' || rule.type === 'ASSERT_FALSE')) {
+  if (
+    Array.isArray(value) &&
+    value.length > 1 &&
+    (rule.type === 'ASSERT_TRUE' || rule.type === 'ASSERT_FALSE')
+  ) {
     return false;
   }
 
@@ -730,13 +748,24 @@ const validateCheck = (value, rule, formData, prefix = '') => {
 
   switch (rule.type) {
     case 'REQUIRED':
-      return !!value && (Array.isArray(value) ? value.length > 0 : true);
+      // 서버(S2Util.isEmpty)와 동일하게 숫자 0과 boolean false는 "값 있음"으로 취급함(단순 truthy
+      // 판단(!!value)은 0/false를 falsy로 봐서 additionalData로 원시값이 들어오면 오판했었음) |
+      // Matches the server (S2Util.isEmpty): numeric 0 and boolean false count as "present", unlike
+      // a plain truthy check (!!value) which treats them as falsy and misjudges raw additionalData values.
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'string') return value.trim().length > 0;
+      return value !== null && value !== undefined;
     case 'ASSERT_TRUE':
       // 체크박스는 'on' 또는 'true' (문자열/불리언) 일 때 통과
       return firstValue === true || firstValue === 'true' || firstValue === 'on';
     case 'ASSERT_FALSE':
       // 체크박스가 체크되지 않았거나 (null/undefined), 명시적 false일 때 통과
-      return firstValue === false || firstValue === 'false' || firstValue === null || firstValue === undefined;
+      return (
+        firstValue === false ||
+        firstValue === 'false' ||
+        firstValue === null ||
+        firstValue === undefined
+      );
     case 'LENGTH':
       return String(value).length === parseInt(rule.value);
     case 'MIN_LENGTH':
@@ -788,11 +817,25 @@ const validateCheck = (value, rule, formData, prefix = '') => {
     }
     case 'EQUALS_FIELD': {
       const eqValue = formData[prefix + rule.value];
-      return value === eqValue || (Array.isArray(value) && Array.isArray(eqValue) && value.sort().join(',') === eqValue.sort().join(','));
+      return (
+        value === eqValue ||
+        (Array.isArray(value) &&
+          Array.isArray(eqValue) &&
+          value.sort().join(',') === eqValue.sort().join(','))
+      );
     }
     default:
-      console.warn('Unknown check type:', rule.type);
-      return true;
+      // 모르는 규칙 타입은 무조건 통과(fail-open)시키지 않고 실패 처리함 — 조용히 통과되면 서버가
+      // 거부하는 값이 클라이언트에서만 통과된 것처럼 보여서 더 위험함. 대신 개발자가 바로 원인을 알고
+      // s2.validator.js에 케이스를 추가할 수 있도록 console.error로 필드명/타입을 명확히 남긴다. |
+      // Unknown rule types now fail closed instead of silently passing (fail-open) — a silent pass would
+      // let data through client-side that the server rejects. console.error surfaces the exact field and
+      // rule type so a developer can immediately add the missing case to s2.validator.js.
+      console.error(
+        `[S2Validator] 지원하지 않는 규칙 타입입니다: "${rule.type}" (필드: "${fieldName}"). ` +
+          's2.validator.js의 validateCheck()에 해당 case를 추가해야 클라이언트 검증이 정상 동작합니다.'
+      );
+      return false;
   }
 };
 
@@ -836,12 +879,12 @@ const validateJumin = (jumin) => {
     check = 11 - (check % 11);
     check %= 10;
   } else {
-    let remainder = check % 11;
+    const remainder = check % 11;
     if (remainder === 0) check = 1;
     else if (remainder === 10) check = 0;
     else check = remainder;
 
-    let check2 = check + 2;
+    const check2 = check + 2;
     check = check2 > 9 ? check2 - 10 : check2;
   }
 
@@ -877,12 +920,14 @@ const validateDate = (value) => {
     const day = parseInt(value.substring(6, 8));
     if (isNaN(year) || isNaN(month) || isNaN(day)) return false;
     if (year < new Date().getFullYear() - 100) return false;
-    try {
-      new Date(year, month - 1, day);
-      return true;
-    } catch {
-      return false;
-    }
+    // JS Date는 존재하지 않는 날짜(2월 30일 등)를 예외 없이 다음 날짜로 굴려버리므로, 만든 Date를
+    // 되짚어 입력값과 일치하는지 확인해야 서버(LocalDate.of)와 동일하게 걸러낼 수 있다 | JS Date silently
+    // rolls invalid dates over (e.g. Feb 30 -> Mar 2) instead of throwing, so the constructed Date must
+    // be checked back against the input to reject them the same way the server's LocalDate.of() does.
+    const parsed = new Date(year, month - 1, day);
+    return (
+      parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day
+    );
   } else if (value instanceof Date) {
     const year = value.getFullYear();
     return year >= new Date().getFullYear() - 100;
@@ -915,9 +960,18 @@ const parseDate = (value) => {
     value = value.replace(/[-.]/g, '');
     if (value.length !== 8) return null;
     const year = parseInt(value.substring(0, 4));
-    const month = parseInt(value.substring(4, 6)) - 1;
+    const month = parseInt(value.substring(4, 6));
     const day = parseInt(value.substring(6, 8));
-    return new Date(year, month, day);
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+    // validateDate()와 동일하게 굴러간(rolled-over) 날짜는 null로 걸러냄
+    const parsed = new Date(year, month - 1, day);
+    if (
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
+    )
+      return null;
+    return parsed;
   } else if (value instanceof Date) {
     return value;
   }
