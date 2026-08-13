@@ -552,6 +552,12 @@ public class S2Cache {
         CacheKey cacheKey = new CacheKey(cacheName, keyType, valueType);
 
         // 2. 해당 식별자에 맞는 캐시 어댑터를 가져오거나 생성함 (상한 초과 시 캐싱 없이 매번 재계산하도록 저하됨)
+        // 주의: size() 체크와 삽입 사이에 원자성이 없어 완벽한 상한은 아님 — 서로 다른 새 캐시 이름이 상한
+        // 근처에서 동시에 등록되면 동시성 수준만큼 살짝 초과될 수 있음(내부 사용은 2개뿐이라 사실상 무해함) |
+        // Caution: not a perfectly atomic cap — the size() check and insertion aren't a single atomic
+        // step, so concurrent first-time registrations of different cache names right at the boundary
+        // can overshoot by roughly the concurrency level (harmless in practice since internal usage is
+        // only 2 names).
         DynamicCacheEntry entry = DYNAMIC_CACHES.computeIfAbsent(cacheKey, ck -> {
             if (DYNAMIC_CACHES.size() >= MAX_DYNAMIC_CACHES) {
                 if (DYNAMIC_CACHE_LIMIT_WARNED.compareAndSet(false, true)) {
