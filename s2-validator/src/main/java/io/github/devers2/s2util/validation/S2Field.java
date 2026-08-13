@@ -351,12 +351,35 @@ public class S2Field<T> implements Serializable {
      * @return {@code true} if validation should proceed | 검증을 수행해야 하는 경우 true
      */
     public boolean shouldValidate(Object target) {
+        return shouldValidate(target, -1);
+    }
+
+    /**
+     * Determines whether validation should be performed for a wildcard ({@code "collection[].field"})
+     * group item, resolving {@code "[]"}-marked condition field names against the given item index.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 와일드카드({@code "collection[].field"}) 그룹의 개별 아이템에 대해 검증을 수행해야 하는지 판단합니다.
+     * 조건의 필드명에 {@code "[]"} 표기가 있으면 주어진 아이템 인덱스로 치환하여 평가합니다.
+     *
+     * @param target        The root target object to inspect | 검사 대상 루트 객체 인스턴스
+     * @param wildcardIndex The current wildcard item's index, or {@code -1} if not in a wildcard
+     *                      context (conditions are evaluated as-is against {@code target}) | 현재
+     *                      와일드카드 아이템의 인덱스, 와일드카드 문맥이 아니면 {@code -1}
+     * @return {@code true} if satisfied | 조건이 만족된 경우 true
+     */
+    public boolean shouldValidate(Object target, int wildcardIndex) {
         if (conditionGroups.isEmpty())
             return true;
         // OR: 하나라도 만족하는 그룹이 있으면 검증 진행함
         return conditionGroups.stream().anyMatch(group -> {
             // AND: 그룹 내 모든 조건이 만족되어야 함
-            return group.stream().allMatch(cond -> cond.isSatisfied(target));
+            return group.stream().allMatch(cond -> {
+                S2Condition effective = wildcardIndex >= 0 ? cond.resolveForWildcardIndex(wildcardIndex) : cond;
+                return effective.isSatisfied(target);
+            });
         });
     }
 

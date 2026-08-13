@@ -215,7 +215,7 @@ public final class S2ValidatorFactory {
      * model.addAttribute("validationRules", validator.getRulesJson());
      *
      * // View (HTML/Thymeleaf)
-     * &lt;form id="saveForm" th:data-rules="${validationRules}"&gt;
+     * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
      *     &lt;input type="text" name="userId" /&gt;
      *     &lt;button type="button" onclick="doSave()"&gt;저장&lt;/button&gt;
      * &lt;/form&gt;
@@ -272,7 +272,7 @@ public final class S2ValidatorFactory {
      * model.addAttribute("validationRules", validator.getRulesJson());
      *
      * // View (HTML/Thymeleaf)
-     * &lt;form id="saveForm" th:data-rules="${validationRules}"&gt;
+     * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
      *     &lt;input type="text" name="userId" /&gt;
      *     &lt;button type="button" onclick="doSave()"&gt;저장&lt;/button&gt;
      * &lt;/form&gt;
