@@ -275,6 +275,7 @@ public class S2Util {
         }
 
         Object value = null;
+        boolean nestedPathResolved = false;
         try {
             boolean isStringField = fieldName instanceof String;
             String fieldNameStr = isStringField ? (String) fieldName : String.valueOf(fieldName);
@@ -294,6 +295,7 @@ public class S2Util {
                 // 2. 중첩 경로 처리 (Split 제거 및 Single-pass 탐색)
                 int dotIndex = fieldNameStr.indexOf('.');
                 if (dotIndex > -1) {
+                    nestedPathResolved = true;
                     Object current = target;
                     int start = 0;
 
@@ -323,8 +325,12 @@ public class S2Util {
                 }
             }
 
-            // 위에서 처리되지 않은 경우 (Dot 없음)
-            if (value == null) {
+            // 위에서 처리되지 않은 경우 (Dot 없음). nestedPathResolved가 true라면 중첩 경로 탐색이
+            // 끝까지 실행된 것이므로, 그 결과가 정상적으로 null이더라도 원본 dotted 문자열을 리터럴
+            // 필드명으로 재해석하지 않는다 | If nestedPathResolved is true, the nested-path walk already
+            // ran to completion — even a legitimately-null result must not fall through to being
+            // reinterpreted as a literal (dotted) field name.
+            if (!nestedPathResolved && value == null) {
                 // 1. Optional 처리: 값이 존재하면 언래핑하여 재귀적으로 탐색함
                 Object currentTarget = target;
                 while (currentTarget instanceof Optional<?> opt) {
@@ -427,6 +433,18 @@ public class S2Util {
                                 new MethodKey(clazz, getterName),
                                 LookupType.METHOD
                         );
+
+                        // "get" 접두사로 못 찾으면 boolean 프로퍼티(isXxx)도 시도함. 백킹 필드 없이
+                        // isXxx()만 제공하는 계산된 boolean 프로퍼티는 이 시도가 없으면 항상 null로 조회됨 |
+                        // Falls back to the "is" prefix when "get" fails, so computed boolean properties
+                        // exposed only via isXxx() (no backing field of the same name) can be resolved too.
+                        if (methodHandle.isEmpty()) {
+                            String booleanGetterName = toGetterName(fieldNameStr, true);
+                            methodHandle = S2Cache.getMethodHandle(
+                                    new MethodKey(clazz, booleanGetterName),
+                                    LookupType.METHOD
+                            );
+                        }
 
                         // getterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
                         if (methodHandle.isEmpty() && !getterName.equals(fieldNameStr)) {
@@ -671,15 +689,22 @@ public class S2Util {
             Class<?> pType = (valueClass != null) ? valueClass : (value != null ? value.getClass() : Object.class);
 
             String setterName = toSetterName(fieldNameStr);
+            // fieldNameStr을 MethodKey의 fieldName으로 전달해야 S2Cache의 "필드 타입 추론" 폴백이
+            // 동작한다. 그렇지 않으면 value.getClass()(예: HashSet, ArrayList)가 세터의 선언된
+            // 파라미터 타입(예: Set, List)과 정확히 일치하지 않을 때 항상 조회에 실패한다 | Passing
+            // fieldNameStr as MethodKey's fieldName is required to activate S2Cache's "infer the
+            // declared field type" fallback — otherwise, whenever value.getClass() (e.g. HashSet,
+            // ArrayList) doesn't exactly match the setter's declared parameter type (e.g. Set, List),
+            // the lookup always fails.
             var methodHandle = S2Cache.getMethodHandle(
-                    new MethodKey(clazz, setterName, null, new Class<?>[] { pType }),
+                    new MethodKey(clazz, setterName, fieldNameStr, new Class<?>[] { pType }),
                     LookupType.METHOD
             );
 
             // setterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
             if (methodHandle.isEmpty() && !setterName.equals(fieldNameStr)) {
                 methodHandle = S2Cache.getMethodHandle(
-                        new MethodKey(clazz, fieldNameStr, null, new Class<?>[] { pType }),
+                        new MethodKey(clazz, fieldNameStr, fieldNameStr, new Class<?>[] { pType }),
                         LookupType.BOTH
                 );
             }
