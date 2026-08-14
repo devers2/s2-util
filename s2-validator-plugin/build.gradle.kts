@@ -81,13 +81,11 @@ repositories {
     gradlePluginPortal()
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(libs.versions.java.get().toInt()))
-    }
-    withSourcesJar()
-    withJavadocJar()
-}
+// 툴체인(javaVersion)과 Javadoc/Sources JAR 설정. 이 프로젝트는 pluginMaven/marker라는 자체
+// Publication 체계를 쓰기 때문에 S2BuildUtils.configureLibraryPublishing()(mavenJava 전용) 대신
+// 필요한 두 조각만 개별 호출한다 (javaVersion/releaseCompatibility는 루트 값으로 fallback됨).
+S2BuildUtils.configureJavaCompatibility(project)
+S2BuildUtils.configurePublishArtifacts(project)
 
 // 4. Gradle Module Metadata 생성 비활성화 (Maven Central 배포 오류 방지)
 tasks.withType<GenerateModuleMetadata>().configureEach {
@@ -153,31 +151,13 @@ publishing {
             if (name == "pluginMaven") {
                 groupId = "io.github.devers2"
                 artifactId = "s2-validator-plugin"
-                pom {
-                    name = "S2 Validator Gradle Plugin"
-                    description = "Static analysis plugin for S2Validator field name validation"
-                    url = "https://github.com/devers2/s2-util"
-                    licenses {
-                        license {
-                            name = "The Apache License, Version 2.0"
-                            url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-                        }
-                    }
-                    developers {
-                        developer {
-                            id = "devers2"
-                            name = "이승수"
-                            email = "eseungsu.dev@gmail.com"
-                            organization = "devers2"
-                            organizationUrl = "https://github.com/devers2"
-                        }
-                    }
-                    scm {
-                        connection = "scm:git:git://github.com/devers2/s2-util.git"
-                        developerConnection = "scm:git:ssh://github.com/devers2/s2-util.git"
-                        url = "https://github.com/devers2/s2-util"
-                    }
-                }
+                // POM의 라이선스/개발자/SCM 등 공통 메타데이터는 S2BuildUtils.applyStandardPom이 채워준다.
+                S2BuildUtils.applyStandardPom(
+                    this,
+                    "S2 Validator Gradle Plugin",
+                    "Static analysis plugin for S2Validator field name validation",
+                    "https://github.com/devers2/s2-util"
+                )
             }
         }
     }
@@ -194,30 +174,12 @@ project.afterEvaluate {
         groupId = "io.github.devers2.validator"
         artifactId = "io.github.devers2.validator.gradle.plugin"
 
-        pom {
-            name = "S2 Validator Gradle Plugin Marker"
-            description = "Marker for S2 Validator Gradle Plugin"
-            url = "https://github.com/devers2/s2-util"
-            licenses {
-                license {
-                    name = "The Apache License, Version 2.0"
-                    url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-                }
-            }
-            developers {
-                developer {
-                    id = "devers2"
-                    name = "이승수"
-                    email = "eseungsu.dev@gmail.com"
-                    organization = "devers2"
-                    organizationUrl = "https://github.com/devers2"
-                }
-            }
-            scm {
-                connection = "scm:git:git://github.com/devers2/s2-util.git"
-                developerConnection = "scm:git:ssh://github.com/devers2/s2-util.git"
-                url = "https://github.com/devers2/s2-util.git"
-            }
-        }
+        // POM의 라이선스/개발자/SCM 등 공통 메타데이터는 S2BuildUtils.applyStandardPom이 채워준다.
+        S2BuildUtils.applyStandardPom(
+            this,
+            "S2 Validator Gradle Plugin Marker",
+            "Marker for S2 Validator Gradle Plugin",
+            "https://github.com/devers2/s2-util"
+        )
     }
 }
