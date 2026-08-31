@@ -9,7 +9,7 @@ java = "21"
 
 # Dependencies
 aspectj = "1.9.25.1"
-caffeine = "3.2.3"
+caffeine = "3.2.4"
 commons-pool2 = "2.13.1"
 javaparser = "3.28.0"
 jsch = "0.1.55"
