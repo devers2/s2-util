@@ -1,7 +1,7 @@
 [versions]
 # Plugin Versions
 s2-build-support = "0.1.6"
-shadow = "9.4.0"
+shadow = "9.6.1"
 
 
 # Java / Core
