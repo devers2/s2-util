@@ -71,3 +71,24 @@
 - 문의: [eseungsu.dev@gmail.com](mailto:eseungsu.dev@gmail.com)
 
 **제3자 라이브러리 고지:** 본 프로젝트는 외부 라이브러리를 사용합니다. 상세한 제3자 라이브러리 고지사항은 **[licenses/NOTICE](./licenses/NOTICE)** 파일을 참조해 주세요.
+
+---
+
+s2-core Version: 1.1.7 (2026-09-09)
+
+[//]: # 'S2_DEPS_INFO_START'
+
+---
+
+**특정 기능(예: S2BindValidator)을 사용하려면 런타임에 다음 의존성을 엔드유저 프로젝트에 명시적으로 추가해야 합니다.** 이 의존성이 누락되면 런타임에 `java.lang.NoClassDefFoundError`가 발생합니다.
+
+**[Gradle 사용자]**
+
+```groovy
+dependencies {
+    // 선택적 기능을 위한 필수 런타임 의존성
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
+}
+```
+
+[//]: # 'S2_DEPS_INFO_END'

@@ -329,6 +329,6 @@ subprojects {
 }
 
 // --------------------------------------------------------------------------------------
-// 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트
+// 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트 (정규식 패턴으로 README 및 다국어 문서 매칭)
 // --------------------------------------------------------------------------------------
-S2BuildUtils.updateReadmeWithVersionAndDependencies(project, file("README.md"))
+S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^README(\\..+)?\\.md$")
