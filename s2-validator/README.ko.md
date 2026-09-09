@@ -102,6 +102,31 @@ dependencies {
 </dependency>
 ```
 
+#### 선택 사항: s2-validator-plugin (빌드 시점 필드명 검증)
+
+**s2-validator-plugin** Gradle 플러그인을 선택적으로 추가하면 필드명 오타를 **빌드(컴파일) 시점에** 잡아낼 수 있습니다. 런타임 에러로 이어지기 전에 미리 방어할 수 있습니다.
+
+**[`settings.gradle`]**
+
+```groovy
+pluginManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+```
+
+**[`build.gradle`]**
+
+```groovy
+plugins {
+    id 'io.github.devers2.validator' version '1.1.2'
+}
+```
+
+> [!NOTE]
+> 이 플러그인은 라이브러리 의존성이 아닌 **Gradle 플러그인**입니다. `dependencies {}` 블록이 아닌 `plugins {}` 블록에 추가해야 합니다. Maven은 지원하지 않습니다.
+
 ---
 
 ### 2. 사용법 (Usage)
@@ -512,6 +537,39 @@ public class MemberController {
   <!-- 에러 메시지가 표시될 프록시 요소 (span, div 등) -->
   <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
   ```
+
+---
+
+#### 2.8. 빌드 시점 필드명 검증 (`s2-validator-plugin`)
+
+선택 사항으로 **s2-validator-plugin**을 추가하면 (설치 방법은 [설치 섹션](#1-설치-installation) 참고), 플러그인이 **`compileJava` 실행 전** 프로젝트 소스 코드 전체를 **정적 분석(AST 기반)**합니다. 코드 내에 있는 모든 `.field("fieldName")` 호출을 탐색하여 해당 필드가 대상 클래스에 실제로 존재하는지 검사합니다.
+
+**잡아낼 수 있는 오류:**
+
+- 필드명 오타 (예: 실제 필드는 `userName`인데 `.field("userNaem")`으로 잘못 입력)
+- DTO/VO 클래스에 존재하지 않는 필드 참조
+- 클래스 이름 변경 또는 리팩토링 후 남겨진 잘못된 필드명
+
+**예시 — 빌드가 즉시 실패하며 명확한 에러를 표시:**
+
+```
+> Task :compileJava FAILED
+
+error: [S2Validator] Field validation failed:
+  'address' 필드가 UserDTO에 없습니다
+  -> UserController.java:42: .field("address")
+
+  Possible fix: Did you mean 'addressInfo'?
+```
+
+**주요 특징:**
+
+- 별도 설정 없음 — `compileJava`, `check`, `bootRun` 태스크 실행 시 자동으로 동작
+- 클래스 상속 지원: 부모 클래스에 선언된 필드도 함께 검사
+- 멀티 프로젝트 빌드 환경에서도 동작
+- `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+ 필요
+
+플러그인 전체 문서는 [s2-validator-plugin README](../s2-validator-plugin/README.md)를 참조하세요.
 
 ---
 

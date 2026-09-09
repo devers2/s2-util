@@ -102,6 +102,31 @@ dependencies {
 </dependency>
 ```
 
+#### Optional: s2-validator-plugin (Compile-Time Field Validation)
+
+You can optionally add the **s2-validator-plugin** Gradle plugin to catch field name typos **at build time** before they cause runtime errors.
+
+**[`settings.gradle`]**
+
+```groovy
+pluginManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+```
+
+**[`build.gradle`]**
+
+```groovy
+plugins {
+    id 'io.github.devers2.validator' version '1.1.2'
+}
+```
+
+> [!NOTE]
+> This is a **Gradle plugin**, not a library dependency. Add it to the `plugins {}` block, **not** the `dependencies {}` block. Maven is not supported.
+
 ---
 
 ### 2. Usage
@@ -512,6 +537,39 @@ When `s2.validator.js` is loaded, `initS2Validator()` runs automatically. You do
   <!-- Proxy error element for displaying error text -->
   <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
   ```
+
+---
+
+#### 2.8. Compile-Time Field Validation (`s2-validator-plugin`)
+
+When you add the optional **s2-validator-plugin** (see [Installation](#1-installation)), the plugin performs **static analysis (AST-based)** of your project's source code **before `compileJava`** runs. It inspects every `.field("fieldName")` call in your codebase and checks whether that field actually exists on the target class.
+
+**What it catches:**
+
+- Typos in field names (e.g., `.field("userNaem")` when the actual field is `userName`)
+- Referencing fields that do not exist on the DTO/VO class
+- Wrong field name after a class rename or refactor
+
+**Example — build fails immediately with a clear error:**
+
+```
+> Task :compileJava FAILED
+
+error: [S2Validator] Field validation failed:
+  'address' field does not exist in UserDTO
+  -> UserController.java:42: .field("address")
+
+  Possible fix: Did you mean 'addressInfo'?
+```
+
+**Key behaviors:**
+
+- Zero configuration required — auto-activates on `compileJava`, `check`, and `bootRun` tasks
+- Supports class inheritance: checks fields declared in parent classes as well
+- Works in multi-project builds
+- Requires `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+
+
+For full plugin documentation, see the [s2-validator-plugin README](../s2-validator-plugin/README.md).
 
 ---
 

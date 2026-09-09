@@ -127,6 +127,7 @@ extra["dynamicSourceInfoMap"] = mapOf(
     "licensesInfo" to mapOf(
         "licenses" to listOf(
             "README.md",
+            "README.ko.md",
             "LICENSE",
             "licenses/LICENSE-APACHE-2.0",
             "licenses/NOTICE"
