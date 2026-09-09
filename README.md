@@ -3,15 +3,40 @@
 [English](README.md) | [한국어](README.ko.md)
 
 [![Java CI](https://github.com/devers2/s2-util/actions/workflows/ci.yml/badge.svg)](https://github.com/devers2/s2-util/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](./LICENSE)
 
-> **Write Once, Validate Anywhere.**
+> **"Write Once, Validate Anywhere."**  
 > The smartest way to validate both **Server (Java)** and **Client (JavaScript)** with a **single configuration**.
 
 ---
 
 ## 📖 Overview
 
-**S2Util** is a high-performance Java **utility library** featuring a **Unified Dynamic Validator** that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
+**S2Util** is a high-performance Java utility library featuring a **Unified Dynamic Validator** that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
+
+---
+
+## ✨ Why S2Util?
+
+- **⚡ Fluent Chainable API** — Declarative, readable rule definitions with nested dot-notation (`user.address.street`) and collection bracket support (`items[0].name`)
+- **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection overhead; Caffeine (W-TinyLFU) intelligent caching; Java 21+ Virtual Thread scalability
+- **🌐 Cross-Platform Synchronization** — Author rules once in Java, export directly to client-side validation (JavaScript / TypeScript)
+- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, URL, Phone, Business ID, and more; full i18n with natural Korean particle interpolation (`{0|은/는}`, `{0|이/가}`)
+- **🛡️ Zero-Typo Static Analysis** — The companion `s2-validator-plugin` catches DTO field typos at compile time, before they hit runtime
+- **🍃 Optional Spring Integration** — `S2BindValidator` for seamless `BindingResult` binding
+
+---
+
+## 📦 Module Overview
+
+| Module | Description |
+| :--- | :--- |
+| **[s2-core](./s2-core/README.md)** | High-performance Java utility toolkit (Reflection, Date/Time, String, System) |
+| **[s2-validator](./s2-validator/README.md)** | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration |
+| **[s2-validator-plugin](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos at compile time |
+| **[s2-jpa](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
 
 ---
 
@@ -19,12 +44,24 @@
 
 ### 1. Installation
 
-Add the following dependencies to your `build.gradle` (using Maven Central).
+Add the following dependency to your `build.gradle` (Maven Central).
+
+**[Gradle]**
 
 ```groovy
 dependencies {
     implementation 'io.github.devers2:s2-util:1.1.7'
 }
+```
+
+**[Maven]**
+
+```xml
+<dependency>
+    <groupId>io.github.devers2</groupId>
+    <artifactId>s2-util</artifactId>
+    <version>1.1.7</version>
+</dependency>
 ```
 
 **[Optional] S2Validator Static Analysis Plugin**
@@ -140,7 +177,7 @@ The foundational library providing high-performance core utility classes. Featur
 
 ---
 
-### 2. **s2-validator** — Unified Validation Library
+### 2. **s2-validator** — Unified Validation Library ⭐
 
 [s2-validator/README.md](./s2-validator/README.md)
 
