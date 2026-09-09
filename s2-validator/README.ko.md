@@ -2,6 +2,12 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
+
+> 📦 **[S2Util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.
+
 ---
 
 ## 📖 개요 (Overview)

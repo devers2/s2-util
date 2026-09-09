@@ -2,6 +2,12 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-core?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-core)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
+
+> 📦 Part of the **[S2Util Suite](../README.md)**.
+
 ---
 
 ## 📖 Overview
@@ -46,6 +52,64 @@ The **s2-core** module is the foundational library of the S2Util project, provid
 6. **Multi-Level Access Modes**
    - **Public Mode**: Adheres to public contracts (Getter/Setter) with maximum performance
    - **Private Mode**: Enables private member access when explicitly required
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+Add the following dependency to your `build.gradle` or `pom.xml`.
+
+**[Gradle]**
+
+```groovy
+dependencies {
+    implementation 'io.github.devers2:s2-core:1.1.7'
+}
+```
+
+**[Maven]**
+
+```xml
+<dependency>
+    <groupId>io.github.devers2</groupId>
+    <artifactId>s2-core</artifactId>
+    <version>1.1.7</version>
+</dependency>
+```
+
+### 2. Usage Examples
+
+#### Nested Object Access (`getValue` / `setValue`)
+
+Access and mutate properties of nested Maps, Lists, Records, or DTOs seamlessly using dot and bracket notations:
+
+```java
+// Read values with dot notation and array indexing
+String street = S2Util.getValue(user, "address.street");
+String firstRole = S2Util.getValue(user, "roles[0].name");
+
+// Set values dynamically
+S2Util.setValue(user, "address.city", "Seoul");
+```
+
+#### High-Performance Reflection & Caching
+
+```java
+// MethodHandle-based high-performance property access
+Object value = S2Util.getValue(targetDto, "fieldName");
+
+// Zero-dependency built-in cache with automatic Caffeine acceleration when available
+boolean isCaffeineActive = S2Cache.isCaffeineEnabled();
+```
+
+#### Version-Adaptive Thread Utilities
+
+```java
+// Automatically leverages Java 21+ Virtual Threads with fallback to platform threads
+ExecutorService executor = S2ThreadUtil.getCommonExecutor();
+```
 
 ---
 

@@ -2,6 +2,12 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-jpa?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-jpa)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
+
+> 📦 Part of the **[S2Util Suite](../README.md)**.
+
 ---
 
 ## 📖 Overview
@@ -48,12 +54,24 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
 
 ### 1. Installation
 
-Add the following dependency to your `build.gradle`.
+Add the following dependency to your `build.gradle` or `pom.xml`.
+
+**[Gradle]**
 
 ```groovy
 dependencies {
     implementation 'io.github.devers2:s2-jpa:1.1.7'
 }
+```
+
+**[Maven]**
+
+```xml
+<dependency>
+    <groupId>io.github.devers2</groupId>
+    <artifactId>s2-jpa</artifactId>
+    <version>1.1.7</version>
+</dependency>
 ```
 
 ### 2. Usage
