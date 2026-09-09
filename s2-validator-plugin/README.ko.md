@@ -99,3 +99,7 @@ plugins {
 - 문의: [eseungsu.dev@gmail.com](mailto:eseungsu.dev@gmail.com)
 
 **제3자 라이브러리 고지:** 본 프로젝트는 외부 라이브러리를 사용합니다. 상세한 제3자 라이브러리 고지사항은 **[licenses/NOTICE](./licenses/NOTICE)** 파일을 참조해 주세요.
+
+---
+
+s2-validator-plugin Version: 1.1.2 (2026-08-12)

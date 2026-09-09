@@ -74,7 +74,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-core Version: 1.1.7 (2026-08-12)
+s2-core Version: 1.1.7 (2026-09-09)
 
 [//]: # 'S2_DEPS_INFO_START'
 
