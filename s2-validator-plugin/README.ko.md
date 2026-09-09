@@ -2,6 +2,12 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator-plugin?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator-plugin)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
+
+> 📦 **[S2Util 제품군](../README.ko.md)**의 Gradle 정적 분석 플러그인입니다.
+
 ---
 
 ## 📖 개요 (Overview)
