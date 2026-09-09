@@ -39,6 +39,8 @@ out/
 .nbproject/
 dist/
 nbdist/
+# IntelliJ KLS (Kotlin Language Service) classpath cache — local only, do not commit
+kls_database.db
 
 #---------------------------------------------------
 # Node / Frontend
