@@ -3,8 +3,11 @@
 [English](README.md) | [한국어](README.ko.md)
 
 [![Java CI](https://github.com/devers2/s2-util/actions/workflows/ci.yml/badge.svg)](https://github.com/devers2/s2-util/actions/workflows/ci.yml)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](./LICENSE)
 
-> **Write Once, Validate Anywhere.**
+> **"Write Once, Validate Anywhere."**  
 > **(Java & JavaScript) 한 번의 작성**으로 **서버와 클라이언트 모두를 검증**하는 가장 스마트한 방법.
 
 ---
@@ -15,16 +18,50 @@
 
 ---
 
+## ✨ S2Util을 사용해야 하는 이유
+
+- **⚡ 플루언트 체이닝 API** — 선언적이고 가독성 높은 규칙 정의, 중첩 점 표기법(`user.address.street`)과 컬렉션 대괄호 표기법(`items[0].name`) 지원
+- **🏎️ 극한의 성능** — `MethodHandle` 캐시로 리플렉션 병목 제거, Caffeine(W-TinyLFU) 지능형 캐시, Java 21+ 가상 스레드 스케일링
+- **🌐 크로스 플랫폼 동기화** — Java로 규칙을 한 번 작성하면 클라이언트 유효성 검증 로직(JavaScript / TypeScript)으로 바로 내보낼 수 있습니다
+- **🇰🇷 30+ 내장 규칙 & 스마트 i18n** — 이메일, URL, 전화번호, 사업자등록번호 등; 한국어 자연스러운 조사 보간(`{0|은/는}`, `{0|이/가}`) 포함 완전한 다국어 지원
+- **🛡️ 컴파일 타임 오타 방지** — 동반 플러그인 `s2-validator-plugin`이 DTO 필드명 오타를 런타임 전에 빌드 단계에서 잡아냅니다
+- **🍃 선택적 Spring 통합** — `S2BindValidator`로 `BindingResult`와 손쉽게 연동
+
+---
+
+## 📦 모듈 구성
+
+| 모듈 | 설명 |
+| :--- | :--- |
+| **[s2-core](./s2-core/README.ko.md)** | 고성능 Java 유틸리티 툴킷 (리플렉션, 날짜/시간, 문자열, 시스템) |
+| **[s2-validator](./s2-validator/README.ko.md)** | ⭐ 서버·클라이언트 통합 유효성 검증 엔진 & Spring 바인딩 통합 |
+| **[s2-validator-plugin](./s2-validator-plugin/README.ko.md)** | Gradle 정적 분석 플러그인 — DTO 필드 오타를 컴파일 타임에 감지 |
+| **[s2-jpa](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
+
+---
+
 ## 🚀 빠른 시작 가이드 (Quick Start)
 
 ### 1. 설치 (Installation)
 
 `build.gradle`에 다음 의존성을 추가합니다 (Maven Central 사용).
 
+**[Gradle]**
+
 ```groovy
 dependencies {
     implementation 'io.github.devers2:s2-util:1.1.7'
 }
+```
+
+**[Maven]**
+
+```xml
+<dependency>
+    <groupId>io.github.devers2</groupId>
+    <artifactId>s2-util</artifactId>
+    <version>1.1.7</version>
+</dependency>
 ```
 
 **[선택 사항] S2Validator 정적 분석 플러그인**
@@ -137,7 +174,7 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 ---
 
-### 2. **s2-validator** — 통합 검증 라이브러리
+### 2. **s2-validator** — 통합 검증 라이브러리 ⭐
 
 [s2-validator/README.ko.md](./s2-validator/README.ko.md)
 
