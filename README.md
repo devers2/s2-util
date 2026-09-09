@@ -140,24 +140,68 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 #### [HTML / Client]
 
-```html
-<!-- Inject the validation rules JSON string passed from the controller -->
-<form id="myForm" th:data-s2-rules="${rules}">...</form>
+> **Why does importing `s2.validator.js` work without copying any files?**
+> Per the Servlet 3.0+ spec, all files inside `META-INF/resources/` in a JAR are automatically served as static web resources. So `s2.validator.js` is immediately available at `/s2-util/js/s2.validator.js` with no manual setup.
 
-<script type="module">
-  // s2.validator.js is served automatically from the JAR's META-INF/resources
-  // (assuming the app hasn't disabled its framework's default static-resource-from-JAR
-  // serving, e.g. Spring Boot's default static resource handling).
-  //
-  // The path below is context-path-safe (works no matter what path the app is deployed under),
-  // via Thymeleaf's @{...} link-URL expression. A plain absolute import like
-  // `import '/s2-util/js/s2.validator.js'` only works when the app is deployed at the server
-  // ROOT context path ("/") - it breaks under any other context path (e.g. "/app").
-  const contextPath = /*[[@{/}]]*/ '';
-  import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
-  // Just importing the script automatically performs validation using the browser's native UI during submit.
-</script>
-```
+**Recommended Import Methods:**
+
+- **Option A (Recommended — Thymeleaf `th:src`)**:
+  ```html
+  <!-- Bind server-generated JSON rules to the form -->
+  <form id="joinForm" th:action="@{/member/join}" method="post"
+        th:object="${member}" th:data-s2-rules="${validationRules}">
+    ...
+    <button type="submit">Sign Up</button>
+  </form>
+
+  <!-- Import s2.validator.js — context-path-safe via Thymeleaf @{...} -->
+  <script type="module" th:src="@{/s2-util/js/s2.validator.js}"></script>
+  ```
+
+- **Option B (Inline Script Dynamic Import)**:
+  ```html
+  <script type="module">
+    // Context-path-safe dynamic import (works under any deployment path, e.g. /app)
+    // A plain '/s2-util/js/s2.validator.js' only works at the server root (/).
+    const contextPath = /*[[@{/}]]*/ '';
+    import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+  </script>
+  ```
+
+**Zero-Code Client Automatic Validation:**
+
+Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — **no JavaScript code required**:
+
+1. Disables native browser validation (`noValidate`) on all forms with `data-s2-rules`; uses `MutationObserver` to cover dynamically added forms (SPAs, modals)
+2. Intercepts form submit events and parses the JSON rules
+3. On failure: calls `e.preventDefault()`, focuses the first invalid field, and shows a localized error tooltip via `form.reportValidity()`
+4. Real-time reset: clears error state as soon as the user types (`input`) or changes selection (`change`)
+
+**Practical Tips:**
+
+- **AJAX / Fetch Validation**: When submitting via `fetch` or `axios`, call `S2Validator.validate()` manually:
+  ```html
+  <script type="module" th:inline="javascript">
+    const contextPath = /*[[@{/}]]*/ '';
+    const { S2Validator } = await import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+
+    document.getElementById('ajaxBtn').addEventListener('click', async () => {
+      const errors = S2Validator.validate('#joinForm');
+      if (Object.keys(errors).length > 0) return; // abort if invalid
+
+      const formData = new FormData(document.getElementById('joinForm'));
+      await fetch('/api/member/join', { method: 'POST', body: formData });
+    });
+  </script>
+  ```
+
+- **Hidden Input Error Display (`{fieldName}_error`)**: Hidden inputs or custom UI widgets cannot show native tooltips. Add a proxy element named `{fieldName}_error` and S2Validator will auto-populate it:
+  ```html
+  <input type="hidden" name="profileImage" />
+  <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
+  ```
+
+> For the full client integration guide (import maps, per-field customization, etc.), see the [s2-validator README](./s2-validator/README.md#client-side-view-integration-thymeleaf--html-guide).
 
 ---
 

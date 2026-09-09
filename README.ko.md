@@ -140,21 +140,69 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 #### [HTML / Client]
 
-```html
-<!-- 컨트롤러에서 전달받은 검증 규칙(JSON 문자열)을 폼의 data 속성에 주입 -->
-<form id="myForm" th:data-s2-rules="${rules}">...</form>
+> **`s2.validator.js`를 별도로 복사하지 않아도 되는 이유?**
+> Servlet 3.0+ 스펙에 따라, JAR 내부의 `META-INF/resources/` 경로에 있는 파일은 정적 웹 리소스로 자동 제공됩니다. 따라서 `s2.validator.js`는 별도 설정 없이 `/s2-util/js/s2.validator.js`로 즉시 접근할 수 있습니다.
 
-<script type="module">
-  // s2.validator.js는 라이브러리 내부(META-INF/resources)에 포함되어 있어 별도 설정 없이 로드됩니다.
-  // (단, 프레임워크의 기본 JAR 정적 리소스 서빙을 끄거나 오버라이드하지 않았다는 전제입니다.)
-  //
-  // 아래 경로는 Thymeleaf의 @{...} 링크 표현식을 사용해 컨텍스트 경로에 안전합니다.
-  // (앱이 어떤 경로로 배포되든 항상 동작)
-  const contextPath = /*[[@{/}]]*/ '';
-  import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
-  // 임포트만 하면 폼 전송 시 브라우저 네이티브 UI를 통해 서버와 동일한 검증이 자동으로 수행됩니다.
-</script>
-```
+**권장 임포트 방식:**
+
+- **Option A (권장 — Thymeleaf `th:src`)**:
+  ```html
+  <!-- 서버에서 생성한 JSON 규칙을 폼에 바인딩 -->
+  <form id="joinForm" th:action="@{/member/join}" method="post"
+        th:object="${member}" th:data-s2-rules="${validationRules}">
+    ...
+    <button type="submit">회원가입</button>
+  </form>
+
+  <!-- Thymeleaf @{...}를 통해 컨텍스트 경로 안전하게 임포트 -->
+  <script type="module" th:src="@{/s2-util/js/s2.validator.js}"></script>
+  ```
+
+- **Option B (인라인 스크립트 동적 임포트)**:
+  ```html
+  <script type="module">
+    // 컨텍스트 경로에 안전한 동적 임포트 (e.g. /app 배포 환경에서도 동작)
+    // 단순한 '/s2-util/js/s2.validator.js'는 서버 루트(/) 배포 시에만 동작합니다.
+    const contextPath = /*[[@{/}]]*/ '';
+    import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+  </script>
+  ```
+
+**Zero-Code 클라이언트 자동 검증:**
+
+`s2.validator.js`가 로드되면 `initS2Validator()`가 자동으로 실행됩니다 — **별도 JavaScript 코드 불필요**:
+
+1. `data-s2-rules` 속성을 가진 모든 폼의 네이티브 검증을 비활성화(`noValidate`); `MutationObserver`로 동적으로 추가된 폼(SPA, 모달 등)도 자동 감지
+2. 폼 전송 이벤트를 가로채고 JSON 규칙을 파싱
+3. 검증 실패 시: `e.preventDefault()` 호출, 첫 번째 오류 필드로 포커스, `form.reportValidity()`로 로컬라이징된 오류 툴팁 표시
+4. 실시간 오류 초기화: 사용자가 입력(`input`) 또는 선택 변경(`change`) 시 즉시 오류 상태 해제
+
+**실용 팁:**
+
+- **AJAX / Fetch 검증**: `fetch`나 `axios`로 제출하는 경우, `S2Validator.validate()`를 직접 호출하세요:
+  ```html
+  <script type="module" th:inline="javascript">
+    const contextPath = /*[[@{/}]]*/ '';
+    const { S2Validator } = await import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+
+    document.getElementById('ajaxBtn').addEventListener('click', async () => {
+      const errors = S2Validator.validate('#joinForm');
+      if (Object.keys(errors).length > 0) return; // 오류 있으면 중단
+
+      const formData = new FormData(document.getElementById('joinForm'));
+      await fetch('/api/member/join', { method: 'POST', body: formData });
+    });
+  </script>
+  ```
+
+- **히든 입력 오류 표시 (`{fieldName}_error`)**: 히든 입력이나 커스텀 UI 위젯은 네이티브 툴팁을 표시할 수 없습니다. `{fieldName}_error`라는 이름의 프록시 요소를 추가하면 S2Validator가 자동으로 오류 메시지를 채웁니다:
+  ```html
+  <input type="hidden" name="profileImage" />
+  <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
+  ```
+
+> 전체 클라이언트 통합 가이드(import maps, 필드별 커스터마이징 등)는 [s2-validator README](./s2-validator/README.md#client-side-view-integration-thymeleaf--html-guide)를 참고하세요.
+
 
 ---
 
