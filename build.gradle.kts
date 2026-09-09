@@ -268,7 +268,7 @@ subprojects {
     }
 
     group = rootProject.group
-    if (version == "unspecified") {
+    if (project.name != "s2-validator-plugin" && version == "unspecified") {
         // 서브 프로젝트에 버전이 정의되어 있지 않은 경우 루트 버전을 사용
         version = rootProject.version
     }
@@ -326,6 +326,9 @@ subprojects {
 
     // 'Tasks → other → copyDependencies' 실행 시 지정 디렉토리로 의존성 복사
     S2BuildUtils.registerCopyDependenciesTask(project)
+
+    // 서브프로젝트 README 파일 버전 & 의존성 가이드 업데이트
+    S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^README(\\..+)?\\.md$")
 }
 
 // --------------------------------------------------------------------------------------
