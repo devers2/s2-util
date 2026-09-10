@@ -54,21 +54,24 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 
 /**
- * Gradle Task that performs static analysis on source code to validate {@code S2Validator} field names.
+ * Gradle Task that performs static analysis on source code to validate {@code S2Validator} field names
+ * and chaining completeness.
  * <p>
  * This task uses JavaParser to analyze the AST (Abstract Syntax Tree) of source code.
  * It identifies {@code .field("fieldName")} call patterns and verifies if the specified
- * field actually exists in the target DTO class.
+ * field actually exists in the target DTO class. Additionally, it detects incomplete
+ * validator chains where terminal methods ({@code .validate()} / {@code .build()}) are missing.
  * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 소스 코드를 정적 분석하여 {@code S2Validator}의 필드명 유효성을 검증하는 Gradle Task입니다.
+ * 소스 코드를 정적 분석하여 {@code S2Validator}의 필드명 유효성과 체이닝 완결성을 검증하는 Gradle Task입니다.
  * <p>
  * JavaParser를 사용하여 소스 코드의 AST(Abstract Syntax Tree)를 분석하고,
  * {@code .field("fieldName")} 호출 패턴을 찾아 대상 DTO 클래스에 해당 필드가
- * 실제로 존재하는지 확인합니다.
+ * 실제로 존재하는지 확인합니다. 또한 종단 메서드({@code .validate()} / {@code .build()})가
+ * 누락된 불완전 체이닝을 감지하여 빌드를 실패시킵니다.
  * </p>
  *
  * <b>Key Features (주요 특징)</b>
@@ -77,6 +80,7 @@ import com.github.javaparser.ast.type.Type;
  * <li><b>Inheritance Support:</b> Includes fields from parent classes in the validation. | 상속받은 부모 클래스의 필드까지 포함하여 검증</li>
  * <li><b>Multi-Project Support:</b> Searches for DTOs across all subprojects within the root project. | 멀티 프로젝트 환경 지원</li>
  * <li><b>Performance Optimization:</b> Caches analyzed DTO field information for faster subsequent checks. | DTO 필드 정보 캐싱을 통한 성능 최적화</li>
+ * <li><b>Chaining Completeness Check:</b> Detects incomplete validator chains (e.g. missing terminal {@code .validate()} or {@code .build()}) and fails the build. | 종단 메서드({@code .validate()}/{@code .build()}) 누락 등 불완전 체이닝을 감지하여 빌드 실패 처리</li>
  * </ul>
  *
  * @author devers2
@@ -133,7 +137,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
      * Gradle Task의 실제 실행 진입점입니다.
      * 프로젝트 내의 모든 Java 파일을 스캔하여 {@code S2Validator} 설정 오류를 찾아냅니다.
      *
-     * @throws IllegalStateException If any invalid field names are found | 유효하지 않은 필드명이 발견된 경우 빌드 실패
+     * @throws IllegalStateException If any invalid field names or incomplete chaining is found | 유효하지 않은 필드명 또는 불완전한 체이닝이 발견된 경우 빌드 실패
      */
     @TaskAction
     public void checkValidators() {
@@ -150,6 +154,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             }
 
             Map<String, List<ValidationError>> errorsByFile = new LinkedHashMap<>();
+            Map<String, List<ChainingError>> chainingErrorsByFile = new LinkedHashMap<>();
             Map<String, List<BindValidatorWarning>> bindWarningsByFile = new LinkedHashMap<>();
             int totalFiles = 0;
             int validatorFiles = 0;
@@ -167,6 +172,9 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     if (!result.fieldErrors.isEmpty()) {
                         validatorFiles++;
                         errorsByFile.put(javaFile.toString(), result.fieldErrors);
+                    }
+                    if (!result.chainingErrors.isEmpty()) {
+                        chainingErrorsByFile.put(javaFile.toString(), result.chainingErrors);
                     }
                     if (!result.bindValidatorWarnings.isEmpty()) {
                         bindWarningsByFile.put(javaFile.toString(), result.bindValidatorWarnings);
@@ -196,16 +204,47 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 getLogger().error("");
             }
 
+            // 체이닝 완결성 오류 결과 출력
+            if (!chainingErrorsByFile.isEmpty()) {
+                int totalChainingErrors = chainingErrorsByFile.values().stream().mapToInt(List::size).sum();
+                getLogger().error("");
+                getLogger().error(ANSI_RED + ANSI_BOLD + "[S2Validator Chaining Error]" + ANSI_RESET);
+                getLogger().error(
+                        ANSI_RED + "💀 {}개 파일에서 종단 메서드 누락으로 인한 '죽은 코드(Dead Code)'가 {}건 발견되었습니다." + ANSI_RESET,
+                        chainingErrorsByFile.size(), totalChainingErrors
+                );
+                getLogger().error(ANSI_RED + "   체이닝이 완결되지 않으면 검증 로직이 실제로 실행되지 않습니다!" + ANSI_RESET);
+
+                chainingErrorsByFile.forEach((file, chainingErrors) -> {
+                    Path relativePath = project.getProjectDir().toPath().relativize(Path.of(file));
+                    getLogger().error("");
+                    getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
+                    chainingErrors.forEach(
+                            err -> getLogger().error(
+                                    "    " + ANSI_RED + "💀 Line {}:" + ANSI_RESET + " S2Validator.{}() 체인이 .{}()로 끝나지 않았습니다 (죽은 코드)",
+                                    err.lineNumber, err.starterMethod, err.expectedTerminal
+                            )
+                    );
+                });
+                getLogger().error("");
+            } else {
+                getLogger().lifecycle(ANSI_GREEN + ANSI_BOLD + "✅ [S2Validator Chaining Check Success] " + ANSI_RESET + "체이닝 완결성 검사 통과");
+            }
+
             // S2BindValidator/S2ValidatorFactory로 얻은 검증기가 validate() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
             logBindValidatorWarnings(bindWarningsByFile, project);
 
-            if (!errorsByFile.isEmpty()) {
+            boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty();
+            if (hasFatalErrors) {
+                int fieldErrorCount = errorsByFile.values().stream().mapToInt(List::size).sum();
+                int chainingErrorCount = chainingErrorsByFile.values().stream().mapToInt(List::size).sum();
+                List<String> messages = new ArrayList<>();
+                if (fieldErrorCount > 0)
+                    messages.add(String.format("%d개의 잘못된 필드명", fieldErrorCount));
+                if (chainingErrorCount > 0)
+                    messages.add(String.format("%d개의 불완전한 체이닝(Dead Code)", chainingErrorCount));
                 throw new IllegalStateException(
-                        String.format(
-                                "%d개 파일에서 총 %d개의 잘못된 필드명이 발견되었습니다.",
-                                validatorFiles,
-                                errorsByFile.values().stream().mapToInt(list -> list.size()).sum()
-                        )
+                        String.format("S2Validator 정적 분석 실패: %s 발견되었습니다.", String.join(", ", messages))
                 );
             }
 
@@ -254,13 +293,14 @@ public class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 개별 Java 파일을 파싱하여 {@code S2Validator} 필드명 유효성과 {@code S2BindValidator} 사용 패턴을 분석합니다.
+     * 개별 Java 파일을 파싱하여 {@code S2Validator} 필드명 유효성, 체이닝 완결성, {@code S2BindValidator} 사용 패턴을 분석합니다.
      *
      * @param javaFile 분석할 Java 소스 파일 경로
-     * @return 필드명 오류와 S2BindValidator 경고를 함께 담은 결과 (둘 다 없으면 빈 목록들)
+     * @return 필드명 오류, 체이닝 완결성 오류, S2BindValidator 경고를 함께 담은 결과 (없으면 빈 목록들)
      */
     private FileAnalysisResult analyzeFile(Path javaFile) {
         List<ValidationError> errors = new ArrayList<>();
+        List<ChainingError> chainingErrors = new ArrayList<>();
         List<BindValidatorWarning> bindWarnings = new ArrayList<>();
 
         try {
@@ -303,6 +343,9 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                         );
                     }
                 }
+
+                // 체이닝 완결성 검사
+                chainingErrors.addAll(analyzeChainingCompleteness(cu));
             }
 
             if (content.contains("S2BindValidator") || content.contains("S2ValidatorFactory")) {
@@ -313,7 +356,135 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             getLogger().debug("파일 파싱 실패: {}", javaFile.getFileName(), e);
         }
 
-        return new FileAnalysisResult(errors, bindWarnings);
+        return new FileAnalysisResult(errors, chainingErrors, bindWarnings);
+    }
+
+    /**
+     * 파일 내의 모든 {@code S2Validator} 체인 시작점({@code of()}, {@code builder()}, {@code check()})을 찾아
+     * 종단 메서드({@code validate()} / {@code build()})로 끝나지 않는 불완전 체이닝을 감지합니다.
+     *
+     * <p>
+     * <b>탐지 전략:</b>
+     * </p>
+     * <ol>
+     * <li>파일 전체에서 {@code S2Validator.of(...)}, {@code S2Validator.builder()},
+     *     {@code S2Validator.check(...)} 호출을 찾는다.</li>
+     * <li>각 시작 호출의 "최상위 체이닝 호출"을 찾는다.
+     *     (예: {@code S2Validator.of(x).field("a").validate()} 에서 {@code validate()} 가 최상위)</li>
+     * <li>최상위 호출이 이미 종단 메서드인 경우 정상으로 판정한다.</li>
+     * <li>최상위 호출이 문장(ExpressionStmt)에 직접 포함되어 있고 종단 메서드가 아니면 불완전 체이닝으로 간주한다.</li>
+     * <li>체인이 변수에 저장된 경우, 같은 스코프 안에서 해당 변수에 대해 종단 메서드 호출이 있는지 확인한다.</li>
+     * </ol>
+     *
+     * @param cu 분석 대상 파일의 CompilationUnit
+     * @return 발견된 불완전 체이닝 오류 목록 (없으면 빈 목록)
+     */
+    private List<ChainingError> analyzeChainingCompleteness(CompilationUnit cu) {
+        List<ChainingError> errors = new ArrayList<>();
+
+        // S2Validator.of / S2Validator.builder / S2Validator.check 호출 찾기
+        List<MethodCallExpr> starterCalls = cu.findAll(MethodCallExpr.class, this::isChainingStarterCall);
+
+        for (MethodCallExpr starterCall : starterCalls) {
+            String starterName = starterCall.getNameAsString();
+            String expectedTerminal = "builder".equals(starterName) ? "build" : "validate";
+
+            // 이 시작 호출의 최상위(Outermost) 체이닝 호출을 찾는다
+            MethodCallExpr outermost = findOutermostChainedCall(starterCall);
+
+            // 최상위 호출이 이미 종단 메서드인 경우 → 정상
+            if (expectedTerminal.equals(outermost.getNameAsString())) {
+                continue;
+            }
+
+            // 최상위 호출이 ExpressionStmt (독립 구문)에 직접 속하는지 확인
+            Node parent = outermost.getParentNode().orElse(null);
+            if (parent instanceof ExpressionStmt) {
+                int line = starterCall.getBegin().map(pos -> pos.line).orElse(0);
+                errors.add(new ChainingError(starterName, expectedTerminal, line));
+                continue;
+            }
+
+            // 체인이 변수에 저장된 경우 (VariableDeclarator 또는 AssignExpr)
+            String variableName = null;
+            if (parent instanceof VariableDeclarator declarator) {
+                variableName = declarator.getNameAsString();
+            } else if (parent instanceof AssignExpr assignExpr && assignExpr.getTarget() instanceof NameExpr targetExpr) {
+                variableName = targetExpr.getNameAsString();
+            }
+
+            if (variableName != null) {
+                // 같은 스코프(메서드/생성자/람다) 안에서 변수.validate() 또는 변수.build()가 호출되는지 확인
+                Node scopeNode = findEnclosingCallableBody(starterCall);
+                if (scopeNode != null && !isVariableTerminalCalled(scopeNode, variableName, expectedTerminal)) {
+                    int line = starterCall.getBegin().map(pos -> pos.line).orElse(0);
+                    errors.add(new ChainingError(starterName, expectedTerminal, line));
+                }
+            }
+        }
+
+        return errors;
+    }
+
+    /**
+     * 주어진 메서드 호출이 {@code S2Validator} 체이닝의 시작점인지 확인합니다.
+     * ({@code S2Validator.of(...)}, {@code S2Validator.builder()}, {@code S2Validator.check(...)})
+     *
+     * @param call 검사할 메서드 호출 표현식
+     * @return 체이닝 시작점이면 true
+     */
+    private boolean isChainingStarterCall(MethodCallExpr call) {
+        if (call.getScope().isEmpty()) {
+            return false;
+        }
+        String scope = call.getScope().get().toString();
+        String name = call.getNameAsString();
+        return scope.endsWith("S2Validator") && ("of".equals(name) || "builder".equals(name) || "check".equals(name));
+    }
+
+    /**
+     * 주어진 체이닝 시작 호출로부터 체인 최상위(최외곽) {@link MethodCallExpr}를 찾습니다.
+     *
+     * @param startCall 체인 시작 호출
+     * @return 최상위 체이닝 호출
+     */
+    private MethodCallExpr findOutermostChainedCall(MethodCallExpr startCall) {
+        MethodCallExpr current = startCall;
+        while (true) {
+            Node parent = current.getParentNode().orElse(null);
+            if (parent instanceof MethodCallExpr parentCall && parentCall.getScope().isPresent()
+                    && isAncestorOf(parentCall.getScope().get(), current)) {
+                current = parentCall;
+            } else {
+                break;
+            }
+        }
+        return current;
+    }
+
+    /**
+     * {@code candidate}가 {@code potentialDescendant}와 동일한지 확인합니다.
+     */
+    private boolean isAncestorOf(Node candidate, Node potentialDescendant) {
+        return candidate == potentialDescendant;
+    }
+
+    /**
+     * 지정된 스코프 노드 안에서 {@code variableName.expectedTerminal(...)}이 호출되는지 확인합니다.
+     *
+     * @param scopeNode        탐색할 스코프 (메서드/생성자/람다 본문)
+     * @param variableName     변수명
+     * @param expectedTerminal 기대하는 종단 메서드 이름 (validate 또는 build)
+     * @return 종단 메서드 호출이 있으면 true
+     */
+    private boolean isVariableTerminalCalled(Node scopeNode, String variableName, String expectedTerminal) {
+        return !scopeNode.findAll(
+                MethodCallExpr.class,
+                call -> expectedTerminal.equals(call.getNameAsString())
+                        && call.getScope().isPresent()
+                        && call.getScope().get() instanceof NameExpr nameExpr
+                        && variableName.equals(nameExpr.getNameAsString())
+        ).isEmpty();
     }
 
     /**
@@ -684,13 +855,37 @@ public class CheckS2ValidatorsTask extends DefaultTask {
         }
     }
 
-    /** 한 파일을 분석한 결과: 필드명 오류 목록과 S2BindValidator 사용 경고 목록을 함께 담는다 */
+    /**
+     * {@code S2Validator} 체이닝이 종단 메서드 없이 중단된 오류 정보를 담는 내부 클래스.
+     * <p>
+     * 예: {@code S2Validator.of(...).field(...)} — 마지막에 {@code .validate()}가 없는 경우<br>
+     * 예: {@code S2Validator.builder().field(...)} — 마지막에 {@code .build()}가 없는 경우
+     * </p>
+     */
+    static class ChainingError {
+        /** 체인 시작 메서드 이름 (of / builder / check) */
+        final String starterMethod;
+        /** 기대되는 종단 메서드 이름 (validate / build) */
+        final String expectedTerminal;
+        /** 체인 시작 줄 번호 */
+        final int lineNumber;
+
+        ChainingError(String starterMethod, String expectedTerminal, int lineNumber) {
+            this.starterMethod = starterMethod;
+            this.expectedTerminal = expectedTerminal;
+            this.lineNumber = lineNumber;
+        }
+    }
+
+    /** 한 파일을 분석한 결과: 필드명 오류 목록, 체이닝 완결성 오류 목록, S2BindValidator 사용 경고 목록을 함께 담는다 */
     private static final class FileAnalysisResult {
         final List<ValidationError> fieldErrors;
+        final List<ChainingError> chainingErrors;
         final List<BindValidatorWarning> bindValidatorWarnings;
 
-        FileAnalysisResult(List<ValidationError> fieldErrors, List<BindValidatorWarning> bindValidatorWarnings) {
+        FileAnalysisResult(List<ValidationError> fieldErrors, List<ChainingError> chainingErrors, List<BindValidatorWarning> bindValidatorWarnings) {
             this.fieldErrors = fieldErrors;
+            this.chainingErrors = chainingErrors;
             this.bindValidatorWarnings = bindValidatorWarnings;
         }
     }

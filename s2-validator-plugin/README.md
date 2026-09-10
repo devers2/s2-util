@@ -12,7 +12,7 @@
 
 ## 📖 Overview
 
-The **s2-validator-plugin** is a Gradle build plugin that performs static source code analysis to validate field names used in S2Validator configurations. While S2Validator leverages dot notation and array indexing for powerful nested object validation, it cannot verify at compile-time whether specified field names actually exist in target DTO classes. This plugin fills that gap by detecting typos, non-existent fields, and incorrect field references **before runtime**, preventing misconfiguration errors and enabling early error detection during the build process.
+The **s2-validator-plugin** is a Gradle build plugin that performs static source code analysis to validate field names used in S2Validator configurations. While S2Validator leverages dot notation and array indexing for powerful nested object validation, it cannot verify at compile-time whether specified field names actually exist in target DTO classes. This plugin fills that gap by detecting typos, non-existent fields, and incorrect field references **before runtime**, preventing misconfiguration errors and enabling early error detection during the build process. Furthermore, the plugin validates **chaining completeness** — ensuring every `S2Validator.of()`, `builder()`, or `check()` chain is properly terminated with the required terminal method (`.validate()` or `.build()`). Incomplete chains are dead code: the validation logic is defined but **never executed**.
 
 ---
 
@@ -59,6 +59,14 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Strict validation mode: Build fails immediately if errors detected
    - Prevents invalid code from progressing through the build pipeline
    - Ensures only properly configured validators reach production
+
+9. **Chaining Completeness Check (Dead Code Detection)**
+   - Detects incomplete validator chains where terminal methods are missing
+   - `S2Validator.of()` chains **must** end with `.validate()` — missing it creates silent dead code where validation is **never executed**
+   - `S2Validator.builder()` chains **must** end with `.build()` — missing it creates silent dead code where the validator is **never created**
+   - `S2Validator.check()` chains **must** end with `.validate()` — missing it creates silent dead code where the check is **never performed**
+   - Reports offending file, line number, starter method, and expected terminal method
+   - Build fails immediately: Prevents dead code from reaching production
 
 ---
 

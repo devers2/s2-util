@@ -25,6 +25,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+
 /**
  * Fluent API interface for defining target fields and their metadata.
  * <p>
@@ -50,6 +52,7 @@ import java.util.function.Predicate;
  * @since 1.0
  * @see S2RuleStep
  */
+@CheckReturnValue
 public interface S2FieldStep<T> {
 
     /**
@@ -60,6 +63,7 @@ public interface S2FieldStep<T> {
      * </p>
      * 모든 유효성 검증 빌더 단계의 공통 기반 인터페이스입니다.
      */
+    @CheckReturnValue
     interface BaseStep<T> {
         /**
          * Starts a new field validation configuration.
@@ -107,6 +111,7 @@ public interface S2FieldStep<T> {
      * Validate 모드({@code of()}로 시작)의 시작 단계 인터페이스입니다.
      * 오직 {@code field()} 호출만 허용됩니다.
      */
+    @CheckReturnValue
     interface ValidateStartStep<T> extends BaseStep<T> {
         @Override
         ValidateFieldStep<T> field(Object name, String label);
@@ -133,6 +138,7 @@ public interface S2FieldStep<T> {
      * 즉시 검증을 수행하고 결과를 반환하는 {@code validate()} 메서드들을 제공합니다.
      * </p>
      */
+    @CheckReturnValue
     interface ValidateFieldStep<T> extends BaseStep<T> {
         @Override
         ValidateFieldStep<T> field(Object name, String label);
@@ -207,6 +213,7 @@ public interface S2FieldStep<T> {
      * Builder 모드({@code builder()}로 시작)의 시작 단계 인터페이스입니다.
      * 오직 {@code field()} 호출만 허용됩니다.
      */
+    @CheckReturnValue
     interface BuilderStartStep<T> extends BaseStep<T> {
         @Override
         BuilderFieldStep<T> field(Object name, String label);
@@ -233,6 +240,7 @@ public interface S2FieldStep<T> {
      * 최종적으로 설계도 인스턴스를 생성하는 {@code build()} 메서드를 제공합니다.
      * </p>
      */
+    @CheckReturnValue
     interface BuilderFieldStep<T> extends BaseStep<T> {
         @Override
         BuilderFieldStep<T> field(Object name, String label);
