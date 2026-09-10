@@ -22,6 +22,8 @@ package io.github.devers2.s2util.validation;
 
 import java.util.Locale;
 
+import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+
 /**
  * Fluent API interface representing the state after a rule has been assigned to a field.
  * <p>
@@ -44,6 +46,7 @@ import java.util.Locale;
  * @version 1.5
  * @since 1.0
  */
+@CheckReturnValue
 public interface S2RuleStep<T> extends S2RuleMessageStep {
 
     @Override
@@ -108,6 +111,7 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      * 규칙 설정 후 메시지 설정, 추가 규칙 설정, 조건 설정, 다른 필드 설정 및 검증 실행이 가능합니다.
      * </p>
      */
+    @CheckReturnValue
     interface ValidateRuleStep<T> extends S2FieldStep.ValidateFieldStep<T>, S2RuleMessageStep {
         @Override
         ValidateRuleStep<T> storeMessage(String lang, String template);
@@ -134,6 +138,7 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      * 규칙 설정 후 메시지 설정, 추가 규칙 설정, 조건 설정, 다른 필드 설정 및 객체 생성이 가능합니다.
      * </p>
      */
+    @CheckReturnValue
     interface BuilderRuleStep<T> extends S2FieldStep.BuilderFieldStep<T>, S2RuleMessageStep {
         @Override
         BuilderRuleStep<T> storeMessage(String lang, String template);
@@ -159,6 +164,7 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      * 라벨이 없으므로 에러 메시지 커스터마이징(ko, en 등)을 지원하지 않습니다.
      * </p>
      */
+    @CheckReturnValue
     interface SimpleCheckRuleStep<T> {
         /**
          * Adds an additional rule for evaluation.
@@ -208,6 +214,7 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      * 라벨이 있으므로 로컬라이징된 에러 메시지 커스터마이징이 가능합니다.
      * </p>
      */
+    @CheckReturnValue
     interface LabeledCheckRuleStep<T> extends SimpleCheckRuleStep<T>, S2RuleMessageStep {
         @Override
         LabeledCheckRuleStep<T> storeMessage(String lang, String template);

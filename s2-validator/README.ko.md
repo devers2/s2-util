@@ -124,9 +124,11 @@ dependencies {
 </dependency>
 ```
 
-#### 선택 사항: s2-validator-plugin (빌드 시점 필드 유효성 검증)
+#### 선택 사항: s2-validator-plugin (빌드 시점 정적 분석 & 죽은 코드 방지)
 
-**s2-validator-plugin** Gradle 플러그인을 선택적으로 추가하면 AST 기반 정적 분석을 통해 DTO 필드명 오타나 리팩토링 누락을 **빌드(컴파일) 시점에** 감지하여 사전에 방어할 수 있습니다.
+**s2-validator-plugin** Gradle 플러그인을 선택적으로 추가하면 AST 기반 정적 분석을 통해 **빌드(컴파일) 시점에** 다음 오류를 사전에 감지하고 차단할 수 있습니다:
+- **필드명 검증**: `.field("name")`에 선언된 필드가 대상 DTO 클래스에 실제로 존재하는지 확인하여 오타를 차단합니다.
+- **체이닝 완결성 검사 (죽은 코드 방지)**: 종단 메서드가 누락된 불완전한 체인(`of()` 뒤 `.validate()` 누락, `builder()` 뒤 `.build()` 누락, `check()` 뒤 `.validate()` 누락)을 감지하여 즉시 빌드를 실패시킵니다.
 
 **[`settings.gradle`]**
 

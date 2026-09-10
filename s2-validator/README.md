@@ -124,9 +124,11 @@ dependencies {
 </dependency>
 ```
 
-#### Optional: s2-validator-plugin (Compile-Time Field Validation)
+#### Optional: s2-validator-plugin (Compile-Time Static Analysis & Dead Code Prevention)
 
-You can optionally add the **s2-validator-plugin** Gradle plugin to catch field name typos and refactoring regressions **at build time** via AST static analysis before they cause runtime errors.
+You can optionally add the **s2-validator-plugin** Gradle plugin to perform AST-based static source code analysis **at build time**:
+- **Field Name Validation**: Catches typos and refactoring regressions in `.field("name")` against target DTO classes.
+- **Chaining Completeness Check (Dead Code Prevention)**: Detects incomplete validator chains where terminal methods are missing (`of()` without `.validate()`, `builder()` without `.build()`, `check()` without `.validate()`) and fails the build immediately.
 
 **[`settings.gradle`]**
 

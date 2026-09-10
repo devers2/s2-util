@@ -340,6 +340,166 @@ public class CheckS2ValidatorsTaskTest {
     }
 
     @Test
+    void when_of_without_validate_throwsException() throws Exception {
+        File projectDir = Files.createTempDirectory("project-dir-chaining-of-fail").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            // S2Validator.of(...) 체인이 .validate() 없이 중단됨 (죽은 코드)
+            String src = "package com.example;\n" +
+                    "public class DeadCodeSample {\n" +
+                    "    void sample(Object obj){\n" +
+                    "        S2Validator.of(obj)\n" +
+                    "            .field(\"name\", \"이름\");\n" + // validate() 없음
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "DeadCodeSample.java", src);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            try {
+                assertThrows(IllegalStateException.class, () -> {
+                    try {
+                        check.invoke(task);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        Throwable cause = e.getCause();
+                        if (cause instanceof RuntimeException)
+                            throw (RuntimeException) cause;
+                        throw new RuntimeException(cause);
+                    }
+                });
+                record(true, "when_of_without_validate_throwsException");
+            } catch (Throwable t) {
+                record(false, "when_of_without_validate_throwsException");
+                throw t;
+            }
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_of_with_validate_success() throws Exception {
+        File projectDir = Files.createTempDirectory("project-dir-chaining-of-ok").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            // S2Validator.of(...) 체인이 .validate()로 올바르게 끝남
+            String src = "package com.example;\n" +
+                    "public class ValidChainSample {\n" +
+                    "    void sample(Object obj){\n" +
+                    "        S2Validator.of(obj)\n" +
+                    "            .field(\"name\", \"이름\")\n" +
+                    "            .validate();\n" + // validate() 있음
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidChainSample.java", src);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            try {
+                assertDoesNotThrow(() -> {
+                    try {
+                        check.invoke(task);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+                record(true, "when_of_with_validate_success");
+            } catch (Throwable t) {
+                record(false, "when_of_with_validate_success");
+                throw t;
+            }
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_builder_without_build_throwsException() throws Exception {
+        File projectDir = Files.createTempDirectory("project-dir-chaining-builder-fail").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            // S2Validator.builder() 체인이 .build() 없이 중단됨 (죽은 코드)
+            String src = "package com.example;\n" +
+                    "public class DeadBuilderSample {\n" +
+                    "    void sample(){\n" +
+                    "        S2Validator.builder()\n" +
+                    "            .field(\"name\", \"이름\");\n" + // build() 없음
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "DeadBuilderSample.java", src);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            try {
+                assertThrows(IllegalStateException.class, () -> {
+                    try {
+                        check.invoke(task);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        Throwable cause = e.getCause();
+                        if (cause instanceof RuntimeException)
+                            throw (RuntimeException) cause;
+                        throw new RuntimeException(cause);
+                    }
+                });
+                record(true, "when_builder_without_build_throwsException");
+            } catch (Throwable t) {
+                record(false, "when_builder_without_build_throwsException");
+                throw t;
+            }
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_builder_with_build_success() throws Exception {
+        File projectDir = Files.createTempDirectory("project-dir-chaining-builder-ok").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            // S2Validator.builder() 체인이 .build()로 올바르게 끝남
+            String src = "package com.example;\n" +
+                    "public class ValidBuilderSample {\n" +
+                    "    void sample(){\n" +
+                    "        Object v = S2Validator.builder()\n" +
+                    "            .field(\"name\", \"이름\")\n" +
+                    "            .build();\n" + // build() 있음
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidBuilderSample.java", src);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            try {
+                assertDoesNotThrow(() -> {
+                    try {
+                        check.invoke(task);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+                record(true, "when_builder_with_build_success");
+            } catch (Throwable t) {
+                record(false, "when_builder_with_build_success");
+                throw t;
+            }
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
     void apply_doesNotThrow_regardlessOfJavaPluginApplicationOrder() {
         // S2ValidatorPlugin.apply()는 'check'/'compileJava' 태스크(java 플러그인이 등록함)에
         // named(...)로 즉시 연결을 시도했었는데, java 플러그인보다 먼저(또는 아예 없이) 적용되면

@@ -33,6 +33,7 @@ import java.util.function.Predicate;
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.exception.S2RuntimeException;
 import io.github.devers2.s2util.validation.S2Field.S2CustomRule;
+import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
 
 /**
  * Fluent Validation Engine for the S2Util library.
@@ -231,6 +232,7 @@ public class S2Validator<T> implements Serializable {
      *     .validate();
      * }</pre>
      */
+    @CheckReturnValue
     public static <T> S2FieldStep.ValidateStartStep<T> of(T target) {
         return new S2ValidateChain<>(new S2Validator<>(), target);
     }
@@ -253,6 +255,7 @@ public class S2Validator<T> implements Serializable {
      * @param failFastWithException If true, failure throws an exception; if false, returns boolean
      * @return A fluent step to define fields and rules
      */
+    @CheckReturnValue
     public static <T> S2FieldStep.ValidateStartStep<T> of(T target, boolean failFastWithException) {
         return new S2ValidateChain<>(new S2Validator<>(failFastWithException), target);
     }
@@ -318,6 +321,7 @@ public class S2Validator<T> implements Serializable {
      * );
      * }</pre>
      */
+    @CheckReturnValue
     public static <T> S2FieldStep.BuilderStartStep<T> builder() {
         return new S2BuilderChain<>(new S2Validator<>());
     }
@@ -374,6 +378,7 @@ public class S2Validator<T> implements Serializable {
      * }
      * }</pre>
      */
+    @CheckReturnValue
     public static <T> S2RuleStep.SimpleCheckRuleStep<T> check(T value) {
         // failFastWithException = false (Boolean Mode)
         S2Validator<java.util.Map<String, Object>> validator = new S2Validator<>(false);
@@ -397,6 +402,7 @@ public class S2Validator<T> implements Serializable {
      * @param label 에러 메시지에 사용할 라벨
      * @return LabeledCheckRuleStep (메시지 설정 가능)
      */
+    @CheckReturnValue
     public static <T> S2RuleStep.LabeledCheckRuleStep<T> check(T value, String label) {
         // failFastWithException = true (Exception Mode)
         S2Validator<java.util.Map<String, Object>> validator = new S2Validator<>(true);

@@ -20,6 +20,8 @@
  */
 package io.github.devers2.s2util.validation;
 
+import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+
 /**
  * Fluent API interface for sequentially adding multiple conditions (AND logic).
  * <p>
@@ -42,6 +44,7 @@ package io.github.devers2.s2util.validation;
  * @version 1.5
  * @since 1.0
  */
+@CheckReturnValue
 public interface S2ConditionStep<T> {
 
     /**
@@ -84,6 +87,7 @@ public interface S2ConditionStep<T> {
      * 조건 설정 후 AND 조건 연장, 규칙 설정, 새로운 조건 설정, 다른 필드 설정 및 검증 실행이 가능합니다.
      * </p>
      */
+    @CheckReturnValue
     interface ValidateConditionStep<T> extends S2ConditionStep<T>, S2FieldStep.ValidateFieldStep<T> {
         @Override
         ValidateConditionStep<T> and(Object fieldName, Object value);
@@ -104,6 +108,7 @@ public interface S2ConditionStep<T> {
      * 조건 설정 후 AND 조건 연장, 규칙 설정, 새로운 조건 설정, 다른 필드 설정 및 객체 생성이 가능합니다.
      * </p>
      */
+    @CheckReturnValue
     interface BuilderConditionStep<T> extends S2ConditionStep<T>, S2FieldStep.BuilderFieldStep<T> {
         @Override
         BuilderConditionStep<T> and(Object fieldName, Object value);
