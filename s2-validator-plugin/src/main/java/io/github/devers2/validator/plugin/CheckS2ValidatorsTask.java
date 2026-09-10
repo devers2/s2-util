@@ -210,7 +210,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 getLogger().error("");
                 getLogger().error(ANSI_RED + ANSI_BOLD + "[S2Validator Chaining Error]" + ANSI_RESET);
                 getLogger().error(
-                        ANSI_RED + "💀 {}개 파일에서 종단 메서드 누락으로 인한 '죽은 코드(Dead Code)'가 {}건 발견되었습니다." + ANSI_RESET,
+                        ANSI_RED + "🚫 {}개 파일에서 종단 메서드 누락으로 인한 '죽은 코드(Dead Code)'가 {}건 발견되었습니다." + ANSI_RESET,
                         chainingErrorsByFile.size(), totalChainingErrors
                 );
                 getLogger().error(ANSI_RED + "   체이닝이 완결되지 않으면 검증 로직이 실제로 실행되지 않습니다!" + ANSI_RESET);
@@ -221,7 +221,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     chainingErrors.forEach(
                             err -> getLogger().error(
-                                    "    " + ANSI_RED + "💀 Line {}:" + ANSI_RESET + " S2Validator.{}() 체인이 .{}()로 끝나지 않았습니다 (죽은 코드)",
+                                    "    " + ANSI_RED + "🚫 Line {}:" + ANSI_RESET + " S2Validator.{}() 체인이 .{}()로 끝나지 않았습니다 (죽은 코드)",
                                     err.lineNumber, err.starterMethod, err.expectedTerminal
                             )
                     );
