@@ -1,4 +1,4 @@
-# S2Util: Unified Dynamic Validator 🚀
+# s2-util: Unified Dynamic Validator 🚀
 
 🌐 [English](README.md) | **한국어**
 
@@ -14,13 +14,13 @@
 
 ## 📖 개요 (Overview)
 
-**S2Util**은 서버(Java)와 클라이언트(JavaScript) 간의 검증 로직을 완벽하게 동기화하는 **통합 동적 검증 라이브러리**입니다. **프로덕션급(Production-ready)** 성능과 안정성을 목표로 설계되었으며, Method Handle 및 지능형 캐싱과 같은 첨단 기술을 활용하여 최적의 실행 속도와 정적 타입 안전성을 제공합니다.
+**s2-util**은 서버(Java)와 클라이언트(JavaScript) 간의 검증 로직을 완벽하게 동기화하는 **통합 동적 검증 라이브러리**(`s2-validator`)를 포함한 유틸리티 제품군입니다. **프로덕션급(Production-ready)** 성능과 안정성을 목표로 설계되었으며, Method Handle 및 지능형 캐싱과 같은 첨단 기술을 활용하여 최적의 실행 속도와 정적 타입 안전성을 제공합니다.
 
 ---
 
-## ✨ S2Util을 사용해야 하는 이유
+## ✨ s2-util을 사용해야 하는 이유
 
-S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한계와 실무 엔터프라이즈의 중복 코딩 고통을 해결하기 위해 개발되었습니다:
+`s2-util`은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한계와 실무 엔터프라이즈의 중복 코딩 고통을 해결하기 위해 개발되었습니다:
 
 - **🌐 Write Once, Validate Anywhere** — Java로 정의한 규칙을 `getRulesJson()`으로 내보내고 `s2.validator.js`를 로드하면, **프론트엔드 JavaScript 코드 0줄로 브라우저 네이티브 툴팁/포커스 자동 검증**이 수행됩니다.
 - **⚡ 어노테이션 지옥 없는 유연한 조건부 검증** — 복잡한 커스텀 어노테이션이나 `@GroupSequenceProvider` 없이, `.when(...).and(...)` 체이닝 단 2줄로 조건부 검증을 명쾌하게 구현합니다.
@@ -29,9 +29,9 @@ S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한�
 - **🛡️ 빌드 시점 필드명 및 체이닝 정적 검증** — 동반 플러그인 `s2-validator-plugin`이 AST 정적 분석으로 DTO 필드 오타와 종단 메서드 누락(죽은 코드)을 빌드 단계(`compileJava`)에서 사전에 차단합니다.
 - **🍃 매끄러운 Spring MVC 연동** — `S2BindValidator`를 통해 Spring 표준 `BindingResult`로 검증 오류를 자동 바인딩합니다.
 
-### 🥊 한눈에 비교: 표준 Bean Validation vs S2Validator
+### 🥊 한눈에 비교: 표준 Bean Validation vs s2-validator
 
-| 실무 문제 및 유스케이스 | 표준 Bean Validation (JSR-380) | ⭐ S2Util (S2Validator) |
+| 실무 문제 및 유스케이스 | 표준 Bean Validation (JSR-380) | ⭐ s2-validator (s2-util) |
 | :--- | :--- | :--- |
 | **동적 조건부 검증**<br>*(A 값에 따라 B 필수)* | 커스텀 어노테이션 작성 또는 `@GroupSequenceProvider` 필요 (코드 급증) ❌ | 직관적인 2줄 표현:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
 | **크로스 필드 비교**<br>*(비밀번호 확인, 기간)* | 클래스 레벨 어노테이션 작성 필요; 루트 객체(Global Error)에 바인딩 ❌ | 해당 필드에 정확히 에러 바인딩:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
@@ -45,10 +45,10 @@ S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한�
 
 | 모듈 | 설명 |
 | :--- | :--- |
-| **[s2-core](./s2-core/README.ko.md)** | 고성능 Java 유틸리티 툴킷 (리플렉션, 날짜/시간, 문자열, 시스템) |
-| **[s2-validator](./s2-validator/README.ko.md)** | ⭐ 서버·클라이언트 통합 유효성 검증 엔진 & Spring 바인딩 통합 |
-| **[s2-validator-plugin](./s2-validator-plugin/README.ko.md)** | Gradle 정적 분석 플러그인 — DTO 필드 오타 및 체이닝 누락(죽은 코드)을 컴파일 타임에 감지 |
-| **[s2-jpa](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
+| **[`s2-core`](./s2-core/README.ko.md)** | 고성능 Java 유틸리티 툴킷 (리플렉션, 날짜/시간, 문자열, 시스템) |
+| **[`s2-validator`](./s2-validator/README.ko.md)** | ⭐ 서버·클라이언트 통합 유효성 검증 엔진 & Spring 바인딩 통합 |
+| **[`s2-validator-plugin`](./s2-validator-plugin/README.ko.md)** | Gradle 정적 분석 플러그인 — DTO 필드 오타 및 체이닝 누락(죽은 코드)을 컴파일 타임에 감지 |
+| **[`s2-jpa`](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
 
 > [!TIP]
 > **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**
@@ -251,14 +251,14 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
   <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
   ```
 
-> 전체 클라이언트 통합 가이드(import maps, 필드별 커스터마이징 등)는 [s2-validator README](./s2-validator/README.md#client-side-view-integration-thymeleaf--html-guide)를 참고하세요.
+> 전체 클라이언트 통합 가이드(import maps, 필드별 커스터마이징 등)는 [`s2-validator` README](./s2-validator/README.ko.md#client-side-view-integration-thymeleaf--html-guide)를 참고하세요.
 
 
 ---
 
 ## 📦 핵심 모듈 (Core Modules)
 
-### 1. **s2-core** — 기반 라이브러리
+### 1. **`s2-core`** — 기반 라이브러리
 
 [s2-core/README.ko.md](./s2-core/README.ko.md)
 
@@ -272,7 +272,7 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 ---
 
-### 2. **s2-validator** — 통합 검증 라이브러리 ⭐
+### 2. **`s2-validator`** — 통합 검증 라이브러리 ⭐
 
 [s2-validator/README.ko.md](./s2-validator/README.ko.md)
 
@@ -288,11 +288,11 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 ---
 
-### 3. **s2-validator-plugin** — Gradle 빌드 플러그인
+### 3. **`s2-validator-plugin`** — Gradle 빌드 플러그인
 
 [s2-validator-plugin/README.ko.md](./s2-validator-plugin/README.ko.md)
 
-S2Validator 필드명과 체이닝 완결성을 컴파일 타임에 정적 분석으로 검증하는 Gradle 빌드 플러그인입니다. 주요 기능:
+`s2-validator` 필드명과 체이닝 완결성을 컴파일 타임에 정적 분석으로 검증하는 Gradle 빌드 플러그인입니다. 주요 기능:
 
 - **정적 분석**: JavaParser AST 파싱으로 정확한 코드 분석
 - **컴파일 타임 필드 검증**: 런타임 이전에 오타와 존재하지 않는 필드 감지

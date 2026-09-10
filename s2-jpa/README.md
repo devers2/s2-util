@@ -1,4 +1,4 @@
-# S2Util Library - JPA Module (s2-jpa)
+# s2-jpa — Fluent Dynamic JPQL Query Builder (s2-util)
 
 🌐 **English** | [한국어](README.ko.md)
 
@@ -6,8 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.  
-> Works seamlessly with **[s2-validator](../s2-validator/README.md)** for query parameter validation and **[`s2-support`](https://github.com/devers2/s2-support)** for pagination (`S2PaginationInfo`).
+> 📦 Part of the **[s2-util suite](../README.md)**.  
+> Works seamlessly with **[`s2-validator`](../s2-validator/README.md)** for query parameter validation and **[`s2-support`](https://github.com/devers2/s2-support)** for pagination (`S2PaginationInfo`).
 
 ---
 
@@ -42,7 +42,7 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
 5. **Full S2Template Integration**
    - Inherits all S2Template binding capabilities (bind, bindWhen, bindIn, etc.)
    - Additional JPA-specific enhancements
-   - Consistent API across S2Util modules
+   - Consistent API across `s2-util` modules
 
 6. **Built-in Logging**
    - Automatic logging of rendered JPQL queries

@@ -1,4 +1,4 @@
-# S2 Validator Plugin - Gradle Build Plugin (s2-validator-plugin)
+# s2-validator-plugin — Gradle 빌드 플러그인 (s2-util)
 
 🌐 [English](README.md) | **한국어**
 
@@ -6,13 +6,13 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 Gradle 정적 분석 플러그인입니다.
+> 📦 **[s2-util 제품군](../README.ko.md)**의 Gradle 정적 분석 플러그인입니다.
 
 ---
 
 ## 📖 개요 (Overview)
 
-**s2-validator-plugin**은 S2Validator 설정에 사용되는 필드명을 정적 소스 코드 분석으로 검증하는 Gradle 빌드 플러그인입니다. S2Validator는 점 표기법과 배열 인덱싱을 통해 강력한 중첩 객체 검증을 지원하지만, 컴파일 시점에 대상 DTO 클래스에 지정된 필드가 실제로 존재하는지 확인할 수 없습니다. 이 플러그인이 그 간격을 메워, 오타, 존재하지 않는 필드, 잘못된 필드 참조를 **런타임 전에** 감지하여 잘못된 설정을 방지하고 빌드 프로세스 중 조기 에러 감지를 가능하게 합니다. 또한 플러그인은 **체이닝 완결성**을 검증합니다 — `S2Validator.of()`, `builder()`, `check()` 로 시작한 모든 체인이 반드시 종단 메서드(`.validate()` 또는 `.build()`)로 끝나는지 확인합니다. 불완전한 체인은 죽은 코드(Dead Code)입니다: 검증 로직이 정의되어 있지만 **실제로는 실행되지 않습니다**.
+**s2-validator-plugin**은 `s2-validator` 설정에 사용되는 필드명을 정적 소스 코드 분석으로 검증하는 Gradle 빌드 플러그인입니다. `s2-validator`는 점 표기법과 배열 인덱싱을 통해 강력한 중첩 객체 검증을 지원하지만, 컴파일 시점에 대상 DTO 클래스에 지정된 필드가 실제로 존재하는지 확인할 수 없습니다. 이 플러그인이 그 간격을 메워, 오타, 존재하지 않는 필드, 잘못된 필드 참조를 **런타임 전에** 감지하여 잘못된 설정을 방지하고 빌드 프로세스 중 조기 에러 감지를 가능하게 합니다. 또한 플러그인은 **체이닝 완결성**을 검증합니다 — `S2Validator.of()`, `builder()`, `check()` 로 시작한 모든 체인이 반드시 종단 메서드(`.validate()` 또는 `.build()`)로 끝나는지 확인합니다. 불완전한 체인은 죽은 코드(Dead Code)입니다: 검증 로직이 정의되어 있지만 **실제로는 실행되지 않습니다**.
 
 ---
 

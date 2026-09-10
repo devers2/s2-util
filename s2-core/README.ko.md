@@ -1,4 +1,4 @@
-# S2Util Library - Core Module (s2-core)
+# s2-core — 고성능 핵심 유틸리티 툴킷 (s2-util)
 
 🌐 [English](README.md) | **한국어**
 
@@ -6,13 +6,13 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 핵심 기반 모듈입니다.
+> 📦 **[s2-util 제품군](../README.ko.md)**의 핵심 기반 모듈입니다.
 
 ---
 
 ## 📖 개요 (Overview)
 
-**s2-core** 모듈은 Java 개발에 최적화된 고성능 핵심 유틸리티 클래스를 제공하는 S2Util 프로젝트의 기반 라이브러리입니다. 효율적인 리플렉션을 위한 Method Handles, **외부 의존성 없는 자체 고속 캐시(선택적 Caffeine 가속 지원)**, Java 버전에 적응하는 스레드 팩토리 등의 고급 기술을 활용합니다. 핵심 기능으로는 최적화된 데이터 접근/조작 메서드(`getValue()`, `setValue()`), 문자열 유틸리티, 날짜/시간 처리, 타입 변환 등이 있습니다.
+**s2-core** 모듈은 Java 개발에 최적화된 고성능 핵심 유틸리티 클래스를 제공하는 `s2-util` 프로젝트의 기반 라이브러리입니다. 효율적인 리플렉션을 위한 Method Handles, **외부 의존성 없는 자체 고속 캐시(선택적 Caffeine 가속 지원)**, Java 버전에 적응하는 스레드 팩토리 등의 고급 기술을 활용합니다. 핵심 기능으로는 최적화된 데이터 접근/조작 메서드(`getValue()`, `setValue()`), 문자열 유틸리티, 날짜/시간 처리, 타입 변환 등이 있습니다.
 
 ---
 
