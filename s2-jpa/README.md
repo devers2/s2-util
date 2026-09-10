@@ -6,7 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.
+> 📦 Part of the **[S2Util Suite](../README.md)**.  
+> Works seamlessly with **[s2-validator](../s2-validator/README.md)** for query parameter validation and **[`s2-support`](https://github.com/devers2/s2-support)** for pagination (`S2PaginationInfo`).
 
 ---
 
@@ -130,6 +131,24 @@ List<Member> page = q.getResultList();
 ```
 
 Use `limit(offset, limit)` for simple pagination; for conditional application use the overload `limit(condition, offset, limit)`.
+
+> [!TIP]
+> **Integration with `s2-support` (`S2PaginationInfo`):**  
+> If you are using the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, you can directly pass `getFirstRecordIndex()` and `getRecordCountPerPage()` to streamline pagination calculations and list queries:
+> ```java
+> S2PaginationInfo pagination = new S2PaginationInfo();
+> pagination.setCurrentPageNo(pageNo);
+> pagination.setRecordCountPerPage(10);
+> pagination.setTotalRecordCount(totalCount);
+>
+> TypedQuery<Member> q = S2Jpql.from(entityManager)
+>     .type(Member.class)
+>     .query("SELECT m FROM Member m WHERE 1=1 {{=name_cond}}")
+>     .bindClause("name_cond", name, "AND m.name = :name")
+>         .bindParameter("name", name)
+>     .limit(pagination.getFirstRecordIndex(), pagination.getRecordCountPerPage())
+>     .build();
+> ```
 
 ---
 
