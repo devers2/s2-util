@@ -20,12 +20,24 @@
 
 ## ✨ Why S2Util?
 
-- **⚡ Fluent Chainable API** — Declarative, readable rule definitions with nested dot-notation (`user.address.street`) and collection bracket support (`items[0].name`)
-- **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection overhead; Caffeine (W-TinyLFU) intelligent caching; Java 21+ Virtual Thread scalability
-- **🌐 Cross-Platform Synchronization** — Author rules once in Java, export directly to client-side validation (JavaScript / TypeScript)
-- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, URL, Phone, Business ID, and more; full i18n with natural Korean particle interpolation (`{0|은/는}`, `{0|이/가}`)
-- **🛡️ Zero-Typo Static Analysis** — The companion `s2-validator-plugin` catches DTO field typos at compile time, before they hit runtime
-- **🍃 Optional Spring Integration** — `S2BindValidator` for seamless `BindingResult` binding
+S2Util was built to solve the most painful limitations of traditional Java validation (Bean Validation / Hibernate Validator) and enterprise frontend boilerplate:
+
+- **🌐 Write Once, Validate Anywhere** — Define rules once in Java and export them via JSON (`getRulesJson()`). The browser executes native tooltip validation with **zero frontend JavaScript code** (`s2.validator.js`).
+- **⚡ Fluent & Conditional Without Annotation Hell** — Eliminate verbose `@GroupSequenceProvider` and custom annotations. Express complex dynamic constraints cleanly with `.when(...).and(...)`.
+- **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection bottlenecks; JIT-optimized execution; Caffeine (W-TinyLFU) intelligent caching; full Java 21+ Virtual Thread scalability.
+- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, URL, Phone, Business ID, and more; full i18n with automatic Korean particle grammar (`{0|은/는}`, `{0|이/가}`).
+- **🛡️ Zero-Typo Compile-Time Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos at build time (`compileJava`), preventing runtime errors.
+- **🍃 Seamless Spring MVC Integration** — `S2BindValidator` directly binds validation errors into Spring's standard `BindingResult`.
+
+### 🥊 At a Glance: Standard Bean Validation vs S2Validator
+
+| Problem / Use Case | Standard Bean Validation (JSR-380) | ⭐ S2Util (S2Validator) |
+| :--- | :--- | :--- |
+| **Conditional Fields**<br>*(If A then B required)* | Custom annotation classes or complex `@GroupSequenceProvider` (verbose) ❌ | Expressive in 2 lines:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
+| **Cross-Field Validation**<br>*(pw == confirmPw)* | Class-level annotation; bound to root object (Global Error) ❌ | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
+| **Browser / Frontend Sync** | Server-only. Must duplicate logic in JS/TS (Zod, Yup) ❌ | **Zero frontend code**: `th:data-s2-rules` + native tooltip auto-focus ✅ |
+| **Korean Particle Grammar** 🇰🇷 | Complex custom `MessageInterpolator` required ❌ | Built-in automatic postposition formatting (`{0\|은/는}`) ✅ |
+| **Typo Protection** | Misspelled field names fail silently until runtime ❌ | Compile-time AST verification via `s2-validator-plugin` 🛡️ ✅ |
 
 ---
 

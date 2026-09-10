@@ -20,12 +20,24 @@
 
 ## ✨ S2Util을 사용해야 하는 이유
 
-- **⚡ 플루언트 체이닝 API** — 선언적이고 가독성 높은 규칙 정의, 중첩 점 표기법(`user.address.street`)과 컬렉션 대괄호 표기법(`items[0].name`) 지원
-- **🏎️ 극한의 성능** — `MethodHandle` 캐시로 리플렉션 병목 제거, Caffeine(W-TinyLFU) 지능형 캐시, Java 21+ 가상 스레드 스케일링
-- **🌐 크로스 플랫폼 동기화** — Java로 규칙을 한 번 작성하면 클라이언트 유효성 검증 로직(JavaScript / TypeScript)으로 바로 내보낼 수 있습니다
-- **🇰🇷 30+ 내장 규칙 & 스마트 i18n** — 이메일, URL, 전화번호, 사업자등록번호 등; 한국어 자연스러운 조사 보간(`{0|은/는}`, `{0|이/가}`) 포함 완전한 다국어 지원
-- **🛡️ 컴파일 타임 오타 방지** — 동반 플러그인 `s2-validator-plugin`이 DTO 필드명 오타를 런타임 전에 빌드 단계에서 잡아냅니다
-- **🍃 선택적 Spring 통합** — `S2BindValidator`로 `BindingResult`와 손쉽게 연동
+S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한계와 실무 엔터프라이즈의 중복 코딩 고통을 해결하기 위해 개발되었습니다:
+
+- **🌐 Write Once, Validate Anywhere** — Java로 정의한 규칙을 `getRulesJson()`으로 내보내고 `s2.validator.js`를 로드하면, **프론트엔드 JavaScript 코드 0줄로 브라우저 네이티브 툴팁/포커스 자동 검증**이 수행됩니다.
+- **⚡ 어노테이션 지옥 없는 유연한 조건부 검증** — 복잡한 커스텀 어노테이션이나 `@GroupSequenceProvider` 없이, `.when(...).and(...)` 체이닝 단 2줄로 조건부 검증을 명쾌하게 구현합니다.
+- **🏎️ 극한의 성능 최적화** — `MethodHandle` 캐싱으로 일반 리플렉션 오버헤드를 완전 제거(JIT 인라이닝 최적화), Caffeine(W-TinyLFU) 지능형 캐시, Java 21+ 가상 스레드(Virtual Thread) 완벽 대응.
+- **🇰🇷 30+ 내장 규칙 & 스마트 i18n** — 이메일, URL, 연락처, 사업자번호 등 풍부한 기본 규칙과 한국어 받침에 따른 조사 자동 보정(`{0|은/는}`, `{0|이/가}`, `{0|을/를}`) 기본 내장.
+- **🛡️ 빌드 시점 필드 유효성 정적 검증** — 동반 플러그인 `s2-validator-plugin`이 AST 정적 분석으로 DTO 필드 오타 및 리팩토링 누락을 빌드 단계(`compileJava`)에서 사전에 차단합니다.
+- **🍃 매끄러운 Spring MVC 연동** — `S2BindValidator`를 통해 Spring 표준 `BindingResult`로 검증 오류를 자동 바인딩합니다.
+ 
+### 🥊 한눈에 비교: 표준 Bean Validation vs S2Validator
+ 
+| 실무 문제 및 유스케이스 | 표준 Bean Validation (JSR-380) | ⭐ S2Util (S2Validator) |
+| :--- | :--- | :--- |
+| **동적 조건부 검증**<br>*(A 값에 따라 B 필수)* | 커스텀 어노테이션 작성 또는 `@GroupSequenceProvider` 필요 (코드 급증) ❌ | 직관적인 2줄 표현:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
+| **크로스 필드 비교**<br>*(비밀번호 확인, 기간)* | 클래스 레벨 어노테이션 작성 필요; 루트 객체(Global Error)에 바인딩 ❌ | 해당 필드에 정확히 에러 바인딩:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
+| **브라우저 / 프론트엔드 동기화** | 서버 전용. 프론트엔드에서 JS/TS(Zod 등)로 **동일 규칙 중복 코딩** 필수 ❌ | **프론트엔드 코드 0줄**: `th:data-s2-rules` 주입 시 네이티브 툴팁/자동 포커스 ✅ |
+| **한국어 맞춤 조사 처리** 🇰🇷 | 기본 미지원. 받침 판별 커스텀 `MessageInterpolator` 직접 구현 ❌ | `{0\|은/는}`, `{0\|이/가}` 등 **조사 자동 보정 기본 내장** ✅ |
+| **필드 오타 / 리팩토링 안전성** | 필드 바인딩 오타 발생 시 런타임에 에러 발생 ❌ | `s2-validator-plugin`으로 **컴파일 시점 AST 정적 검사** 🛡️ ✅ |
 
 ---
 

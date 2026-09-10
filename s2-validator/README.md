@@ -17,6 +17,21 @@ The **s2-validator** module is a unified cross-platform validation framework tha
 
 ---
 
+## 🥊 Why S2Validator? (vs Bean Validation)
+
+While standard Bean Validation (JSR-380 / Hibernate Validator) works well for static, simple constraints, modern real-world enterprise applications frequently hit its limitations. **S2Validator eliminates the traditional "annotation hell" and redundant client-side coding:**
+
+| Feature / Challenge | Standard Bean Validation (JSR-380) | ⭐ S2Validator |
+| :--- | :--- | :--- |
+| **Conditional Validation**<br>*(e.g. Field B is required only if A == 'X')* | Requires verbose custom validator classes or complex `@GroupSequenceProvider` (code explosion) ❌ | Fluent and expressive in just two lines:<br>`.when("paymentMethod", "CARD")`<br>`.rule(S2RuleType.REQUIRED)` ✅ |
+| **Cross-Field Comparison**<br>*(Password confirm, Date ranges)* | Requires class-level annotations; errors are bound to root object (Global Error), making field-specific UI display awkward ❌ | Directly binds errors to the exact target field:<br>`.rule(S2RuleType.EQUALS_FIELD, "password")`<br>`.rule(S2RuleType.DATE_AFTER, "startDate")` ✅ |
+| **Client-Side Sync**<br>*(Browser UI validation)* | Server-only. Frontend developers must **re-implement identical rules & regex in JS/TS** (Zod, Yup, etc.) ❌ | **Write Once, Validate Anywhere**: Export rules via `getRulesJson()` and import `s2.validator.js` — **zero frontend code** required for native browser tooltips & auto-focus ✅ |
+| **Korean Particle Grammar** 🇰🇷<br>*(Natural error messages)* | Not supported out-of-the-box. Requires implementing a custom `MessageInterpolator` ❌ | Built-in smart particle interpolation:<br>`{0\|은/는}`, `{0\|이/가}`, `{0\|을/를}`, `{0\|과/와}` automatically adjust based on final consonants ✅ |
+| **Compile-Time Typo Safety** | Runtime failures if field names are misspelled in reflection/templates ❌ | Companion plugin (`s2-validator-plugin`) uses **AST static analysis** to block builds on typos before hitting runtime 🛡️ ✅ |
+| **Dynamic Data / Map Validation** | Extremely cumbersome without declaring formal DTO classes ❌ | Validate unstructured data immediately without DTOs:<br>`S2Validator.of(map)...validate()` ✅ |
+
+---
+
 ## ✨ Key Features
 
 1. **Fluent Validation Chain API**

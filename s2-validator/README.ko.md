@@ -17,6 +17,21 @@
 
 ---
 
+## 🥊 왜 S2Validator인가? (표준 Bean Validation과의 비교)
+
+표준 Bean Validation(JSR-380 / Hibernate Validator)은 정적인 기본 제약조건에는 유용하지만, 실무 엔터프라이즈 환경에서는 빈번하게 한계에 부딪힙니다. **S2Validator는 고질적인 '어노테이션 지옥'과 프론트엔드 중복 코딩을 완전히 해결합니다:**
+
+| 비교 항목 | 표준 Bean Validation (JSR-380) | ⭐ S2Validator |
+| :--- | :--- | :--- |
+| **동적 조건부 검증**<br>*(A 값에 따라 B 필수 여부 변경)* | 복잡한 커스텀 어노테이션 작성 또는 악명 높은 `@GroupSequenceProvider` 구현 필수 (코드 급증) ❌ | 직관적인 체이닝 단 2줄로 해결:<br>`.when("paymentMethod", "CARD")`<br>`.rule(S2RuleType.REQUIRED)` ✅ |
+| **크로스 필드 비교**<br>*(비밀번호 확인, 날짜 전후 관계)* | 클래스 레벨 어노테이션 필요; 에러가 루트(Global Error)에 바인딩되어 특정 필드별 UI 에러 표시 곤란 ❌ | 해당 필드에 에러가 정확히 바인딩됨:<br>`.rule(S2RuleType.EQUALS_FIELD, "password")`<br>`.rule(S2RuleType.DATE_AFTER, "startDate")` ✅ |
+| **클라이언트(브라우저) 연동**<br>*(화면 검증 및 자동 포커스)* | 서버 전용. 프론트엔드 개발자가 JS/TS(Zod 등)로 **동일한 정규식과 규칙을 중복 코딩**해야 함 ❌ | **Write Once, Validate Anywhere**: `getRulesJson()` 전달 및 `s2.validator.js` 로드만으로 **프론트 JS 코드 0줄로 네이티브 툴팁/포커스 자동 처리** ✅ |
+| **자연스러운 한국어 조사** 🇰🇷<br>*(매끄러운 에러 문구)* | 기본 지원 없음. 받침 유무를 판별하는 커스텀 `MessageInterpolator` 직접 구현 필요 ❌ | `{0\|은/는}`, `{0\|이/가}`, `{0\|을/를}`, `{0\|과/와}` 등 **받침에 따른 조사 자동 보정 기본 내장** ✅ |
+| **컴파일 시점 오타 안전성** | 문자열 기반 바인딩 실수 시 런타임에 에러 발생 위험 ❌ | 동반 플러그인(`s2-validator-plugin`)이 **AST 정적 분석으로 빌드 시점에 오타 및 필드 누락을 사전 차단** 🛡️ ✅ |
+| **동적 데이터 / Map 검증** | DTO 클래스를 일일이 선언하지 않으면 검증이 매우 고통스러움 ❌ | DTO 클래스 없이도 `S2Validator.of(map)...validate()`로 즉시 동적 검증 가능 ✅ |
+
+---
+
 ## ✨ 주요 기능 (Key Features)
 
 1. **유연한 검증 체인 API (Fluent Validation Chain API)**
