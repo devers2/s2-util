@@ -1,6 +1,6 @@
 # S2Util Library - JPA Module (s2-jpa)
 
-[English](README.md) | [한국어](README.ko.md)
+🌐 **English** | [한국어](README.ko.md)
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-jpa?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-jpa)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
