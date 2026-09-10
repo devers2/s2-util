@@ -6,7 +6,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.  
+> 📦 **[S2Util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.
 > 페이징, 파일 처리, Spring 보조 기능이 포함된 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**와 함께 사용하면 더욱 편리합니다.
 
 ---
@@ -153,9 +153,15 @@ plugins {
 
 ### 2. 사용법 (Usage)
 
+S2Validator는 목적에 따라 두 가지 주요 실행 방식을 지원합니다:
+1. **백엔드 단독 즉시 검증 (클라이언트 연동 불필요 시)**: `S2Validator.of(...)`를 통한 인라인 즉시 검증 — REST API, 배치 작업, 서비스 레이어에 최적.
+2. **풀스택 폼 동기화 (서버 + 클라이언트 연동)**: 검증 규칙을 한 번만 정의하여 Spring `BindingResult` 및 브라우저 네이티브 툴팁으로 자동 동기화 ([2.7절 참조](#27-spring-framework-연동-s2bindvalidator)).
+
 #### 2.1. 기본 검증 (즉시 검증 vs 재사용 설계도)
 
-- **즉시 검증 모드 (`S2Validator.of`)**: 검증 대상 객체(DTO/VO 또는 Map)에 대해 1회성 검증을 즉시 수행합니다. 에러 핸들러(`Consumer<S2ValidationError>`)를 통해 모든 오류를 리스트로 수집하거나, fail-fast 모드(`validate()`)로 첫 번째 에러 발생 시 `S2RuntimeException` 예외를 즉시 던질 수 있습니다.
+- **즉시 검증 모드 (`S2Validator.of`)**: 클라이언트 연동 설정 없이 검증 대상 객체(DTO/VO 또는 Map)에 대해 1회성 검증을 즉시 수행합니다. `.rule(...)`을 생략하면 기본값으로 `S2RuleType.REQUIRED`가 자동 적용됩니다.
+  - `.validate()`를 바로 호출하면 첫 번째 에러 발생 시 `S2RuntimeException`을 즉시 던집니다 (Fail-Fast 모드).
+  - 에러 핸들러(`Consumer<S2ValidationError>`)를 넘기면 예외를 던지지 않고 전체 에러 목록을 수집할 수 있습니다.
 - **설계도 / 빌더 모드 (`S2Validator.builder`)**: 검증 로직을 재사용 가능한 '설계도(Blueprint)'로 정의합니다. 빌드된 `S2Validator` 인스턴스는 스레드 안전(Thread-safe)하여 고동시성 환경에서 캐싱 및 반복 재사용에 최적화되어 있습니다.
 
 ##### 즉시 검증 모드 (`S2Validator.of`)
@@ -163,14 +169,21 @@ plugins {
 ```java
 Map<String, Object> data = new HashMap<>();
 data.put("userId", "admin");
-data.put("age", 20);
 data.put("email", "test@s2.kr");
+data.put("birthDate", "20250101");
 
+// 1) Fail-fast 모드: 실패 시 즉시 S2RuntimeException 발생
+// 클라이언트 연동이 필요 없는 REST API, 서비스 레이어 등에서 가장 간결하게 사용:
+S2Validator.of(data)
+    .field("userId", "아이디") // 규칙 생략 시 기본 REQUIRED 자동 적용
+    .field("email", "이메일").rule(S2RuleType.EMAIL) // 규칙 지정 시 기본 REQUIRED 미적용(선택 입력), 필수 체크 필요 시 명시적 추가 필요
+    .field("birthDate", "생년월일").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    .validate();
+
+// 2) 에러 수집 모드: 예외를 던지지 않고 핸들러로 모든 에러 수집
 List<S2ValidationError> errors = new ArrayList<>();
-
-// 1) 모든 에러를 핸들러로 수집
 boolean isValid = S2Validator.of(data)
-    .field("userId", "아이디").rule(S2RuleType.REQUIRED)
+    .field("userId", "아이디")
     .field("age", "나이").rule(S2RuleType.MIN_VALUE, 19)
     .field("email", "이메일").rule(S2RuleType.EMAIL)
     .validate(errors::add, Locale.KOREAN);
@@ -178,12 +191,6 @@ boolean isValid = S2Validator.of(data)
 if (!isValid) {
     errors.forEach(err -> System.out.println(err.fieldName() + ": " + err.defaultMessage()));
 }
-
-// 2) Fail-fast 모드: 첫 번째 에러 발생 시 S2RuntimeException 던짐
-S2Validator.of(data)
-    .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-    .field("email", "이메일").rule(S2RuleType.EMAIL)
-    .validate();
 ```
 
 ##### 설계도 / 빌더 모드 (`S2Validator.builder`)
@@ -476,7 +483,7 @@ public class MemberController {
 > **JavaScript 파일을 별도로 다운로드하거나 프로젝트에 복사하지 않아도 동작하는 이유**
 >
 > Servlet 3.0+ 표준 사양 및 Spring Boot의 기본 정적 리소스(Static Resource) 처리 메커니즘에 따라, 의존성 라이브러리(JAR) 내부의 `META-INF/resources/` 경로에 위치한 파일들은 웹 애플리케이션의 루트(`/`) 정적 자원으로 자동 서빙됩니다.
-> 
+>
 > `s2-validator` 라이브러리 JAR 내부에 `META-INF/resources/s2-util/js/s2.validator.js`가 패키징되어 있으므로, 개발자가 JS 파일을 따로 프로젝트의 `src/main/resources/static` 등으로 복사할 필요 없이 브라우저에서 `/s2-util/js/s2.validator.js` URL로 바로 접근할 수 있습니다.
 
 **권장 임포트 방식:**

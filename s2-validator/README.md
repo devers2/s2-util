@@ -6,7 +6,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.  
+> 📦 Part of the **[S2Util Suite](../README.md)**.
 > Works seamlessly with companion library **[`s2-support`](https://github.com/devers2/s2-support)** for extended pagination, file management, and Spring utilities.
 
 ---
@@ -153,9 +153,15 @@ plugins {
 
 ### 2. Usage
 
+S2Validator supports two primary execution patterns:
+1. **Standalone Backend Validation (No Client Setup)**: Immediate inline validation via `S2Validator.of(...)` — perfect for REST APIs, batch jobs, and service layers.
+2. **Full-Stack Form Synchronization (Server + Client)**: Define rules once and bind to Spring `BindingResult` + browser tooltips via `S2BindValidator` (see [Section 2.7](#27-spring-framework-integration-s2bindvalidator)).
+
 #### 2.1. Basic Validation (Immediate Mode vs. Blueprint Mode)
 
-- **Immediate Mode (`S2Validator.of`)**: Perform one-off validation directly on a target object (DTO/VO or Map). You can either collect all errors with an error handler (`Consumer<S2ValidationError>`) or use fail-fast mode (`validate()`) to throw an `S2RuntimeException` on the first error.
+- **Immediate Mode (`S2Validator.of`)**: Perform one-off validation directly on a target object (DTO/VO or Map) with zero client setup. If `.rule(...)` is omitted, `S2RuleType.REQUIRED` is enforced automatically.
+  - Call `.validate()` directly to throw an `S2RuntimeException` immediately on the first error (Fail-Fast mode).
+  - Pass an error handler (`Consumer<S2ValidationError>`) to collect all errors without throwing exceptions.
 - **Blueprint / Builder Mode (`S2Validator.builder`)**: Define a reusable validation blueprint. Built `S2Validator` instances are thread-safe and can be cached and reused across requests for optimal performance in high-concurrency environments.
 
 ##### Immediate Mode (`S2Validator.of`)
@@ -163,14 +169,21 @@ plugins {
 ```java
 Map<String, Object> data = new HashMap<>();
 data.put("userId", "admin");
-data.put("age", 20);
 data.put("email", "test@s2.kr");
+data.put("birthDate", "20250101");
 
+// 1) Fail-fast mode: Throws S2RuntimeException immediately on the first failure
+// Ideal when client integration is not required (e.g., REST APIs, service layer)
+S2Validator.of(data)
+    .field("userId", "User ID") // Rule omitted -> REQUIRED by default
+    .field("email", "Email").rule(S2RuleType.EMAIL) // Specifying rules disables default REQUIRED (optional); add REQUIRED explicitly if needed
+    .field("birthDate", "Birth Date").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    .validate();
+
+// 2) Collect-all mode: Collect all errors with an error handler without throwing
 List<S2ValidationError> errors = new ArrayList<>();
-
-// 1) Collect all errors with an error handler
 boolean isValid = S2Validator.of(data)
-    .field("userId", "User ID").rule(S2RuleType.REQUIRED)
+    .field("userId", "User ID")
     .field("age", "Age").rule(S2RuleType.MIN_VALUE, 19)
     .field("email", "Email").rule(S2RuleType.EMAIL)
     .validate(errors::add, Locale.ENGLISH);
@@ -178,12 +191,6 @@ boolean isValid = S2Validator.of(data)
 if (!isValid) {
     errors.forEach(err -> System.out.println(err.fieldName() + ": " + err.defaultMessage()));
 }
-
-// 2) Fail-fast mode: Throws S2RuntimeException on the first error
-S2Validator.of(data)
-    .field("userId", "User ID").rule(S2RuleType.REQUIRED)
-    .field("email", "Email").rule(S2RuleType.EMAIL)
-    .validate();
 ```
 
 ##### Blueprint / Builder Mode (`S2Validator.builder`)
@@ -476,7 +483,7 @@ Bind the JSON rules string passed from the controller to the form's `th:data-s2-
 > **Why does importing `s2.validator.js` work without copying any files?**
 >
 > According to the Servlet 3.0+ specification and Spring Boot's default static resource handling conventions, all files located inside a library JAR's `META-INF/resources/` directory are automatically served as static web resources from the root (`/`) path.
-> 
+>
 > Because `s2.validator.js` is packaged inside `s2-validator.jar` at `META-INF/resources/s2-util/js/s2.validator.js`, you do not need to download or copy the file to your project's `static` folder. The browser can access it directly via `/s2-util/js/s2.validator.js`!
 
 **Recommended Import Methods:**
