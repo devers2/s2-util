@@ -1,6 +1,6 @@
 # S2Util: Unified Dynamic Validator 🚀
 
-[English](README.md) | [한국어](README.ko.md)
+🌐 [English](README.md) | **한국어**
 
 [![Java CI](https://github.com/devers2/s2-util/actions/workflows/ci.yml/badge.svg)](https://github.com/devers2/s2-util/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
