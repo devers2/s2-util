@@ -38,6 +38,10 @@
 | **[s2-validator-plugin](./s2-validator-plugin/README.ko.md)** | Gradle 정적 분석 플러그인 — DTO 필드 오타를 컴파일 타임에 감지 |
 | **[s2-jpa](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
 
+> [!TIP]
+> **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**  
+> `s2-core`와 `s2-validator`를 기반으로 페이징(`S2PaginationInfo`), 파일 관리(`FileManager`), Spring 빈 정적 조회(`S2ContextUtil`), 암호화/이미지 유틸리티 등을 제공하는 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**를 확인해 보세요.
+
 ---
 
 ## 🚀 빠른 시작 가이드 (Quick Start)

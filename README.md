@@ -38,6 +38,10 @@
 | **[s2-validator-plugin](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos at compile time |
 | **[s2-jpa](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
 
+> [!TIP]
+> **Looking for application-level utilities?**  
+> Check out the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, which builds upon `s2-core` and `s2-validator` to provide ready-to-use pagination (`S2PaginationInfo`), file management (`FileManager`), Spring utilities (`S2ContextUtil`), and more.
+
 ---
 
 ## 🚀 Quick Start

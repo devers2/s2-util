@@ -6,7 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.
+> 📦 Part of the **[S2Util Suite](../README.md)**.  
+> Works seamlessly with companion library **[`s2-support`](https://github.com/devers2/s2-support)** for extended pagination, file management, and Spring utilities.
 
 ---
 
@@ -110,7 +111,7 @@ dependencies {
 
 #### Optional: s2-validator-plugin (Compile-Time Field Validation)
 
-You can optionally add the **s2-validator-plugin** Gradle plugin to catch field name typos **at build time** before they cause runtime errors.
+You can optionally add the **s2-validator-plugin** Gradle plugin to catch field name typos and refactoring regressions **at build time** via AST static analysis before they cause runtime errors.
 
 **[`settings.gradle`]**
 

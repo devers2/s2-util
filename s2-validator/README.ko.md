@@ -6,7 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.
+> 📦 **[S2Util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.  
+> 페이징, 파일 처리, Spring 보조 기능이 포함된 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**와 함께 사용하면 더욱 편리합니다.
 
 ---
 
@@ -108,9 +109,9 @@ dependencies {
 </dependency>
 ```
 
-#### 선택 사항: s2-validator-plugin (빌드 시점 필드명 검증)
+#### 선택 사항: s2-validator-plugin (빌드 시점 필드 유효성 검증)
 
-**s2-validator-plugin** Gradle 플러그인을 선택적으로 추가하면 필드명 오타를 **빌드(컴파일) 시점에** 잡아낼 수 있습니다. 런타임 에러로 이어지기 전에 미리 방어할 수 있습니다.
+**s2-validator-plugin** Gradle 플러그인을 선택적으로 추가하면 AST 기반 정적 분석을 통해 DTO 필드명 오타나 리팩토링 누락을 **빌드(컴파일) 시점에** 감지하여 사전에 방어할 수 있습니다.
 
 **[`settings.gradle`]**
 

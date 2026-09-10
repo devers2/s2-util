@@ -6,7 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 JPA 동적 쿼리 모듈입니다.
+> 📦 **[S2Util 제품군](../README.ko.md)**의 JPA 동적 쿼리 모듈입니다.  
+> 검색 파라미터 검증을 위한 **[s2-validator](../s2-validator/README.ko.md)** 및 페이징 오프셋 연동을 위한 **[`s2-support`](https://github.com/devers2/s2-support)**(`S2PaginationInfo`)와 유기적으로 결합하여 사용할 수 있습니다.
 
 ---
 
@@ -129,6 +130,24 @@ List<Member> page = q.getResultList();
 ```
 
 단순 페이징에는 `limit(offset, limit)`을 사용하고, 조건부 적용에는 오버로드된 `limit(condition, offset, limit)`을 사용합니다.
+
+> [!TIP]
+> **`s2-support` 페이징(`S2PaginationInfo`)과의 연계 활용:**  
+> 보조 라이브러리인 **[`s2-support`](https://github.com/devers2/s2-support)**를 함께 사용하는 경우, `getFirstRecordIndex()`와 `getRecordCountPerPage()`를 전달하여 페이징 오프셋 계산과 목록 쿼리를 손쉽게 결합할 수 있습니다:
+> ```java
+> S2PaginationInfo pagination = new S2PaginationInfo();
+> pagination.setCurrentPageNo(pageNo);
+> pagination.setRecordCountPerPage(10);
+> pagination.setTotalRecordCount(totalCount);
+>
+> TypedQuery<Member> q = S2Jpql.from(entityManager)
+>     .type(Member.class)
+>     .query("SELECT m FROM Member m WHERE 1=1 {{=name_cond}}")
+>     .bindClause("name_cond", name, "AND m.name = :name")
+>         .bindParameter("name", name)
+>     .limit(pagination.getFirstRecordIndex(), pagination.getRecordCountPerPage())
+>     .build();
+> ```
 
 ---
 
