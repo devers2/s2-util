@@ -1,4 +1,4 @@
-# S2 Validator Plugin - Gradle Build Plugin (s2-validator-plugin)
+# s2-validator-plugin — Gradle Build Plugin (s2-util)
 
 🌐 **English** | [한국어](README.ko.md)
 
@@ -6,13 +6,13 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.
+> 📦 Part of the **[s2-util suite](../README.md)**.
 
 ---
 
 ## 📖 Overview
 
-The **s2-validator-plugin** is a Gradle build plugin that performs static source code analysis to validate field names used in S2Validator configurations. While S2Validator leverages dot notation and array indexing for powerful nested object validation, it cannot verify at compile-time whether specified field names actually exist in target DTO classes. This plugin fills that gap by detecting typos, non-existent fields, and incorrect field references **before runtime**, preventing misconfiguration errors and enabling early error detection during the build process. Furthermore, the plugin validates **chaining completeness** — ensuring every `S2Validator.of()`, `builder()`, or `check()` chain is properly terminated with the required terminal method (`.validate()` or `.build()`). Incomplete chains are dead code: the validation logic is defined but **never executed**.
+The **s2-validator-plugin** is a Gradle build plugin that performs static source code analysis to validate field names used in `s2-validator` configurations. While `s2-validator` leverages dot notation and array indexing for powerful nested object validation, it cannot verify at compile-time whether specified field names actually exist in target DTO classes. This plugin fills that gap by detecting typos, non-existent fields, and incorrect field references **before runtime**, preventing misconfiguration errors and enabling early error detection during the build process. Furthermore, the plugin validates **chaining completeness** — ensuring every `S2Validator.of()`, `builder()`, or `check()` chain is properly terminated with the required terminal method (`.validate()` or `.build()`). Incomplete chains are dead code: the validation logic is defined but **never executed**.
 
 ---
 

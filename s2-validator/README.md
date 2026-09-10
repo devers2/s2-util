@@ -1,4 +1,4 @@
-# S2Util Library - Validator Module (s2-validator)
+# s2-validator — Unified Dynamic Validation Library (s2-util)
 
 🌐 **English** | [한국어](README.ko.md)
 
@@ -6,7 +6,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.
+> 📦 Part of the **[s2-util suite](../README.md)**.
 > Works seamlessly with companion library **[`s2-support`](https://github.com/devers2/s2-support)** for extended pagination, file management, and Spring utilities.
 
 ---
@@ -17,17 +17,17 @@ The **s2-validator** module is a unified cross-platform validation framework tha
 
 ---
 
-## 🥊 Why S2Validator? (vs Bean Validation)
+## 🥊 Why s2-validator? (vs Bean Validation)
 
-While standard Bean Validation (JSR-380 / Hibernate Validator) works well for static, simple constraints, modern real-world enterprise applications frequently hit its limitations. **S2Validator eliminates the traditional "annotation hell" and redundant client-side coding:**
+While standard Bean Validation (JSR-380 / Hibernate Validator) works well for static, simple constraints, modern real-world enterprise applications frequently hit its limitations. **s2-validator eliminates the traditional "annotation hell" and redundant client-side coding:**
 
-| Feature / Challenge | Standard Bean Validation (JSR-380) | ⭐ S2Validator |
+| Feature / Challenge | Standard Bean Validation (JSR-380) | ⭐ s2-validator |
 | :--- | :--- | :--- |
 | **Conditional Validation**<br>*(e.g. Field B is required only if A == 'X')* | Requires verbose custom validator classes or complex `@GroupSequenceProvider` (code explosion) ❌ | Fluent and expressive in just two lines:<br>`.when("paymentMethod", "CARD")`<br>`.rule(S2RuleType.REQUIRED)` ✅ |
 | **Cross-Field Comparison**<br>*(Password confirm, Date ranges)* | Requires class-level annotations; errors are bound to root object (Global Error), making field-specific UI display awkward ❌ | Directly binds errors to the exact target field:<br>`.rule(S2RuleType.EQUALS_FIELD, "password")`<br>`.rule(S2RuleType.DATE_AFTER, "startDate")` ✅ |
 | **Client-Side Sync**<br>*(Browser UI validation)* | Server-only. Frontend developers must **re-implement identical rules & regex in JS/TS** (Zod, Yup, etc.) ❌ | **Write Once, Validate Anywhere**: Export rules via `getRulesJson()` and import `s2.validator.js` — **zero frontend code** required for native browser tooltips & auto-focus ✅ |
 | **Korean Particle Grammar** 🇰🇷<br>*(Natural error messages)* | Not supported out-of-the-box. Requires implementing a custom `MessageInterpolator` ❌ | Built-in smart particle interpolation:<br>`{0\|은/는}`, `{0\|이/가}`, `{0\|을/를}`, `{0\|과/와}` automatically adjust based on final consonants ✅ |
-| **Compile-Time Typo Safety** | Runtime failures if field names are misspelled in reflection/templates ❌ | Companion plugin (`s2-validator-plugin`) uses **AST static analysis** to block builds on typos before hitting runtime 🛡️ ✅ |
+| **Compile-Time Typo Safety** | Runtime failures if field names are misspelled in reflection/templates ❌ | Companion `s2-validator-plugin` uses **AST static analysis** to block builds on typos before hitting runtime 🛡️ ✅ |
 | **Dynamic Data / Map Validation** | Extremely cumbersome without declaring formal DTO classes ❌ | Validate unstructured data immediately without DTOs:<br>`S2Validator.of(map)...validate()` ✅ |
 
 ---
@@ -124,9 +124,9 @@ dependencies {
 </dependency>
 ```
 
-#### Optional: s2-validator-plugin (Compile-Time Static Analysis & Dead Code Prevention)
+#### Optional: `s2-validator-plugin` (Compile-Time Static Analysis & Dead Code Prevention)
 
-You can optionally add the **s2-validator-plugin** Gradle plugin to perform AST-based static source code analysis **at build time**:
+You can optionally add the **`s2-validator-plugin`** Gradle plugin to perform AST-based static source code analysis **at build time**:
 - **Field Name Validation**: Catches typos and refactoring regressions in `.field("name")` against target DTO classes.
 - **Chaining Completeness Check (Dead Code Prevention)**: Detects incomplete validator chains where terminal methods are missing (`of()` without `.validate()`, `builder()` without `.build()`, `check()` without `.validate()`) and fails the build immediately.
 
@@ -383,7 +383,7 @@ S2Validator.setValidationBundle("messages/validation");
 
 #### 2.7. Spring Framework Integration (`S2BindValidator`)
 
-Seamlessly bridges S2Util validation with Spring MVC's `BindingResult`, and exposes the exact same server rules to client-side JavaScript (`s2.validator.js`) via `getRulesJson()`.
+Seamlessly bridges `s2-validator` validation with Spring MVC's `BindingResult`, and exposes the exact same server rules to client-side JavaScript (`s2.validator.js`) via `getRulesJson()`.
 
 ```java
 @Controller
@@ -573,7 +573,7 @@ When `s2.validator.js` is loaded, `initS2Validator()` runs automatically. You do
 
 #### 2.8. Compile-Time Static Analysis & Chaining Completeness (`s2-validator-plugin`)
 
-When you add the optional **s2-validator-plugin** (see [Installation](#1-installation)), the plugin performs **static analysis (AST-based)** of your project's source code **before `compileJava`** runs. It inspects every `.field("fieldName")` call to verify that the field exists on the target class, and verifies that every validator chain is properly terminated with `.validate()` or `.build()`.
+When you add the optional **`s2-validator-plugin`** (see [Installation](#1-installation)), the plugin performs **static analysis (AST-based)** of your project's source code **before `compileJava`** runs. It inspects every `.field("fieldName")` call to verify that the field exists on the target class, and verifies that every validator chain is properly terminated with `.validate()` or `.build()`.
 
 **What it catches:**
 
@@ -610,7 +610,7 @@ When you add the optional **s2-validator-plugin** (see [Installation](#1-install
 - Works in multi-project builds
 - Requires `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+
 
-For full plugin documentation, see the [s2-validator-plugin README](../s2-validator-plugin/README.md).
+For full plugin documentation, see the [`s2-validator-plugin` README](../s2-validator-plugin/README.md).
 
 ---
 

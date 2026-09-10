@@ -1,4 +1,4 @@
-# S2Util Library - Core Module (s2-core)
+# s2-core — High-Performance Core Utility Toolkit (s2-util)
 
 🌐 **English** | [한국어](README.ko.md)
 
@@ -6,13 +6,13 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 Part of the **[S2Util Suite](../README.md)**.
+> 📦 Part of the **[s2-util suite](../README.md)**.
 
 ---
 
 ## 📖 Overview
 
-The **s2-core** module is the foundational library of the S2Util project, providing high-performance core utility classes optimized for Java development. It leverages advanced technologies such as Method Handles for efficient reflection, **built-in optimized lightweight cache for zero-dependency caching (with optional Caffeine support)**, and adaptive thread factories for different Java versions. Core features include optimized data access/manipulation methods (`getValue()`, `setValue()`), string utilities, date/time handling, and type conversion.
+The **s2-core** module is the foundational library of the `s2-util` project, providing high-performance core utility classes optimized for Java development. It leverages advanced technologies such as Method Handles for efficient reflection, **built-in optimized lightweight cache for zero-dependency caching (with optional Caffeine support)**, and adaptive thread factories for different Java versions. Core features include optimized data access/manipulation methods (`getValue()`, `setValue()`), string utilities, date/time handling, and type conversion.
 
 ---
 

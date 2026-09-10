@@ -1,4 +1,4 @@
-# S2Util: Unified Dynamic Validator 🚀
+# s2-util: Unified Dynamic Validator 🚀
 
 🌐 **English** | [한국어](README.ko.md)
 
@@ -14,13 +14,13 @@
 
 ## 📖 Overview
 
-**S2Util** is a high-performance Java utility library featuring a **Unified Dynamic Validator** that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
+**s2-util** is a high-performance Java utility library featuring a **Unified Dynamic Validator** (`s2-validator`) that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
 
 ---
 
-## ✨ Why S2Util?
+## ✨ Why s2-util?
 
-S2Util was built to solve the most painful limitations of traditional Java validation (Bean Validation / Hibernate Validator) and enterprise frontend boilerplate:
+`s2-util` was built to solve the most painful limitations of traditional Java validation (Bean Validation / Hibernate Validator) and enterprise frontend boilerplate:
 
 - **🌐 Write Once, Validate Anywhere** — Define rules once in Java and export them via JSON (`getRulesJson()`). The browser executes native tooltip validation with **zero frontend JavaScript code** (`s2.validator.js`).
 - **⚡ Fluent & Conditional Without Annotation Hell** — Eliminate verbose `@GroupSequenceProvider` and custom annotations. Express complex dynamic constraints cleanly with `.when(...).and(...)`.
@@ -29,9 +29,9 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 - **🛡️ Compile-Time Field & Chaining Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos and missing terminal methods (dead code) at build time (`compileJava`), preventing runtime errors.
 - **🍃 Seamless Spring MVC Integration** — `S2BindValidator` directly binds validation errors into Spring's standard `BindingResult`.
 
-### 🥊 At a Glance: Standard Bean Validation vs S2Validator
+### 🥊 At a Glance: Standard Bean Validation vs s2-validator
 
-| Problem / Use Case | Standard Bean Validation (JSR-380) | ⭐ S2Util (S2Validator) |
+| Problem / Use Case | Standard Bean Validation (JSR-380) | ⭐ s2-validator (s2-util) |
 | :--- | :--- | :--- |
 | **Conditional Fields**<br>*(If A then B required)* | Custom annotation classes or complex `@GroupSequenceProvider` (verbose) ❌ | Expressive in 2 lines:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
 | **Cross-Field Validation**<br>*(pw == confirmPw)* | Class-level annotation; bound to root object (Global Error) ❌ | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
@@ -45,10 +45,10 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 
 | Module | Description |
 | :--- | :--- |
-| **[s2-core](./s2-core/README.md)** | High-performance Java utility toolkit (Reflection, Date/Time, String, System) |
-| **[s2-validator](./s2-validator/README.md)** | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration |
-| **[s2-validator-plugin](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos and incomplete chains (dead code) at compile time |
-| **[s2-jpa](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
+| **[`s2-core`](./s2-core/README.md)** | High-performance Java utility toolkit (Reflection, Date/Time, String, System) |
+| **[`s2-validator`](./s2-validator/README.md)** | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration |
+| **[`s2-validator-plugin`](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos and incomplete chains (dead code) at compile time |
+| **[`s2-jpa`](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
 
 > [!TIP]
 > **Looking for application-level utilities?**
@@ -80,7 +80,7 @@ dependencies {
 </dependency>
 ```
 
-**[Optional] S2Validator Static Analysis Plugin**
+**[Optional] `s2-validator-plugin` (Compile-Time Field & Chaining Static Analysis)**
 
 Prevent runtime errors caused by typos or field name mismatches. When using Generics (e.g., `S2Validator.<UserCommand>builder()`), this plugin performs static analysis during the build to verify that all referenced field names actually exist in the specified DTO class. It triggers a build error if a non-existent field is detected.
 
@@ -100,7 +100,7 @@ plugins {
 
 ### 2. Usage
 
-S2Validator supports two flexible approaches depending on whether client-side UI synchronization is needed:
+`s2-validator` supports two flexible approaches depending on whether client-side UI synchronization is needed:
 - **Approach A: Standalone Backend Validation** — Simple, declarative validation for services, batches, or REST APIs with zero UI setup.
 - **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and automatic browser tooltip synchronization with **zero JavaScript**.
 
@@ -251,13 +251,13 @@ Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — **n
   <span name="profileImage_error" style="color: red; font-size: 12px;"></span>
   ```
 
-> For the full client integration guide (import maps, per-field customization, etc.), see the [s2-validator README](./s2-validator/README.md#client-side-view-integration-thymeleaf--html-guide).
+> For the full client integration guide (import maps, per-field customization, etc.), see the [`s2-validator` README](./s2-validator/README.md#client-side-view-integration-thymeleaf--html-guide).
 
 ---
 
 ## 📦 Core Modules
 
-### 1. **s2-core** — Foundation Library
+### 1. **`s2-core`** — Foundation Library
 
 [s2-core/README.md](./s2-core/README.md)
 
@@ -271,7 +271,7 @@ The foundational library providing high-performance core utility classes. Featur
 
 ---
 
-### 2. **s2-validator** — Unified Validation Library ⭐
+### 2. **`s2-validator`** — Unified Validation Library ⭐
 
 [s2-validator/README.md](./s2-validator/README.md)
 
@@ -287,11 +287,11 @@ A unified cross-platform validation library supporting both server and client wi
 
 ---
 
-### 3. **s2-validator-plugin** — Gradle Build Plugin
+### 3. **`s2-validator-plugin`** — Gradle Build Plugin
 
 [s2-validator-plugin/README.md](./s2-validator-plugin/README.md)
 
-A Gradle build plugin for static source code analysis to validate S2Validator field names and chaining completeness at compile-time. Features include:
+A Gradle build plugin for static source code analysis to validate `s2-validator` field names and chaining completeness at compile-time. Features include:
 
 - **Static Analysis**: JavaParser AST parsing for accurate code analysis
 - **Compile-Time Field Validation**: Detects typos and non-existent fields before runtime

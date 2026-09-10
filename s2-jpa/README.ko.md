@@ -1,4 +1,4 @@
-# S2Util Library - JPA Module (s2-jpa)
+# s2-jpa — Fluent 동적 JPQL 쿼리 빌더 (s2-util)
 
 🌐 [English](README.md) | **한국어**
 
@@ -6,8 +6,8 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
-> 📦 **[S2Util 제품군](../README.ko.md)**의 JPA 동적 쿼리 모듈입니다.  
-> 검색 파라미터 검증을 위한 **[s2-validator](../s2-validator/README.ko.md)** 및 페이징 오프셋 연동을 위한 **[`s2-support`](https://github.com/devers2/s2-support)**(`S2PaginationInfo`)와 유기적으로 결합하여 사용할 수 있습니다.
+> 📦 **[s2-util 제품군](../README.ko.md)**의 JPA 동적 쿼리 모듈입니다.  
+> 검색 파라미터 검증을 위한 **[`s2-validator`](../s2-validator/README.ko.md)** 및 페이징 오프셋 연동을 위한 **[`s2-support`](https://github.com/devers2/s2-support)**(`S2PaginationInfo`)와 유기적으로 결합하여 사용할 수 있습니다.
 
 ---
 
@@ -42,7 +42,7 @@
 5. **완전한 S2Template 통합**
    - 모든 S2Template 바인딩 기능 상속 (bind, bindWhen, bindIn 등)
    - 추가 JPA 특화 향상
-   - S2Util 모듈 전반에 걸친 일관된 API
+   - `s2-util` 모듈 전반에 걸친 일관된 API
 
 6. **내장 로깅 기능**
    - 렌더링된 JPQL 쿼리의 자동 로깅
