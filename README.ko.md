@@ -7,7 +7,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](./LICENSE)
 
-> **"Write Once, Validate Anywhere."**  
+> **"Write Once, Validate Anywhere."**
 > **(Java & JavaScript) 한 번의 작성**으로 **서버와 클라이언트 모두를 검증**하는 가장 스마트한 방법.
 
 ---
@@ -28,9 +28,9 @@ S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한�
 - **🇰🇷 30+ 내장 규칙 & 스마트 i18n** — 이메일, URL, 연락처, 사업자번호 등 풍부한 기본 규칙과 한국어 받침에 따른 조사 자동 보정(`{0|은/는}`, `{0|이/가}`, `{0|을/를}`) 기본 내장.
 - **🛡️ 빌드 시점 필드 유효성 정적 검증** — 동반 플러그인 `s2-validator-plugin`이 AST 정적 분석으로 DTO 필드 오타 및 리팩토링 누락을 빌드 단계(`compileJava`)에서 사전에 차단합니다.
 - **🍃 매끄러운 Spring MVC 연동** — `S2BindValidator`를 통해 Spring 표준 `BindingResult`로 검증 오류를 자동 바인딩합니다.
- 
+
 ### 🥊 한눈에 비교: 표준 Bean Validation vs S2Validator
- 
+
 | 실무 문제 및 유스케이스 | 표준 Bean Validation (JSR-380) | ⭐ S2Util (S2Validator) |
 | :--- | :--- | :--- |
 | **동적 조건부 검증**<br>*(A 값에 따라 B 필수)* | 커스텀 어노테이션 작성 또는 `@GroupSequenceProvider` 필요 (코드 급증) ❌ | 직관적인 2줄 표현:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
@@ -51,7 +51,7 @@ S2Util은 표준 Java Bean Validation(Hibernate Validator)의 고질적인 한�
 | **[s2-jpa](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
 
 > [!TIP]
-> **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**  
+> **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**
 > `s2-core`와 `s2-validator`를 기반으로 페이징(`S2PaginationInfo`), 파일 관리(`FileManager`), Spring 빈 정적 조회(`S2ContextUtil`), 암호화/이미지 유틸리티 등을 제공하는 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**를 확인해 보세요.
 
 ---
@@ -100,9 +100,43 @@ plugins {
 
 ### 2. 사용법 (Usage)
 
-서버와 클라이언트를 위한 통합 검증입니다.
+S2Validator는 클라이언트(화면) 연동 필요 여부에 따라 두 가지 방식을 유연하게 지원합니다:
+- **방식 A: 백엔드 단독 즉시 검증** — UI 연동 없이 서비스 계층, 배치, 또는 REST API에서 즉시 수행하는 간결한 검증.
+- **방식 B: 풀스택 통합 검증 (서버 + 클라이언트)** — Spring `BindingResult` 연동과 프론트엔드 JavaScript 0줄 브라우저 툴팁 자동 동기화.
 
-#### [Controller]
+---
+
+#### 방식 A. 백엔드 단독 즉시 검증 (클라이언트 연동 불필요 시)
+
+서비스 레이어나 REST API에서 DTO, VO, Map을 즉시 검증합니다. `.field()`에 별도 규칙을 지정하지 않으면 기본값으로 필수값(`REQUIRED`)이 자동 적용됩니다.
+
+```java
+// 1) 즉시 예외 발생 모드 (Fail-Fast) — 실패 시 S2RuntimeException 발생
+S2Validator.of(command)
+    .field("name", "이름") // 규칙 생략 시 기본 REQUIRED 자동 적용
+    .field("email", "이메일").rule(S2RuleType.EMAIL) // 규칙 지정 시 기본 REQUIRED 미적용(선택 입력), 필수 체크 필요 시 명시적 추가 필요
+    .field("birthDate", "생년월일").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    .validate();
+
+// 2) 에러 수집 모드 — 에러 핸들러로 전체 오류 목록을 받아 처리 (논리값 반환)
+List<S2ValidationError> errors = new ArrayList<>();
+boolean isValid = S2Validator.of(command)
+    .field("name", "이름")
+    .field("email", "이메일").rule(S2RuleType.EMAIL)
+    .validate(errors::add, Locale.KOREAN);
+
+if (!isValid) {
+    errors.forEach(err -> log.warn("{}: {}", err.fieldName(), err.defaultMessage()));
+}
+```
+
+---
+
+#### 방식 B. 풀스택 통합 검증 (서버 + 클라이언트 연동 필요 시)
+
+서버에서 정의한 단 하나의 검증 규칙으로 백엔드 Spring `BindingResult`와 프론트엔드 브라우저 폼을 **JavaScript 코드 0줄**로 완벽하게 동기화합니다.
+
+##### [Controller]
 
 > **참고:** 이 예제는 Spring Framework 통합을 가정합니다. Spring이 없는 환경에서도 `S2Validator` 및 `S2ValidatorFactory`를 직접 사용하여 검증할 수 있으나, `BindingResult` 연동은 불가능합니다.
 

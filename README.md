@@ -7,7 +7,7 @@
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](./LICENSE)
 
-> **"Write Once, Validate Anywhere."**  
+> **"Write Once, Validate Anywhere."**
 > The smartest way to validate both **Server (Java)** and **Client (JavaScript)** with a **single configuration**.
 
 ---
@@ -51,7 +51,7 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 | **[s2-jpa](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
 
 > [!TIP]
-> **Looking for application-level utilities?**  
+> **Looking for application-level utilities?**
 > Check out the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, which builds upon `s2-core` and `s2-validator` to provide ready-to-use pagination (`S2PaginationInfo`), file management (`FileManager`), Spring utilities (`S2ContextUtil`), and more.
 
 ---
@@ -100,9 +100,43 @@ plugins {
 
 ### 2. Usage
 
-Unified validation for server and client.
+S2Validator supports two flexible approaches depending on whether client-side UI synchronization is needed:
+- **Approach A: Standalone Backend Validation** — Simple, declarative validation for services, batches, or REST APIs with zero UI setup.
+- **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and automatic browser tooltip synchronization with **zero JavaScript**.
 
-#### [Controller]
+---
+
+#### Approach A. Standalone Backend Validation (No Frontend Setup Required)
+
+Validate any DTO, VO, or Map directly in your service or controller layer. When `.rule()` is omitted, the field is automatically treated as `REQUIRED`.
+
+```java
+// Option 1: Fail-fast mode — throws S2RuntimeException immediately on the first failure
+S2Validator.of(command)
+    .field("name", "Name") // Rule omitted -> REQUIRED by default
+    .field("email", "Email").rule(S2RuleType.EMAIL) // Specifying rules disables default REQUIRED (optional); add REQUIRED explicitly if needed
+    .field("birthDate", "Birth Date").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    .validate();
+
+// Option 2: Collect-all mode — passes errors to handler and returns boolean
+List<S2ValidationError> errors = new ArrayList<>();
+boolean isValid = S2Validator.of(command)
+    .field("name", "Name")
+    .field("email", "Email").rule(S2RuleType.EMAIL)
+    .validate(errors::add, Locale.ENGLISH);
+
+if (!isValid) {
+    errors.forEach(err -> log.warn("{}: {}", err.fieldName(), err.defaultMessage()));
+}
+```
+
+---
+
+#### Approach B. Full-Stack Sync Validation (Server + Client)
+
+Define validation once in Java and enforce it across both backend Spring `BindingResult` and native browser HTML forms with **zero frontend JavaScript code**.
+
+##### [Controller]
 
 > **Note:** This example assumes Spring Framework integration. If Spring is not available, you can use `S2Validator` and `S2ValidatorFactory` directly, but `BindingResult` integration will not be available.
 
