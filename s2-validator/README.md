@@ -571,32 +571,42 @@ When `s2.validator.js` is loaded, `initS2Validator()` runs automatically. You do
 
 ---
 
-#### 2.8. Compile-Time Field Validation (`s2-validator-plugin`)
+#### 2.8. Compile-Time Static Analysis & Chaining Completeness (`s2-validator-plugin`)
 
-When you add the optional **s2-validator-plugin** (see [Installation](#1-installation)), the plugin performs **static analysis (AST-based)** of your project's source code **before `compileJava`** runs. It inspects every `.field("fieldName")` call in your codebase and checks whether that field actually exists on the target class.
+When you add the optional **s2-validator-plugin** (see [Installation](#1-installation)), the plugin performs **static analysis (AST-based)** of your project's source code **before `compileJava`** runs. It inspects every `.field("fieldName")` call to verify that the field exists on the target class, and verifies that every validator chain is properly terminated with `.validate()` or `.build()`.
 
 **What it catches:**
 
-- Typos in field names (e.g., `.field("userNaem")` when the actual field is `userName`)
-- Referencing fields that do not exist on the DTO/VO class
-- Wrong field name after a class rename or refactor
+- **Field Name Typos**: Misspelling field names (e.g., `.field("userNaem")` when the actual field is `userName`)
+- **Non-existent Field References**: Referencing fields that do not exist on the target DTO/VO class
+- **Refactoring Regressions**: Outdated field references left after renaming or refactoring DTO fields
+- **Incomplete Chaining (Dead Code)**:
+  - Omitting `.validate()` on `S2Validator.of(...)` chains — validation is **never executed**
+  - Omitting `.build()` on `S2Validator.builder()` chains — validator is **never created**
+  - Omitting `.validate()` on `S2Validator.check(...)` chains — check is **never performed**
 
-**Example — build fails immediately with a clear error:**
+**Example — build fails immediately with clear error reporting:**
 
 ```
 > Task :compileJava FAILED
 
-error: [S2Validator] Field validation failed:
-  'address' field does not exist in UserDTO
-  -> UserController.java:42: .field("address")
+[S2Validator Field Check Error]
+❌ 1 file(s) contained invalid field names.
+  📄 src/main/java/com/example/UserController.java
+    ⚠️  Line 42: 'address' (method: field) field not found in UserDTO
 
-  Possible fix: Did you mean 'addressInfo'?
+[S2Validator Chaining Error]
+🚫 1 file(s) contained 1 incomplete chaining error(s) (Dead Code).
+   Validation logic is NEVER executed unless properly terminated!
+  📄 src/main/java/com/example/UserService.java
+    🚫 Line 28: S2Validator.of() chain does not end with .validate() (dead code)
 ```
 
 **Key behaviors:**
 
 - Zero configuration required — auto-activates on `compileJava`, `check`, and `bootRun` tasks
 - Supports class inheritance: checks fields declared in parent classes as well
+- Chaining completeness check: prevents dead validation code from reaching production
 - Works in multi-project builds
 - Requires `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+
 

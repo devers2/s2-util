@@ -26,7 +26,7 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 - **⚡ Fluent & Conditional Without Annotation Hell** — Eliminate verbose `@GroupSequenceProvider` and custom annotations. Express complex dynamic constraints cleanly with `.when(...).and(...)`.
 - **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection bottlenecks; JIT-optimized execution; Caffeine (W-TinyLFU) intelligent caching; full Java 21+ Virtual Thread scalability.
 - **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, URL, Phone, Business ID, and more; full i18n with automatic Korean particle grammar (`{0|은/는}`, `{0|이/가}`).
-- **🛡️ Zero-Typo Compile-Time Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos at build time (`compileJava`), preventing runtime errors.
+- **🛡️ Compile-Time Field & Chaining Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos and missing terminal methods (dead code) at build time (`compileJava`), preventing runtime errors.
 - **🍃 Seamless Spring MVC Integration** — `S2BindValidator` directly binds validation errors into Spring's standard `BindingResult`.
 
 ### 🥊 At a Glance: Standard Bean Validation vs S2Validator
@@ -37,7 +37,7 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 | **Cross-Field Validation**<br>*(pw == confirmPw)* | Class-level annotation; bound to root object (Global Error) ❌ | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
 | **Browser / Frontend Sync** | Server-only. Must duplicate logic in JS/TS (Zod, Yup) ❌ | **Zero frontend code**: `th:data-s2-rules` + native tooltip auto-focus ✅ |
 | **Korean Particle Grammar** 🇰🇷 | Complex custom `MessageInterpolator` required ❌ | Built-in automatic postposition formatting (`{0\|은/는}`) ✅ |
-| **Typo Protection** | Misspelled field names fail silently until runtime ❌ | Compile-time AST verification via `s2-validator-plugin` 🛡️ ✅ |
+| **Field Typo & Chaining Safety** | Field typos or incomplete chains remain undetected until runtime ❌ | Compile-time AST verification & dead code prevention via `s2-validator-plugin` 🛡️ ✅ |
 
 ---
 
@@ -47,7 +47,7 @@ S2Util was built to solve the most painful limitations of traditional Java valid
 | :--- | :--- |
 | **[s2-core](./s2-core/README.md)** | High-performance Java utility toolkit (Reflection, Date/Time, String, System) |
 | **[s2-validator](./s2-validator/README.md)** | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration |
-| **[s2-validator-plugin](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos at compile time |
+| **[s2-validator-plugin](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos and incomplete chains (dead code) at compile time |
 | **[s2-jpa](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
 
 > [!TIP]
@@ -291,10 +291,11 @@ A unified cross-platform validation library supporting both server and client wi
 
 [s2-validator-plugin/README.md](./s2-validator-plugin/README.md)
 
-A Gradle build plugin for static source code analysis to validate S2Validator field names at compile-time. Features include:
+A Gradle build plugin for static source code analysis to validate S2Validator field names and chaining completeness at compile-time. Features include:
 
 - **Static Analysis**: JavaParser AST parsing for accurate code analysis
-- **Compile-Time Validation**: Detects typos and non-existent fields before runtime
+- **Compile-Time Field Validation**: Detects typos and non-existent fields before runtime
+- **Chaining Completeness Check (Dead Code Prevention)**: Detects missing terminal methods (`.validate()` / `.build()`) and fails the build immediately
 - **Multi-Project Support**: Scans all subprojects and modules
 - **Zero Configuration**: Automatically integrates with standard Gradle build tasks
 - **Smart Validation**: Skips validation for generic wildcards and incomplete type information

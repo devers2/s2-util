@@ -571,32 +571,42 @@ public class MemberController {
 
 ---
 
-#### 2.8. 빌드 시점 필드명 검증 (`s2-validator-plugin`)
+#### 2.8. 빌드 시점 필드명 및 체이닝 완결성 검증 (`s2-validator-plugin`)
 
-선택 사항으로 **s2-validator-plugin**을 추가하면 (설치 방법은 [설치 섹션](#1-설치-installation) 참고), 플러그인이 **`compileJava` 실행 전** 프로젝트 소스 코드 전체를 **정적 분석(AST 기반)**합니다. 코드 내에 있는 모든 `.field("fieldName")` 호출을 탐색하여 해당 필드가 대상 클래스에 실제로 존재하는지 검사합니다.
+선택 사항으로 **s2-validator-plugin**을 추가하면 (설치 방법은 [설치 섹션](#1-설치-installation) 참고), 플러그인이 **`compileJava` 실행 전** 프로젝트 소스 코드 전체를 **정적 분석(AST 기반)**합니다. 코드 내에 있는 모든 `.field("fieldName")` 호출을 탐색하여 해당 필드가 대상 클래스에 실제로 존재하는지 검사하며, 동시에 `validate()` 또는 `build()` 호출이 누락된 불완전한 체이닝(죽은 코드)을 감지합니다.
 
 **잡아낼 수 있는 오류:**
 
-- 필드명 오타 (예: 실제 필드는 `userName`인데 `.field("userNaem")`으로 잘못 입력)
-- DTO/VO 클래스에 존재하지 않는 필드 참조
-- 클래스 이름 변경 또는 리팩토링 후 남겨진 잘못된 필드명
+- **필드명 오타**: 실제 필드는 `userName`인데 `.field("userNaem")`으로 잘못 입력한 경우
+- **미존재 필드 참조**: DTO/VO 클래스에 존재하지 않는 필드명을 지정한 경우
+- **리팩토링 누락**: DTO 필드명 변경 후 검증 코드에 이전 필드명이 남아있는 경우
+- **체이닝 누락 (죽은 코드, Dead Code)**:
+  - `S2Validator.of(...)` 체인 끝에 `.validate()`를 호출하지 않아 검증이 실행되지 않는 경우
+  - `S2Validator.builder()` 체인 끝에 `.build()`를 호출하지 않아 검증기가 생성되지 않는 경우
+  - `S2Validator.check(...)` 체인 끝에 `.validate()`를 호출하지 않아 단일 값 검사가 실행되지 않는 경우
 
 **예시 — 빌드가 즉시 실패하며 명확한 에러를 표시:**
 
 ```
 > Task :compileJava FAILED
 
-error: [S2Validator] Field validation failed:
-  'address' 필드가 UserDTO에 없습니다
-  -> UserController.java:42: .field("address")
+[S2Validator Field Check Error]
+❌ 1개 파일에서 잘못된 필드명이 발견되었습니다.
+  📄 src/main/java/com/example/UserController.java
+    ⚠️  Line 42: 'address' (메서드: field) 필드가 UserDTO에 없습니다
 
-  Possible fix: Did you mean 'addressInfo'?
+[S2Validator Chaining Error]
+🚫 1개 파일에서 종단 메서드 누락으로 인한 '죽은 코드(Dead Code)'가 1건 발견되었습니다.
+   체이닝이 완결되지 않으면 검증 로직이 실제로 실행되지 않습니다!
+  📄 src/main/java/com/example/UserService.java
+    🚫 Line 28: S2Validator.of() 체인이 .validate()로 끝나지 않았습니다 (죽은 코드)
 ```
 
 **주요 특징:**
 
 - 별도 설정 없음 — `compileJava`, `check`, `bootRun` 태스크 실행 시 자동으로 동작
 - 클래스 상속 지원: 부모 클래스에 선언된 필드도 함께 검사
+- 체이닝 완결성 자동 검사: 누락된 검증 코드가 배포되는 것을 원천 차단
 - 멀티 프로젝트 빌드 환경에서도 동작
 - `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+ 필요
 
