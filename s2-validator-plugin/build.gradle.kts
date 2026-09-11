@@ -19,13 +19,34 @@
  * For more information, please see the LICENSE file in the root directory.
  */
 
+/*
+ * [배포 / Publishing]
+ * 이 모듈(s2-validator-plugin)은 루트 s2-util 과 독립된 별도 Gradle 빌드(Composite Build)입니다.
+ * 루트의 command-palette는 includeBuild 를 모듈로 인식하지 않으므로,
+ * 반드시 이 디렉터리(s2-validator-plugin/)에서 직접 배포해야 합니다.
+ *
+ * ▶ command-palette 사용 시:
+ *     s2-validator-plugin/ 디렉터리에서 command-palette → "Maven 중앙 저장소 배포" 선택
+ *
+ * ▶ 직접 실행 시 (루트 s2-util 기준):
+ *     $ ./gradlew -p s2-validator-plugin publish
+ *
+ * ※ 버전은 libs.versions.toml 의 [versions] 섹션에서 "s2-validator-plugin" 키로 관리됩니다.
+ *    이 build.gradle.kts 에서 version 을 변경하면 S2BuildUtils.syncVersionToCatalog 에 의해
+ *    libs.versions.toml 의 버전이 자동으로 동기화됩니다.
+ */
+
+
 import io.github.devers2.buildsupport.S2BuildUtils
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.plugin.devel.GradlePluginDevelopmentExtension
 
-// 1. 플러그인 개발 기능 로드
-apply(plugin = "java-gradle-plugin")
-apply(plugin = "signing")
+plugins {
+    `java-gradle-plugin`
+    `maven-publish`
+    signing
+    id("io.github.devers2.buildsupport")
+}
 
 // 2. 중앙 저장소 배포 플러그인 메타데이터 설정
 configure<GradlePluginDevelopmentExtension> {
@@ -39,7 +60,11 @@ configure<GradlePluginDevelopmentExtension> {
     }
 }
 
-version = "1.1.2"
+group = "io.github.devers2"
+version = "1.1.3"
+
+// 빌드 시 루트 gradle/libs.versions.toml의 s2-validator-plugin 버전 자동 동기화
+S2BuildUtils.syncVersionToCatalog(project, "s2-validator-plugin", version.toString())
 
 /*
  * [추가 소스 목록]
@@ -70,9 +95,6 @@ extra["dynamicSourceInfoMap"] = mapOf(
  */
 extra["skipPackaging"] = true
 
-group = project.property("group")!!
-version = project.property("version")!!
-
 base {
     archivesName.set("s2-validator-plugin")
 }
@@ -87,6 +109,7 @@ repositories {
 // 필요한 두 조각만 개별 호출한다 (javaVersion/releaseCompatibility는 루트 값으로 fallback됨).
 S2BuildUtils.configureJavaCompatibility(project)
 S2BuildUtils.configurePublishArtifacts(project)
+S2BuildUtils.configureTestDefaults(project)
 
 // 4. Gradle Module Metadata 생성 비활성화 (Maven Central 배포 오류 방지)
 tasks.withType<GenerateModuleMetadata>().configureEach {
