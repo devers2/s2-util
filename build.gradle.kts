@@ -24,6 +24,20 @@
  * 의존성 및 플러그인 버전은 'gradle/libs.versions.toml' 파일에서 통합 관리
  * 별도 설정 없이 Gradle이 기본 경로(gradle/libs.versions.toml)를 자동으로 인식하여 'libs' 접근자로 제공
  */
+
+/*
+ * [배포 / Publishing]
+ * - 일반 모듈(s2-util, s2-core, s2-validator, s2-jpa):
+ *     루트 프로젝트에서 command-palette → "Maven 중앙 저장소 배포" 선택
+ *     또는: ./gradlew publish
+ *
+ * - s2-validator-plugin (별도 배포 필요):
+ *     s2-validator-plugin 디렉터리에서 command-palette → "Maven 중앙 저장소 배포" 선택
+ *     또는: ./gradlew -p s2-validator-plugin publish
+ *     (command-palette는 includeBuild를 모듈로 인식하지 않으므로 반드시 해당 디렉터리에서 실행)
+ *
+ *   자세한 내용은 settings.gradle.kts 의 Publishing Guide 주석 참고
+ */
 plugins {
     alias(libs.plugins.s2.build.support)
     id("signing")
@@ -266,21 +280,15 @@ subprojects {
     // 범용 컨벤션을 서브 프로젝트에도 적용하기 위해 s2-build-support 플러그인을 직접 적용한다.
     // (plugins{} 블록은 루트 프로젝트에만 적용되므로, 서브 프로젝트는 별도로 apply해야 한다.)
     apply(plugin = rootProject.libs.plugins.s2.build.support.get().pluginId)
-    if (project.name != "s2-validator-plugin") {
-        apply(plugin = "signing")
-    }
+    apply(plugin = "signing")
 
     if (rootProject.plugins.hasPlugin("com.github.johnrengelman.shadow")) {
-        // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만
-        // 서브 프로젝트 별 Shadow 플러그인을 적용한다. (루트의 버전 카탈로그에서 확인한 ID 사용).
-        // s2-validator-plugin 은 Gradle 플러그인으로 배포되므로 제외한다.
-        if (project.name != "s2-validator-plugin") {
-            apply(plugin = rootProject.libs.plugins.shadow.get().pluginId)
-        }
+        // 💡 루트 프로젝트에 shadow 플러그인이 실제로 apply 되어 있을 때만 서브 프로젝트에 적용
+        apply(plugin = rootProject.libs.plugins.shadow.get().pluginId)
     }
 
     group = rootProject.group
-    if (project.name != "s2-validator-plugin" && version == "unspecified") {
+    if (version == "unspecified") {
         // 서브 프로젝트에 버전이 정의되어 있지 않은 경우 루트 버전을 사용
         version = rootProject.version
     }
@@ -317,21 +325,17 @@ subprojects {
         )
     )
 
-    if (project.name != "s2-validator-plugin") {
-        /*
-         * [표준 라이브러리 배포 설정 (원콜)]
-         * 아티팩트 ID 접미사, 툴체인/호환성, Javadoc/Sources JAR, "mavenJava" Publication(POM 포함),
-         * CentralPortal 리포지토리 등록(+서명)을 한 번에 처리한다.
-         * s2-validator-plugin은 자체 pluginMaven/marker Publication 체계를 쓰므로 제외하고,
-         * 자신의 build.gradle.kts에서 필요한 것만 개별 호출한다.
-         */
-        S2BuildUtils.configureLibraryPublishing(
-            project,
-            project.name,
-            "S2Util Library - ${project.name} module",
-            "https://github.com/devers2/s2-util"
-        )
-    }
+    /*
+     * [표준 라이브러리 배포 설정 (원콜)]
+     * 아티팩트 ID 접미사, 툴체인/호환성, Javadoc/Sources JAR, "mavenJava" Publication(POM 포함),
+     * CentralPortal 리포지토리 등록(+서명)을 한 번에 처리한다.
+     */
+    S2BuildUtils.configureLibraryPublishing(
+        project,
+        project.name,
+        "S2Util Library - ${project.name} module",
+        "https://github.com/devers2/s2-util"
+    )
 
     // JUnit 5(Jupiter) 플랫폼 사용 + 테스트 JVM 인코딩 강화 (S2BuildUtils.configureTestDefaults)
     S2BuildUtils.configureTestDefaults(project)

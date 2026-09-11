@@ -94,7 +94,7 @@ pluginManagement {
 
 // build.gradle
 plugins {
-    id 'io.github.devers2.validator' version '1.1.2'
+    id 'io.github.devers2.validator' version '1.1.3'
 }
 ```
 
