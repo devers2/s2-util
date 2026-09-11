@@ -15,7 +15,11 @@
  */
 import java.util.zip.ZipFile
 
-data class VerificationResult(val name: String, val success: Boolean, val msg: String?)
+data class VerificationResult(
+    val name: String,
+    val success: Boolean,
+    val msg: String?,
+)
 
 gradle.projectsEvaluated {
     gradle.rootProject {
@@ -34,7 +38,8 @@ gradle.projectsEvaluated {
                 val scriptPath = project.file("verification.gradle.kts").absolutePath
                 val runGradle: (List<String>) -> Int = { args ->
                     // 내부 실행 시에도 이 스크립트를 적용하여 shadow 플러그인 주입을 유지합니다.
-                    val argList = (if (isWindows) listOf("cmd", "/c", gradlewPath) else listOf(gradlewPath)) +
+                    val argList =
+                        (if (isWindows) listOf("cmd", "/c", gradlewPath) else listOf(gradlewPath)) +
                             listOf("-I", scriptPath) +
                             args
                     logger.lifecycle("   🚀 [Exec] ${argList.joinToString(" ")}")
@@ -54,10 +59,17 @@ gradle.projectsEvaluated {
                 val results = mutableListOf<VerificationResult>()
 
                 // Helper to record result
-                fun record(name: String, success: Boolean, msg: String?) {
+                fun record(
+                    name: String,
+                    success: Boolean,
+                    msg: String?,
+                ) {
                     results.add(VerificationResult(name, success, msg))
-                    if (success) logger.lifecycle("✅ SUCCESS: $name")
-                    else logger.lifecycle("❌ FAILURE: $name - $msg")
+                    if (success) {
+                        logger.lifecycle("✅ SUCCESS: $name")
+                    } else {
+                        logger.lifecycle("❌ FAILURE: $name - $msg")
+                    }
                 }
 
                 // Temporary variables for checks
@@ -69,9 +81,10 @@ gradle.projectsEvaluated {
                 logger.lifecycle("\n--- 1. Testing $checkName ---")
                 failedMsg = null
                 try {
-                    val exitCode1 = runGradle(
-                        listOf(":$artifactId:clean", ":$artifactId:publishToMavenLocal", "-PshadedPackagePrefix=", "--no-daemon")
-                    )
+                    val exitCode1 =
+                        runGradle(
+                            listOf(":$artifactId:clean", ":$artifactId:publishToMavenLocal", "-PshadedPackagePrefix=", "--no-daemon"),
+                        )
                     if (exitCode1 != 0) {
                         failedMsg = "Build failed"
                     } else {
@@ -81,7 +94,12 @@ gradle.projectsEvaluated {
                         } else {
                             ZipFile(standardJar).use { zip ->
                                 val entries = zip.entries().toList()
-                                val hasDeps = entries.any { it.name.contains("com/google/common") || it.name.contains("org/apache/commons") }
+                                val hasDeps =
+                                    entries.any {
+                                        it.name.contains(
+                                            "com/google/common",
+                                        ) || it.name.contains("org/apache/commons")
+                                    }
                                 val hasReloc = entries.any { it.name.contains("io/github/devers2/s2util/shaded") }
                                 val hasReadme = entries.any { it.name == "README.md" }
 
@@ -89,12 +107,13 @@ gradle.projectsEvaluated {
                                 logger.lifecycle("   - Has Relocation: $hasReloc (Should be FALSE)")
                                 logger.lifecycle("   - Has README.md: $hasReadme (Should be TRUE)")
 
-                                failedMsg = when {
-                                    hasDeps -> "Contains dependencies"
-                                    hasReloc -> "Has unexpected relocation"
-                                    !hasReadme -> "Missing README.md"
-                                    else -> null
-                                }
+                                failedMsg =
+                                    when {
+                                        hasDeps -> "Contains dependencies"
+                                        hasReloc -> "Has unexpected relocation"
+                                        !hasReadme -> "Missing README.md"
+                                        else -> null
+                                    }
                             }
                         }
                     }
@@ -103,15 +122,20 @@ gradle.projectsEvaluated {
                 }
                 record(checkName, failedMsg == null, failedMsg)
 
-
                 // 2. Verify Publishing -> Shaded JAR (With Prefix)
                 checkName = "Shaded JAR (Publishing, With Prefix)"
                 logger.lifecycle("\n--- 2. Testing $checkName ---")
                 failedMsg = null
                 try {
-                    val exitCode2 = runGradle(
-                        listOf(":$artifactId:clean", ":$artifactId:publishToMavenLocal", "-PshadedPackagePrefix=io.github.devers2.s2util.shaded", "--no-daemon")
-                    )
+                    val exitCode2 =
+                        runGradle(
+                            listOf(
+                                ":$artifactId:clean",
+                                ":$artifactId:publishToMavenLocal",
+                                "-PshadedPackagePrefix=io.github.devers2.s2util.shaded",
+                                "--no-daemon",
+                            ),
+                        )
                     if (exitCode2 != 0) {
                         failedMsg = "Build failed"
                     } else {
@@ -121,9 +145,11 @@ gradle.projectsEvaluated {
                         } else {
                             ZipFile(shadedJar).use { zip ->
                                 val entries = zip.entries().toList()
-                                val hasReloc = entries.any {
-                                    it.name.contains("io/github/devers2/s2util/shaded/com") || it.name.contains("io/github/devers2/s2util/shaded/org")
-                                }
+                                val hasReloc =
+                                    entries.any {
+                                        it.name.contains("io/github/devers2/s2util/shaded/com") ||
+                                            it.name.contains("io/github/devers2/s2util/shaded/org")
+                                    }
 
                                 logger.lifecycle("   - Has Relocated Dependencies: $hasReloc (Should be TRUE)")
 
@@ -136,15 +162,15 @@ gradle.projectsEvaluated {
                 }
                 record(checkName, failedMsg == null, failedMsg)
 
-
                 // 3. Verify Build -> Fat JAR (No Prefix)
                 checkName = "Fat JAR (Build, No Prefix)"
                 logger.lifecycle("\n--- 3. Testing $checkName ---")
                 failedMsg = null
                 try {
-                    val exitCode3 = runGradle(
-                        listOf(":$artifactId:clean", ":$artifactId:shadowJar", "-PshadedPackagePrefix=", "--no-daemon")
-                    )
+                    val exitCode3 =
+                        runGradle(
+                            listOf(":$artifactId:clean", ":$artifactId:shadowJar", "-PshadedPackagePrefix=", "--no-daemon"),
+                        )
                     if (exitCode3 != 0) {
                         failedMsg = "Build failed"
                     } else {
@@ -159,11 +185,12 @@ gradle.projectsEvaluated {
                             logger.lifecycle("   - Has Dependencies: $hasDeps (Should be TRUE)")
                             logger.lifecycle("   - Has Relocation: $hasReloc (Should be FALSE)")
 
-                            failedMsg = when {
-                                !hasDeps -> "Missing dependencies"
-                                hasReloc -> "Unexpected relocation"
-                                else -> null
-                            }
+                            failedMsg =
+                                when {
+                                    !hasDeps -> "Missing dependencies"
+                                    hasReloc -> "Unexpected relocation"
+                                    else -> null
+                                }
                         }
                     }
                 } catch (e: Exception) {
@@ -171,15 +198,20 @@ gradle.projectsEvaluated {
                 }
                 record(checkName, failedMsg == null, failedMsg)
 
-
                 // 4. Verify Build -> Shaded Fat JAR (With Prefix)
                 checkName = "Shaded Fat JAR (Build, With Prefix)"
                 logger.lifecycle("\n--- 4. Testing $checkName ---")
                 failedMsg = null
                 try {
-                    val exitCode4 = runGradle(
-                        listOf(":$artifactId:clean", ":$artifactId:shadowJar", "-PshadedPackagePrefix=io.github.devers2.s2util.shaded", "--no-daemon")
-                    )
+                    val exitCode4 =
+                        runGradle(
+                            listOf(
+                                ":$artifactId:clean",
+                                ":$artifactId:shadowJar",
+                                "-PshadedPackagePrefix=io.github.devers2.s2util.shaded",
+                                "--no-daemon",
+                            ),
+                        )
                     if (exitCode4 != 0) {
                         failedMsg = "Build failed"
                     } else {
@@ -188,9 +220,11 @@ gradle.projectsEvaluated {
 
                         ZipFile(fatShadedJar).use { zip ->
                             val entries = zip.entries().toList()
-                            val hasReloc = entries.any {
-                                it.name.contains("io/github/devers2/s2util/shaded/com") || it.name.contains("io/github/devers2/s2util/shaded/org")
-                            }
+                            val hasReloc =
+                                entries.any {
+                                    it.name.contains("io/github/devers2/s2util/shaded/com") ||
+                                        it.name.contains("io/github/devers2/s2util/shaded/org")
+                                }
 
                             logger.lifecycle("   - Has Relocated Dependencies: $hasReloc (Should be TRUE)")
 
@@ -201,7 +235,6 @@ gradle.projectsEvaluated {
                     failedMsg = "Exception: ${e.message}"
                 }
                 record(checkName, failedMsg == null, failedMsg)
-
 
                 // Summary
                 logger.lifecycle("\n========================================")

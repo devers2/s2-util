@@ -33,11 +33,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.gradle.api.DefaultTask;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskAction;
-import org.gradle.work.DisableCachingByDefault;
-
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
@@ -52,6 +47,11 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
+
+import org.gradle.api.DefaultTask;
+import org.gradle.api.Project;
+import org.gradle.api.tasks.TaskAction;
+import org.gradle.work.DisableCachingByDefault;
 
 /**
  * Gradle Task that performs static analysis on source code to validate {@code S2Validator} field names
@@ -184,7 +184,9 @@ public class CheckS2ValidatorsTask extends DefaultTask {
 
             // 필드명 오류 결과 출력
             if (errorsByFile.isEmpty()) {
-                getLogger().lifecycle(ANSI_GREEN + ANSI_BOLD + "✅ [S2Validator Field Check Success] " + ANSI_RESET + "{}개 파일 스캔 완료", totalFiles);
+                getLogger().lifecycle(
+                        ANSI_GREEN + ANSI_BOLD + "✅ [S2Validator Field Check Success] " + ANSI_RESET + "{}개 파일 스캔 완료",
+                        totalFiles);
             } else {
                 getLogger().error("");
                 getLogger().error(ANSI_RED + ANSI_BOLD + "[S2Validator Field Check Error]" + ANSI_RESET);
@@ -196,10 +198,9 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     errors.forEach(
                             error -> getLogger().error(
-                                    "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {}) 필드가 " + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
-                                    error.lineNumber, error.fieldName, error.methodName, error.targetClass
-                            )
-                    );
+                                    "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {}) 필드가 "
+                                            + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
+                                    error.lineNumber, error.fieldName, error.methodName, error.targetClass));
                 });
                 getLogger().error("");
             }
@@ -211,8 +212,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 getLogger().error(ANSI_RED + ANSI_BOLD + "[S2Validator Chaining Error]" + ANSI_RESET);
                 getLogger().error(
                         ANSI_RED + "🚫 {}개 파일에서 종단 메서드 누락으로 인한 '죽은 코드(Dead Code)'가 {}건 발견되었습니다." + ANSI_RESET,
-                        chainingErrorsByFile.size(), totalChainingErrors
-                );
+                        chainingErrorsByFile.size(), totalChainingErrors);
                 getLogger().error(ANSI_RED + "   체이닝이 완결되지 않으면 검증 로직이 실제로 실행되지 않습니다!" + ANSI_RESET);
 
                 chainingErrorsByFile.forEach((file, chainingErrors) -> {
@@ -221,14 +221,14 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     chainingErrors.forEach(
                             err -> getLogger().error(
-                                    "    " + ANSI_RED + "🚫 Line {}:" + ANSI_RESET + " S2Validator.{}() 체인이 .{}()로 끝나지 않았습니다 (죽은 코드)",
-                                    err.lineNumber, err.starterMethod, err.expectedTerminal
-                            )
-                    );
+                                    "    " + ANSI_RED + "🚫 Line {}:" + ANSI_RESET
+                                            + " S2Validator.{}() 체인이 .{}()로 끝나지 않았습니다 (죽은 코드)",
+                                    err.lineNumber, err.starterMethod, err.expectedTerminal));
                 });
                 getLogger().error("");
             } else {
-                getLogger().lifecycle(ANSI_GREEN + ANSI_BOLD + "✅ [S2Validator Chaining Check Success] " + ANSI_RESET + "체이닝 완결성 검사 통과");
+                getLogger().lifecycle(ANSI_GREEN + ANSI_BOLD + "✅ [S2Validator Chaining Check Success] " + ANSI_RESET
+                        + "체이닝 완결성 검사 통과");
             }
 
             // S2BindValidator/S2ValidatorFactory로 얻은 검증기가 validate() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
@@ -244,8 +244,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 if (chainingErrorCount > 0)
                     messages.add(String.format("%d개의 불완전한 체이닝(Dead Code)", chainingErrorCount));
                 throw new IllegalStateException(
-                        String.format("S2Validator 정적 분석 실패: %s 발견되었습니다.", String.join(", ", messages))
-                );
+                        String.format("S2Validator 정적 분석 실패: %s 발견되었습니다.", String.join(", ", messages)));
             }
 
         } catch (IllegalStateException e) {
@@ -273,10 +272,10 @@ public class CheckS2ValidatorsTask extends DefaultTask {
         getLogger().warn("");
         getLogger().warn(ANSI_YELLOW + ANSI_BOLD + "[S2BindValidator Usage Warning]" + ANSI_RESET);
         getLogger().warn(
-                ANSI_YELLOW + "⚠️  {}개 파일에서 validate() 호출이 확인되지 않는 검증기 획득(S2BindValidator.context / S2ValidatorFactory.getOrRegister,getValidator) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
+                ANSI_YELLOW
+                        + "⚠️  {}개 파일에서 validate() 호출이 확인되지 않는 검증기 획득(S2BindValidator.context / S2ValidatorFactory.getOrRegister,getValidator) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
                         + ANSI_RESET,
-                warningsByFile.size(), totalWarnings
-        );
+                warningsByFile.size(), totalWarnings);
 
         warningsByFile.forEach((file, warnings) -> {
             Path relativePath = project.getProjectDir().toPath().relativize(Path.of(file));
@@ -285,9 +284,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             warnings.forEach(
                     w -> getLogger().warn(
                             "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " context(\"{}\") - {}",
-                            w.lineNumber, w.contextKey, w.reason
-                    )
-            );
+                            w.lineNumber, w.contextKey, w.reason));
         });
         getLogger().warn("");
     }
@@ -314,8 +311,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                                 || "when".equals(call.getNameAsString())
                                 || "and".equals(call.getNameAsString()))
                                 && !call.getArguments().isEmpty()
-                                && call.getArguments().get(0) instanceof StringLiteralExpr
-                );
+                                && call.getArguments().get(0) instanceof StringLiteralExpr);
 
                 for (MethodCallExpr fieldCall : fieldCalls) {
                     String targetClassName = findTargetClassForCall(fieldCall);
@@ -325,7 +321,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
 
                     Set<String> validFieldNames = getAllFieldNames(targetClassName);
                     if (validFieldNames == null) {
-                        getLogger().lifecycle("⚠️ DTO 소스를 찾을 수 없어 검증을 건너뜁니다: {} (파일: {})", targetClassName, javaFile.getFileName());
+                        getLogger().lifecycle("⚠️ DTO 소스를 찾을 수 없어 검증을 건너뜁니다: {} (파일: {})", targetClassName,
+                                javaFile.getFileName());
                         continue;
                     }
 
@@ -338,9 +335,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                                         fieldName,
                                         targetClassName,
                                         fieldCall.getNameAsString(),
-                                        fieldCall.getBegin().map(pos -> pos.line).orElse(0)
-                                )
-                        );
+                                        fieldCall.getBegin().map(pos -> pos.line).orElse(0)));
                     }
                 }
 
@@ -409,7 +404,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             String variableName = null;
             if (parent instanceof VariableDeclarator declarator) {
                 variableName = declarator.getNameAsString();
-            } else if (parent instanceof AssignExpr assignExpr && assignExpr.getTarget() instanceof NameExpr targetExpr) {
+            } else if (parent instanceof AssignExpr assignExpr
+                    && assignExpr.getTarget() instanceof NameExpr targetExpr) {
                 variableName = targetExpr.getNameAsString();
             }
 
@@ -483,8 +479,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 call -> expectedTerminal.equals(call.getNameAsString())
                         && call.getScope().isPresent()
                         && call.getScope().get() instanceof NameExpr nameExpr
-                        && variableName.equals(nameExpr.getNameAsString())
-        ).isEmpty();
+                        && variableName.equals(nameExpr.getNameAsString()))
+                .isEmpty();
     }
 
     /**
@@ -528,9 +524,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                     warnings.add(
                             new BindValidatorWarning(
                                     contextKey, line,
-                                    calledAs + " 뒤에 validate()/getRulesJson()이 아닌 " + outerCall.getNameAsString() + "()가 호출되었습니다."
-                            )
-                    );
+                                    calledAs + " 뒤에 validate()/getRulesJson()이 아닌 " + outerCall.getNameAsString()
+                                            + "()가 호출되었습니다."));
                 }
                 continue;
             }
@@ -538,7 +533,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             String variableName = null;
             if (parent instanceof VariableDeclarator declarator) {
                 variableName = declarator.getNameAsString();
-            } else if (parent instanceof AssignExpr assignExpr && assignExpr.getTarget() instanceof NameExpr targetName) {
+            } else if (parent instanceof AssignExpr assignExpr
+                    && assignExpr.getTarget() instanceof NameExpr targetName) {
                 variableName = targetName.getNameAsString();
             }
 
@@ -552,9 +548,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 warnings.add(
                         new BindValidatorWarning(
                                 contextKey, line,
-                                calledAs + "의 반환값이 사용되지 않고 버려졌습니다. validate()를 호출해야 실제로 검증이 수행됩니다."
-                        )
-                );
+                                calledAs + "의 반환값이 사용되지 않고 버려졌습니다. validate()를 호출해야 실제로 검증이 수행됩니다."));
             }
             // 그 외(다른 메서드의 인자로 전달, return 등)는 호출된 곳에서 검증할 수 있어 판단하지 않고 건너뜀
         }
@@ -593,7 +587,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
      * @param line            원본 호출의 소스 라인 번호
      * @param warnings        경고를 누적할 리스트
      */
-    private void checkVariableValidated(String variableName, MethodCallExpr acquisitionCall, String contextKey, String calledAs, int line, List<BindValidatorWarning> warnings) {
+    private void checkVariableValidated(String variableName, MethodCallExpr acquisitionCall, String contextKey,
+            String calledAs, int line, List<BindValidatorWarning> warnings) {
         Node scopeNode = findEnclosingCallableBody(acquisitionCall);
         if (scopeNode == null) {
             return;
@@ -604,8 +599,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 call -> TERMINAL_CALL_NAMES.contains(call.getNameAsString())
                         && call.getScope().isPresent()
                         && call.getScope().get() instanceof NameExpr scopeName
-                        && variableName.equals(scopeName.getNameAsString())
-        ).isEmpty();
+                        && variableName.equals(scopeName.getNameAsString()))
+                .isEmpty();
         if (validated) {
             return;
         }
@@ -617,23 +612,20 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             warnings.add(
                     new BindValidatorWarning(
                             contextKey, line,
-                            calledAs + " 결과가 변수 '" + variableName + "'에 저장된 후 어디에서도 사용되지 않았습니다."
-                    )
-            );
+                            calledAs + " 결과가 변수 '" + variableName + "'에 저장된 후 어디에서도 사용되지 않았습니다."));
         } else {
             warnings.add(
                     new BindValidatorWarning(
                             contextKey, line,
                             "변수 '" + variableName + "'(" + calledAs + ")에서 validate()/getRulesJson() 호출을 찾지 못했습니다. "
-                                    + "(다른 메서드/파일에 위임했다면 무시해도 됩니다)"
-                    )
-            );
+                                    + "(다른 메서드/파일에 위임했다면 무시해도 됩니다)"));
         }
     }
 
     /** {@code context(...)} 호출의 첫 번째 인자(문자열 리터럴인 contextKey)를 추출합니다. 리터럴이 아니면 "?"를 반환합니다. */
     private String extractContextKey(MethodCallExpr contextCall) {
-        if (!contextCall.getArguments().isEmpty() && contextCall.getArguments().get(0) instanceof StringLiteralExpr strExpr) {
+        if (!contextCall.getArguments().isEmpty()
+                && contextCall.getArguments().get(0) instanceof StringLiteralExpr strExpr) {
             return strExpr.getValue();
         }
         return "?";
@@ -643,7 +635,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
     private Node findEnclosingCallableBody(Node node) {
         Node current = node;
         while (current != null) {
-            if (current instanceof MethodDeclaration || current instanceof ConstructorDeclaration || current instanceof LambdaExpr) {
+            if (current instanceof MethodDeclaration || current instanceof ConstructorDeclaration
+                    || current instanceof LambdaExpr) {
                 return current;
             }
             current = current.getParentNode().orElse(null);
@@ -788,7 +781,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             fieldCache.put(fullClassName, names);
 
             if (loggedDTOs.add(fullClassName)) {
-                getLogger().lifecycle(ANSI_GREEN + "✅ DTO 분석 완료:" + ANSI_RESET + " {} (필드: {}개)", fullClassName, names.size());
+                getLogger().lifecycle(ANSI_GREEN + "✅ DTO 분석 완료:" + ANSI_RESET + " {} (필드: {}개)", fullClassName,
+                        names.size());
             }
         } catch (Exception e) {
             getLogger().debug("DTO 분석 실패: {}", fullClassName);
@@ -883,7 +877,8 @@ public class CheckS2ValidatorsTask extends DefaultTask {
         final List<ChainingError> chainingErrors;
         final List<BindValidatorWarning> bindValidatorWarnings;
 
-        FileAnalysisResult(List<ValidationError> fieldErrors, List<ChainingError> chainingErrors, List<BindValidatorWarning> bindValidatorWarnings) {
+        FileAnalysisResult(List<ValidationError> fieldErrors, List<ChainingError> chainingErrors,
+                List<BindValidatorWarning> bindValidatorWarnings) {
             this.fieldErrors = fieldErrors;
             this.chainingErrors = chainingErrors;
             this.bindValidatorWarnings = bindValidatorWarnings;

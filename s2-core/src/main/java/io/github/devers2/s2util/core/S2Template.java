@@ -262,7 +262,8 @@ public class S2Template {
      * // Safely evaluates sort string only if pageable is not null and sorted
      * }</pre>
      */
-    public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier, String prefix, String suffix) {
+    public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier, String prefix,
+            String suffix) {
         return doBindWhen(key, condition, contentSupplier, prefix, suffix);
     }
 
@@ -482,7 +483,8 @@ public class S2Template {
      * // Result: "AND s.id IN (id1, id2, id3)" if idList exists
      * }</pre>
      */
-    public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier, String prefix, String suffix) {
+    public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier, String prefix,
+            String suffix) {
         return doBindWhen(key, presence, contentSupplier, prefix, suffix);
     }
 
@@ -670,8 +672,10 @@ public class S2Template {
      * @param suffix          내용 주입 시 뒤에 붙일 접미사
      * @return 메서드 체이닝을 위한 S2Template 인스턴스
      */
-    private S2Template doBindWhen(String key, Object condition, Supplier<Object> contentSupplier, String prefix, String suffix) {
-        return doBindWhen(key, condition, isValid(condition) && contentSupplier != null ? contentSupplier.get() : null, prefix, suffix);
+    private S2Template doBindWhen(String key, Object condition, Supplier<Object> contentSupplier, String prefix,
+            String suffix) {
+        return doBindWhen(key, condition, isValid(condition) && contentSupplier != null ? contentSupplier.get() : null,
+                prefix, suffix);
     }
 
     /**
@@ -791,9 +795,7 @@ public class S2Template {
                             Collectors.joining(
                                     ", ",
                                     (prefix != null ? prefix : ""),
-                                    (suffix != null ? suffix : "")
-                            )
-                    );
+                                    (suffix != null ? suffix : "")));
             putBinding(key, result);
         }
         return this;

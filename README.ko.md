@@ -31,24 +31,24 @@
 
 ### 🥊 한눈에 비교: 표준 Bean Validation vs s2-validator
 
-| 실무 문제 및 유스케이스 | 표준 Bean Validation (JSR-380) | ⭐ s2-validator (s2-util) |
-| :--- | :--- | :--- |
-| **동적 조건부 검증**<br>*(A 값에 따라 B 필수)* | 커스텀 어노테이션 작성 또는 `@GroupSequenceProvider` 필요 (코드 급증) ❌ | 직관적인 2줄 표현:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
-| **크로스 필드 비교**<br>*(비밀번호 확인, 기간)* | 클래스 레벨 어노테이션 작성 필요; 루트 객체(Global Error)에 바인딩 ❌ | 해당 필드에 정확히 에러 바인딩:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
-| **브라우저 / 프론트엔드 동기화** | 서버 전용. 프론트엔드에서 JS/TS(Zod 등)로 **동일 규칙 중복 코딩** 필수 ❌ | **프론트엔드 코드 0줄**: `th:data-s2-rules` 주입 시 네이티브 툴팁/자동 포커스 ✅ |
-| **한국어 맞춤 조사 처리** 🇰🇷 | 기본 미지원. 받침 판별 커스텀 `MessageInterpolator` 직접 구현 ❌ | `{0\|은/는}`, `{0\|이/가}` 등 **조사 자동 보정 기본 내장** ✅ |
-| **필드 오타 및 체이닝 안전성** | 필드 바인딩 오타나 검증 누락 시 런타임까지 방치 ❌ | `s2-validator-plugin`으로 **필드 오타 & 죽은 코드 컴파일 시점 AST 정적 차단** 🛡️ ✅ |
+| 실무 문제 및 유스케이스                         | 표준 Bean Validation (JSR-380)                                            | ⭐ s2-validator (s2-util)                                                           |
+| :---------------------------------------------- | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------- |
+| **동적 조건부 검증**<br>_(A 값에 따라 B 필수)_  | 커스텀 어노테이션 작성 또는 `@GroupSequenceProvider` 필요 (코드 급증) ❌  | 직관적인 2줄 표현:<br>`.when("type", "VIP").rule(REQUIRED)` ✅                      |
+| **크로스 필드 비교**<br>_(비밀번호 확인, 기간)_ | 클래스 레벨 어노테이션 작성 필요; 루트 객체(Global Error)에 바인딩 ❌     | 해당 필드에 정확히 에러 바인딩:<br>`.rule(EQUALS_FIELD, "pw")` ✅                   |
+| **브라우저 / 프론트엔드 동기화**                | 서버 전용. 프론트엔드에서 JS/TS(Zod 등)로 **동일 규칙 중복 코딩** 필수 ❌ | **프론트엔드 코드 0줄**: `th:data-s2-rules` 주입 시 네이티브 툴팁/자동 포커스 ✅    |
+| **한국어 맞춤 조사 처리** 🇰🇷                    | 기본 미지원. 받침 판별 커스텀 `MessageInterpolator` 직접 구현 ❌          | `{0\|은/는}`, `{0\|이/가}` 등 **조사 자동 보정 기본 내장** ✅                       |
+| **필드 오타 및 체이닝 안전성**                  | 필드 바인딩 오타나 검증 누락 시 런타임까지 방치 ❌                        | `s2-validator-plugin`으로 **필드 오타 & 죽은 코드 컴파일 시점 AST 정적 차단** 🛡️ ✅ |
 
 ---
 
 ## 📦 모듈 구성
 
-| 모듈 | 설명 |
-| :--- | :--- |
-| **[`s2-core`](./s2-core/README.ko.md)** | 고성능 Java 유틸리티 툴킷 (리플렉션, 날짜/시간, 문자열, 시스템) |
-| **[`s2-validator`](./s2-validator/README.ko.md)** | ⭐ 서버·클라이언트 통합 유효성 검증 엔진 & Spring 바인딩 통합 |
+| 모듈                                                            | 설명                                                                                     |
+| :-------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **[`s2-core`](./s2-core/README.ko.md)**                         | 고성능 Java 유틸리티 툴킷 (리플렉션, 날짜/시간, 문자열, 시스템)                          |
+| **[`s2-validator`](./s2-validator/README.ko.md)**               | ⭐ 서버·클라이언트 통합 유효성 검증 엔진 & Spring 바인딩 통합                            |
 | **[`s2-validator-plugin`](./s2-validator-plugin/README.ko.md)** | Gradle 정적 분석 플러그인 — DTO 필드 오타 및 체이닝 누락(죽은 코드)을 컴파일 타임에 감지 |
-| **[`s2-jpa`](./s2-jpa/README.ko.md)** | JPA 쿼리 헬퍼 및 동적 엔티티 스펙 |
+| **[`s2-jpa`](./s2-jpa/README.ko.md)**                           | JPA 쿼리 헬퍼 및 동적 엔티티 스펙                                                        |
 
 > [!TIP]
 > **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**
@@ -101,6 +101,7 @@ plugins {
 ### 2. 사용법 (Usage)
 
 S2Validator는 클라이언트(화면) 연동 필요 여부에 따라 두 가지 방식을 유연하게 지원합니다:
+
 - **방식 A: 백엔드 단독 즉시 검증** — UI 연동 없이 서비스 계층, 배치, 또는 REST API에서 즉시 수행하는 간결한 검증.
 - **방식 B: 풀스택 통합 검증 (서버 + 클라이언트)** — Spring `BindingResult` 연동과 프론트엔드 JavaScript 0줄 브라우저 툴팁 자동 동기화.
 
@@ -196,10 +197,16 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 **권장 임포트 방식:**
 
 - **Option A (권장 — Thymeleaf `th:src`)**:
+
   ```html
   <!-- 서버에서 생성한 JSON 규칙을 폼에 바인딩 -->
-  <form id="joinForm" th:action="@{/member/join}" method="post"
-        th:object="${member}" th:data-s2-rules="${validationRules}">
+  <form
+    id="joinForm"
+    th:action="@{/member/join}"
+    method="post"
+    th:object="${member}"
+    th:data-s2-rules="${validationRules}"
+  >
     ...
     <button type="submit">회원가입</button>
   </form>
@@ -230,10 +237,13 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 **실용 팁:**
 
 - **AJAX / Fetch 검증**: `fetch`나 `axios`로 제출하는 경우, `S2Validator.validate()`를 직접 호출하세요:
+
   ```html
   <script type="module" th:inline="javascript">
     const contextPath = /*[[@{/}]]*/ '';
-    const { S2Validator } = await import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+    const { S2Validator } = await import(
+      `${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`
+    );
 
     document.getElementById('ajaxBtn').addEventListener('click', async () => {
       const errors = S2Validator.validate('#joinForm');
@@ -252,7 +262,6 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
   ```
 
 > 전체 클라이언트 통합 가이드(import maps, 필드별 커스터마이징 등)는 [`s2-validator` README](./s2-validator/README.ko.md#client-side-view-integration-thymeleaf--html-guide)를 참고하세요.
-
 
 ---
 

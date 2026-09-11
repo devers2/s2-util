@@ -153,7 +153,8 @@ public class S2DateUtil {
      * @return The parsed {@link LocalDateTime} | 파싱된 {@link LocalDateTime} 객체
      * @throws DateTimeParseException If parsing fails | 파싱 실패 시 발생
      */
-    public static LocalDateTime parseToLocalDateTime(String dateTimeString, String pattern) throws DateTimeParseException {
+    public static LocalDateTime parseToLocalDateTime(String dateTimeString, String pattern)
+            throws DateTimeParseException {
         return parseToLocalDateTime(dateTimeString, pattern, true);
     }
 
@@ -185,7 +186,8 @@ public class S2DateUtil {
                 if (S2Util.isKorean()) {
                     logger.debug("LocalDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                 } else {
-                    logger.debug("Failed to convert to LocalDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
+                    logger.debug("Failed to convert to LocalDateTime. dateTimeString: {}, pattern: {}", dateTimeString,
+                            pattern);
                 }
             }
             if (isThrowException) {
@@ -238,7 +240,8 @@ public class S2DateUtil {
                     if (S2Util.isKorean()) {
                         logger.debug("유효한 일시 여부 확인에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                     } else {
-                        logger.debug("Failed to validate date/time. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
+                        logger.debug("Failed to validate date/time. dateTimeString: {}, pattern: {}", dateTimeString,
+                                pattern);
                     }
                 }
                 if (isThrowException) {
@@ -263,8 +266,10 @@ public class S2DateUtil {
      * @return Negative if earlier, zero if equal, positive if later than reference
      * @throws DateTimeParseException If parsing fails
      */
-    public static int compareDates(String dateTimeString, String referenceDateTimeString, String pattern) throws DateTimeParseException {
-        if (dateTimeString == null || dateTimeString.isBlank() || referenceDateTimeString == null || referenceDateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
+    public static int compareDates(String dateTimeString, String referenceDateTimeString, String pattern)
+            throws DateTimeParseException {
+        if (dateTimeString == null || dateTimeString.isBlank() || referenceDateTimeString == null
+                || referenceDateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
@@ -290,8 +295,10 @@ public class S2DateUtil {
      * @return Negative if earlier, zero if equal, positive if later than reference
      * @throws DateTimeParseException If parsing fails
      */
-    public static int compareDates(String dateTimeString, String pattern, LocalDateTime referenceDate) throws DateTimeParseException {
-        if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank() || referenceDate == null) {
+    public static int compareDates(String dateTimeString, String pattern, LocalDateTime referenceDate)
+            throws DateTimeParseException {
+        if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank()
+                || referenceDate == null) {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
@@ -337,7 +344,8 @@ public class S2DateUtil {
      * @return The parsed {@link OffsetDateTime}
      * @throws DateTimeParseException if the string cannot be parsed
      */
-    public static OffsetDateTime parseToOffsetDateTime(String dateTimeString, String pattern) throws DateTimeParseException {
+    public static OffsetDateTime parseToOffsetDateTime(String dateTimeString, String pattern)
+            throws DateTimeParseException {
         return parseToOffsetDateTime(dateTimeString, pattern, true);
     }
 
@@ -366,7 +374,8 @@ public class S2DateUtil {
      * @param isThrowException Whether to throw an exception on failure
      * @return The parsed {@link OffsetDateTime}, or {@code null} if failed and {@code isThrowException} is false
      */
-    public static OffsetDateTime parseToOffsetDateTime(String dateTimeString, String pattern, boolean isThrowException) {
+    public static OffsetDateTime parseToOffsetDateTime(String dateTimeString, String pattern,
+            boolean isThrowException) {
         OffsetDateTime result = null;
 
         if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
@@ -377,7 +386,8 @@ public class S2DateUtil {
                     if (S2Util.isKorean()) {
                         logger.debug("OffsetDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                     } else {
-                        logger.debug("Failed to convert to OffsetDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
+                        logger.debug("Failed to convert to OffsetDateTime. dateTimeString: {}, pattern: {}",
+                                dateTimeString, pattern);
                     }
                 }
                 return null;
@@ -683,7 +693,8 @@ public class S2DateUtil {
                 if (S2Util.isKorean()) {
                     logger.debug("ZonedDateTime 변환에 실패했습니다. 날짜 문자열: {}, 패턴: {}", dateTimeString, pattern);
                 } else {
-                    logger.debug("Failed to convert to ZonedDateTime. dateTimeString: {}, pattern: {}", dateTimeString, pattern);
+                    logger.debug("Failed to convert to ZonedDateTime. dateTimeString: {}, pattern: {}", dateTimeString,
+                            pattern);
                 }
             }
             return null;
@@ -779,7 +790,8 @@ public class S2DateUtil {
                         if (S2Util.isKorean()) {
                             logger.debug("사용자 정의 컨버터가 Temporal이 아닌 타입을 반환했습니다: {}", result.getClass().getName());
                         } else {
-                            logger.debug("Custom converter returned a non-Temporal type: {}", result.getClass().getName());
+                            logger.debug("Custom converter returned a non-Temporal type: {}",
+                                    result.getClass().getName());
                         }
                     }
                 }
@@ -854,8 +866,7 @@ public class S2DateUtil {
                                     Integer.parseInt(value.substring(6, 8)),
                                     Integer.parseInt(value.substring(8, 10)),
                                     Integer.parseInt(value.substring(10, 12)),
-                                    Integer.parseInt(value.substring(12, 14))
-                            );
+                                    Integer.parseInt(value.substring(12, 14)));
                         } else if (value.length() >= 12) {
                             // yyyyMMddHHmm
                             ldtParsed = LocalDateTime.of(
@@ -863,29 +874,25 @@ public class S2DateUtil {
                                     Integer.parseInt(value.substring(4, 6)),
                                     Integer.parseInt(value.substring(6, 8)),
                                     Integer.parseInt(value.substring(8, 10)),
-                                    Integer.parseInt(value.substring(10, 12)), 0
-                            );
+                                    Integer.parseInt(value.substring(10, 12)), 0);
                         } else if (value.length() >= 10) {
                             // yyyyMMddHH
                             ldtParsed = LocalDateTime.of(
                                     Integer.parseInt(value.substring(0, 4)),
                                     Integer.parseInt(value.substring(4, 6)),
                                     Integer.parseInt(value.substring(6, 8)),
-                                    Integer.parseInt(value.substring(8, 10)), 0, 0
-                            );
+                                    Integer.parseInt(value.substring(8, 10)), 0, 0);
                         } else if (value.length() >= 8) {
                             // yyyyMMdd
                             ldtParsed = LocalDateTime.of(
                                     Integer.parseInt(value.substring(0, 4)),
                                     Integer.parseInt(value.substring(4, 6)),
-                                    Integer.parseInt(value.substring(6, 8)), 0, 0, 0
-                            );
+                                    Integer.parseInt(value.substring(6, 8)), 0, 0, 0);
                         } else if (value.length() >= 6) {
                             // yyyyMM
                             ldtParsed = LocalDateTime.of(
                                     Integer.parseInt(value.substring(0, 4)),
-                                    Integer.parseInt(value.substring(4, 6)), 1, 0, 0, 0
-                            );
+                                    Integer.parseInt(value.substring(4, 6)), 1, 0, 0, 0);
                         }
 
                         if (ldtParsed != null) {
@@ -1045,7 +1052,8 @@ public class S2DateUtil {
      * @param isEnglish Whether to format in English
      * @return Assembled string
      */
-    private static String getFormattedText(long value, String korUnit, String engUnit, boolean isPast, boolean isEnglish) {
+    private static String getFormattedText(long value, String korUnit, String engUnit, boolean isPast,
+            boolean isEnglish) {
         if (isEnglish) {
             String unit = value > 1 ? engUnit + "s" : engUnit;
             String suffix = isPast ? " ago" : " later";

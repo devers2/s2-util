@@ -428,8 +428,7 @@ public class S2StringUtil {
             java.util.Map.entry("과/와", "과"), java.util.Map.entry("와/과", "과"),
             java.util.Map.entry("으로/로", "으로"), java.util.Map.entry("로/으로", "으로"),
             java.util.Map.entry("이나/나", "이나"), java.util.Map.entry("나/이나", "이나"),
-            java.util.Map.entry("이란/란", "이란"), java.util.Map.entry("란/이란", "이란")
-    );
+            java.util.Map.entry("이란/란", "이란"), java.util.Map.entry("란/이란", "이란"));
 
     public static String appendJosa(String word, String josa) {
         if (word == null || word.isBlank() || josa == null || josa.isBlank()) {

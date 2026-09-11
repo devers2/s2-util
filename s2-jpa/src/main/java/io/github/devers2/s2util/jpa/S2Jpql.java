@@ -26,13 +26,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Parameter;
+import jakarta.persistence.TypedQuery;
+
 import io.github.devers2.s2util.core.S2Template;
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Parameter;
-import jakarta.persistence.TypedQuery;
 
 /**
  * A builder class that integrates S2Template's dynamic query generation functionality with JPA TypedQuery creation.
@@ -191,7 +192,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
          * @param likeMode               LIKE mode for wildcard handling | LIKE 모드
          * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
          */
-        SupplierBindStep<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier, LikeMode likeMode);
+        SupplierBindStep<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier,
+                LikeMode likeMode);
 
         /**
          * Binds a parameter using a Supplier, which is executed only if the preceding bindClause condition is true.
@@ -227,8 +229,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * 식별자로 제한하여, 클래스 레벨 Javadoc이 명시한 "화이트리스트 기반" 보장을 실제로 충족시킵니다.
      * </p>
      */
-    private static final java.util.regex.Pattern SAFE_SORT_FIELD_PATTERN =
-            java.util.regex.Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*$");
+    private static final java.util.regex.Pattern SAFE_SORT_FIELD_PATTERN = java.util.regex.Pattern
+            .compile("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*$");
 
     private final EntityManager entityManager;
     private final Class<T> resultClass;
@@ -329,7 +331,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix, String suffix) {
+    public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix,
+            String suffix) {
         super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
         this.lastBindClauseCondition = condition;
         return this;
@@ -552,7 +555,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     @Override
-    public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix, String suffix) {
+    public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix,
+            String suffix) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
         this.lastBindClauseCondition = condition;
@@ -901,7 +905,8 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindOrderBy(String key, boolean condition, Supplier<String> sortExpressionSupplier) {
-        return bindOrderBy(key, condition, condition && sortExpressionSupplier != null ? sortExpressionSupplier.get() : null);
+        return bindOrderBy(key, condition,
+                condition && sortExpressionSupplier != null ? sortExpressionSupplier.get() : null);
     }
 
     /**

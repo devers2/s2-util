@@ -135,6 +135,7 @@ Use `limit(offset, limit)` for simple pagination; for conditional application us
 > [!TIP]
 > **Integration with `s2-support` (`S2PaginationInfo`):**  
 > If you are using the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, you can directly pass `getFirstRecordIndex()` and `getRecordCountPerPage()` to streamline pagination calculations and list queries:
+>
 > ```java
 > S2PaginationInfo pagination = new S2PaginationInfo();
 > pagination.setCurrentPageNo(pageNo);

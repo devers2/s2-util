@@ -284,6 +284,7 @@ public class S2Copier<S> {
      * @return The target object with copied values | 복사된 값으로 채워진 대상 객체
      * @throws IllegalArgumentException if target is null | target이 null인 경우
      */
+    @SuppressWarnings("unchecked")
     public <T> T to(T target) {
         if (target == null) {
             throw new IllegalArgumentException("Target object cannot be null.");
@@ -445,8 +446,7 @@ public class S2Copier<S> {
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to instantiate target class: " + targetClass.getName() + " (한국어: 대상 클래스 인스턴스 생성 실패)",
-                    e
-            );
+                    e);
         }
     }
 
@@ -492,7 +492,8 @@ public class S2Copier<S> {
      * @return The deep copy of the source object | 원본 객체의 깊은 복사본
      * @throws Exception if the maximum recursion depth is exceeded | 최대 재귀 깊이 초과 시
      */
-    private Object deepCopyValue(Object source, Class<?> targetType, Map<Object, Object> visited, int depth) throws Exception {
+    private Object deepCopyValue(Object source, Class<?> targetType, Map<Object, Object> visited, int depth)
+            throws Exception {
         if (source == null) {
             return null;
         }
@@ -501,8 +502,7 @@ public class S2Copier<S> {
         if (depth > MAX_DEPTH) {
             throw new RuntimeException(
                     "Maximum deep copy depth exceeded (MAX_DEPTH=" + MAX_DEPTH + ")" +
-                            " (한국어: 최대 깊은 복사 깊이 초과)"
-            );
+                            " (한국어: 최대 깊은 복사 깊이 초과)");
         }
 
         // Check if this object has already been copied (circular reference detection)

@@ -31,24 +31,24 @@
 
 ### 🥊 At a Glance: Standard Bean Validation vs s2-validator
 
-| Problem / Use Case | Standard Bean Validation (JSR-380) | ⭐ s2-validator (s2-util) |
-| :--- | :--- | :--- |
-| **Conditional Fields**<br>*(If A then B required)* | Custom annotation classes or complex `@GroupSequenceProvider` (verbose) ❌ | Expressive in 2 lines:<br>`.when("type", "VIP").rule(REQUIRED)` ✅ |
-| **Cross-Field Validation**<br>*(pw == confirmPw)* | Class-level annotation; bound to root object (Global Error) ❌ | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅ |
-| **Browser / Frontend Sync** | Server-only. Must duplicate logic in JS/TS (Zod, Yup) ❌ | **Zero frontend code**: `th:data-s2-rules` + native tooltip auto-focus ✅ |
-| **Korean Particle Grammar** 🇰🇷 | Complex custom `MessageInterpolator` required ❌ | Built-in automatic postposition formatting (`{0\|은/는}`) ✅ |
-| **Field Typo & Chaining Safety** | Field typos or incomplete chains remain undetected until runtime ❌ | Compile-time AST verification & dead code prevention via `s2-validator-plugin` 🛡️ ✅ |
+| Problem / Use Case                                 | Standard Bean Validation (JSR-380)                                         | ⭐ s2-validator (s2-util)                                                            |
+| :------------------------------------------------- | :------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
+| **Conditional Fields**<br>_(If A then B required)_ | Custom annotation classes or complex `@GroupSequenceProvider` (verbose) ❌ | Expressive in 2 lines:<br>`.when("type", "VIP").rule(REQUIRED)` ✅                   |
+| **Cross-Field Validation**<br>_(pw == confirmPw)_  | Class-level annotation; bound to root object (Global Error) ❌             | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅                |
+| **Browser / Frontend Sync**                        | Server-only. Must duplicate logic in JS/TS (Zod, Yup) ❌                   | **Zero frontend code**: `th:data-s2-rules` + native tooltip auto-focus ✅            |
+| **Korean Particle Grammar** 🇰🇷                     | Complex custom `MessageInterpolator` required ❌                           | Built-in automatic postposition formatting (`{0\|은/는}`) ✅                         |
+| **Field Typo & Chaining Safety**                   | Field typos or incomplete chains remain undetected until runtime ❌        | Compile-time AST verification & dead code prevention via `s2-validator-plugin` 🛡️ ✅ |
 
 ---
 
 ## 📦 Module Overview
 
-| Module | Description |
-| :--- | :--- |
-| **[`s2-core`](./s2-core/README.md)** | High-performance Java utility toolkit (Reflection, Date/Time, String, System) |
-| **[`s2-validator`](./s2-validator/README.md)** | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration |
+| Module                                                       | Description                                                                                               |
+| :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **[`s2-core`](./s2-core/README.md)**                         | High-performance Java utility toolkit (Reflection, Date/Time, String, System)                             |
+| **[`s2-validator`](./s2-validator/README.md)**               | ⭐ Unified dynamic cross-platform validation engine & Spring binding integration                          |
 | **[`s2-validator-plugin`](./s2-validator-plugin/README.md)** | Gradle static analysis plugin — catches DTO field typos and incomplete chains (dead code) at compile time |
-| **[`s2-jpa`](./s2-jpa/README.md)** | JPA query helpers and dynamic entity specifications |
+| **[`s2-jpa`](./s2-jpa/README.md)**                           | JPA query helpers and dynamic entity specifications                                                       |
 
 > [!TIP]
 > **Looking for application-level utilities?**
@@ -101,6 +101,7 @@ plugins {
 ### 2. Usage
 
 `s2-validator` supports two flexible approaches depending on whether client-side UI synchronization is needed:
+
 - **Approach A: Standalone Backend Validation** — Simple, declarative validation for services, batches, or REST APIs with zero UI setup.
 - **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and automatic browser tooltip synchronization with **zero JavaScript**.
 
@@ -196,10 +197,16 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 **Recommended Import Methods:**
 
 - **Option A (Recommended — Thymeleaf `th:src`)**:
+
   ```html
   <!-- Bind server-generated JSON rules to the form -->
-  <form id="joinForm" th:action="@{/member/join}" method="post"
-        th:object="${member}" th:data-s2-rules="${validationRules}">
+  <form
+    id="joinForm"
+    th:action="@{/member/join}"
+    method="post"
+    th:object="${member}"
+    th:data-s2-rules="${validationRules}"
+  >
     ...
     <button type="submit">Sign Up</button>
   </form>
@@ -230,10 +237,13 @@ Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — **n
 **Practical Tips:**
 
 - **AJAX / Fetch Validation**: When submitting via `fetch` or `axios`, call `S2Validator.validate()` manually:
+
   ```html
   <script type="module" th:inline="javascript">
     const contextPath = /*[[@{/}]]*/ '';
-    const { S2Validator } = await import(`${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`);
+    const { S2Validator } = await import(
+      `${contextPath.endsWith('/') ? contextPath : contextPath + '/'}s2-util/js/s2.validator.js`
+    );
 
     document.getElementById('ajaxBtn').addEventListener('click', async () => {
       const errors = S2Validator.validate('#joinForm');

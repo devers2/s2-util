@@ -61,8 +61,7 @@ public @interface CheckReturnValue {
      *
      * @return The message shown when the return value is ignored
      */
-    String message() default
-            "⚠️ [S2Validator] Return value is ignored! " +
+    String message() default "⚠️ [S2Validator] Return value is ignored! " +
             "Incomplete chaining means validation logic is NEVER executed (Dead Code). " +
             "Chain starting with of() MUST end with .validate(); builder() MUST end with .build(). " +
             "| 반환값이 무시되었습니다! " +

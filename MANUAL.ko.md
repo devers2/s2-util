@@ -57,6 +57,7 @@
 단 하나의 의존성만 추가하면 모든 핵심 모듈(`s2-core`, `s2-validator`, `s2-jpa`)이 미리 통합된 상태로 제공됩니다:
 
 **[Gradle]**
+
 ```groovy
 dependencies {
     implementation 'io.github.devers2:s2-util:1.1.8'
@@ -64,6 +65,7 @@ dependencies {
 ```
 
 **[Maven]**
+
 ```xml
 <dependency>
     <groupId>io.github.devers2</groupId>
@@ -78,13 +80,13 @@ dependencies {
 
 프로젝트 아티팩트 크기를 최소화하고 필요한 기능만 선별적으로 도입하려면 서브모듈 단위로 의존성을 선언하세요:
 
-| 모듈 | 의존성 좌표 | 전이 의존성 포함 여부 | 주요 기능 |
-| :--- | :--- | :--- | :--- |
-| **S2Validator** | `io.github.devers2:s2-validator` | `s2-core` 자동 포함 | 서버-클라이언트 동기화 검증 엔진 |
-| **S2BindValidator** | `io.github.devers2:s2-validator` | `s2-core` 자동 포함 | 스프링 표준 `BindingResult` 연동 |
-| **S2Jpql** | `io.github.devers2:s2-jpa` | `s2-core` 자동 포함 | 템플릿 기반 안전한 동적 JPQL 빌더 |
-| **S2Copier** | `io.github.devers2:s2-core` | 외부 라이브러리 의존성 0개 | 리플렉션 프리 초고속 객체 매핑 |
-| **S2Cache / S2ThreadUtil**| `io.github.devers2:s2-core` | 외부 라이브러리 의존성 0개 | 지능형 캐시 및 가상 스레드(Java 21+) 관리 |
+| 모듈                       | 의존성 좌표                      | 전이 의존성 포함 여부      | 주요 기능                                 |
+| :------------------------- | :------------------------------- | :------------------------- | :---------------------------------------- |
+| **S2Validator**            | `io.github.devers2:s2-validator` | `s2-core` 자동 포함        | 서버-클라이언트 동기화 검증 엔진          |
+| **S2BindValidator**        | `io.github.devers2:s2-validator` | `s2-core` 자동 포함        | 스프링 표준 `BindingResult` 연동          |
+| **S2Jpql**                 | `io.github.devers2:s2-jpa`       | `s2-core` 자동 포함        | 템플릿 기반 안전한 동적 JPQL 빌더         |
+| **S2Copier**               | `io.github.devers2:s2-core`      | 외부 라이브러리 의존성 0개 | 리플렉션 프리 초고속 객체 매핑            |
+| **S2Cache / S2ThreadUtil** | `io.github.devers2:s2-core`      | 외부 라이브러리 의존성 0개 | 지능형 캐시 및 가상 스레드(Java 21+) 관리 |
 
 ```groovy
 dependencies {
@@ -113,6 +115,7 @@ dependencies {
    - 종단 메서드가 누락된 체인은 검증이 전혀 실행되지 않는 **죽은 코드(Dead Code)**이므로, 플러그인이 즉시 빌드를 실패시켜 운영 배포를 차단합니다.
 
 **[settings.gradle]**
+
 ```groovy
 pluginManagement {
     repositories {
@@ -122,6 +125,7 @@ pluginManagement {
 ```
 
 **[build.gradle]**
+
 ```groovy
 plugins {
     id 'io.github.devers2.validator' version '1.1.2'
@@ -163,6 +167,7 @@ flowchart TD
 ```
 
 ### A. 즉시 검증 패턴 (Immediate Mode)
+
 **사용법:** `S2Validator.of(target, [failFast])`
 
 서비스 메서드 내부에서 들어온 파라미터를 1회성으로 빠르게 검증할 때 사용합니다.
@@ -180,6 +185,7 @@ boolean isValid = S2Validator.of(userInput, false)
 ```
 
 ### B. 설계도 재사용 패턴 (Blueprint Mode)
+
 **사용법:** `S2Validator.builder()`
 
 스레드 안전(Thread-Safe)하며 불변인 검증 설계도를 정의하여 여러 객체에 반복 적용합니다.
@@ -197,6 +203,7 @@ schema.validate(userB);
 ```
 
 ### C. 중앙 캐싱 관리 패턴 (Registry Mode)
+
 **사용법:** `S2ValidatorFactory.getOrRegister()`
 
 전역 싱글톤 캐싱을 지원하여, 검증기 생성 로직이 최초 1회만 실행되므로 성능이 극대화됩니다.
@@ -210,6 +217,7 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
 ```
 
 ### D. 스프링 표준 통합 패턴 (Spring Standard Alignment)
+
 **사용법:** `S2BindValidator.context()`
 
 스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다.
@@ -227,6 +235,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 ```
 
 ### E. 독립 조건 검증 패턴 (Field-less Condition Check Mode)
+
 **사용법:** `S2Validator.check(condition, [errorCode])`
 
 특정 DTO나 필드에 종속되지 않고, 순수한 비즈니스 상태나 조건식 자체를 검증할 때 사용합니다.
@@ -245,15 +254,15 @@ S2Validator.check(order.isPayable())
 
 ### 3-1. 30가지 이상의 내장 규칙 (S2RuleType)
 
-| 범주 | 지원 규칙 목록 |
-| :--- | :--- |
-| **기본 제약 조건** | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD` |
-| **문자열 길이/바이트**| `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE` |
-| **수치 범위 검사** | `NUMBER`, `MIN_VALUE`, `MAX_VALUE` |
-| **형식 및 포맷** | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX` |
-| **한국 특화 포맷** 🇰🇷 | `TEL_NO`(전화번호), `MPHONE_NO`(휴대폰), `ZIP`(우편번호), `BIZRNO`(사업자번호), `JUMIN`(주민번호), `NWINO`, `PASSWORD_ANSWR` |
-| **날짜 및 기간** | `DATE`, `DATE_AFTER`, `DATE_BEFORE` |
-| **텍스트 및 컬렉션** | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED` |
+| 범주                   | 지원 규칙 목록                                                                                                               |
+| :--------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| **기본 제약 조건**     | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                                                                    |
+| **문자열 길이/바이트** | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`                                                                 |
+| **수치 범위 검사**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                                                                           |
+| **형식 및 포맷**       | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX`                                                                              |
+| **한국 특화 포맷** 🇰🇷  | `TEL_NO`(전화번호), `MPHONE_NO`(휴대폰), `ZIP`(우편번호), `BIZRNO`(사업자번호), `JUMIN`(주민번호), `NWINO`, `PASSWORD_ANSWR` |
+| **날짜 및 기간**       | `DATE`, `DATE_AFTER`, `DATE_BEFORE`                                                                                          |
+| **텍스트 및 컬렉션**   | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED`                                                                              |
 
 ### 3-2. 조건부 검증 (`when` & `and`)
 
@@ -387,6 +396,7 @@ sequenceDiagram
 ### 6-1. 전 과정 구현 예제 (End-to-End)
 
 #### 1. 서버: 공통 검증 설계도 정의
+
 ```java
 private S2Validator<UserCommand> signupRules() {
     return S2Validator.<UserCommand>builder()
@@ -401,6 +411,7 @@ private S2Validator<UserCommand> signupRules() {
 ```
 
 #### 2. 컨트롤러: 화면 렌더링 시 JSON 규칙 전달 (GET)
+
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
@@ -411,6 +422,7 @@ public String signupPage(Model model) {
 ```
 
 #### 3. 뷰: HTML 폼에 규칙 연결 (View)
+
 ```html
 <form id="signupForm" th:data-s2-rules="${rules}">
   <input name="userId" type="text" />
@@ -425,6 +437,7 @@ public String signupPage(Model model) {
 ```
 
 #### 4. 컨트롤러: 서버 사이드 최종 검증 (POST)
+
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
@@ -487,6 +500,7 @@ S2Jpql.from(em).type(Product.class).query(jpql)
 
 > [!WARNING]
 > **엄격한 아키텍처적 책임 분리:**
+>
 > - `bindClause()`는 오직 **정적 SQL 절 프래그먼트를 조건부로 포함**할 때만 사용해야 합니다.
 > - `bindParameter()`는 오직 **동적 파라미터 값을 안전하게 바인딩**할 때만 사용해야 합니다.
 >

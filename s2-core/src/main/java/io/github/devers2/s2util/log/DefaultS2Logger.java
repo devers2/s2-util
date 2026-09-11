@@ -135,60 +135,60 @@ public class DefaultS2Logger implements S2Logger {
 
         // Java 17 Text Block을 사용한 템플릿 (가독성을 위해 색상 위치에 플레이스홀더 사용)
         var template = """
-                       {RS}{BN}{BD}***********************************************************************************
-                       {BN}*                                                                                 *
-                       {BN}*                     !!! S2Logger NOT CONFIGURED WARNING !!!                     *
-                       {BN}*                                                                                 *
-                       {BN}*    S2LoggerAdapter is missing. Falling back to DefaultS2Logger (System.out).    *
-                       {BN}*                                                                                 *
-                       {BN}***********************************************************************************
-                       {RS}{CM}/**
-                       {CM} * Quick Setup Guide
-                       {CM} * Spring Configuration Example
-                       {CM} */
-                       {RS}{KW}import{RS} {TP}org.springframework.context.annotation.Configuration{RS};
-                       {KW}import{RS} {TP}javax.annotation.PostConstruct{RS};
-                       {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LogManager{RS};
-                       {KW}import{RS} {TP}io.github.devers2.s2util.log.S2Logger{RS};
-                       {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LoggerFactory{RS};
+                {RS}{BN}{BD}***********************************************************************************
+                {BN}*                                                                                 *
+                {BN}*                     !!! S2Logger NOT CONFIGURED WARNING !!!                     *
+                {BN}*                                                                                 *
+                {BN}*    S2LoggerAdapter is missing. Falling back to DefaultS2Logger (System.out).    *
+                {BN}*                                                                                 *
+                {BN}***********************************************************************************
+                {RS}{CM}/**
+                {CM} * Quick Setup Guide
+                {CM} * Spring Configuration Example
+                {CM} */
+                {RS}{KW}import{RS} {TP}org.springframework.context.annotation.Configuration{RS};
+                {KW}import{RS} {TP}javax.annotation.PostConstruct{RS};
+                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LogManager{RS};
+                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2Logger{RS};
+                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LoggerFactory{RS};
 
-                       {AN}@Configuration{RS}
-                       {KW}public{RS} {KW}class{RS} {TP}S2LogConfig{RS} {
-                           {AN}@PostConstruct{RS}
-                           {KW}public{RS} {KW}void{RS} {FN}init{RS}() {
-                               {TP}S2LogManager{RS}.{FN}setLoggerFactory{RS}({KW}new{RS} {TP}S2LoggerFactory{RS}() {
-                                   {AN}@Override{RS}
-                                   {KW}public{RS} {TP}S2Logger{RS} {FN}getLogger{RS}({TP}String{RS} {VR}name{RS}) {
-                                       {KW}final{RS} {TP}org.slf4j.Logger{RS} {VR}logger{RS} = {TP}org.slf4j.LoggerFactory{RS}.{FN}getLogger{RS}({VR}name{RS});
+                {AN}@Configuration{RS}
+                {KW}public{RS} {KW}class{RS} {TP}S2LogConfig{RS} {
+                    {AN}@PostConstruct{RS}
+                    {KW}public{RS} {KW}void{RS} {FN}init{RS}() {
+                        {TP}S2LogManager{RS}.{FN}setLoggerFactory{RS}({KW}new{RS} {TP}S2LoggerFactory{RS}() {
+                            {AN}@Override{RS}
+                            {KW}public{RS} {TP}S2Logger{RS} {FN}getLogger{RS}({TP}String{RS} {VR}name{RS}) {
+                                {KW}final{RS} {TP}org.slf4j.Logger{RS} {VR}logger{RS} = {TP}org.slf4j.LoggerFactory{RS}.{FN}getLogger{RS}({VR}name{RS});
 
-                                       {KW}return{RS} {KW}new{RS} {TP}S2Logger{RS}() {
-                                           {AN}@Override{RS}
-                                           {KW}public{RS} {KW}void{RS} {FN}log{RS}({TP}String{RS} {VR}level{RS}, {TP}String{RS} {VR}message{RS}, {TP}Object{RS}[] {VR}args{RS}) {
-                                               {KW}if{RS} ({ST}"DEBUG"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}debug{RS}({VR}message{RS}, {VR}args{RS});
-                                               {KW}else if{RS} ({ST}"INFO"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}info{RS}({VR}message{RS}, {VR}args{RS});
-                                               {KW}else if{RS} ({ST}"WARN"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}warn{RS}({VR}message{RS}, {VR}args{RS});
-                                               {KW}else if{RS} ({ST}"ERROR"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}error{RS}({VR}message{RS}, {VR}args{RS});
-                                           }
+                                {KW}return{RS} {KW}new{RS} {TP}S2Logger{RS}() {
+                                    {AN}@Override{RS}
+                                    {KW}public{RS} {KW}void{RS} {FN}log{RS}({TP}String{RS} {VR}level{RS}, {TP}String{RS} {VR}message{RS}, {TP}Object{RS}[] {VR}args{RS}) {
+                                        {KW}if{RS} ({ST}"DEBUG"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}debug{RS}({VR}message{RS}, {VR}args{RS});
+                                        {KW}else if{RS} ({ST}"INFO"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}info{RS}({VR}message{RS}, {VR}args{RS});
+                                        {KW}else if{RS} ({ST}"WARN"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}warn{RS}({VR}message{RS}, {VR}args{RS});
+                                        {KW}else if{RS} ({ST}"ERROR"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}error{RS}({VR}message{RS}, {VR}args{RS});
+                                    }
 
-                                           {AN}@Override{RS}
-                                           {KW}public{RS} {KW}boolean{RS} {FN}isDebugEnabled{RS}() { {KW}return{RS} {VR}logger{RS}.{FN}isDebugEnabled{RS}(); }
-                                           {AN}@Override{RS}
-                                           {KW}public{RS} {KW}boolean{RS} {FN}isInfoEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isInfoEnabled{RS}(); }
-                                           {AN}@Override{RS}
-                                           {KW}public{RS} {KW}boolean{RS} {FN}isWarnEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isWarnEnabled{RS}(); }
-                                           {AN}@Override{RS}
-                                           {KW}public{RS} {KW}boolean{RS} {FN}isErrorEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isErrorEnabled{RS}(); }
-                                       };
-                                   }
+                                    {AN}@Override{RS}
+                                    {KW}public{RS} {KW}boolean{RS} {FN}isDebugEnabled{RS}() { {KW}return{RS} {VR}logger{RS}.{FN}isDebugEnabled{RS}(); }
+                                    {AN}@Override{RS}
+                                    {KW}public{RS} {KW}boolean{RS} {FN}isInfoEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isInfoEnabled{RS}(); }
+                                    {AN}@Override{RS}
+                                    {KW}public{RS} {KW}boolean{RS} {FN}isWarnEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isWarnEnabled{RS}(); }
+                                    {AN}@Override{RS}
+                                    {KW}public{RS} {KW}boolean{RS} {FN}isErrorEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isErrorEnabled{RS}(); }
+                                };
+                            }
 
-                                   {AN}@Override{RS}
-                                   {KW}public{RS} <T> {TP}S2Logger{RS} {FN}getLogger{RS}({TP}Class{RS}<T> {VR}clazz{RS}) {
-                                       {KW}return{RS} {FN}getLogger{RS}({VR}clazz{RS} == {KW}null{RS} ? {ST}"unknown"{RS} : {VR}clazz{RS}.{FN}getName{RS}());
-                                   }
-                               });
-                           }
-                       }
-                       """;
+                            {AN}@Override{RS}
+                            {KW}public{RS} <T> {TP}S2Logger{RS} {FN}getLogger{RS}({TP}Class{RS}<T> {VR}clazz{RS}) {
+                                {KW}return{RS} {FN}getLogger{RS}({VR}clazz{RS} == {KW}null{RS} ? {ST}"unknown"{RS} : {VR}clazz{RS}.{FN}getName{RS}());
+                            }
+                        });
+                    }
+                }
+                """;
 
         // 플레이스홀더를 실제 ANSI 코드로 치환
         System.out.println(
@@ -197,8 +197,7 @@ public class DefaultS2Logger implements S2Logger {
                         .replace("{BN}", BN).replace("{CM}", CM)
                         .replace("{AN}", AN).replace("{KW}", KW)
                         .replace("{TP}", TP).replace("{FN}", FN)
-                        .replace("{VR}", VR).replace("{ST}", ST)
-        );
+                        .replace("{VR}", VR).replace("{ST}", ST));
     }
 
     @Override

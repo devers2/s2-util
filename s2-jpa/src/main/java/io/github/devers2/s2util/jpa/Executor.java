@@ -74,7 +74,8 @@ public interface Executor<T> {
      * @param suffix         String to append to the clause (e.g., ")") | 절 뒤에 붙을 접미사 (예: ")")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix, String suffix);
+    Executor<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix,
+            String suffix);
 
     /**
      * Adds the corresponding condition clause to the query only if the condition ({@code condition}) is true.
@@ -266,7 +267,8 @@ public interface Executor<T> {
      * @param suffix         String to append to the clause (e.g., ")") | 절 뒤에 붙을 접미사 (예: ")")
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
-    Executor<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix, String suffix);
+    Executor<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix,
+            String suffix);
 
     /**
      * Adds the corresponding condition clause to the query only if the condition value ({@code conditionValue}) is not empty/null.

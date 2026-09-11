@@ -134,6 +134,7 @@ List<Member> page = q.getResultList();
 > [!TIP]
 > **`s2-support` 페이징(`S2PaginationInfo`)과의 연계 활용:**  
 > 보조 라이브러리인 **[`s2-support`](https://github.com/devers2/s2-support)**를 함께 사용하는 경우, `getFirstRecordIndex()`와 `getRecordCountPerPage()`를 전달하여 페이징 오프셋 계산과 목록 쿼리를 손쉽게 결합할 수 있습니다:
+>
 > ```java
 > S2PaginationInfo pagination = new S2PaginationInfo();
 > pagination.setCurrentPageNo(pageNo);
