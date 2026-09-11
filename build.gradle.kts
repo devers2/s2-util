@@ -57,9 +57,17 @@ import io.github.devers2.buildsupport.S2BuildUtils
  * ❗중요: 동일한 소스를 다른 조직/목적으로 배포하는 경우 group을 다르게 설정해야 한다.
  *   예시) 원본: io.github.devers2, 포크: com.company
  *   이렇게 하면 의존성 관리 도구가 서로 다른 아티팩트로 인식하여 같은 리포지토리라도 별도 아티팩트로 취급된다.
+ *
+ * 💡 [문서 버전 자동 동기화 안내]
+ * Gradle 빌드 또는 태스크 실행 시, 아래 version에 지정된 값으로
+ * S2BuildUtils.updateReadmeWithVersionAndDependencies()에 설정된 대상 파일들
+ * (README.md, README.ko.md, MANUAL.md, MANUAL.ko.md 등)의
+ * 의존성 코드 블록(Gradle/Maven) 및 인라인 버전이 현재 version 값으로 자동 동기화됩니다.
+ * 하단 버전 고지(Version: x.x.x)의 경우, 기존 문서의 버전과 다를 때(버전 변경 시)
+ * 새 버전 번호와 실행 당일의 릴리즈 날짜(YYYY-MM-DD)로 함께 자동 갱신됩니다.
  */
 group = "io.github.devers2"
-version = "1.1.7"
+version = "1.1.8"
 
 repositories {
     mavenCentral()
@@ -100,18 +108,20 @@ extra["javaVersion"] = JavaVersion.VERSION_21
 extra["releaseCompatibility"] = JavaVersion.VERSION_17
 
 /*
- * [추가 소스 목록]
- * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo')를 추가하여 관련된 소스 파일 및 라이브러리 의존성을 빌드에 자동으로 포함시킬 수 있다.
+ * [동적 기능 활성화 목록 (Feature Toggles)]
+ * dynamicSourceInfoMap에 정의된 기능 키(예: 'licensesInfo', 'S2PdfUtil')를 extra["activeFeatures"]에
+ * 추가하고 빌드하면 관련된 소스(sources), 라이브러리 의존성(dependencies), 라이선스 문서(licenses)가
+ * 빌드에 자동으로 활성화되어 포함됩니다. (반대로 목록에서 제외하면 비활성화되어 빌드에서 배제됩니다.)
  */
 extra["activeFeatures"] = setOf("licensesInfo")
 
 /**
  * [동적 기능 소스 정보 (Feature Toggles)]
- * - 특정 기능(Feature)에 포함될 소스 파일과 라이선스 정보 정의
+ * - 각 기능 키(Feature)별로 연관된 소스 파일, 의존성 라이브러리, 라이선스 문서 목록 정의
  *
- * 💡 이 설정은 각 서브프로젝트의 build.gradle.kts 에서 모듈별로 관리된다.
+ * 💡 이 설정은 각 서브프로젝트의 build.gradle.kts 에서 모듈별로 관리할 수 있습니다.
  * [사용 예시 - subproject/build.gradle.kts]
- * extra["activeFeatures"] = setOf("S2PdfUtil") // 활성화할 기능 키
+ * extra["activeFeatures"] = setOf("S2PdfUtil") // 활성화할 기능 키 (추가 시 활성화, 제거 시 비활성화)
  * extra["dynamicSourceInfoMap"] = mapOf(
  *     "S2PdfUtil" to mapOf(
  *         "variantId" to "pdf",
@@ -128,6 +138,8 @@ extra["dynamicSourceInfoMap"] = mapOf(
         "licenses" to listOf(
             "README.md",
             "README.ko.md",
+            "MANUAL.md",
+            "MANUAL.ko.md",
             "LICENSE",
             "licenses/LICENSE-APACHE-2.0",
             "licenses/NOTICE"
@@ -332,6 +344,6 @@ subprojects {
 }
 
 // --------------------------------------------------------------------------------------
-// 루트프로젝트 README 파일 버전 & 의존성 가이드 업데이트 (정규식 패턴으로 README 및 다국어 문서 매칭)
+// 루트프로젝트 README 및 MANUAL 파일 버전 & 의존성 가이드 업데이트 (정규식 패턴으로 README, MANUAL 및 다국어 문서 매칭)
 // --------------------------------------------------------------------------------------
-S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^README(\\..+)?\\.md$")
+S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^(README|MANUAL)(\\..+)?\\.md$")
