@@ -65,7 +65,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.1.7'
+    implementation 'io.github.devers2:s2-core:1.1.8'
 }
 ```
 
@@ -75,7 +75,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-core</artifactId>
-    <version>1.1.7</version>
+    <version>1.1.8</version>
 </dependency>
 ```
 
@@ -138,7 +138,7 @@ ExecutorService executor = S2ThreadUtil.getCommonExecutor();
 
 ---
 
-s2-core Version: 1.1.7 (2026-09-09)
+s2-core Version: 1.1.8 (2026-09-11)
 
 [//]: # 'S2_DEPS_INFO_START'
 

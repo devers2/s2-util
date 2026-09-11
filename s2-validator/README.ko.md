@@ -107,7 +107,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:1.1.7'
+    implementation 'io.github.devers2:s2-validator:1.1.8'
 
     // (선택사항) Spring 연동 기능(S2BindValidator) 사용 시에만 필요
     implementation 'org.springframework:spring-context:6.2.19'
@@ -120,7 +120,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>1.1.7</version>
+    <version>1.1.8</version>
 </dependency>
 ```
 
@@ -631,7 +631,7 @@ public class MemberController {
 
 ---
 
-s2-validator Version: 1.1.7 (2026-08-12)
+s2-validator Version: 1.1.8 (2026-09-11)
 
 [//]: # 'S2_DEPS_INFO_START'
 
