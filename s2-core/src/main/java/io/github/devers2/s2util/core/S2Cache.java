@@ -161,8 +161,7 @@ public class S2Cache {
                 Boolean.class, boolean.class,
                 Byte.class, byte.class,
                 Short.class, short.class,
-                Character.class, char.class
-        );
+                Character.class, char.class);
 
         WRAPPER_TO_PRIMITIVE_MAP.putAll(w2p);
         w2p.forEach((k, v) -> PRIMITIVE_TO_WRAPPER_MAP.put(v, k));
@@ -324,8 +323,7 @@ public class S2Cache {
                 // Caffeine 어댑터 생성 (Executor는 S2ThreadUtil의 공용 실행기 사용)
                 var caffeineCache = CaffeineCacheAdapter.<K, V>createCache(
                         maxSize, expiryMs, STATS_ENABLED, removalListener,
-                        Objects.requireNonNull(S2ThreadUtil.getCommonExecutor())
-                );
+                        Objects.requireNonNull(S2ThreadUtil.getCommonExecutor()));
                 var adapter = new CaffeineCacheAdapter<K, V>(caffeineCache);
 
                 if (logger.isDebugEnabled()) {
@@ -335,7 +333,8 @@ public class S2Cache {
                 return adapter;
             } catch (Throwable t) {
                 // Caffeine 생성 실패 또는 LinkageError(버전 불일치 등)를 포함한 모든 오류에 대해 경량 캐시로 안전하게 폴백
-                logger.warn("[S2Cache] Failed to initialize Caffeine adapter (fallback to simple cache): {}", t.toString());
+                logger.warn("[S2Cache] Failed to initialize Caffeine adapter (fallback to simple cache): {}",
+                        t.toString());
             }
         }
 
@@ -467,7 +466,8 @@ public class S2Cache {
      * @param keyType   Class type of the cache key | 캐시 키의 클래스 타입
      * @param valueType Class type of the cache value | 캐시 값의 클래스 타입
      */
-    private record CacheKey(String name, Class<?> keyType, Class<?> valueType) {}
+    private record CacheKey(String name, Class<?> keyType, Class<?> valueType) {
+    }
 
     /**
      * Retrieves a value from the cache or loads it using the provided loader if not present.
@@ -503,7 +503,8 @@ public class S2Cache {
      *                  래퍼 할당 비용이 추가로 든다({@link #resolve} 구현 참고)
      * @return An Optional containing the value, or empty if generation fails | 값을 포함한 Optional, 생성 실패 시 빈 Optional
      */
-    public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize, Function<K, Optional<V>> loader) {
+    public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize,
+            Function<K, Optional<V>> loader) {
         return resolve(cacheName, key, keyType, valueType, maxSize, 0, loader);
     }
 
@@ -543,7 +544,8 @@ public class S2Cache {
      *                  래퍼 할당 비용이 추가로 든다({@link #resolve} 구현 참고)
      * @return An Optional containing the value, or empty if generation fails | 값을 포함한 Optional, 생성 실패 시 빈 Optional
      */
-    public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize, long expiryMs, Function<K, Optional<V>> loader) {
+    public static <K, V> Optional<V> resolve(String cacheName, K key, Class<K> keyType, Class<V> valueType, int maxSize,
+            long expiryMs, Function<K, Optional<V>> loader) {
         if (key == null) {
             return Optional.empty();
         }
@@ -565,14 +567,12 @@ public class S2Cache {
                         logger.warn(
                                 "[S2Cache] 동적 캐시 레지스트리 상한({}개)에 도달했습니다. cacheName을 고정 상수로 사용 중인지 확인하세요. "
                                         + "상한을 넘는 신규 캐시 이름은 캐싱 없이 매번 재계산됩니다.",
-                                MAX_DYNAMIC_CACHES
-                        );
+                                MAX_DYNAMIC_CACHES);
                     } else {
                         logger.warn(
                                 "[S2Cache] Dynamic cache registry hit its cap ({}). Check that cacheName is a fixed constant. "
                                         + "Names beyond the cap will bypass caching and recompute on every call.",
-                                MAX_DYNAMIC_CACHES
-                        );
+                                MAX_DYNAMIC_CACHES);
                     }
                 }
                 return new DynamicCacheEntry(new NoOpCacheAdapter<>(), maxSize, expiryMs);
@@ -586,19 +586,18 @@ public class S2Cache {
         // hot-path cost is effectively zero (re-requesting the same cache name with a different
         // maxSize/expiryMs keeps the settings from the first creation and silently drops the rest,
         // so this warns once per entry to aid diagnosis)
-        if ((entry.maxSize != maxSize || entry.expiryMs != expiryMs) && entry.mismatchWarned.compareAndSet(false, true)) {
+        if ((entry.maxSize != maxSize || entry.expiryMs != expiryMs)
+                && entry.mismatchWarned.compareAndSet(false, true)) {
             if (S2Util.isKorean()) {
                 logger.warn(
                         "[S2Cache] 캐시 '{}'가 이미 다른 설정(maxSize={}, expiryMs={})으로 생성되어 있어, "
                                 + "이번 요청의 설정(maxSize={}, expiryMs={})은 무시됩니다.",
-                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs
-                );
+                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs);
             } else {
                 logger.warn(
                         "[S2Cache] Cache '{}' was already created with different settings (maxSize={}, expiryMs={}); "
                                 + "this call's settings (maxSize={}, expiryMs={}) are ignored.",
-                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs
-                );
+                        cacheName, entry.maxSize, entry.expiryMs, maxSize, expiryMs);
             }
         }
 
@@ -610,9 +609,7 @@ public class S2Cache {
             throw new IllegalArgumentException(
                     String.format(
                             "[S2Cache] 타입 불일치: 캐시(%s)는 %s 타입을 요구하지만 %s 가 입력됨",
-                            cacheName, keyType.getSimpleName(), key.getClass().getSimpleName()
-                    )
-            );
+                            cacheName, keyType.getSimpleName(), key.getClass().getSimpleName()));
         }
 
         // 4. 로딩 수행
@@ -677,14 +674,12 @@ public class S2Cache {
 
         sb.append(
                 """
-                [S2Cache Statistics]
-                - MethodCache: %s
-                - PatternCache: %s
-                """.formatted(
+                        [S2Cache Statistics]
+                        - MethodCache: %s
+                        - PatternCache: %s
+                        """.formatted(
                         MethodHandleResolver.CACHE.getStats(),
-                        PatternResolver.CACHE.getStats()
-                )
-        );
+                        PatternResolver.CACHE.getStats()));
 
         DYNAMIC_CACHES.forEach((ck, entry) -> {
             sb.append(
@@ -692,9 +687,7 @@ public class S2Cache {
                             "[%s <%s>] %s%n",
                             ck.name(),
                             ck.valueType().getSimpleName(),
-                            entry.adapter.getStats()
-                    )
-            );
+                            entry.adapter.getStats()));
         });
         return sb.toString();
     }
@@ -851,8 +844,7 @@ public class S2Cache {
 
                     // 방어적 복사를 통해 외부 수정으로부터 캐시 원본 보호함
                     return Optional.of(fieldArray.clone());
-                }
-        );
+                });
     }
 
     /**
@@ -955,13 +947,16 @@ public class S2Cache {
 
                 // 빈번하게 사용되는 표준 메서드들을 정적 초기화 시점에 미리 로드한다.
                 MAP_GET = lookup.findVirtual(Map.class, "get", MethodType.methodType(Object.class, Object.class));
-                MAP_PUT = lookup.findVirtual(Map.class, "put", MethodType.methodType(Object.class, Object.class, Object.class));
-                MAP_CONTAINS = lookup.findVirtual(Map.class, "containsKey", MethodType.methodType(boolean.class, Object.class));
+                MAP_PUT = lookup.findVirtual(Map.class, "put",
+                        MethodType.methodType(Object.class, Object.class, Object.class));
+                MAP_CONTAINS = lookup.findVirtual(Map.class, "containsKey",
+                        MethodType.methodType(boolean.class, Object.class));
                 LIST_GET = lookup.findVirtual(List.class, "get", MethodType.methodType(Object.class, int.class));
                 COLLECTION_SIZE = lookup.findVirtual(Collection.class, "size", MethodType.methodType(int.class));
                 OBJECT_TO_STRING = lookup.findVirtual(Object.class, "toString", MethodType.methodType(String.class));
                 OPTIONAL_GET = lookup.findVirtual(Optional.class, "get", MethodType.methodType(Object.class));
-                OPTIONAL_IS_PRESENT = lookup.findVirtual(Optional.class, "isPresent", MethodType.methodType(boolean.class));
+                OPTIONAL_IS_PRESENT = lookup.findVirtual(Optional.class, "isPresent",
+                        MethodType.methodType(boolean.class));
             } catch (NoSuchMethodException | IllegalAccessException e) {
                 throw new ExceptionInInitializerError("[MethodHandleResolver] 정적 초기화 실패: " + e.getMessage());
             }
@@ -1068,7 +1063,8 @@ public class S2Cache {
              * @param paramType2  파라미터 타입2
              * @param paramType3  파라미터 타입3
              */
-            public MethodKey(Class<?> targetClass, String methodName, Class<?> paramType1, Class<?> paramType2, Class<?> paramType3) {
+            public MethodKey(Class<?> targetClass, String methodName, Class<?> paramType1, Class<?> paramType2,
+                    Class<?> paramType3) {
                 this(targetClass, methodName, null, new Class<?>[] { paramType1, paramType2, paramType3 });
             }
 
@@ -1087,8 +1083,10 @@ public class S2Cache {
              * @param paramType4  파라미터 타입4
              * @param paramTypes  파라미터 가변 인자(없을 경우 생략)
              */
-            public MethodKey(Class<?> targetClass, String methodName, Class<?> paramType1, Class<?> paramType2, Class<?> paramType3, Class<?> paramType4, Class<?>... paramTypes) {
-                this(targetClass, methodName, null, combine(paramType1, paramType2, paramType3, paramType4, paramTypes));
+            public MethodKey(Class<?> targetClass, String methodName, Class<?> paramType1, Class<?> paramType2,
+                    Class<?> paramType3, Class<?> paramType4, Class<?>... paramTypes) {
+                this(targetClass, methodName, null,
+                        combine(paramType1, paramType2, paramType3, paramType4, paramTypes));
             }
 
             /**
@@ -1123,7 +1121,8 @@ public class S2Cache {
              * @param paramType1  파라미터 타입1
              * @param paramType2  파라미터 타입2
              */
-            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1, Class<?> paramType2) {
+            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1,
+                    Class<?> paramType2) {
                 this(targetClass, methodName, fieldName, new Class<?>[] { paramType1, paramType2 });
             }
 
@@ -1137,7 +1136,8 @@ public class S2Cache {
              * @param paramType2  파라미터 타입2
              * @param paramType3  파라미터 타입3
              */
-            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1, Class<?> paramType2, Class<?> paramType3) {
+            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1,
+                    Class<?> paramType2, Class<?> paramType3) {
                 this(targetClass, methodName, fieldName, new Class<?>[] { paramType1, paramType2, paramType3 });
             }
 
@@ -1153,8 +1153,10 @@ public class S2Cache {
              * @param paramType4  파라미터 타입4
              * @param paramTypes  파라미터 가변 인자(없을 경우 생략)
              */
-            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1, Class<?> paramType2, Class<?> paramType3, Class<?> paramType4, Class<?>... paramTypes) {
-                this(targetClass, methodName, fieldName, combine(paramType1, paramType2, paramType3, paramType4, paramTypes));
+            public MethodKey(Class<?> targetClass, String methodName, String fieldName, Class<?> paramType1,
+                    Class<?> paramType2, Class<?> paramType3, Class<?> paramType4, Class<?>... paramTypes) {
+                this(targetClass, methodName, fieldName,
+                        combine(paramType1, paramType2, paramType3, paramType4, paramTypes));
             }
 
             /**
@@ -1364,7 +1366,8 @@ public class S2Cache {
             if (key.fieldName() != null && key.paramTypes().length == 1) {
                 Class<?> fieldType = findFieldTypeRecursive(clazz, key.fieldName());
                 if (fieldType != null && fieldType != key.paramTypes()[0]) {
-                    MethodKey inferredKey = new MethodKey(clazz, key.methodName(), key.fieldName(), new Class<?>[] { fieldType });
+                    MethodKey inferredKey = new MethodKey(clazz, key.methodName(), key.fieldName(),
+                            new Class<?>[] { fieldType });
                     methodHandle = findMethodRecursive(inferredKey, allowPrivate);
                     if (methodHandle != null)
                         return methodHandle;
@@ -1451,13 +1454,15 @@ public class S2Cache {
         private static MethodHandle findWithConvertedTypes(MethodKey key, boolean allowPrivate) {
             // 래퍼 타입을 기본 타입으로 변환하여 조회를 시도함
             Class<?>[] convertType = convertTypes(key.paramTypes(), WRAPPER_TO_PRIMITIVE_MAP);
-            MethodHandle methodHandle = findMethodRecursive(new MethodKey(key.targetClass(), key.methodName(), key.fieldName(), convertType), allowPrivate);
+            MethodHandle methodHandle = findMethodRecursive(
+                    new MethodKey(key.targetClass(), key.methodName(), key.fieldName(), convertType), allowPrivate);
             if (methodHandle != null)
                 return methodHandle;
 
             // 기본 타입을 래퍼 타입으로 변환하여 조회를 시도함
             convertType = convertTypes(key.paramTypes(), PRIMITIVE_TO_WRAPPER_MAP);
-            return findMethodRecursive(new MethodKey(key.targetClass(), key.methodName(), key.fieldName(), convertType), allowPrivate);
+            return findMethodRecursive(new MethodKey(key.targetClass(), key.methodName(), key.fieldName(), convertType),
+                    allowPrivate);
         }
 
         /**
@@ -1554,7 +1559,8 @@ public class S2Cache {
             try {
                 // 리플렉션 접근 권한을 강제로 허용함
                 method.setAccessible(true);
-                var lookup = allowPrivate ? MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()) : MethodHandles.lookup();
+                var lookup = allowPrivate ? MethodHandles.privateLookupIn(clazz, MethodHandles.lookup())
+                        : MethodHandles.lookup();
                 return lookup.unreflect(method);
             } catch (Exception e) {
                 logger.error("메서드 핸들 생성을 실패하였습니다: {}", method.getName());
@@ -1606,7 +1612,8 @@ public class S2Cache {
             try {
                 // 생성자는 반환 타입을 void로 지정하여 타입을 구성함
                 var type = MethodType.methodType(void.class, pts);
-                var lookup = priv ? MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()) : MethodHandles.lookup();
+                var lookup = priv ? MethodHandles.privateLookupIn(clazz, MethodHandles.lookup())
+                        : MethodHandles.lookup();
                 return lookup.findConstructor(clazz, type);
             } catch (Exception e) {
                 // 생성자를 찾지 못한 경우 null을 반환함
@@ -1631,7 +1638,8 @@ public class S2Cache {
      * </p>
      */
     public static class PatternResolver {
-        private static final CacheAdapter<String, Optional<Pattern>> CACHE = createCacheAdapter(1000, 0, "PatternResolver");
+        private static final CacheAdapter<String, Optional<Pattern>> CACHE = createCacheAdapter(1000, 0,
+                "PatternResolver");
 
         /**
          * Retrieves a cached Pattern object for the given regex string.
@@ -1688,7 +1696,8 @@ public class S2Cache {
          * @param basename Bundle path | 번들 경로
          * @param locale   Locale information | 로케일 정보
          */
-        private record BundleKey(String basename, Locale locale) {}
+        private record BundleKey(String basename, Locale locale) {
+        }
 
         /**
          * Retrieves a cached {@link java.util.ResourceBundle}.
@@ -1732,13 +1741,11 @@ public class S2Cache {
                             if (logger.isDebugEnabled()) {
                                 logger.debug(
                                         "[S2Cache] ResourceBundle을 찾을 수 없음: {} (locale: {}) - empty 결과 캐싱함",
-                                        key.basename(), key.locale()
-                                );
+                                        key.basename(), key.locale());
                             }
                             return Optional.empty();
                         }
-                    }
-            );
+                    });
         }
     }
 

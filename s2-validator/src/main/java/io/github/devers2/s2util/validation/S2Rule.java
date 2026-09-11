@@ -136,7 +136,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         if ((ruleType == S2RuleType.REGEX
                 || ruleType == S2RuleType.NESTED
                 || ruleType == S2RuleType.EACH
-                || (ruleType.getErrorMessageTemplate(null) != null && ruleType.getErrorMessageTemplate(null).contains("{1}")))
+                || (ruleType.getErrorMessageTemplate(null) != null
+                        && ruleType.getErrorMessageTemplate(null).contains("{1}")))
                 && S2Util.isEmpty(checkValue)) {
             throw new IllegalArgumentException("[S2Rule] checkValue cannot be null.");
         }
@@ -144,7 +145,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         this.ruleType = ruleType;
         this.checkValue = checkValue;
         // Use custom key if provided; otherwise fallback to the default key for the rule type
-        this.errorMessageKey = errorMessageKey != null && !errorMessageKey.isBlank() ? errorMessageKey : ruleType.getErrorMessageKey();
+        this.errorMessageKey = errorMessageKey != null && !errorMessageKey.isBlank() ? errorMessageKey
+                : ruleType.getErrorMessageKey();
     }
 
     /**
@@ -262,7 +264,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 }
                 yield false;
             }
-            case REGEX, NUMBER, TEXT_INTACT, TEXT_COMBINE, MPHONE_NO, TEL_NO, INTERNATIONAL_TEL_NO, EMAIL, ZIP, LOGIN_ID, PASSWORD, PASSWORD_ANSWR, BIZRNO, NWINO -> {
+            case REGEX, NUMBER, TEXT_INTACT, TEXT_COMBINE, MPHONE_NO, TEL_NO, INTERNATIONAL_TEL_NO, EMAIL, ZIP,
+                    LOGIN_ID, PASSWORD, PASSWORD_ANSWR, BIZRNO, NWINO -> {
                 var regex = ruleType == S2RuleType.REGEX ? String.valueOf(checkValue) : ruleType.getRegex();
                 yield S2Cache.getPattern(regex)
                         .map(pattern -> pattern.matcher(String.valueOf(value)).matches())

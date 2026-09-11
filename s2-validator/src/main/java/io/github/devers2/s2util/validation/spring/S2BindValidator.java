@@ -309,10 +309,8 @@ public final class S2BindValidator {
                                 error.fieldName(),
                                 error.errorCode() != null ? error.errorCode() : "",
                                 error.errorArgs(),
-                                error.defaultMessage()
-                        );
-                    }), LocaleContextHolder.getLocale()
-            );
+                                error.defaultMessage());
+                    }), LocaleContextHolder.getLocale());
         }
 
         /**

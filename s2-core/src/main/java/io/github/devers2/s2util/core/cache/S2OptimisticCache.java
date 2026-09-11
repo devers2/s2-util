@@ -124,7 +124,8 @@ public class S2OptimisticCache<K, V> {
      * </p>
      */
     private static final class MaintenanceExecutorHolder {
-        private static final ExecutorService INSTANCE = Executors.newSingleThreadExecutor(S2ThreadUtil.getPlatformFactory());
+        private static final ExecutorService INSTANCE = Executors
+                .newSingleThreadExecutor(S2ThreadUtil.getPlatformFactory());
     }
 
     /**
@@ -265,7 +266,8 @@ public class S2OptimisticCache<K, V> {
                             evicting.set(false);
                         }
                     });
-                } else if (size.get() > (long) maxEntries * SYNC_FALLBACK_MULTIPLIER && syncEvicting.compareAndSet(false, true)) {
+                } else if (size.get() > (long) maxEntries * SYNC_FALLBACK_MULTIPLIER
+                        && syncEvicting.compareAndSet(false, true)) {
                     /*
                      * Safety valve: reached only when async eviction is already running yet the cache
                      * has grown well past its bound (maintenance executor likely starved). CAS-guarded

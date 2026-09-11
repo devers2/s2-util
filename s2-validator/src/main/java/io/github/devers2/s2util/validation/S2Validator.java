@@ -432,11 +432,13 @@ public class S2Validator<T> implements Serializable {
      *
      * @param <T> The value type | 검증 대상 값의 타입
      */
-    public static class S2ValueChain<T> extends AbstractChain<java.util.Map<String, Object>> implements S2RuleStep.LabeledCheckRuleStep<T> {
+    public static class S2ValueChain<T> extends AbstractChain<java.util.Map<String, Object>>
+            implements S2RuleStep.LabeledCheckRuleStep<T> {
 
         private final java.util.Map<String, Object> targetWithWrapper;
 
-        private S2ValueChain(S2Validator<java.util.Map<String, Object>> validator, java.util.Map<String, Object> targetWithWrapper, String valueKey, String label) {
+        private S2ValueChain(S2Validator<java.util.Map<String, Object>> validator,
+                java.util.Map<String, Object> targetWithWrapper, String valueKey, String label) {
             super(validator);
             this.targetWithWrapper = targetWithWrapper;
             // 생성 즉시 필드(값 자체)를 선택한 상태로 만듦
@@ -617,7 +619,8 @@ public class S2Validator<T> implements Serializable {
      *
      * @param <T> The target object type | 검증 대상 객체의 타입
      */
-    public static class S2ValidateChain<T> extends AbstractChain<T> implements S2FieldStep.ValidateStartStep<T>, S2RuleStep.ValidateRuleStep<T>, S2ConditionStep.ValidateConditionStep<T> {
+    public static class S2ValidateChain<T> extends AbstractChain<T> implements S2FieldStep.ValidateStartStep<T>,
+            S2RuleStep.ValidateRuleStep<T>, S2ConditionStep.ValidateConditionStep<T> {
 
         private final T target;
 
@@ -757,7 +760,8 @@ public class S2Validator<T> implements Serializable {
      *
      * @param <T> The target object type | 검증 대상 객체의 타입
      */
-    public static class S2BuilderChain<T> extends AbstractChain<T> implements S2FieldStep.BuilderStartStep<T>, S2RuleStep.BuilderRuleStep<T>, S2ConditionStep.BuilderConditionStep<T> {
+    public static class S2BuilderChain<T> extends AbstractChain<T> implements S2FieldStep.BuilderStartStep<T>,
+            S2RuleStep.BuilderRuleStep<T>, S2ConditionStep.BuilderConditionStep<T> {
 
         private S2BuilderChain(S2Validator<T> validator) {
             super(validator);
@@ -874,7 +878,8 @@ public class S2Validator<T> implements Serializable {
      * @param depth        Current recursion depth
      * @return True if validation passes, false otherwise
      */
-    protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale, java.util.Set<Object> visited, int depth) {
+    protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale,
+            java.util.Set<Object> visited, int depth) {
         return new Runner<>(this).run(target, errorHandler, locale, visited, depth);
     }
 
@@ -900,10 +905,12 @@ public class S2Validator<T> implements Serializable {
         }
 
         public boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale) {
-            return run(target, errorHandler, locale, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()), 0);
+            return run(target, errorHandler, locale,
+                    java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()), 0);
         }
 
-        protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale, java.util.Set<Object> visited, int depth) {
+        protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale,
+                java.util.Set<Object> visited, int depth) {
             if (target == null)
                 return true;
 
@@ -947,14 +954,16 @@ public class S2Validator<T> implements Serializable {
                     if (collectionValue instanceof Iterable<?> it) {
                         int idx = 0;
                         for (Object item : it) {
-                            isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target, errorHandler, currentLocale, visited, depth);
+                            isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target,
+                                    errorHandler, currentLocale, visited, depth);
                             idx++;
                         }
                     } else if (collectionValue != null && collectionValue.getClass().isArray()) {
                         int len = java.lang.reflect.Array.getLength(collectionValue);
                         for (int i = 0; i < len; i++) {
                             Object item = java.lang.reflect.Array.get(collectionValue, i);
-                            isAllValid &= processWildcardItem(item, collectionPrefix, i, groupFields, target, errorHandler, currentLocale, visited, depth);
+                            isAllValid &= processWildcardItem(item, collectionPrefix, i, groupFields, target,
+                                    errorHandler, currentLocale, visited, depth);
                         }
                     }
 
@@ -989,9 +998,8 @@ public class S2Validator<T> implements Serializable {
                                             fieldName,
                                             requiredCheck.getErrorMessageKey(),
                                             new Object[] { fieldLabel },
-                                            field.getErrorMessage(requiredCheck, currentLocale)
-                                    ), config.failFastWithException
-                            ))
+                                            field.getErrorMessage(requiredCheck, currentLocale)),
+                                    config.failFastWithException))
                                 return false;
                         }
                     }
@@ -1010,9 +1018,8 @@ public class S2Validator<T> implements Serializable {
                                                     fieldName,
                                                     "ERR_CIRCULAR_REFERENCE",
                                                     new Object[] { fieldLabel },
-                                                    "순환 참조가 감지되었습니다."
-                                            ), config.failFastWithException
-                                    ))
+                                                    "순환 참조가 감지되었습니다."),
+                                            config.failFastWithException))
                                         return false;
                                     continue;
                                 }
@@ -1022,12 +1029,12 @@ public class S2Validator<T> implements Serializable {
                                         boolean subOk = subObj.run(fieldValue, (S2ValidationError err) -> {
                                             reportError(
                                                     errorHandler, new S2ValidationError(
-                                                            fieldName + (S2Util.isEmpty(err.fieldName()) ? "" : "." + err.fieldName()),
+                                                            fieldName + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                                    : "." + err.fieldName()),
                                                             err.errorCode(),
                                                             err.errorArgs(),
-                                                            err.defaultMessage()
-                                                    ), config.failFastWithException
-                                            );
+                                                            err.defaultMessage()),
+                                                    config.failFastWithException);
                                         }, currentLocale, visited, depth + 1);
                                         if (!subOk)
                                             isAllValid = false;
@@ -1040,12 +1047,13 @@ public class S2Validator<T> implements Serializable {
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
                                                 reportError(
                                                         errorHandler, new S2ValidationError(
-                                                                fieldName + "[" + finalIdx + "]" + (S2Util.isEmpty(err.fieldName()) ? "" : "." + err.fieldName()),
+                                                                fieldName + "[" + finalIdx + "]"
+                                                                        + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                                                : "." + err.fieldName()),
                                                                 err.errorCode(),
                                                                 err.errorArgs(),
-                                                                err.defaultMessage()
-                                                        ), config.failFastWithException
-                                                );
+                                                                err.defaultMessage()),
+                                                        config.failFastWithException);
                                             }, currentLocale, visited, depth + 1);
                                             if (!subOk)
                                                 isAllValid = false;
@@ -1059,12 +1067,13 @@ public class S2Validator<T> implements Serializable {
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
                                                 reportError(
                                                         errorHandler, new S2ValidationError(
-                                                                fieldName + "[" + finalIdx + "]" + (S2Util.isEmpty(err.fieldName()) ? "" : "." + err.fieldName()),
+                                                                fieldName + "[" + finalIdx + "]"
+                                                                        + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                                                : "." + err.fieldName()),
                                                                 err.errorCode(),
                                                                 err.errorArgs(),
-                                                                err.defaultMessage()
-                                                        ), config.failFastWithException
-                                                );
+                                                                err.defaultMessage()),
+                                                        config.failFastWithException);
                                             }, currentLocale, visited, depth + 1);
                                             if (!subOk)
                                                 isAllValid = false;
@@ -1077,15 +1086,16 @@ public class S2Validator<T> implements Serializable {
 
                         if (rule.isInvalid(fieldValue, target)) {
                             isAllValid = false;
-                            var args = S2Util.isNotEmpty(rule.getCheckValue()) ? new Object[] { fieldLabel, rule.getCheckValue() } : new Object[] { fieldLabel };
+                            var args = S2Util.isNotEmpty(rule.getCheckValue())
+                                    ? new Object[] { fieldLabel, rule.getCheckValue() }
+                                    : new Object[] { fieldLabel };
                             if (!reportError(
                                     errorHandler, new S2ValidationError(
                                             fieldName,
                                             rule.getErrorMessageKey(),
                                             args,
-                                            field.getErrorMessage(rule, currentLocale)
-                                    ), config.failFastWithException
-                            ))
+                                            field.getErrorMessage(rule, currentLocale)),
+                                    config.failFastWithException))
                                 return false;
                         }
                     }
@@ -1097,9 +1107,8 @@ public class S2Validator<T> implements Serializable {
                                             fieldName,
                                             customCheck.getErrorMessageKey(),
                                             null,
-                                            field.getErrorMessage(customCheck, currentLocale)
-                                    ), config.failFastWithException
-                            ))
+                                            field.getErrorMessage(customCheck, currentLocale)),
+                                    config.failFastWithException))
                                 return false;
                         }
                     }
@@ -1167,9 +1176,8 @@ public class S2Validator<T> implements Serializable {
                                         errorPath,
                                         requiredCheck.getErrorMessageKey(),
                                         new Object[] { fieldLabel },
-                                        field.getErrorMessage(requiredCheck, locale)
-                                ), config.failFastWithException
-                        );
+                                        field.getErrorMessage(requiredCheck, locale)),
+                                config.failFastWithException);
                     }
                 }
 
@@ -1190,9 +1198,8 @@ public class S2Validator<T> implements Serializable {
                                         errorPath,
                                         rule.getErrorMessageKey(),
                                         args,
-                                        field.getErrorMessage(rule, locale)
-                                ), config.failFastWithException
-                        );
+                                        field.getErrorMessage(rule, locale)),
+                                config.failFastWithException);
                     }
                 }
 
@@ -1207,9 +1214,8 @@ public class S2Validator<T> implements Serializable {
                                         errorPath,
                                         customCheck.getErrorMessageKey(),
                                         null,
-                                        field.getErrorMessage(customCheck, locale)
-                                ), config.failFastWithException
-                        );
+                                        field.getErrorMessage(customCheck, locale)),
+                                config.failFastWithException);
                     }
                 }
             }
@@ -1307,7 +1313,8 @@ public class S2Validator<T> implements Serializable {
      * @param throwEx      Whether to throw an exception if no handler is present | 예외 발생 여부
      * @return {@code true} if processing should continue | 처리를 계속할 경우 true
      */
-    private static boolean reportError(Consumer<S2ValidationError> errorHandler, S2ValidationError error, boolean throwEx) {
+    private static boolean reportError(Consumer<S2ValidationError> errorHandler, S2ValidationError error,
+            boolean throwEx) {
         if (errorHandler == null) {
             if (throwEx)
                 throw new S2RuntimeException(error.defaultMessage());
@@ -1412,7 +1419,7 @@ public class S2Validator<T> implements Serializable {
             String fieldName,
             String errorCode,
             Object[] errorArgs,
-            String defaultMessage
-    ) {}
+            String defaultMessage) {
+    }
 
 }

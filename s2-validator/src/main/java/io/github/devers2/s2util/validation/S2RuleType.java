@@ -107,37 +107,47 @@ public enum S2RuleType {
     TEXT_INTACT("valid.err.textintact", "{0|은/는} 텍스트만 입력 가능합니다.", "{0} must contain only text.", "^[가-힣a-zA-Z]*$"),
 
     /** 텍스트 형식 체크 (특문 제외) ^[가-힣a-zA-Z0-9\s\-\(\)\,\.]*$ */
-    TEXT_COMBINE("valid.err.textcombine", "{0|은/는} 텍스트만 입력 가능합니다.", "{0} must contain only text and numbers.", "^[가-힣a-zA-Z0-9\\s\\-\\(\\)\\,\\.]*$"),
+    TEXT_COMBINE("valid.err.textcombine", "{0|은/는} 텍스트만 입력 가능합니다.", "{0} must contain only text and numbers.",
+            "^[가-힣a-zA-Z0-9\\s\\-\\(\\)\\,\\.]*$"),
 
     /** 휴대폰 번호 형식 체크 ({0}: 필드설명) */
-    MPHONE_NO("valid.err.mphone", "{0|은/는} 휴대폰 번호 형식이 올바르지 않습니다.", "Invalid mobile phone format for {0}.", "^01[016789]-\\d{3,4}-\\d{4}$"),
+    MPHONE_NO("valid.err.mphone", "{0|은/는} 휴대폰 번호 형식이 올바르지 않습니다.", "Invalid mobile phone format for {0}.",
+            "^01[016789]-\\d{3,4}-\\d{4}$"),
 
     /** 전화번호 형식 체크 ({0}: 필드설명) */
-    TEL_NO("valid.err.telno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.", "Invalid phone number format for {0}.", "^(\\d{2,3}-\\d{3,4}-\\d{4}|\\d{10,11})$"),
+    TEL_NO("valid.err.telno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.", "Invalid phone number format for {0}.",
+            "^(\\d{2,3}-\\d{3,4}-\\d{4}|\\d{10,11})$"),
 
     /** 국제 전화번호 형식 체크 - E.164 표준 기반 ({0}: 필드설명) */
-    INTERNATIONAL_TEL_NO("valid.err.intltelno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.", "Invalid international phone format for {0}. (e.g., +1 123-456-7890)", "^\\+(?:[0-9] ?){6,14}[0-9]$"),
+    INTERNATIONAL_TEL_NO("valid.err.intltelno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.",
+            "Invalid international phone format for {0}. (e.g., +1 123-456-7890)", "^\\+(?:[0-9] ?){6,14}[0-9]$"),
 
     /** 이메일 형식 체크 ({0}: 필드설명) */
-    EMAIL("valid.err.email", "{0} 형식이 올바르지 않습니다.", "Invalid email format for {0}.", "^[a-zA-Z0-9_%+-]+(?:\\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$"),
+    EMAIL("valid.err.email", "{0} 형식이 올바르지 않습니다.", "Invalid email format for {0}.",
+            "^[a-zA-Z0-9_%+-]+(?:\\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$"),
 
     /** 우편번호 형식 체크 ({0}: 필드설명) */
     ZIP("valid.err.zip", "{0} 형식이 올바르지 않습니다.", "Invalid zip code format for {0}.", "^[0-9]{5}$"),
 
     /** 로그인ID 형식 체크 ({0}: 필드설명) */
-    LOGIN_ID("valid.err.loginid", "{0} 형식이 올바르지 않습니다.", "Invalid Login ID format for {0}.", "^[a-zA-Z][a-zA-Z0-9._-]{4,19}$"), // 5~20자리
+    LOGIN_ID("valid.err.loginid", "{0} 형식이 올바르지 않습니다.", "Invalid Login ID format for {0}.",
+            "^[a-zA-Z][a-zA-Z0-9._-]{4,19}$"), // 5~20자리
 
     /** 비밀번호 형식 체크 ({0}: 필드설명) */
-    PASSWORD("valid.err.password", "{0} 형식이 올바르지 않습니다.", "Invalid password format for {0}.", "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$"), // 9~32자리
+    PASSWORD("valid.err.password", "{0} 형식이 올바르지 않습니다.", "Invalid password format for {0}.",
+            "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$"), // 9~32자리
 
     /** 비밀번호 찾기 질문 답변 형식 체크 ({0}: 필드설명) */
-    PASSWORD_ANSWR("valid.err.passwordanswr", "{0} 형식이 올바르지 않습니다.", "Invalid password answer format for {0}.", "^[가-힣a-zA-Z0-9\\s]{10,80}$"), // 10~80자리
+    PASSWORD_ANSWR("valid.err.passwordanswr", "{0} 형식이 올바르지 않습니다.", "Invalid password answer format for {0}.",
+            "^[가-힣a-zA-Z0-9\\s]{10,80}$"), // 10~80자리
 
     /** 사업자등록번호 형식 체크 ({0}: 필드설명) */
-    BIZRNO("valid.err.bizrno", "{0} 형식이 올바르지 않습니다.", "Invalid business registration number for {0}.", "^\\d{3}-\\d{2}-\\d{5}$|^\\d{10}$"), // 000-00-00000 또는 0000000000 모두 허용
+    BIZRNO("valid.err.bizrno", "{0} 형식이 올바르지 않습니다.", "Invalid business registration number for {0}.",
+            "^\\d{3}-\\d{2}-\\d{5}$|^\\d{10}$"), // 000-00-00000 또는 0000000000 모두 허용
 
     /** 사업장관리번호 형식 체크 ({0}: 필드설명) */
-    NWINO("valid.err.nwino", "{0} 형식이 올바르지 않습니다.", "Invalid workplace management number for {0}.", "^\\d{3}-\\d{2}-\\d{5}-\\d{1}$|^\\d{11}$"), // 000-00-00000-0 또는 00000000000 모두 허용
+    NWINO("valid.err.nwino", "{0} 형식이 올바르지 않습니다.", "Invalid workplace management number for {0}.",
+            "^\\d{3}-\\d{2}-\\d{5}-\\d{1}$|^\\d{11}$"), // 000-00-00000-0 또는 00000000000 모두 허용
 
     /** 주민번호/외국인번호 형식 체크 ({0}: 필드설명) */
     JUMIN("valid.err.jumin", "{0|은/는} 주민번호 형식이 올바르지 않습니다.", "Invalid resident registration number for {0}.", null),
@@ -250,7 +260,9 @@ public enum S2RuleType {
      * @return The message template string | 메시지 템플릿 문자열
      */
     public String getErrorMessageTemplate(Locale locale) {
-        return !S2Util.isKorean(locale) && errorMessageTemplateEn != null && !errorMessageTemplateEn.isBlank() ? errorMessageTemplateEn : errorMessageTemplateKo;
+        return !S2Util.isKorean(locale) && errorMessageTemplateEn != null && !errorMessageTemplateEn.isBlank()
+                ? errorMessageTemplateEn
+                : errorMessageTemplateKo;
     }
 
     /**

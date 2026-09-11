@@ -55,4 +55,3 @@ mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mo
 [plugins]
 s2-build-support = { id = "io.github.devers2.buildsupport", version.ref = "s2-build-support" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
-

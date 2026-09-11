@@ -101,7 +101,8 @@ public class Test {
     }
 
     /** Java Record */
-    public record UserRecord(String id, String name, int age, String email) {}
+    public record UserRecord(String id, String name, int age, String email) {
+    }
 
     /** Set 필드를 가진 DTO (deep copy 테스트용) */
     public static class TagsHolderDto {
@@ -237,7 +238,8 @@ public class Test {
                 logger.info("╠════════════════════════════════════════════════════════════╣");
                 logger.info("║ Failed Tests:                                              ║");
                 for (String failure : failures) {
-                    String line = "║  " + String.format("%-56s", failure.substring(0, Math.min(56, failure.length()))) + "║";
+                    String line = "║  " + String.format("%-56s", failure.substring(0, Math.min(56, failure.length())))
+                            + "║";
                     logger.info(line);
                     if (failure.length() > 56) {
                         logger.info("║  " + String.format("%-56s", failure.substring(56)) + "║");
@@ -411,6 +413,7 @@ public class Test {
                     this.status = status;
                 }
 
+                @SuppressWarnings("unused")
                 public boolean isActive() {
                     return status == 1;
                 }
@@ -583,6 +586,7 @@ public class Test {
                     return items;
                 }
 
+                @SuppressWarnings("unused")
                 public void setItems(List<String> items) {
                     this.items = items;
                 }
@@ -591,6 +595,7 @@ public class Test {
                     return attrs;
                 }
 
+                @SuppressWarnings("unused")
                 public void setAttrs(Map<String, String> attrs) {
                     this.attrs = attrs;
                 }
@@ -599,6 +604,7 @@ public class Test {
                     return tags;
                 }
 
+                @SuppressWarnings("unused")
                 public void setTags(java.util.Set<String> tags) {
                     this.tags = tags;
                 }
@@ -681,6 +687,7 @@ public class Test {
         String testName = "S2Copier - Mapping";
         try {
             // 다른 필드명의 소스
+            @SuppressWarnings("unused")
             class OtherDto {
                 public String userId;
                 public String userName;
@@ -763,6 +770,7 @@ public class Test {
     void testCopier_ChainingCombination() {
         String testName = "S2Copier - Chaining Combination";
         try {
+            @SuppressWarnings("unused")
             class FlexibleDto {
                 public String userId;
                 public String userName;
@@ -883,7 +891,8 @@ public class Test {
             assert "user003".equals(target.get("id"));
             assert "Bob".equals(target.get("name"));
             assert 0 == ((Number) target.get("age")).intValue();
-            assert "default@example.com".equals(target.get("email")) : "null 값이 ignoreNulls를 무시하고 기존 값을 덮어씀. actual=" + target.get("email");
+            assert "default@example.com".equals(target.get("email"))
+                    : "null 값이 ignoreNulls를 무시하고 기존 값을 덮어씀. actual=" + target.get("email");
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
@@ -940,7 +949,8 @@ public class Test {
             var deepCopy = S2Copier.from(source).deep().to(UserWithAddressDto.class);
 
             // Shallow copy는 같은 주소 객체 참조
-            assert shallowCopy.getAddress() == source.getAddress() : "Shallow copy should reference same address object";
+            assert shallowCopy.getAddress() == source.getAddress()
+                    : "Shallow copy should reference same address object";
 
             // Deep copy는 다른 주소 객체
             assert deepCopy.getAddress() != source.getAddress() : "Deep copy should create new address object";
@@ -952,7 +962,8 @@ public class Test {
 
             // 원본 수정이 deep copy에 영향을 주지 않음
             source.getAddress().setCity("Busan");
-            assert "Seoul".equals(deepCopy.getAddress().getCity()) : "Deep copy should not be affected by source changes";
+            assert "Seoul".equals(deepCopy.getAddress().getCity())
+                    : "Deep copy should not be affected by source changes";
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
@@ -1011,7 +1022,8 @@ public class Test {
 
             // 원본 수정이 복사본에 영향을 주지 않음
             sourceWithAddrs.getAddress().setCity("Busan");
-            assert "Seoul".equals(deepCopy.getAddress().getCity()) : "Deep copy should not be affected by source changes";
+            assert "Seoul".equals(deepCopy.getAddress().getCity())
+                    : "Deep copy should not be affected by source changes";
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
@@ -1136,7 +1148,8 @@ public class Test {
                     .bind("filter", "status = 'active'", "AND ") // Valid binding
                     .bind("filter", null) // Invalid binding - should not override
                     .render();
-            assert "SELECT * FROM users WHERE AND status = 'active'".equals(result) : "Empty binding should not override valid one";
+            assert "SELECT * FROM users WHERE AND status = 'active'".equals(result)
+                    : "Empty binding should not override valid one";
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
         } catch (Throwable e) {
@@ -1170,7 +1183,8 @@ public class Test {
             String result = S2Template.of("SELECT * FROM users {{=order}}")
                     .bindWhen("order", false, "id DESC", "ORDER BY ")
                     .render();
-            assert "SELECT * FROM users".equals(result) : "BindWhen with false condition should not bind, result: " + result;
+            assert "SELECT * FROM users".equals(result)
+                    : "BindWhen with false condition should not bind, result: " + result;
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
         } catch (Throwable e) {

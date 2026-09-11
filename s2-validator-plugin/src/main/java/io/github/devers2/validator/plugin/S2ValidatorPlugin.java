@@ -96,6 +96,7 @@ public class S2ValidatorPlugin implements Plugin<Project> {
         });
 
         // 'bootRun' 등 JavaExec 타입의 실행 태스크 실행 전에도 검증 수행 (withType은 지연 조회라 순서 무관하게 안전함)
-        project.getTasks().withType(org.gradle.api.tasks.JavaExec.class).configureEach(task -> task.dependsOn("checkS2Validators"));
+        project.getTasks().withType(org.gradle.api.tasks.JavaExec.class)
+                .configureEach(task -> task.dependsOn("checkS2Validators"));
     }
 }

@@ -124,8 +124,7 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
                 cache.estimatedSize(),
                 hits,
                 misses,
-                hitRate * 100
-        );
+                hitRate * 100);
     }
 
     /**

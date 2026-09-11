@@ -57,6 +57,7 @@
 Add a single dependency to access all modules (`s2-core`, `s2-validator`, and `s2-jpa`) pre-integrated:
 
 **[Gradle]**
+
 ```groovy
 dependencies {
     implementation 'io.github.devers2:s2-util:1.1.8'
@@ -64,6 +65,7 @@ dependencies {
 ```
 
 **[Maven]**
+
 ```xml
 <dependency>
     <groupId>io.github.devers2</groupId>
@@ -78,13 +80,13 @@ dependencies {
 
 For minimal footprint, declare only the specific sub-modules your application requires:
 
-| Module | Dependency Coordinate | Transitive Inclusion | Key Capabilities |
-| :--- | :--- | :--- | :--- |
-| **S2Validator** | `io.github.devers2:s2-validator` | Automatically includes `s2-core` | Server-client synchronized validation engine |
-| **S2BindValidator** | `io.github.devers2:s2-validator` | Automatically includes `s2-core` | Seamless mapping to Spring `BindingResult` |
-| **S2Jpql** | `io.github.devers2:s2-jpa` | Automatically includes `s2-core` | Safe template-based dynamic query builder |
-| **S2Copier** | `io.github.devers2:s2-core` | Zero external dependencies | Fast reflection-free DTO/Entity object copy |
-| **S2Cache / S2ThreadUtil**| `io.github.devers2:s2-core` | Zero external dependencies | High-performance cache & virtual thread tools |
+| Module                     | Dependency Coordinate            | Transitive Inclusion             | Key Capabilities                              |
+| :------------------------- | :------------------------------- | :------------------------------- | :-------------------------------------------- |
+| **S2Validator**            | `io.github.devers2:s2-validator` | Automatically includes `s2-core` | Server-client synchronized validation engine  |
+| **S2BindValidator**        | `io.github.devers2:s2-validator` | Automatically includes `s2-core` | Seamless mapping to Spring `BindingResult`    |
+| **S2Jpql**                 | `io.github.devers2:s2-jpa`       | Automatically includes `s2-core` | Safe template-based dynamic query builder     |
+| **S2Copier**               | `io.github.devers2:s2-core`      | Zero external dependencies       | Fast reflection-free DTO/Entity object copy   |
+| **S2Cache / S2ThreadUtil** | `io.github.devers2:s2-core`      | Zero external dependencies       | High-performance cache & virtual thread tools |
 
 ```groovy
 dependencies {
@@ -113,6 +115,7 @@ dependencies {
    - Incomplete chains are flagged as build failures because incomplete validation is silent **dead code**.
 
 **[settings.gradle]**
+
 ```groovy
 pluginManagement {
     repositories {
@@ -122,6 +125,7 @@ pluginManagement {
 ```
 
 **[build.gradle]**
+
 ```groovy
 plugins {
     id 'io.github.devers2.validator' version '1.1.2'
@@ -163,6 +167,7 @@ flowchart TD
 ```
 
 ### A. Pattern: Immediate Mode
+
 **Usage:** `S2Validator.of(target, [failFast])`
 
 Ideal for quick, one-off validation within service or controller methods.
@@ -180,6 +185,7 @@ boolean isValid = S2Validator.of(userInput, false)
 ```
 
 ### B. Pattern: Blueprint Mode
+
 **Usage:** `S2Validator.builder()`
 
 Defines a reusable, immutable, thread-safe validator schema.
@@ -197,6 +203,7 @@ schema.validate(userB);
 ```
 
 ### C. Pattern: Registry Mode
+
 **Usage:** `S2ValidatorFactory.getOrRegister()`
 
 Provides global thread-safe caching. The construction logic executes only once.
@@ -210,6 +217,7 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
 ```
 
 ### D. Pattern: Spring Standard Alignment
+
 **Usage:** `S2BindValidator.context()`
 
 Seamlessly integrates with Spring MVC and automatically populates `BindingResult`.
@@ -227,6 +235,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 ```
 
 ### E. Pattern: Field-less Condition Check Mode
+
 **Usage:** `S2Validator.check(condition, [errorCode])`
 
 Validates arbitrary business conditions without needing an enclosing target object or DTO.
@@ -245,15 +254,15 @@ S2Validator.check(order.isPayable())
 
 ### 3-1. 30+ Built-in Rules (S2RuleType)
 
-| Category | Available Rule Types |
-| :--- | :--- |
-| **Basic Constraints** | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD` |
-| **Length & Bounds** | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE` |
-| **Numeric Checks** | `NUMBER`, `MIN_VALUE`, `MAX_VALUE` |
-| **Format Validation** | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX` |
+| Category               | Available Rule Types                                                       |
+| :--------------------- | :------------------------------------------------------------------------- |
+| **Basic Constraints**  | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                  |
+| **Length & Bounds**    | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`               |
+| **Numeric Checks**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                         |
+| **Format Validation**  | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX`                            |
 | **Region-Specific** 🇰🇷 | `TEL_NO`, `MPHONE_NO`, `ZIP`, `BIZRNO`, `JUMIN`, `NWINO`, `PASSWORD_ANSWR` |
-| **Date & Time** | `DATE`, `DATE_AFTER`, `DATE_BEFORE` |
-| **Text & Content** | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED` |
+| **Date & Time**        | `DATE`, `DATE_AFTER`, `DATE_BEFORE`                                        |
+| **Text & Content**     | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED`                            |
 
 ### 3-2. Conditional Validation (`when` & `and`)
 
@@ -389,6 +398,7 @@ sequenceDiagram
 ### 6-1. End-to-End Implementation Example
 
 #### 1. Define Shared Rules on Server
+
 ```java
 private S2Validator<UserCommand> signupRules() {
     return S2Validator.<UserCommand>builder()
@@ -403,6 +413,7 @@ private S2Validator<UserCommand> signupRules() {
 ```
 
 #### 2. Pass JSON in Controller (GET)
+
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
@@ -413,6 +424,7 @@ public String signupPage(Model model) {
 ```
 
 #### 3. Attach to HTML Form in View
+
 ```html
 <form id="signupForm" th:data-s2-rules="${rules}">
   <input name="userId" type="text" />
@@ -427,6 +439,7 @@ public String signupPage(Model model) {
 ```
 
 #### 4. Validate on Server (POST)
+
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
@@ -489,6 +502,7 @@ S2Jpql.from(em).type(Product.class).query(jpql)
 
 > [!WARNING]
 > **Strict Architectural Separation:**
+>
 > - `bindClause()` is **EXCLUSIVELY** for conditionally including static SQL clause fragments.
 > - `bindParameter()` is **EXCLUSIVELY** for binding dynamic parameter values safely.
 >

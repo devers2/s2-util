@@ -102,7 +102,8 @@ public class S2ThreadUtil {
      * The core number of threads to keep in the pool (Platform Thread environment only).
      * Configurable via system property {@code s2.thread.core_pool_size}.
      */
-    private static final int CORE_POOL_SIZE = Integer.getInteger("s2.thread.core_pool_size", Runtime.getRuntime().availableProcessors());
+    private static final int CORE_POOL_SIZE = Integer.getInteger("s2.thread.core_pool_size",
+            Runtime.getRuntime().availableProcessors());
 
     /**
      * The maximum number of threads allowed in the pool (Platform Thread environment only).
@@ -142,13 +143,15 @@ public class S2ThreadUtil {
             MethodHandles.Lookup lookup = MethodHandles.publicLookup();
             Class<?> builderClass = Class.forName("java.lang.Thread$Builder$OfVirtual");
             MethodHandle ofVirtual = lookup.findStatic(Thread.class, "ofVirtual", MethodType.methodType(builderClass));
-            MethodHandle factoryMethod = lookup.findVirtual(builderClass, "factory", MethodType.methodType(ThreadFactory.class));
+            MethodHandle factoryMethod = lookup.findVirtual(builderClass, "factory",
+                    MethodType.methodType(ThreadFactory.class));
 
             // 가상 스레드 팩토리 생성
             defaultFactory = (ThreadFactory) factoryMethod.invoke(ofVirtual.invoke());
 
             // 가상 스레드 실행기 생성용 핸들 확보함
-            virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor", MethodType.methodType(ExecutorService.class));
+            virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor",
+                    MethodType.methodType(ExecutorService.class));
 
             // 가상 스레드 환경은 무제한 생성 실행기를 공용으로 사용함
             commonExecutor = (ExecutorService) virtualExecutorMh.invokeExact();
@@ -158,14 +161,13 @@ public class S2ThreadUtil {
                 logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다.");
                 logger.info(
                         "{}[CAUTION_SYNCHRONIZED]{} 가이드: 성능 저하 방지를 위해 {}synchronized{} 대신 {}java.util.concurrent.locks.ReentrantLock{} 사용을 권장합니다.",
-                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET
-                );
+                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
             } else {
-                logger.info("[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads.");
+                logger.info(
+                        "[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads.");
                 logger.info(
                         "{}[CAUTION_SYNCHRONIZED]{} Guide: To prevent performance degradation, consider using {}java.util.concurrent.locks.ReentrantLock{} instead of {}synchronized{}.",
-                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET
-                );
+                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
             }
 
         } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
@@ -178,28 +180,23 @@ public class S2ThreadUtil {
                     TimeUnit.SECONDS,
                     new LinkedBlockingQueue<>(QUEUE_CAPACITY),
                     platformFactory,
-                    new ThreadPoolExecutor.CallerRunsPolicy()
-            );
+                    new ThreadPoolExecutor.CallerRunsPolicy());
 
             String javaVersion = System.getProperty("java.version");
             if (S2Util.isKorean()) {
                 logger.info(
                         "[PLATFORM_THREAD] 가상 스레드를 지원하지 않는 환경입니다. (Java Version: {})",
-                        javaVersion
-                );
+                        javaVersion);
                 logger.info(
                         "[PLATFORM_THREAD] 공용 실행기를 제한적인 플랫폼 스레드로 설정합니다. (Core: {}, Max: {}, Queue: {})",
-                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY
-                );
+                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
             } else {
                 logger.info(
                         "[PLATFORM_THREAD] Virtual threads are not supported in this environment. (Java Version: {})",
-                        javaVersion
-                );
+                        javaVersion);
                 logger.info(
                         "[PLATFORM_THREAD] Setting common executor to limited platform threads. (Core: {}, Max: {}, Queue: {})",
-                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY
-                );
+                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
             }
         } catch (Throwable t) {
             defaultFactory = platformFactory;
@@ -208,13 +205,11 @@ public class S2ThreadUtil {
             if (S2Util.isKorean()) {
                 logger.error(
                         "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 기본 CachedThreadPool로 대체합니다.",
-                        javaVersion, t
-                );
+                        javaVersion, t);
             } else {
                 logger.error(
                         "[INIT_ERROR] An unexpected initialization error occurred. (Java Version: {}) Falling back to basic CachedThreadPool.",
-                        javaVersion, t
-                );
+                        javaVersion, t);
             }
         }
 
@@ -316,7 +311,8 @@ public class S2ThreadUtil {
                 if (S2Util.isKorean()) {
                     logger.warn("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.");
                 } else {
-                    logger.warn("[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.");
+                    logger.warn(
+                            "[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.");
                 }
             }
         }

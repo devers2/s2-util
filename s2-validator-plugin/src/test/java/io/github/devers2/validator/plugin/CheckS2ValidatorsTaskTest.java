@@ -41,6 +41,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -73,6 +74,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -117,6 +119,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -159,6 +162,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -197,6 +201,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -241,6 +246,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -282,6 +288,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -324,6 +331,7 @@ public class CheckS2ValidatorsTaskTest {
             // No DTO created and no S2Validator usage referencing missing field -> should not throw
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -356,6 +364,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -398,6 +407,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -436,6 +446,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -478,6 +489,7 @@ public class CheckS2ValidatorsTaskTest {
 
             Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
             Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
             org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
 
             java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
@@ -520,8 +532,10 @@ public class CheckS2ValidatorsTaskTest {
                 .anyMatch(dep -> "checkS2Validators".equals(dep));
         boolean compileDependsOnIt = javaAfter.getTasks().getByName("compileJava").getDependsOn().stream()
                 .anyMatch(dep -> "checkS2Validators".equals(dep));
-        org.junit.jupiter.api.Assertions.assertTrue(checkDependsOnIt, "check should depend on checkS2Validators even when java is applied after this plugin");
-        org.junit.jupiter.api.Assertions.assertTrue(compileDependsOnIt, "compileJava should depend on checkS2Validators even when java is applied after this plugin");
+        org.junit.jupiter.api.Assertions.assertTrue(checkDependsOnIt,
+                "check should depend on checkS2Validators even when java is applied after this plugin");
+        org.junit.jupiter.api.Assertions.assertTrue(compileDependsOnIt,
+                "compileJava should depend on checkS2Validators even when java is applied after this plugin");
 
         // 3) 기존처럼 java를 먼저 적용하는 순서도 계속 정상 동작해야 함 (회귀 방지)
         Project javaFirst = ProjectBuilder.builder().build();
@@ -572,7 +586,8 @@ public class CheckS2ValidatorsTaskTest {
         writeJavaFile(projectDir, packagePath, className + ".java", src);
     }
 
-    private void writeJavaFile(Path projectDir, String packagePath, String fileName, String content) throws IOException {
+    private void writeJavaFile(Path projectDir, String packagePath, String fileName, String content)
+            throws IOException {
         Path dir = projectDir.resolve("src/main/java").resolve(packagePath);
         Files.createDirectories(dir);
         Files.writeString(dir.resolve(fileName), content);

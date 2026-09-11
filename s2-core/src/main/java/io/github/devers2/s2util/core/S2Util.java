@@ -346,14 +346,13 @@ public class S2Util {
                 if (finalTarget instanceof Map) {
                     value = S2Cache.getMethodHandle(
                             MethodHandleResolver.MAP_GET_KEY,
-                            LookupType.METHOD
-                    ).map(h -> {
-                        try {
-                            return h.invoke(finalTarget, fieldName);
-                        } catch (Throwable t) {
-                            return null;
-                        }
-                    }).orElse(null);
+                            LookupType.METHOD).map(h -> {
+                                try {
+                                    return h.invoke(finalTarget, fieldName);
+                                } catch (Throwable t) {
+                                    return null;
+                                }
+                            }).orElse(null);
                 }
                 // 3. List Index 처리: List 인터페이스의 get 메서드를 resolve 하여 하이패스를 유도
                 // fieldName이 Number이거나, 숫자형 문자열인 경우 처리
@@ -379,7 +378,8 @@ public class S2Util {
                     }
                 }
                 // 4. Collection Size 처리: Collection 인터페이스의 size 메서드를 resolve
-                else if (finalTarget instanceof Collection && ("size".equals(fieldName) || "length".equals(fieldName))) {
+                else if (finalTarget instanceof Collection
+                        && ("size".equals(fieldName) || "length".equals(fieldName))) {
                     var key = new MethodKey(Collection.class, "size");
                     value = S2Cache.getMethodHandle(key, LookupType.METHOD)
                             .map(h -> {
@@ -417,22 +417,20 @@ public class S2Util {
                     if (clazz.isRecord()) {
                         value = S2Cache.getMethodHandle(
                                 new MethodKey(clazz, fieldNameStr),
-                                LookupType.METHOD
-                        ).map(h -> {
-                            try {
-                                return h.invoke(finalTarget);
-                            } catch (Throwable t) {
-                                return null;
-                            }
-                        }).orElse(null);
+                                LookupType.METHOD).map(h -> {
+                                    try {
+                                        return h.invoke(finalTarget);
+                                    } catch (Throwable t) {
+                                        return null;
+                                    }
+                                }).orElse(null);
                     }
                     // 6-2. 일반 VO는 Getter(get+Name)를 우선 탐색하고, 실패 시 필드 직접 접근(BOTH)으로 폴백한다.
                     else {
                         String getterName = toGetterName(fieldNameStr, false);
                         var methodHandle = S2Cache.getMethodHandle(
                                 new MethodKey(clazz, getterName),
-                                LookupType.METHOD
-                        );
+                                LookupType.METHOD);
 
                         // "get" 접두사로 못 찾으면 boolean 프로퍼티(isXxx)도 시도함. 백킹 필드 없이
                         // isXxx()만 제공하는 계산된 boolean 프로퍼티는 이 시도가 없으면 항상 null로 조회됨 |
@@ -442,16 +440,14 @@ public class S2Util {
                             String booleanGetterName = toGetterName(fieldNameStr, true);
                             methodHandle = S2Cache.getMethodHandle(
                                     new MethodKey(clazz, booleanGetterName),
-                                    LookupType.METHOD
-                            );
+                                    LookupType.METHOD);
                         }
 
                         // getterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
                         if (methodHandle.isEmpty() && !getterName.equals(fieldNameStr)) {
                             methodHandle = S2Cache.getMethodHandle(
                                     new MethodKey(clazz, fieldNameStr),
-                                    LookupType.BOTH
-                            );
+                                    LookupType.BOTH);
                         }
 
                         if (methodHandle.isPresent()) {
@@ -465,13 +461,11 @@ public class S2Util {
                 if (isKorean()) {
                     logger.debug(
                             "[S2Util] getValue 실행 중 오류가 발생했습니다. (Target: {}, Field: {}). 기본값 {}을(를) 반환합니다.",
-                            target.getClass().getSimpleName(), fieldName, defaultValue
-                    );
+                            target.getClass().getSimpleName(), fieldName, defaultValue);
                 } else {
                     logger.debug(
                             "[S2Util] Error occurred during getValue. (Target: {}, Field: {}). Returning default value {}.",
-                            target.getClass().getSimpleName(), fieldName, defaultValue
-                    );
+                            target.getClass().getSimpleName(), fieldName, defaultValue);
                 }
             }
             return defaultValue; // 실패 시 defaultValue 반환으로 변경 (원본은 value가 null이면 cast에서 처리되지만, 여기서 일관성 위해 직접 반환)
@@ -629,15 +623,14 @@ public class S2Util {
             if (finalTargetOrigin instanceof Map) {
                 return S2Cache.getMethodHandle(
                         MethodHandleResolver.MAP_PUT_KEY,
-                        LookupType.METHOD
-                ).map(h -> {
-                    try {
-                        h.invoke(finalTargetOrigin, fieldName, value);
-                        return true;
-                    } catch (Throwable t) {
-                        return false;
-                    }
-                }).orElse(false);
+                        LookupType.METHOD).map(h -> {
+                            try {
+                                h.invoke(finalTargetOrigin, fieldName, value);
+                                return true;
+                            } catch (Throwable t) {
+                                return false;
+                            }
+                        }).orElse(false);
             }
 
             // 2. List 처리: List 인터페이스의 set 메서드를 resolve 하여 하이패스를 유도함
@@ -698,15 +691,13 @@ public class S2Util {
             // the lookup always fails.
             var methodHandle = S2Cache.getMethodHandle(
                     new MethodKey(clazz, setterName, fieldNameStr, new Class<?>[] { pType }),
-                    LookupType.METHOD
-            );
+                    LookupType.METHOD);
 
             // setterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
             if (methodHandle.isEmpty() && !setterName.equals(fieldNameStr)) {
                 methodHandle = S2Cache.getMethodHandle(
                         new MethodKey(clazz, fieldNameStr, fieldNameStr, new Class<?>[] { pType }),
-                        LookupType.BOTH
-                );
+                        LookupType.BOTH);
             }
 
             if (methodHandle.isPresent()) {
@@ -718,13 +709,11 @@ public class S2Util {
                 if (isKorean()) {
                     logger.debug(
                             "[S2Util] setValue 실행 중 오류가 발생했습니다. (Target: {}, Field: {}).",
-                            finalTargetOrigin.getClass().getSimpleName(), fieldName
-                    );
+                            finalTargetOrigin.getClass().getSimpleName(), fieldName);
                 } else {
                     logger.debug(
                             "[S2Util] Error occurred during setValue. (Target: {}, Field: {}).",
-                            finalTargetOrigin.getClass().getSimpleName(), fieldName
-                    );
+                            finalTargetOrigin.getClass().getSimpleName(), fieldName);
                 }
             }
             return false;
@@ -909,7 +898,8 @@ public class S2Util {
             String fieldName = null;
 
             // Getter 패턴 매칭 (getXXX, isXXX)
-            if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0 && !name.equals("getClass")) {
+            if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0
+                    && !name.equals("getClass")) {
                 fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
             } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
                 fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
@@ -1383,13 +1373,11 @@ public class S2Util {
                             if (isKorean()) {
                                 logger.debug(
                                         "[S2Util] 인스턴스 생성 중 오류 발생. (Target: {}, Args: {}).",
-                                        clazz.getSimpleName(), Arrays.toString(args)
-                                );
+                                        clazz.getSimpleName(), Arrays.toString(args));
                             } else {
                                 logger.debug(
                                         "[S2Util] Error occurred during instance creation. (Target: {}, Args: {}).",
-                                        clazz.getSimpleName(), Arrays.toString(args)
-                                );
+                                        clazz.getSimpleName(), Arrays.toString(args));
                             }
                         }
                         return null;
@@ -1400,7 +1388,8 @@ public class S2Util {
                         if (isKorean()) {
                             logger.debug("[S2Util] 일치하는 생성자를 찾을 수 없음. (Target: {}).", clazz.getSimpleName());
                         } else {
-                            logger.debug("[S2Util] No matching constructor found. (Target: {}).", clazz.getSimpleName());
+                            logger.debug("[S2Util] No matching constructor found. (Target: {}).",
+                                    clazz.getSimpleName());
                         }
                     }
                     return null;
@@ -1421,7 +1410,8 @@ public class S2Util {
         String percentage = "";
 
         if (cardinal != null && ordinal != null) {
-            BigDecimal percent = new BigDecimal(cardinal.toString()).divide(new BigDecimal(ordinal.toString())).multiply(new BigDecimal(100));
+            BigDecimal percent = new BigDecimal(cardinal.toString()).divide(new BigDecimal(ordinal.toString()))
+                    .multiply(new BigDecimal(100));
             if (digits != null) {
                 percent = percent.setScale(digits);
             }
@@ -1473,8 +1463,7 @@ public class S2Util {
                     "오류: %s 기능을 사용하기 위한 필수 의존성(%s)이 누락되었습니다.\n" +
                             "Gradle 또는 Maven 설정에 해당 라이브러리를 implementation으로 추가해야 합니다.",
                     featureName,
-                    dependencyCoordinate
-            );
+                    dependencyCoordinate);
             throw new NoClassDefFoundError(msg);
         }
     }

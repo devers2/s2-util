@@ -10,6 +10,10 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Parameter;
+import jakarta.persistence.TypedQuery;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,9 +24,6 @@ import org.mockito.MockitoAnnotations;
 
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.Parameter;
-import jakarta.persistence.TypedQuery;
 
 /**
  * S2Jpql 동작 검증을 위한 JUnit 테스트 및 SmokeTest
@@ -126,11 +127,11 @@ public class S2JpqlTest {
         try {
             // Given
             String jpql = """
-                          SELECT m FROM Member m WHERE 1=1
-                          {{=cond_name}}
-                          {{=cond_age}}
-                          {{=cond_order}}
-                          """;
+                    SELECT m FROM Member m WHERE 1=1
+                    {{=cond_name}}
+                    {{=cond_age}}
+                    {{=cond_order}}
+                    """;
 
             // Mock parameters that JPA would find in the rendered query
             Parameter<Object> nameParam = mock(Parameter.class);
@@ -138,8 +139,7 @@ public class S2JpqlTest {
             Parameter<Object> ageParam = mock(Parameter.class);
             when(ageParam.getName()).thenReturn("age");
             when(typedQuery.getParameters()).thenReturn(
-                    java.util.Set.of(nameParam, ageParam)
-            );
+                    java.util.Set.of(nameParam, ageParam));
 
             // When
             TypedQuery<Member> result = S2Jpql.from(entityManager)
@@ -430,8 +430,7 @@ public class S2JpqlTest {
                     .query(jpql)
                     .bindClause(
                             "cond_name", firstName != null && lastName != null,
-                            "AND (m.firstName = :name OR m.lastName = :name2)"
-                    )
+                            "AND (m.firstName = :name OR m.lastName = :name2)")
                     .bindParameter("name", () -> firstName)
                     .bindParameter("name2", () -> lastName)
                     .bindClause("cond_age", age > 0, "AND m.age = :age")
@@ -525,7 +524,7 @@ public class S2JpqlTest {
     }
 
     @DisplayName("S2Jpql - bindOrderBy 화이트리스트가 인젝션 페이로드를 차단함")
-    @SuppressWarnings({ "null", "unchecked" })
+    @SuppressWarnings({ "null" })
     @Test
     void testBindOrderByRejectsInjectionPayload() {
         String testName = "S2Jpql - bindOrderBy rejects injection payload";
@@ -562,7 +561,7 @@ public class S2JpqlTest {
     }
 
     @DisplayName("S2Jpql - bindOrderBy 화이트리스트가 정상적인 다중 컬럼 정렬은 통과시킴")
-    @SuppressWarnings({ "null", "unchecked" })
+    @SuppressWarnings({ "null" })
     @Test
     void testBindOrderByAcceptsLegitimateMultiColumnSort() {
         String testName = "S2Jpql - bindOrderBy accepts legitimate multi-column sort";

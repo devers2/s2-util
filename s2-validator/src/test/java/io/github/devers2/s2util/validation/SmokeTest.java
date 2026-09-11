@@ -199,7 +199,8 @@ public class SmokeTest {
             // NESTED 규칙으로 자기 자신을 다시 호출하도록 설정
             S2Validator<Object> selfValidator = S2Validator.builder()
                     .field("name").rule(S2RuleType.REQUIRED)
-                    .field("self").rule(S2RuleType.NESTED, S2Validator.builder().field("name").rule(S2RuleType.REQUIRED).build())
+                    .field("self")
+                    .rule(S2RuleType.NESTED, S2Validator.builder().field("name").rule(S2RuleType.REQUIRED).build())
                     .build();
 
             List<S2ValidationError> circularErrors = new java.util.ArrayList<>();
@@ -269,7 +270,8 @@ public class SmokeTest {
 
         @Override
         public String toString() {
-            return "TestVO{userId='" + userId + "', userName='" + userName + "', age=" + age + ", email='" + email + "'}";
+            return "TestVO{userId='" + userId + "', userName='" + userName + "', age=" + age + ", email='" + email
+                    + "'}";
         }
 
     }
@@ -683,8 +685,7 @@ public class SmokeTest {
 
         if (bindingResult.hasErrors()) {
             bindingResult.getFieldErrors().forEach(
-                    e -> logger.info(" [검증결과] 필드: {}, 메시지: {}", e.getField(), e.getDefaultMessage())
-            );
+                    e -> logger.info(" [검증결과] 필드: {}, 메시지: {}", e.getField(), e.getDefaultMessage()));
         }
     }
 
@@ -722,8 +723,7 @@ public class SmokeTest {
 
             if (bindingResult.hasErrors()) {
                 bindingResult.getFieldErrors().forEach(
-                        e -> logger.info(" [검증결과] 필드: {}, 메시지: {}", e.getField(), e.getDefaultMessage())
-                );
+                        e -> logger.info(" [검증결과] 필드: {}, 메시지: {}", e.getField(), e.getDefaultMessage()));
             }
         } catch (Exception e) {
             logger.error(" [FAIL] 제너릭 테스트 중 예외 발생: ", e);
@@ -883,8 +883,7 @@ public class SmokeTest {
 
         record(
                 errors.size() == 1 && errors.get(0).fieldName().equals("premiumEmail"),
-                "Boolean 조건 (true) 검증 테스트"
-        );
+                "Boolean 조건 (true) 검증 테스트");
 
         logger.info("      [검증결과] 필드: {}, 메시지: {}", errors.get(0).fieldName(), errors.get(0).defaultMessage());
 
@@ -917,8 +916,7 @@ public class SmokeTest {
 
         record(
                 errors.size() == 1 && errors.get(0).fieldName().equals("confirmAction"),
-                "Boolean-String 혼합 비교 (Boolean true) 테스트"
-        );
+                "Boolean-String 혼합 비교 (Boolean true) 테스트");
 
         // 2-2. isActive를 문자열 "true"로 변경해도 동일하게 작동해야 함
         logger.info("  [테스트 3] String true vs Boolean true 비교");
@@ -957,8 +955,7 @@ public class SmokeTest {
 
         record(
                 errors.size() == 1 && errors.get(0).fieldName().equals("secretToken"),
-                "AND Boolean 조건 (모두 true) 검증 테스트"
-        );
+                "AND Boolean 조건 (모두 true) 검증 테스트");
 
         // 5-2. 하나라도 false -> secretToken 검증 스킵
         andData.put("hasPermission", false);
@@ -986,8 +983,7 @@ public class SmokeTest {
 
         record(
                 errors.size() == 1 && errors.get(0).fieldName().equals("accessCode"),
-                "OR Boolean 조건 (하나 true) 검증 테스트"
-        );
+                "OR Boolean 조건 (하나 true) 검증 테스트");
 
         // 6-2. 둘 다 false -> accessCode 검증 스킵
         orData.put("isDeveloper", false);
@@ -1041,7 +1037,8 @@ public class SmokeTest {
                 .field("email", "이메일 주소")
                 .rule(S2RuleType.REQUIRED)
                 .rule(S2RuleType.EMAIL)
-                .rule((String v) -> !v.endsWith("spam.com")).message(Locale.ENGLISH, "Email from 'spam.com' is not allowed.")
+                .rule((String v) -> !v.endsWith("spam.com"))
+                .message(Locale.ENGLISH, "Email from 'spam.com' is not allowed.")
 
                 // --- 필드: confirmPassword ---
                 // 교차 필드 검증 (BiPredicate)
@@ -1388,7 +1385,8 @@ public class SmokeTest {
 
             // 8. JSON 생성 (재귀)
             String json = S2ValidatorFactory.getRulesJson(parentValidator, Locale.KOREA);
-            boolean jsonOk = json != null && json.contains("items") && json.contains("nestedRules") && json.contains("아이디");
+            boolean jsonOk = json != null && json.contains("items") && json.contains("nestedRules")
+                    && json.contains("아이디");
 
             record(jsonOk, "S2Validator 재귀 JSON 직렬화 테스트");
             if (!jsonOk) {
@@ -1690,7 +1688,8 @@ public class SmokeTest {
             TestNestedConditionVO case1 = new TestNestedConditionVO();
             List<S2ValidationError> errors = new ArrayList<>();
             boolean valid1 = validator.validate(case1, errors::add);
-            boolean case1Ok = !valid1 && errors.stream().anyMatch(e -> "field1".equals(e.fieldName()) || e.fieldName().startsWith("field1"));
+            boolean case1Ok = !valid1 && errors.stream()
+                    .anyMatch(e -> "field1".equals(e.fieldName()) || e.fieldName().startsWith("field1"));
             record(case1Ok, "Nested-Conditional Case1: field1 REQUIRED when missing");
 
             // f1 준비 (title + description 필수)
@@ -1736,7 +1735,8 @@ public class SmokeTest {
 
             errors.clear();
             boolean valid3 = validator.validate(case3, errors::add);
-            boolean case3Ok = !valid3 && errors.stream().anyMatch(e -> e.fieldName().startsWith("field2") && e.fieldName().contains("begin"));
+            boolean case3Ok = !valid3 && errors.stream()
+                    .anyMatch(e -> e.fieldName().startsWith("field2") && e.fieldName().contains("begin"));
             record(case3Ok, "Nested-Conditional Case3: field2.begin REQUIRED when field2 has data");
 
             // Case 4: 모든 값 세팅 -> 통과

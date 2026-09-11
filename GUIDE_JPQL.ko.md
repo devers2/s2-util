@@ -1,23 +1,21 @@
-# S2Jpql: Secure Dynamic Query Builder Guide 🔎
+# S2Jpql: 안전한 동적 쿼리 빌더 가이드 🔎
 
-🌐 **English** | [한국어](GUIDE_JPQL.ko.md)
+🌐 [English](GUIDE_JPQL.md) | **한국어**
 
-> **Secure, Template-Based Dynamic Query Generation with Zero SQL Injection Risk**
+> **SQL Injection 걱정 없이 안전한 동적 JPQL 쿼리 생성**
 
-Utilize Java Text Blocks (`"""`) for cleaner JPQL. `bindClause()` handles conditional clause binding, and `bindParameter()` exclusively handles parameter value binding for SQL injection prevention.
-
+Java Text Block(`"""`)으로 쿼리 가독성을 높입니다. `bindClause()`는 조건부 절 바인딩, `bindParameter()`는 파라미터 값 바인딩을 담당하여 SQL Injection을 방지합니다.
 
 ---
 
-## 1. Core Concepts
+## 1. 핵심 개념
 
-### 1-1. The Two-Method Binding Strategy
+### 1-1. 이중 바인딩 전략
 
-S2Jpql uses a two-method approach to prevent SQL injection:
+S2Jpql은 SQL 인젝션을 방지하기 위해 이중 메서드 접근법을 사용합니다:
 
-1. **`bindClause()`**: Conditionally includes hardcoded SQL clauses
-
-2. **`bindParameter()`**: Safely binds parameter values
+1. **`bindClause()`**: 조건부로 하드코딩된 SQL 절을 포함
+2. **`bindParameter()`**: 파라미터 값을 안전하게 바인딩
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -32,12 +30,12 @@ S2Jpql uses a two-method approach to prevent SQL injection:
 
 ---
 
-## 2. Basic Usage
+## 2. 기본 사용법
 
-### 2-1. Simple Query with Conditional Clauses
+### 2-1. 조건부 절이 있는 간단한 쿼리
 
 ```java
-// JPQL template with placeholders
+// 플레이스홀더가 있는 JPQL 템플릿
 
 String jpql = """
     SELECT p
@@ -48,34 +46,34 @@ String jpql = """
     {{=sort}}
 """;
 
-// Build and execute query with conditions
+// 조건을 포함하여 쿼리 빌드 및 실행
 
 List<Product> products = S2Jpql.from(em)
     .type(Product.class)
     .query(jpql)
 
-    // Bind conditional clause
+    // 조건부 절 바인딩
     .bindClause("cond_name", name, "AND p.name LIKE :name")
-        // Bind the parameter value
+        // 파라미터 값 바인딩
         .bindParameter("name", name, LikeMode.ANYWHERE)
 
-    // Another conditional clause
+    // 다른 조건부 절
     .bindClause("cond_price", price, "AND p.price >= :price")
         .bindParameter("price", price)
 
-    // Conditional order by
+    // 조건부 ORDER BY
     .bindOrderBy("sort", sort)
 
     .build()
     .getResultList();
 ```
 
-### 2-2. Conditional Binding
+### 2-2. 조건부 바인딩
 
 ```java
-// Only include clause if condition is true
+// 조건이 참일 때만 절 포함
 
-// Case 1: Null check
+// Case 1: Null check (null 체크)
 String jpql = "SELECT p FROM Product p WHERE 1=1 {{=cond_name}}";
 
 List<Product> results = S2Jpql.from(em)
@@ -87,11 +85,11 @@ List<Product> results = S2Jpql.from(em)
     .build()
     .getResultList();
 
-// Case 2: Zero-based check
+// Case 2: Zero-based check (0 체크)
 .bindClause("cond_price", price > 0, "AND p.price >= :price")
     .bindParameter("price", price)
 
-// Case 3: Collection check
+// Case 3: Collection check (컬렉션 체크)
 .bindClause("cond_status", !statuses.isEmpty(),
             "AND p.status IN :statuses")
     .bindParameter("statuses", statuses)
@@ -99,12 +97,12 @@ List<Product> results = S2Jpql.from(em)
 
 ---
 
-## 3. Parameter Binding Methods
+## 3. 파라미터 바인딩 메서드
 
-### 3-1. Basic Value Binding
+### 3-1. 기본 값 바인딩
 
 ```java
-// Bind simple values
+// 단순 값 바인딩
 
 String jpql = "SELECT p FROM Product p WHERE p.id = :id AND p.status = :status";
 
@@ -117,30 +115,30 @@ List<Product> results = S2Jpql.from(em)
     .getResultList();
 ```
 
-### 3-2. String Matching with LikeMode
+### 3-2. 문자열 매칭
 
 ```java
-// Different LIKE patterns
+// 다양한 LIKE 패턴
 
 String jpql = "SELECT p FROM Product p WHERE p.name LIKE :name";
 
-// Pattern 1: ANYWHERE (contains) - "%keyword%"
+// 패턴 1: 어디든 포함 - "%keyword%"
 .bindParameter("name", "laptop", LikeMode.ANYWHERE)
 
-// Pattern 2: START (prefix) - "keyword%"
+// 패턴 2: 시작 - "keyword%"
 .bindParameter("name", "laptop", LikeMode.START)
 
-// Pattern 3: END (suffix) - "%keyword"
+// 패턴 3: 끝 - "%keyword"
 .bindParameter("name", "pro", LikeMode.END)
 
-// Pattern 4: EXACT (no wildcards) - "keyword"
+// 패턴 4: 정확히 - "keyword"
 .bindParameter("name", "laptop", LikeMode.EXACT)
 ```
 
-### 3-3. Collection Binding
+### 3-3. 컬렉션 바인딩
 
 ```java
-// Bind lists for IN clause
+// IN 절을 위한 리스트 바인딩
 
 String jpql = "SELECT p FROM Product p WHERE p.id IN :ids";
 
@@ -156,12 +154,12 @@ List<Product> results = S2Jpql.from(em)
 
 ---
 
-## 4. Pagination
+## 4. 페이징
 
-### 4-1. Simple Pagination
+### 4-1. 단순 페이징
 
 ```java
-// Offset-based pagination
+// 오프셋 기반 페이징
 
 String jpql = "SELECT p FROM Product p ORDER BY p.id DESC";
 
@@ -187,10 +185,10 @@ List<Product> page3 = S2Jpql.from(em)
     .getResultList();
 ```
 
-### 4-2. Conditional Pagination
+### 4-2. 조건부 페이징
 
 ```java
-// Apply pagination only when condition is true
+// 조건이 참일 때만 페이징 적용
 
 String jpql = "SELECT p FROM Product p WHERE 1=1 {{=cond_name}}";
 
@@ -203,37 +201,37 @@ List<Product> results = S2Jpql.from(em)
                 "AND p.name LIKE :name")
         .bindParameter("name", keyword, LikeMode.ANYWHERE)
 
-    // Only apply pagination if condition is true
+    // 조건이 참일 때만 페이징 적용
     .limit(shouldPaginate, pageNumber * pageSize, pageSize)
 
     .build()
     .getResultList();
 ```
 
-### 4-3. Offset and Limit Methods
+### 4-3. 오프셋과 리미트 메서드
 
 ```java
-// Method signatures
+// 메서드 시그니처
 
-// Unconditional pagination
+// 무조건 페이징
 .limit(offset, limit)
 
-// Conditional pagination
+// 조건부 페이징
 .limit(condition, offset, limit)
 
-// Example
-.limit(true, 0, 20)        // Always paginate
-.limit(keyword != null, 0, 20)  // Paginate only if keyword exists
+// 예제
+.limit(true, 0, 20)        // 항상 페이징
+.limit(keyword != null, 0, 20)  // 키워드가 있을 때만 페이징
 ```
 
 ---
 
-## 5. Ordering
+## 5. 정렬
 
-### 5-1. Conditional ORDER BY
+### 5-1. 조건부 정렬
 
 ```java
-// Dynamic ORDER BY based on user input
+// 사용자 입력에 따른 동적 정렬
 
 String jpql = """
     SELECT p
@@ -247,29 +245,29 @@ String sortBy = request.getParameter("sort"); // "name", "price", etc.
 List<Product> results = S2Jpql.from(em)
     .type(Product.class)
     .query(jpql)
-    // Bind conditional ORDER BY
+    // 조건부 ORDER BY 바인딩
     .bindOrderBy("sort", sortBy)
     .build()
     .getResultList();
 ```
 
-### 5-2. Supported Sort Values
+### 5-2. 지원되는 정렬 값
 
 ```java
-// Order by field name (e.g., "name" → "ORDER BY p.name ASC")
+// 필드명으로 정렬 (예: "name" → "ORDER BY p.name ASC")
 .bindOrderBy("sort", "name")      // → ORDER BY p.name ASC
 .bindOrderBy("sort", "-name")     // → ORDER BY p.name DESC
 
-// Multiple fields separated by comma
+// 쉼표로 구분된 여러 필드
 .bindOrderBy("sort", "price,-date")  // → ORDER BY p.price ASC, p.date DESC
 ```
 
 ---
 
-## 6. Complete Example: Search & Pagination
+## 6. 전체 예제
 
 ```java
-// Product search with dynamic conditions and pagination
+// 동적 조건과 페이징이 있는 상품 검색
 
 @GetMapping("/products")
 public String searchProducts(
@@ -281,7 +279,7 @@ public String searchProducts(
         @RequestParam(defaultValue = "20") int pageSize,
         Model model) {
 
-    // Build JPQL template
+    // JPQL 템플릿 구성
     String jpql = """
         SELECT p
         FROM Product p
@@ -294,30 +292,30 @@ public String searchProducts(
 
     int offset = page * pageSize;
 
-    // Execute query with all conditions
+    // 모든 조건과 함께 쿼리 실행
     List<Product> results = S2Jpql.from(em)
         .type(Product.class)
         .query(jpql)
 
-        // Optional name filter
+        // 선택적 이름 필터
         .bindClause("cond_name", name != null && !name.isEmpty(),
                     "AND p.name LIKE :name")
             .bindParameter("name", name, LikeMode.ANYWHERE)
 
-        // Optional minimum price filter
+        // 선택적 최소 가격 필터
         .bindClause("cond_min_price", minPrice != null && minPrice > 0,
                     "AND p.price >= :minPrice")
             .bindParameter("minPrice", minPrice)
 
-        // Optional maximum price filter
+        // 선택적 최대 가격 필터
         .bindClause("cond_max_price", maxPrice != null && maxPrice > 0,
                     "AND p.price <= :maxPrice")
             .bindParameter("maxPrice", maxPrice)
 
-        // Dynamic ordering
+        // 동적 정렬
         .bindOrderBy("sort", sort)
 
-        // Pagination
+        // 페이징
         .limit(offset, pageSize)
 
         .build()
@@ -332,26 +330,26 @@ public String searchProducts(
 
 ---
 
-## 7. SQL Injection Prevention
+## 7. SQL Injection 방지
 
-### ⚠️ Critical Security Rules
+### 중요 보안 규칙
 
 > [!WARNING]
-> **ARCHITECTURE:** The `bindClause()` method is **EXCLUSIVELY** for binding dynamic SQL clauses conditionally. The `bindParameter()` method is **EXCLUSIVELY** for binding dynamic parameter values. This separation is critical to prevent SQL injection.
+> **아키텍처:** `bindClause()` 메서드는 **동적 SQL 절을 조건부로 바인딩하기 위한 것**입니다. `bindParameter()` 메서드는 **동적 파라미터 값을 바인딩하기 위한 것**입니다. 이 분리는 SQL 인젝션을 방지하기 위해 매우 중요합니다.
 >
-> **RULE 1: Clauses must be hardcoded**
+> **규칙 1: 절은 반드시 하드코딩**
 >
-> - The `clause` and `prefix`/`suffix` parameters of `bindClause()` **MUST** always be hardcoded strings
-> - **NEVER** concatenate user input into clause strings
-> - **NEVER** use `String.format()` or `+` operator to build clauses with variables
+> - `bindClause()`의 `clause`, `prefix`/`suffix` 파라미터는 **반드시** 하드코딩된 문자열이어야 합니다
+> - **절대** 절 문자열에 사용자 입력을 연결하지 마세요
+> - **절대** `String.format()` 또는 `+` 연산자로 변수를 포함한 절을 만들지 마세요
 >
-> **RULE 2: Values go through bindParameter()**
+> **규칙 2: 값은 bindParameter()로**
 >
-> - All dynamic/user-provided values **MUST** go through `bindParameter()`
-> - Do NOT pass values to the `conditionValue` parameter of `bindClause()`
-> - The `conditionValue` is **ONLY** for checking the condition (null check, boolean check, etc.)
+> - 모든 동적/사용자 제공 값은 **반드시** `bindParameter()`를 통해야 합니다
+> - `bindClause()`의 `conditionValue` 파라미터에 값을 전달하지 마세요
+> - `conditionValue`는 **조건 검사(null 체크, 불린 체크 등)용도만**입니다
 
-### 7-1. SAFE Usage
+### 7-1. 안전한 사용법
 
 ```java
 // ✅ CORRECT: Clause is hardcoded, value is parameterized
@@ -361,45 +359,45 @@ List<Product> results = S2Jpql.from(em)
     .type(Product.class)
     .query(jpql)
 
-    // Clause is hardcoded (built at development time)
+    // 절은 하드코딩됨 (개발 시점에 작성)
     .bindClause("cond_name", userInput != null,
-                "AND p.name LIKE :name")  // ← Hardcoded string
-        // Value is parameterized (bound at runtime)
-        .bindParameter("name", userInput, LikeMode.ANYWHERE)  // ← Parameterized
+                "AND p.name LIKE :name")  // ← 하드코딩된 문자열
+        // 값은 파라미터화됨 (런타임에 바인딩)
+        .bindParameter("name", userInput, LikeMode.ANYWHERE)  // ← 파라미터화됨
 
     .build()
     .getResultList();
 ```
 
-### 7-2. DANGEROUS Usage
+### 7-2. 위험한 사용법 - 절대 금지
 
 ```java
-// ❌ WRONG: User input in clause string (SQL INJECTION!)
+// ❌ 잘못됨: 절 문자열에 사용자 입력 직접 결합 (SQL INJECTION!)
 .bindClause("cond", userInput,
             "AND p.name LIKE '%" + userInput + "%'")  // ← INJECTION!
 
-// ❌ WRONG: Using String.format for dynamic clause building
+// ❌ 잘못됨: 동적 절 생성을 위해 String.format 사용
 String clause = String.format("AND p.name = %s", userInput);
 .bindClause("cond", userInput, clause)  // ← INJECTION!
 
-// ❌ WRONG: Dynamic field names without binding
+// ❌ 잘못됨: 바인딩 없는 동적 필드명 사용
 String sortField = request.getParameter("sortBy");
 String jpql = "SELECT p FROM Product p ORDER BY p." + sortField;  // ← INJECTION!
 
-// ❌ WRONG: No bindParameter call - value not bound
+// ❌ 잘못됨: bindParameter 호출 누락 - 값이 바인딩되지 않음
 .bindClause("search", userInput, "AND p.name = :name")
-    // Missing: .bindParameter("name", userInput)
-    // :name will remain unbound and cause SQL errors!
+    // 누락됨: .bindParameter("name", userInput)
+    // :name 파라미터가 바인딩되지 않아 SQL 오류 발생!
 ```
 
 ---
 
-## 8. Advanced Features
+## 8. 고급 기능
 
-### 8-1. Multiple Conditions
+### 8-1. 다중 조건
 
 ```java
-// Build complex queries with multiple optional conditions
+// 여러 선택적 조건으로 복잡한 쿼리 구성
 
 String jpql = """
     SELECT p
@@ -440,10 +438,10 @@ List<Product> results = S2Jpql.from(em)
     .getResultList();
 ```
 
-### 8-2. JOIN Conditions
+### 8-2. 조인 조건
 
 ```java
-// Query with JOINs and multiple conditions
+// JOIN과 다중 조건이 있는 쿼리
 
 String jpql = """
     SELECT p
@@ -480,78 +478,60 @@ List<Product> results = S2Jpql.from(em)
 
 ---
 
-## 9. Best Practices
+## 9. 모범 사례
 
 ```
-1. ✅ Always use Text Blocks (""") for readability
-
-2. ✅ Start WHERE clause with "1=1" for optional conditions
-
-3. ✅ Use meaningful placeholder names {{=cond_*}}
-
-4. ✅ Always bind condition and parameter together
-
-5. ✅ Use LikeMode for string matching
-
-6. ✅ Validate user input before using
-
-7. ❌ NEVER concatenate user input into SQL
-
-8. ❌ NEVER skip bindParameter for values
-
-9. ✅ Use Registry Pattern for frequently used queries
-
-10. ✅ Test pagination with boundary values
-    경계 값으로 페이징 테스트
+1. ✅ 가독성을 위해 항상 텍스트 블록 (""") 사용
+2. ✅ 선택적 조건을 위해 WHERE 절을 "1=1"로 시작
+3. ✅ 의미 있는 플레이스홀더명({{=cond_*}}) 사용
+4. ✅ 조건과 파라미터를 항상 함께 바인딩
+5. ✅ 문자열 매칭에는 LikeMode 사용
+6. ✅ 사용 전에 사용자 입력 검증
+7. ❌ SQL에 사용자 입력을 연결하지 말 것
+8. ❌ 값을 bindParameter 없이 사용하지 말 것
+9. ✅ 자주 사용되는 쿼리는 Registry Pattern 사용
+10. ✅ 경계 값으로 페이징 테스트
 ```
 
 ---
 
-## 10. Performance Tips
+## 10. 성능 팁
 
 ```
-1. Use offset-based pagination for better performance
-
-2. Avoid unnecessary JOINs in optional conditions
-
-3. Use appropriate index on WHERE clause fields
-
-4. Cache frequently used validators in Registry Mode
-
-5. Monitor query performance with EXPLAIN
-
-6. Avoid large offset values for pagination
-   (Use keyset pagination for large datasets)
-  
+1. 성능을 위해 오프셋 기반 페이징 사용
+2. 선택적 조건에서 불필요한 JOIN 피하기
+3. WHERE 절 필드에 적절한 인덱스 설정
+4. 자주 사용되는 검증기는 Registry 모드로 캐싱
+5. EXPLAIN으로 쿼리 성능 모니터링
+6. 페이징 시 큰 오프셋 값 피하기 (대용량 데이터셋에는 keyset pagination 사용)
 ```
 
 ---
 
-## 11. Troubleshooting
+## 11. 문제 해결
 
-| Problem                  | Cause                    | Solution                                  |
-| ------------------------ | ------------------------ | ----------------------------------------- |
-| Placeholder not replaced | Typo in placeholder name | Check {{=placeholder_name}} spelling      |
-| Parameter null           | bindParameter not called | Always pair bindClause with bindParameter |
-| SQL Injection warning    | User input in clause     | Use hardcoded clause strings only         |
-| Unexpected query result  | Wrong condition logic    | Test condition evaluation separately      |
-| Pagination returns empty | Wrong offset/limit       | Verify page number and page size          |
+| 문제                   | 원인                   | 해결책                                      |
+| ---------------------- | ---------------------- | ------------------------------------------- |
+| 플레이스홀더 미교체    | 플레이스홀더 이름 오타 | {{=placeholder_name}} 철자 확인             |
+| 파라미터가 null        | bindParameter 미호출   | bindClause와 bindParameter를 항상 함께 호출 |
+| SQL Injection 경고     | 절에 사용자 입력 포함  | 하드코딩된 절 문자열만 사용                 |
+| 예상치 못한 쿼리 결과  | 잘못된 조건 로직       | 조건 평가식을 개별 테스트                   |
+| 페이징 결과가 비어있음 | 잘못된 offset/limit    | 페이지 번호와 페이지 크기 검증              |
 
 ---
 
-## 12. Integration with S2Validator & S2Copier
+## 12. 다른 모듈과 통합
 
-S2Jpql can be combined with S2Validator and S2Copier for complete data flow:
-
+S2Jpql은 S2Validator와 S2Copier와 함께 사용하여 완전한 데이터 흐름을 구성할 수 있습니다:
 
 ```java
-// 1. Validate input with S2Validator
+// 1. S2Validator로 입력 검증
 ProductSearchRequest request = new ProductSearchRequest(...);
 S2Validator.of(request)
     .field("pageSize").rule(S2RuleType.MAX_VALUE, 100)
     .validate();
 
-// 2. Query database with S2Jpql
+// 2. S2Jpql로 데이터베이스 조회
 List<Product> dbResults = S2Jpql.from(em)
     .type(Product.class)
     .query(jpql)
@@ -562,7 +542,7 @@ List<Product> dbResults = S2Jpql.from(em)
     .build()
     .getResultList();
 
-// 3. Transform results with S2Copier
+// 3. S2Copier로 결과 변환
 List<ProductDto> dtoResults = dbResults.stream()
     .map(product -> S2Copier.from(product)
         .map("id", "productId")

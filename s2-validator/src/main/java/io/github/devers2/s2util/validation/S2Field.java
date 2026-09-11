@@ -621,14 +621,12 @@ public class S2Field<T> implements Serializable {
                     logger.warn(
                             "커스텀 검증 중 타입 캐스팅 실패. valueType: {}, targetType: {}",
                             value != null ? value.getClass().getName() : "null",
-                            target != null ? target.getClass().getName() : "null"
-                    );
+                            target != null ? target.getClass().getName() : "null");
                 } else {
                     logger.warn(
                             "Type casting failure during custom validation. valueType: {}, targetType: {}",
                             value != null ? value.getClass().getName() : "null",
-                            target != null ? target.getClass().getName() : "null"
-                    );
+                            target != null ? target.getClass().getName() : "null");
                 }
                 return false;
             }
@@ -662,13 +660,14 @@ public class S2Field<T> implements Serializable {
          * @return Resolved message template | 해석된 메시지 템플릿
          */
         public String getErrorMessageTemplate(Locale locale) {
-            return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale).orElseGet(() -> {
-                String template = messageTemplates.get(locale.getLanguage());
-                if (template == null || template.isBlank()) {
-                    template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
-                }
-                return template;
-            });
+            return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale)
+                    .orElseGet(() -> {
+                        String template = messageTemplates.get(locale.getLanguage());
+                        if (template == null || template.isBlank()) {
+                            template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
+                        }
+                        return template;
+                    });
         }
 
         /**
