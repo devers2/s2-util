@@ -191,6 +191,10 @@ publishing {
 // .all()로 반응형 서명을 적용하므로, 아래 s2ValidatorPluginMarkerMaven처럼 나중에 등록되는 Publication도 서명 대상에 포함됨)
 S2BuildUtils.configureCentralPortalRepository(project)
 
+// Central Portal은 개별 파일 PUT 요청(404 에러 발생)을 지원하지 않고 Zip 번들 업로드만 지원하므로,
+// PublishToMavenRepository 태스크를 Zip 번들 생성 및 업로드 로직으로 가로채는(Hijack) 핸들러를 등록
+S2BuildUtils.configureCentralPortalPublishing(project)
+
 // Marker Artifact에 대한 메타데이터 설정 (이미 존재하는 Publication 설정)
 project.afterEvaluate {
     publishing.publications.named<MavenPublication>("s2ValidatorPluginMarkerMaven") {
