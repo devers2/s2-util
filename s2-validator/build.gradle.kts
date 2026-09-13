@@ -74,6 +74,13 @@ dependencies {
     compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
 
     /**
+     * compileOnlyInternal: s2-build-support 플러그인에서 제공하는 커스텀 Configuration
+     * - 컴파일 시 사용되나, 엔드유저용 배포 문서(README/MANUAL) 의존성 목록 및 Shadow JAR에서 제외됨
+     * - 플러그인이 동적으로 생성하므로 정적 Accessor가 없어 큰따옴표("")로 감싸서 선언함
+     */
+    "compileOnlyInternal"(libs.errorprone.annotations) // @CheckReturnValue 어노테이션 (정적 분석 및 경고용)
+
+    /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      */

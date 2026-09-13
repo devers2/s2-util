@@ -25,7 +25,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
  * Fluent API interface for defining target fields and their metadata.

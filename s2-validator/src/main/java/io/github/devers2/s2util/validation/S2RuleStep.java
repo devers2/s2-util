@@ -22,7 +22,7 @@ package io.github.devers2.s2util.validation;
 
 import java.util.Locale;
 
-import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
  * Fluent API interface representing the state after a rule has been assigned to a field.
