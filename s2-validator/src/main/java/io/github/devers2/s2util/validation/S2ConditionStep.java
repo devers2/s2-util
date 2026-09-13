@@ -20,7 +20,7 @@
  */
 package io.github.devers2.s2util.validation;
 
-import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
  * Fluent API interface for sequentially adding multiple conditions (AND logic).

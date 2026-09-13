@@ -33,7 +33,7 @@ import java.util.function.Predicate;
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.exception.S2RuntimeException;
 import io.github.devers2.s2util.validation.S2Field.S2CustomRule;
-import io.github.devers2.s2util.validation.annotation.CheckReturnValue;
+import com.google.errorprone.annotations.CheckReturnValue;
 
 /**
  * Fluent Validation Engine for the S2Util library.

@@ -233,11 +233,19 @@ dependencies {
      * - 소비자 프로젝트에서 Caffeine을 사용하지 않아도 S2Cache가 정상 동작함
      */
     // s2-core 의존성
-    compileOnly(libs.caffeine)
+    compileOnly(libs.caffeine) // Caffeine: 고성능 로컬 캐시 라이브러리 (선택적)
     // s2-validator 의존성
-    compileOnly(libs.spring6.context)
+    compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
     // s2-jpa 의존성
-    compileOnly(libs.jakarta.persistence.api)
+    compileOnly(libs.jakarta.persistence.api) // JPQL
+
+    /**
+     * compileOnlyInternal: s2-build-support 플러그인에서 제공하는 커스텀 Configuration
+     * - 컴파일 시 사용되나, 엔드유저용 배포 문서(README/MANUAL) 의존성 목록 및 Shadow JAR에서 제외됨
+     * - 플러그인이 동적으로 생성하므로 정적 Accessor가 없어 큰따옴표("")로 감싸서 선언함
+     */
+    // s2-validator 의존성
+    "compileOnlyInternal"(libs.errorprone.annotations) // @CheckReturnValue 어노테이션 (정적 분석 및 경고용)
 }
 
 /*
