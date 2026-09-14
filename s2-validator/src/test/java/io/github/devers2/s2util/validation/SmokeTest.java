@@ -156,6 +156,9 @@ public class SmokeTest {
         // 21. 와일드카드 필드 간 행 단위 교차 필드 검증 테스트 (ref=start 및 ref=items[].start)
         testS2ValidatorWildcardCrossField();
 
+        // 22. 커스텀 람다 규칙의 null/empty 단락(Short-circuit) 및 NPE 방지 테스트
+        testS2ValidatorCustomRuleNullSafety();
+
         logger.info("================================================================================");
         logger.info("[요약] 테스트 결과 보고서");
         logger.info("--------------------------------------------------------------------------------");
@@ -1718,6 +1721,62 @@ public class SmokeTest {
         } catch (Exception e) {
             logger.error("  [FAIL] 와일드카드 교차 검증 테스트 중 예외 발생: ", e);
             record(false, "와일드카드 교차 검증 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * 커스텀 람다 규칙의 null/empty 단락(Short-circuit) 테스트.
+     * REQUIRED와 커스텀 람다가 함께 걸려있을 때, 값이 null/empty인 경우
+     * 커스텀 람다에서 NPE가 발생하지 않고 REQUIRED 에러만 정상적으로 보고되는지 확인한다.
+     */
+    private void testS2ValidatorCustomRuleNullSafety() {
+        logger.info(">>> 22. 커스텀 람다 규칙 null/empty 단락(NPE 방지) 테스트");
+
+        try {
+            // 1. null 값 입력 시: REQUIRED만 실패하고 람다(v.startsWith)에서 NPE가 발생하지 않아야 함
+            Map<String, Object> target = new HashMap<>();
+            target.put("code", null);
+
+            S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                    .field("code", "코드")
+                    .rule(S2RuleType.REQUIRED)
+                    .rule((String v) -> v.startsWith("ADM-"))
+                    .ko("{0|은/는} 'ADM-'으로 시작해야 합니다.")
+                    .build();
+
+            List<S2ValidationError> errors = new ArrayList<>();
+            boolean valid = validator.validate(target, errors::add);
+
+            boolean isNullOk = !valid && errors.size() == 1
+                    && S2RuleType.REQUIRED.getErrorMessageKey().equals(errors.get(0).errorCode());
+            record(isNullOk, "커스텀 람다에 null 전달 시 NPE 없이 REQUIRED 에러만 정상 감지");
+
+            // 2. 빈 문자열("") 입력 시: REQUIRED만 실패하고 람다 스킵
+            target.put("code", "");
+            errors.clear();
+            valid = validator.validate(target, errors::add);
+            boolean isEmptyOk = !valid && errors.size() == 1
+                    && S2RuleType.REQUIRED.getErrorMessageKey().equals(errors.get(0).errorCode());
+            record(isEmptyOk, "커스텀 람다에 빈 문자열 전달 시 NPE 없이 REQUIRED 에러만 정상 감지");
+
+            // 3. 값이 있고 규칙 위반 시 ("USR-123"): 커스텀 람다가 정상 동작하여 에러 발생
+            target.put("code", "USR-123");
+            errors.clear();
+            valid = validator.validate(target, errors::add);
+            boolean isInvalidValueOk = !valid && errors.size() == 1
+                    && errors.get(0).defaultMessage().contains("ADM-");
+            record(isInvalidValueOk, "커스텀 람다에 잘못된 값 전달 시 커스텀 에러 정상 감지");
+
+            // 4. 값이 있고 규칙 준수 시 ("ADM-123"): 유효성 검사 성공
+            target.put("code", "ADM-123");
+            errors.clear();
+            valid = validator.validate(target, errors::add);
+            boolean isValidValueOk = valid && errors.isEmpty();
+            record(isValidValueOk, "커스텀 람다에 올바른 값 전달 시 검증 통과");
+
+        } catch (Exception e) {
+            logger.error("  [FAIL] 커스텀 람다 null 안전성 테스트 중 예외 발생: ", e);
+            record(false, "커스텀 람다 null 안전성 테스트 기술 오류");
         }
     }
 
