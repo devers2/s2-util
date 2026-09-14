@@ -592,9 +592,10 @@ public class S2Field<T> implements Serializable {
         /**
          * Executes the custom validation logic.
          * <p>
-         * Implementation detail: Performs dynamic casting with <b>type erasure</b> safety.
-         * Since generic info is lost at runtime, this method catches {@link ClassCastException}
-         * to handle type mismatches gracefully by returning {@code false}.
+         * If the value is {@code null} or empty (via {@link S2Util#isEmpty(Object)}),
+         * custom validation is skipped and treated as valid ({@code true}). This aligns
+         * with {@link S2Rule} conventions, preventing {@link NullPointerException}
+         * when chained with {@link S2RuleType#REQUIRED}.
          * </p>
          *
          * <p>
@@ -602,8 +603,10 @@ public class S2Field<T> implements Serializable {
          * </p>
          * 제공된 람다 로직을 사용하여 유효성 검증을 수행합니다.
          * <p>
-         * 구현 상세: Type Erasure 특성상 런타임에 제네릭 정보가 소멸되므로, 런타임에 비정상적인 타입이
-         * 인입될 경우를 대비해 {@link ClassCastException}을 처리하여 안전하게 {@code false}를 반환합니다.
+         * 값이 {@code null}이거나 비어 있는 경우({@link S2Util#isEmpty(Object)}),
+         * {@link S2Rule}과 동일한 단락(Short-circuit) 정책에 따라 사용자 람다를 호출하지 않고
+         * 유효({@code true})한 것으로 처리합니다. 이를 통해 {@link S2RuleType#REQUIRED}와 함께
+         * 체이닝되었을 때 {@link NullPointerException}이 발생하는 것을 방지합니다.
          * </p>
          *
          * @param value  The individual field value | 개별 필드 값
@@ -612,6 +615,9 @@ public class S2Field<T> implements Serializable {
          */
         @SuppressWarnings("unchecked")
         public boolean isValid(Object value, Object target) {
+            if (S2Util.isEmpty(value)) {
+                return true;
+            }
             try {
                 V castValue = (V) value;
                 T castTarget = (T) target;
