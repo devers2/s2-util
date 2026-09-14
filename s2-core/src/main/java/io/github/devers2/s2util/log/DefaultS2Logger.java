@@ -20,18 +20,16 @@
  */
 package io.github.devers2.s2util.log;
 
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Default console-based logger implementation.
  * <p>
  * This logger acts as a zero-dependency fallback that outputs directly to
  * {@link System#out} and {@link System#err}. It features rich ANSI coloring
- * for better readability in terminals and a diagnostic setup guide.
+ * for better readability in terminals.
  * </p>
  *
  * <p>
@@ -41,15 +39,8 @@ import java.util.Arrays;
  * <p>
  * 별도의 로깅 프레임워크 어댑터가 설정되지 않은 경우 대체제로 사용되며, {@link System#out} 및
  * {@link System#err}를 통해 직접 로그를 출력합니다. 터미널 가독성을 높이기 위한 ANSI 컬러링
- * 기능과 어댑터 설정 누락 시 가이드를 제공하는 경고 시스템을 포함합니다.
+ * 기능을 포함합니다.
  * </p>
- *
- * <p>
- * <b>[WARNING]</b>
- * </p>
- * If you see the "S2Logger NOT CONFIGURED" banner, it means the library is using
- * synchronous system output which might impact performance. It is highly
- * recommended to configure a proper logging adapter (e.g., SLF4J).
  *
  * @author devers2
  * @version 1.5
@@ -58,40 +49,7 @@ import java.util.Arrays;
 public class DefaultS2Logger implements S2Logger {
 
     private final String name;
-    private static boolean adapterConfigured = false;
-    private static boolean warningShown = false;
-
-    static {
-        try {
-            /**
-             * 클래스 로딩 시점에 시스템 인코딩 설정 적용
-             * vmArgs의 -Dfile.encoding 값을 읽어 표준 출력(out/err) 스트림을 재설정한다.
-             */
-            String encoding = System.getProperty("file.encoding", "UTF-8");
-
-            // FileDescriptor를 사용하여 OS 표준 출력에 새 스트림을 연결함
-            System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, encoding));
-            System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true, encoding));
-        } catch (UnsupportedEncodingException e) {
-            // 인코딩 설정 실패 시 기본 스트림 유지
-        }
-    }
-
-    /**
-     * Marks that an external logger adapter has been configured.
-     * <p>
-     * Once this method is called, the warning banner will no longer be displayed.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 외부 로거 어댑터가 설정되었음을 표시합니다.
-     * 이 메서드가 호출되면 이후에는 어떤 경로로든 경고 배너가 출력되지 않습니다.
-     */
-    public synchronized static void markAdapterConfigured() {
-        adapterConfigured = true;
-    }
+    private static final AtomicBoolean NOTICE_PRINTED = new AtomicBoolean(false);
 
     /**
      * Constructs a new DefaultS2Logger with the specified name.
@@ -100,104 +58,6 @@ public class DefaultS2Logger implements S2Logger {
      */
     public DefaultS2Logger(String name) {
         this.name = name;
-        printWarningBannerOnce();
-    }
-
-    /**
-     * Prints the configuration missing warning banner exactly once.
-     * <p>
-     * The banner is not shown if an adapter has already been configured.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 설정 누락 경고 배너를 단 한 번만 출력합니다.
-     * 단, 어댑터가 이미 설정된 경우에는 출력하지 않습니다.
-     */
-    public synchronized static void printWarningBannerOnce() {
-        if (adapterConfigured || warningShown) {
-            return;
-        }
-        warningShown = true;
-
-        // 색상 상수 정의
-        var RS = "\u001B[0m"; // Reset
-        var BD = "\u001B[1m"; // Bold
-        var BN = "\u001B[38;5;167m"; // 차분한 빨강 (배너)
-        var CM = "\u001B[38;5;65m"; // 차분한 녹색 (주석)
-        var AN = "\u001B[38;5;79m"; // 청록색 (어노테이션)
-        var KW = "\u001B[38;5;75m"; // 파란색 (예약어/접근제한자/기본타입)
-        var TP = "\u001B[38;5;79m"; // 청록색 (클래스/인터페이스 타입)
-        var FN = "\u001B[38;5;221m"; // 노란색 (메서드명)
-        var VR = "\u001B[38;5;153m"; // 연파랑 (변수명)
-        var ST = "\u001B[38;5;173m"; // 황토색 (문자열)
-
-        // Java 17 Text Block을 사용한 템플릿 (가독성을 위해 색상 위치에 플레이스홀더 사용)
-        var template = """
-                {RS}{BN}{BD}***********************************************************************************
-                {BN}*                                                                                 *
-                {BN}*                     !!! S2Logger NOT CONFIGURED WARNING !!!                     *
-                {BN}*                                                                                 *
-                {BN}*    S2LoggerAdapter is missing. Falling back to DefaultS2Logger (System.out).    *
-                {BN}*                                                                                 *
-                {BN}***********************************************************************************
-                {RS}{CM}/**
-                {CM} * Quick Setup Guide
-                {CM} * Spring Configuration Example
-                {CM} */
-                {RS}{KW}import{RS} {TP}org.springframework.context.annotation.Configuration{RS};
-                {KW}import{RS} {TP}javax.annotation.PostConstruct{RS};
-                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LogManager{RS};
-                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2Logger{RS};
-                {KW}import{RS} {TP}io.github.devers2.s2util.log.S2LoggerFactory{RS};
-
-                {AN}@Configuration{RS}
-                {KW}public{RS} {KW}class{RS} {TP}S2LogConfig{RS} {
-                    {AN}@PostConstruct{RS}
-                    {KW}public{RS} {KW}void{RS} {FN}init{RS}() {
-                        {TP}S2LogManager{RS}.{FN}setLoggerFactory{RS}({KW}new{RS} {TP}S2LoggerFactory{RS}() {
-                            {AN}@Override{RS}
-                            {KW}public{RS} {TP}S2Logger{RS} {FN}getLogger{RS}({TP}String{RS} {VR}name{RS}) {
-                                {KW}final{RS} {TP}org.slf4j.Logger{RS} {VR}logger{RS} = {TP}org.slf4j.LoggerFactory{RS}.{FN}getLogger{RS}({VR}name{RS});
-
-                                {KW}return{RS} {KW}new{RS} {TP}S2Logger{RS}() {
-                                    {AN}@Override{RS}
-                                    {KW}public{RS} {KW}void{RS} {FN}log{RS}({TP}String{RS} {VR}level{RS}, {TP}String{RS} {VR}message{RS}, {TP}Object{RS}[] {VR}args{RS}) {
-                                        {KW}if{RS} ({ST}"DEBUG"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}debug{RS}({VR}message{RS}, {VR}args{RS});
-                                        {KW}else if{RS} ({ST}"INFO"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}info{RS}({VR}message{RS}, {VR}args{RS});
-                                        {KW}else if{RS} ({ST}"WARN"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}warn{RS}({VR}message{RS}, {VR}args{RS});
-                                        {KW}else if{RS} ({ST}"ERROR"{RS}.{FN}equals{RS}({VR}level{RS})) {VR}logger{RS}.{FN}error{RS}({VR}message{RS}, {VR}args{RS});
-                                    }
-
-                                    {AN}@Override{RS}
-                                    {KW}public{RS} {KW}boolean{RS} {FN}isDebugEnabled{RS}() { {KW}return{RS} {VR}logger{RS}.{FN}isDebugEnabled{RS}(); }
-                                    {AN}@Override{RS}
-                                    {KW}public{RS} {KW}boolean{RS} {FN}isInfoEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isInfoEnabled{RS}(); }
-                                    {AN}@Override{RS}
-                                    {KW}public{RS} {KW}boolean{RS} {FN}isWarnEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isWarnEnabled{RS}(); }
-                                    {AN}@Override{RS}
-                                    {KW}public{RS} {KW}boolean{RS} {FN}isErrorEnabled{RS}()  { {KW}return{RS} {VR}logger{RS}.{FN}isErrorEnabled{RS}(); }
-                                };
-                            }
-
-                            {AN}@Override{RS}
-                            {KW}public{RS} <T> {TP}S2Logger{RS} {FN}getLogger{RS}({TP}Class{RS}<T> {VR}clazz{RS}) {
-                                {KW}return{RS} {FN}getLogger{RS}({VR}clazz{RS} == {KW}null{RS} ? {ST}"unknown"{RS} : {VR}clazz{RS}.{FN}getName{RS}());
-                            }
-                        });
-                    }
-                }
-                """;
-
-        // 플레이스홀더를 실제 ANSI 코드로 치환
-        System.out.println(
-                template
-                        .replace("{RS}", RS).replace("{BD}", BD)
-                        .replace("{BN}", BN).replace("{CM}", CM)
-                        .replace("{AN}", AN).replace("{KW}", KW)
-                        .replace("{TP}", TP).replace("{FN}", FN)
-                        .replace("{VR}", VR).replace("{ST}", ST));
     }
 
     @Override
@@ -234,6 +94,13 @@ public class DefaultS2Logger implements S2Logger {
      * @param args    Arguments for the template | 템플릿 인자
      */
     private void handleLog(String level, PrintStream stream, String message, Object... args) {
+        // 외부 어댑터가 없어 DefaultS2Logger로 첫 로그가 출력될 때 딱 1회만 직관적인 가이드를 안내
+        if (NOTICE_PRINTED.compareAndSet(false, true)) {
+            stream.println("[WARN] [s2-util] No external logger detected. Using fallback console logger.");
+            stream.println("  -> Solution 1 (Recommended): Add 'org.slf4j:slf4j-api' to dependencies for automatic binding.");
+            stream.println("  -> Solution 2: Call S2LogManager.setLoggerFactory(...) for custom logging. (See Javadoc for examples)");
+        }
+
         Throwable t = null;
         var params = args;
 
