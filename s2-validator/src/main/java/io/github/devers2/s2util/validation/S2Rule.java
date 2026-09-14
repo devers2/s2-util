@@ -211,8 +211,36 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @param target The root target object (allowing cross-field validation) | 루트 대상 객체 (필드 간 상관관계 검증용)
      * @return {@code true} if valid | 유효한 경우 true
      */
-    @SuppressWarnings("unchecked")
     public boolean isValid(Object value, Object target) {
+        return isValid(value, target, null);
+    }
+
+    /**
+     * Executes the validation logic for this rule against the provided value with root context support.
+     * <p>
+     * When validating items within collections (e.g. wildcard {@code "items[].field"}), {@code target}
+     * represents the individual collection element, while {@code rootTarget} represents the top-level
+     * target object. This allows cross-field comparisons against both sibling fields in the same row
+     * and global fields in the root object.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 루트 컨텍스트를 지원하여 주어진 값에 대해 현재 규칙의 유효성 검증 로직을 실행합니다.
+     * <p>
+     * 컬렉션 내부 아이템(예: 와일드카드 {@code "items[].field"}) 검증 시, {@code target}은 개별
+     * 행(아이템) 객체를 나타내고 {@code rootTarget}은 최상위 루트 객체를 나타냅니다.
+     * 이를 통해 같은 행 내부의 형제 필드뿐만 아니라 루트 객체의 전역 필드와의 교차 검증도 지원합니다.
+     * </p>
+     *
+     * @param value      The individual value to validate | 검증할 개별 값
+     * @param target     The current target object (row item or root object) | 현재 대상 객체 (행 아이템 또는 루트 객체)
+     * @param rootTarget The top-level root target object (or {@code null}) | 최상위 루트 대상 객체 (또는 null)
+     * @return {@code true} if valid | 유효한 경우 true
+     */
+    @SuppressWarnings("unchecked")
+    public boolean isValid(Object value, Object target, Object rootTarget) {
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
@@ -309,7 +337,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield false;
             }
             case DATE_AFTER -> {
-                Object targetValue = S2Util.getValue(target, checkValue);
+                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
                 if (S2Util.isEmpty(targetValue))
                     yield true; // 타겟 empty 시 무시 (optional 의미)
 
@@ -322,7 +350,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) >= 0;
             }
             case DATE_BEFORE -> {
-                Object targetValue = S2Util.getValue(target, checkValue);
+                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
                 if (S2Util.isEmpty(targetValue))
                     yield true;
 
@@ -334,7 +362,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) <= 0;
             }
             case EQUALS_FIELD -> {
-                Object targetValue = S2Util.getValue(target, checkValue);
+                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
                 yield Objects.equals(value, targetValue);
             }
             case JUMIN -> {
@@ -393,7 +421,87 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return {@code true} if invalid | 유효하지 않은 경우 true
      */
     public boolean isInvalid(Object value, Object target) {
-        return !isValid(value, target);
+        return isInvalid(value, target, null);
+    }
+
+    /**
+     * Checks if the value is invalid according to this rule with root context support.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 루트 컨텍스트를 지원하여 검증 대상 값이 이 규칙에 유효하지 않은지 확인합니다 ({@code !isValid()}).
+     *
+     * @param value      The value to validate | 검증할 인자 값
+     * @param target     The current target object | 현재 대상 객체
+     * @param rootTarget The top-level root target object | 최상위 루트 대상 객체
+     * @return {@code true} if invalid | 유효하지 않은 경우 true
+     */
+    public boolean isInvalid(Object value, Object target, Object rootTarget) {
+        return !isValid(value, target, rootTarget);
+    }
+
+    /**
+     * Resolves the target value for cross-field comparison rules.
+     * <p>
+     * Searches the local {@code target} first (e.g. row item in a collection).
+     * If {@code checkValue} contains a wildcard marker (e.g. {@code "items[].start"}),
+     * it extracts the relative field name ({@code "start"}) and resolves it against {@code target}.
+     * If not found on {@code target}, falls back to {@code rootTarget} to allow referencing
+     * global or outer fields.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 교차 필드 검증 규칙을 위한 기준 필드 값을 해석합니다.
+     * <p>
+     * 먼저 로컬 {@code target}(예: 컬렉션 내의 특정 행 아이템)에서 값을 조회합니다.
+     * 만약 {@code checkValue}에 와일드카드 표기(예: {@code "items[].start"})가 포함되어 있다면,
+     * 상대 경로({@code "start"})를 추출하여 {@code target}에서 재조회합니다.
+     * {@code target}에서 찾지 못한 경우 {@code rootTarget}에서 조회하여 전역/상위 필드 참조를 지원합니다.
+     * </p>
+     *
+     * @param target     The current target object | 현재 대상 객체
+     * @param checkValue The criterion field name or expression | 기준 필드명 또는 표현식
+     * @param rootTarget The top-level root target object | 최상위 루트 대상 객체
+     * @return The resolved target value, or {@code null} | 해석된 기준 값 (없으면 null)
+     */
+    private Object resolveTargetValue(Object target, Object checkValue, Object rootTarget) {
+        if (checkValue == null) {
+            return null;
+        }
+
+        // 1. 직접 target에서 조회 (상대 필드명: "start" 또는 단일 객체 프로퍼티)
+        Object value = S2Util.getValue(target, checkValue);
+        if (value != null) {
+            return value;
+        }
+
+        // 2. checkValue가 와일드카드 표기("items[].start")를 포함하는 경우, 상대 경로("start") 추출 후 target에서 재조회
+        if (checkValue instanceof String checkStr && checkStr.contains("[]")) {
+            int bracketIndex = checkStr.indexOf("[]");
+            String relative = checkStr.substring(bracketIndex + 2);
+            if (relative.startsWith(".")) {
+                relative = relative.substring(1);
+            }
+            if (!relative.isEmpty()) {
+                value = S2Util.getValue(target, relative);
+                if (value != null) {
+                    return value;
+                }
+            }
+        }
+
+        // 3. target에서 찾지 못했고 rootTarget이 있는 경우 rootTarget에서 조회
+        if (rootTarget != null) {
+            value = S2Util.getValue(rootTarget, checkValue);
+            if (value != null) {
+                return value;
+            }
+        }
+
+        return null;
     }
 
     /**

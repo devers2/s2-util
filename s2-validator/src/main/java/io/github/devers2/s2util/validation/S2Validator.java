@@ -1188,7 +1188,7 @@ public class S2Validator<T> implements Serializable {
                         continue;
                     }
 
-                    if (rule.isInvalid(fieldValue, item)) {
+                    if (rule.isInvalid(fieldValue, item, target)) {
                         isValid = false;
                         var args = S2Util.isNotEmpty(rule.getCheckValue())
                                 ? new Object[] { fieldLabel, rule.getCheckValue() }
