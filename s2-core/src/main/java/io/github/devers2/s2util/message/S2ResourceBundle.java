@@ -80,7 +80,7 @@ public final class S2ResourceBundle {
     private static final S2Logger logger = S2LogManager.getLogger(S2ResourceBundle.class);
 
     /** 기본 basename (초기값: null → 사용 전 setDefaultBasename 필수) */
-    private static String defaultBasename;
+    private static volatile String defaultBasename;
 
     private S2ResourceBundle() {
         // Prevent instantiation
@@ -132,6 +132,27 @@ public final class S2ResourceBundle {
      */
     public static String getDefaultBasename() {
         return defaultBasename;
+    }
+
+    /**
+     * Resets the default resource bundle basename to {@code null}.
+     * <p>
+     * This method is particularly useful for test isolation or reloading configurations
+     * between test cases.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 기본 리소스 번들 베이스네임 설정을 초기화({@code null})합니다.
+     * <p>
+     * 단위 테스트 간 상태 격리(Test Isolation) 또는 컨텍스트 재시작 시 유용합니다.
+     * </p>
+     *
+     * @see #setDefaultBasename(String)
+     */
+    public static void resetDefaultBasename() {
+        defaultBasename = null;
     }
 
     /**

@@ -144,9 +144,9 @@ public class S2Validator<T> implements Serializable {
      * 개별 메시지보다도 우선하여 참조됩니다.
      * </p>
      */
-    private static String validationBundle;
+    private static volatile String validationBundle;
     /** Default system-wide locale (defaults to {@link Locale#getDefault()}) */
-    private static Locale defaultLocale = Locale.getDefault();
+    private static volatile Locale defaultLocale = Locale.getDefault();
 
     /** List of field validation configurations */
     private final List<S2Field<T>> fields = new ArrayList<>();
@@ -1381,6 +1381,8 @@ public class S2Validator<T> implements Serializable {
     public static void setDefaultLocale(Locale locale) {
         if (locale != null) {
             S2Validator.defaultLocale = locale;
+        } else {
+            S2Validator.defaultLocale = Locale.getDefault();
         }
     }
 
@@ -1391,6 +1393,49 @@ public class S2Validator<T> implements Serializable {
      */
     static Locale getDefaultLocale() {
         return S2Validator.defaultLocale;
+    }
+
+    /**
+     * Resets the global validation message bundle name to {@code null}.
+     * <p>
+     * This method is particularly useful for test isolation or reloading configurations
+     * without state leaking across test cases.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 전역 검증 메시지 번들의 이름을 초기화({@code null})합니다.
+     * <p>
+     * 단위 테스트 간 상태 격리(Test Isolation) 또는 애플리케이션 컨텍스트 리로드 시
+     * 이전 설정이 다른 테스트나 비즈니스 로직에 오염(Leak)되는 것을 방지하기 위해 사용됩니다.
+     * </p>
+     *
+     * @see #setValidationBundle(String)
+     */
+    public static void resetValidationBundle() {
+        S2Validator.validationBundle = null;
+    }
+
+    /**
+     * Resets the system default locale to {@link Locale#getDefault()}.
+     * <p>
+     * This method is particularly useful for test isolation or resetting configuration
+     * between test cases.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검증 시스템의 기본 로케일을 JVM 기본값({@link Locale#getDefault()})으로 초기화합니다.
+     * <p>
+     * 단위 테스트 간 상태 격리(Test Isolation) 또는 애플리케이션 컨텍스트 재시작 시 유용합니다.
+     * </p>
+     *
+     * @see #setDefaultLocale(Locale)
+     */
+    public static void resetDefaultLocale() {
+        S2Validator.defaultLocale = Locale.getDefault();
     }
 
     public List<S2Field<T>> getFields() {
