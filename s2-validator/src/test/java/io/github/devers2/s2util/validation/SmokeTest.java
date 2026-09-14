@@ -159,6 +159,9 @@ public class SmokeTest {
         // 22. 커스텀 람다 규칙의 null/empty 단락(Short-circuit) 및 NPE 방지 테스트
         testS2ValidatorCustomRuleNullSafety();
 
+        // 23. 체크박스 ASSERT_TRUE / ASSERT_FALSE 검증 테스트 (null/문자열 true, on/배열 등)
+        testS2ValidatorAssertTrueFalse();
+
         logger.info("================================================================================");
         logger.info("[요약] 테스트 결과 보고서");
         logger.info("--------------------------------------------------------------------------------");
@@ -1777,6 +1780,142 @@ public class SmokeTest {
         } catch (Exception e) {
             logger.error("  [FAIL] 커스텀 람다 null 안전성 테스트 중 예외 발생: ", e);
             record(false, "커스텀 람다 null 안전성 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * 체크박스 ASSERT_TRUE / ASSERT_FALSE 검증 테스트
+     * <p>
+     * 1. ASSERT_TRUE:
+     *    - 미체크(null, ""): 실패 (클라이언트/서버 일치)
+     *    - 명시적 false: 실패
+     *    - Boolean.TRUE, 문자열 "true", "on" (대소문자 무시): 성공
+     *    - 단일 요소 배열/컬렉션 (["on"], ["true"]): 성공
+     *    - 다중 요소 배열: 실패
+     * 2. ASSERT_FALSE:
+     *    - 미체크(null, ""): 성공
+     *    - Boolean.FALSE, 문자열 "false", "off" (대소문자 무시): 성공
+     *    - Boolean.TRUE, 문자열 "true", "on": 실패
+     * </p>
+     */
+    private void testS2ValidatorAssertTrueFalse() {
+        logger.info(">>> 23. 체크박스 ASSERT_TRUE / ASSERT_FALSE 검증 테스트");
+
+        try {
+            S2Validator<Map<String, Object>> agreeValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("agree", "이용약관 동의")
+                    .rule(S2RuleType.ASSERT_TRUE)
+                    .build();
+
+            // 1. ASSERT_TRUE: null (미체크 체크박스가 요청에 실리지 않은 경우) -> 검증 실패해야 함
+            Map<String, Object> map = new HashMap<>();
+            map.put("agree", null);
+            List<S2ValidationError> errors = new ArrayList<>();
+            boolean valid = agreeValidator.validate(map, errors::add);
+            record(!valid && errors.size() == 1
+                    && S2RuleType.ASSERT_TRUE.getErrorMessageKey().equals(errors.get(0).errorCode()),
+                    "ASSERT_TRUE: null(미체크) 시 검증 실패 및 ASSERT_TRUE 에러 감지");
+
+            // 2. ASSERT_TRUE: 빈 문자열 ("") -> 실패
+            map.put("agree", "");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(!valid && errors.size() == 1, "ASSERT_TRUE: 빈 문자열 시 검증 실패");
+
+            // 3. ASSERT_TRUE: Boolean.FALSE 및 문자열 "false" -> 실패
+            map.put("agree", Boolean.FALSE);
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            boolean falseOk = !valid;
+            map.put("agree", "false");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(falseOk && !valid, "ASSERT_TRUE: Boolean.FALSE 및 'false' 문자열 시 검증 실패");
+
+            // 4. ASSERT_TRUE: Boolean.TRUE -> 성공
+            map.put("agree", Boolean.TRUE);
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(valid && errors.isEmpty(), "ASSERT_TRUE: Boolean.TRUE 시 검증 통과");
+
+            // 5. ASSERT_TRUE: 문자열 "true", "TRUE" (Map 바인딩 케이스) -> 성공
+            map.put("agree", "true");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            boolean strTrueOk = valid && errors.isEmpty();
+            map.put("agree", "TRUE");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(strTrueOk && valid && errors.isEmpty(), "ASSERT_TRUE: 'true' / 'TRUE' 문자열(Map 바인딩) 시 검증 통과");
+
+            // 6. ASSERT_TRUE: 문자열 "on", "ON" (HTML 체크박스 기본 전송값) -> 성공
+            map.put("agree", "on");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            boolean onOk = valid && errors.isEmpty();
+            map.put("agree", "ON");
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(onOk && valid && errors.isEmpty(), "ASSERT_TRUE: 'on' / 'ON' 문자열(HTML 기본값) 시 검증 통과");
+
+            // 7. ASSERT_TRUE: 단일 요소 배열 new String[]{"on"} -> 성공, 다중 요소 -> 실패
+            map.put("agree", new String[] { "on" });
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            boolean arrSingleOk = valid && errors.isEmpty();
+            map.put("agree", new String[] { "on", "true" });
+            errors.clear();
+            valid = agreeValidator.validate(map, errors::add);
+            record(arrSingleOk && !valid, "ASSERT_TRUE: 단일 요소 배열([on]) 성공 및 다중 요소 배열 실패");
+
+            // --- ASSERT_FALSE 테스트 ---
+            S2Validator<Map<String, Object>> optOutValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("optOut", "거부 여부")
+                    .rule(S2RuleType.ASSERT_FALSE)
+                    .build();
+
+            // 8. ASSERT_FALSE: null 및 빈 문자열 -> 성공
+            map.clear();
+            map.put("optOut", null);
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            boolean falseNullOk = valid && errors.isEmpty();
+            map.put("optOut", "");
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            record(falseNullOk && valid && errors.isEmpty(), "ASSERT_FALSE: null 및 빈 문자열 시 검증 통과");
+
+            // 9. ASSERT_FALSE: Boolean.FALSE, 문자열 "false", "off" -> 성공
+            map.put("optOut", Boolean.FALSE);
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            boolean bFalseOk = valid && errors.isEmpty();
+            map.put("optOut", "false");
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            boolean strFalseOk = valid && errors.isEmpty();
+            map.put("optOut", "off");
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            record(bFalseOk && strFalseOk && valid && errors.isEmpty(), "ASSERT_FALSE: Boolean.FALSE, 'false', 'off' 시 검증 통과");
+
+            // 10. ASSERT_FALSE: Boolean.TRUE, 문자열 "true", "on" -> 실패
+            map.put("optOut", Boolean.TRUE);
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            boolean failTrueB = !valid;
+            map.put("optOut", "true");
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            boolean failTrueStr = !valid;
+            map.put("optOut", "on");
+            errors.clear();
+            valid = optOutValidator.validate(map, errors::add);
+            record(failTrueB && failTrueStr && !valid, "ASSERT_FALSE: Boolean.TRUE, 'true', 'on' 시 검증 실패");
+
+        } catch (Exception e) {
+            logger.error("  [FAIL] ASSERT_TRUE / ASSERT_FALSE 검증 테스트 중 예외 발생: ", e);
+            record(false, "ASSERT_TRUE / ASSERT_FALSE 검증 테스트 기술 오류");
         }
     }
 

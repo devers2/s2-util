@@ -894,7 +894,7 @@ const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName 
 const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   // ASSERT_TRUE, ASSERT_FALSE는 null이나 빈 값이어도 검증을 수행해야 함 (체크 안 된 상태를 잡아야 하므로)
   if (
-    (value === null || value === '') &&
+    (value === null || value === '' || value === undefined) &&
     rule.type !== 'ASSERT_TRUE' &&
     rule.type !== 'ASSERT_FALSE'
   ) {
@@ -912,7 +912,7 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   }
 
   // 배열인 경우 (체크박스 그룹 등) 첫 번째 값을 기준으로 판단
-  const firstValue = Array.isArray(value) ? value[0] : value;
+  const firstValue = Array.isArray(value) ? (value.length > 0 ? value[0] : null) : value;
 
   switch (rule.type) {
     case 'REQUIRED':
@@ -925,15 +925,20 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       return value !== null && value !== undefined;
     case 'ASSERT_TRUE':
       // 체크박스는 'on' 또는 'true' (문자열/불리언) 일 때 통과
-      return firstValue === true || firstValue === 'true' || firstValue === 'on';
+      if (firstValue === true) return true;
+      if (typeof firstValue === 'string') {
+        const trimmed = firstValue.trim().toLowerCase();
+        return trimmed === 'true' || trimmed === 'on';
+      }
+      return false;
     case 'ASSERT_FALSE':
-      // 체크박스가 체크되지 않았거나 (null/undefined), 명시적 false일 때 통과
-      return (
-        firstValue === false ||
-        firstValue === 'false' ||
-        firstValue === null ||
-        firstValue === undefined
-      );
+      // 체크박스가 체크되지 않았거나 (null/undefined/빈문자열), 명시적 false/off일 때 통과
+      if (firstValue === false || firstValue === null || firstValue === undefined) return true;
+      if (typeof firstValue === 'string') {
+        const trimmed = firstValue.trim().toLowerCase();
+        return trimmed === '' || trimmed === 'false' || trimmed === 'off';
+      }
+      return false;
     case 'LENGTH':
       return String(value).length === parseInt(rule.value);
     case 'MIN_LENGTH':

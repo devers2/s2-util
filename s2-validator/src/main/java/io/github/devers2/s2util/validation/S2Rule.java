@@ -25,6 +25,7 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.Year;
 import java.time.temporal.Temporal;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -244,14 +245,18 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
+        } else if (ruleType == S2RuleType.ASSERT_TRUE) {
+            return isTrue(value);
+        } else if (ruleType == S2RuleType.ASSERT_FALSE) {
+            return isFalse(value);
         } else if (S2Util.isEmpty(value)) {
             // 필수 입력 체크가 아닐 때 값이 없으면 무조건 유효(true)하다.
             return true;
         }
 
         return switch (ruleType) {
-            case ASSERT_TRUE -> value instanceof Boolean b && b;
-            case ASSERT_FALSE -> value instanceof Boolean b && !b;
+            case ASSERT_TRUE -> isTrue(value);
+            case ASSERT_FALSE -> isFalse(value);
             case LENGTH -> {
                 var targetValue = String.valueOf(value);
                 var length = Integer.parseInt(String.valueOf(checkValue));
@@ -613,6 +618,86 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      */
     public String getErrorMessageKey() {
         return errorMessageKey;
+    }
+
+    /**
+     * Determines whether the given value represents a boolean {@code true}.
+     * <p>
+     * Supports {@link Boolean#TRUE}, case-insensitive strings {@code "true"} and {@code "on"}
+     * (commonly sent by HTML checkboxes), and single-element arrays or collections containing such values.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 주어진 값이 boolean {@code true}를 나타내는지 확인합니다.
+     * {@link Boolean#TRUE}, 대소문자 구분 없는 문자열 {@code "true"} 및 {@code "on"} (HTML 체크박스 전송 값),
+     * 그리고 해당 값을 포함하는 단일 요소 배열이나 컬렉션을 지원합니다.
+     *
+     * @param value The value to check | 검사할 값
+     * @return {@code true} if the value represents true | true를 나타내면 true
+     */
+    private static boolean isTrue(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        if (value instanceof String str) {
+            String trimmed = str.trim();
+            return "true".equalsIgnoreCase(trimmed) || "on".equalsIgnoreCase(trimmed);
+        }
+        if (value instanceof Object[] arr) {
+            return arr.length == 1 && isTrue(arr[0]);
+        }
+        if (value instanceof Collection<?> col) {
+            return col.size() == 1 && isTrue(col.iterator().next());
+        }
+        if (value instanceof boolean[] arr) {
+            return arr.length == 1 && arr[0];
+        }
+        return false;
+    }
+
+    /**
+     * Determines whether the given value represents a boolean {@code false}.
+     * <p>
+     * Supports {@code null}, empty string, {@link Boolean#FALSE}, case-insensitive strings
+     * {@code "false"} and {@code "off"}, and empty or single-element arrays/collections containing such values.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 주어진 값이 boolean {@code false}를 나타내는지 확인합니다.
+     * {@code null}, 빈 문자열, {@link Boolean#FALSE}, 대소문자 구분 없는 문자열 {@code "false"} 및 {@code "off"},
+     * 그리고 비어 있거나 해당 값을 포함하는 단일 요소 배열/컬렉션을 지원합니다.
+     *
+     * @param value The value to check | 검사할 값
+     * @return {@code true} if the value represents false | false를 나타내면 true
+     */
+    private static boolean isFalse(Object value) {
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof Boolean b) {
+            return !b;
+        }
+        if (value instanceof String str) {
+            String trimmed = str.trim();
+            return trimmed.isEmpty() || "false".equalsIgnoreCase(trimmed) || "off".equalsIgnoreCase(trimmed);
+        }
+        if (value instanceof Object[] arr) {
+            return arr.length == 0 || (arr.length == 1 && isFalse(arr[0]));
+        }
+        if (value instanceof Collection<?> col) {
+            return col.isEmpty() || (col.size() == 1 && isFalse(col.iterator().next()));
+        }
+        if (value instanceof boolean[] arr) {
+            return arr.length == 0 || (arr.length == 1 && !arr[0]);
+        }
+        return false;
     }
 
 }
