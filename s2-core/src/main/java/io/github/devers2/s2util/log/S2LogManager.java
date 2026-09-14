@@ -47,8 +47,6 @@ import java.util.concurrent.ConcurrentMap;
  * <li><b>Adapter Pattern:</b> Decouples the library from specific logging implementations.</li>
  * <li><b>Hot Reloading:</b> Supports changing the logging engine at runtime via
  * {@link #setLoggerFactory(S2LoggerFactory)} without losing existing logger references.</li>
- * <li><b>Self-Diagnostic:</b> Includes an auto-warning system that alerts developers
- * if no external logging adapter is configured within the first 5 seconds.</li>
  * </ul>
  *
  * @author devers2
@@ -94,51 +92,13 @@ public class S2LogManager {
         }
     }
 
-    static {
-        /**
-         * [🚀 실시간 경고 시스템]
-         * 사용자가 로거를 명시적으로 호출하지 않더라도, 이 라이브러리가 로드된 시점으로부터
-         * 약 5초 뒤에 어댑터 설정 여부를 자동으로 체크하여 경고 배너를 출력한다.
-         *
-         * 5초의 지연은 Spring Boot 등 프레임워크가 가동되면서 사용자가 setLoggerFactory()를
-         * 호출할 시간을 충분히 확보하기 위함이다.
-         *
-         * 1회성 데몬 스레드를 사용하므로 임무 완료 후 즉시 소멸하며 시스템 성능에 영향을 주지 않는다.
-         *
-         * ⚠️ 단, SLF4J가 감지된 경우에는 경고를 표시하지 않습니다.
-         */
-        var autoWarningTrigger = new Thread(() -> {
-            try {
-                // 애플리케이션 초기 부트스트랩 시간을 고려하여 대기 (5초)
-                Thread.sleep(5000);
-
-                // 5초 후에도 여전히 기본 팩토리이고, SLF4J도 아니라면 설정 누락으로 간주하고 배너 출력
-                if (factory instanceof DefaultS2LoggerFactory) {
-                    DefaultS2Logger.printWarningBannerOnce();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }, "S2-Logger-AutoWarning-Trigger");
-
-        autoWarningTrigger.setDaemon(true);
-        autoWarningTrigger.start();
-    }
-
-    /**
-     * Forces class loading of the manager to trigger the static initialization block.
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 클래스 로딩을 강제하여 정적 초기화 블록(static block)의 실행을 유도합니다.
-     */
-    public static void touch() {
-        // 아무것도 하지 않으나 클래스 로드 및 static block 트리거 유도
-    }
 
     /**
      * Registers a custom log factory.
+     * <p>
+     * Immediately replaces the current logger factory and clears the logger cache,
+     * delegating all subsequent logging operations to the new factory.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
@@ -148,13 +108,59 @@ public class S2LogManager {
      * 등록 즉시 기존 로거 캐시가 초기화되며, 이후 모든 로깅 요청은 새로운 팩토리로 위임됩니다.
      * </p>
      *
-     * @param customFactory The custom {@link S2LoggerFactory} to use
+     * <h3>Usage Examples (사용 예시)</h3>
+     *
+     * <h4>1. Spring Boot Configuration Example</h4>
+     * <pre>{@code
+     * import org.springframework.context.annotation.Configuration;
+     * import jakarta.annotation.PostConstruct; // or javax.annotation.PostConstruct
+     * import io.github.devers2.s2util.log.S2LogManager;
+     * import io.github.devers2.s2util.log.S2Logger;
+     * import io.github.devers2.s2util.log.S2LoggerFactory;
+     *
+     * @Configuration
+     * public class S2LogConfig {
+     *
+     *     @PostConstruct
+     *     public void init() {
+     *         S2LogManager.setLoggerFactory(new S2LoggerFactory() {
+     *             @Override
+     *             public S2Logger getLogger(String name) {
+     *                 final org.slf4j.Logger slf4jLogger = org.slf4j.LoggerFactory.getLogger(name);
+     *                 return new S2Logger() {
+     *                     @Override
+     *                     public void log(String level, String message, Object[] args) {
+     *                         if ("DEBUG".equals(level)) slf4jLogger.debug(message, args);
+     *                         else if ("INFO".equals(level)) slf4jLogger.info(message, args);
+     *                         else if ("WARN".equals(level)) slf4jLogger.warn(message, args);
+     *                         else if ("ERROR".equals(level)) slf4jLogger.error(message, args);
+     *                     }
+     *
+     *                     @Override public boolean isDebugEnabled() { return slf4jLogger.isDebugEnabled(); }
+     *                     @Override public boolean isInfoEnabled()  { return slf4jLogger.isInfoEnabled(); }
+     *                     @Override public boolean isWarnEnabled()  { return slf4jLogger.isWarnEnabled(); }
+     *                     @Override public boolean isErrorEnabled() { return slf4jLogger.isErrorEnabled(); }
+     *                 };
+     *             }
+     *         });
+     *     }
+     * }
+     * }</pre>
+     *
+     * <h4>2. Pure Java Custom Logger Example</h4>
+     * <pre>{@code
+     * S2LogManager.setLoggerFactory(name -> new S2Logger() {
+     *     @Override
+     *     public void log(String level, String message, Object[] args) {
+     *         System.out.printf("[%s] [%s] %s%n", level, name, message);
+     *     }
+     * });
+     * }</pre>
+     *
+     * @param customFactory The custom {@link S2LoggerFactory} to use | 등록할 사용자 정의 로거 팩토리
      */
     public static void setLoggerFactory(S2LoggerFactory customFactory) {
         if (customFactory != null) {
-            // 커스텀 어댑터가 설정되었으므로 경고 배너 출력을 사전에 차단
-            DefaultS2Logger.markAdapterConfigured();
-
             // 먼저 교체
             factory = customFactory;
             // 기존 캐시 비우기

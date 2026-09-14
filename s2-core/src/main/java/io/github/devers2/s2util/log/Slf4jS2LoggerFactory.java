@@ -49,9 +49,6 @@ class Slf4jS2LoggerFactory implements S2LoggerFactory {
         // SLF4J LoggerFactory 클래스 로드
         this.loggerFactoryClass = Class.forName("org.slf4j.LoggerFactory");
         this.getLoggerMethod = loggerFactoryClass.getMethod("getLogger", String.class);
-
-        // 성공적으로 초기화된 경우 경고 배너 억제
-        DefaultS2Logger.markAdapterConfigured();
     }
 
     /**
