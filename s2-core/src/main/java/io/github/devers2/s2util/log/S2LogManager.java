@@ -101,11 +101,21 @@ public class S2LogManager {
      * </p>
      *
      * <p>
+     * <b>TIP:</b> If {@code org.slf4j:slf4j-api} is on the classpath, SLF4J is automatically
+     * detected and bound at startup without needing to call this method manually.
+     * </p>
+     *
+     * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 사용자 정의 로깅 팩토리를 등록합니다.
      * <p>
      * 등록 즉시 기존 로거 캐시가 초기화되며, 이후 모든 로깅 요청은 새로운 팩토리로 위임됩니다.
+     * </p>
+     *
+     * <p>
+     * <b>💡 팁:</b> 프로젝트 클래스패스에 {@code org.slf4j:slf4j-api} 의존성이 존재하면
+     * 기동 시 자동으로 감지되어 연결되므로, 이 메서드를 직접 호출하여 코드를 작성할 필요가 없습니다.
      * </p>
      *
      * <h3>Usage Examples (사용 예시)</h3>
