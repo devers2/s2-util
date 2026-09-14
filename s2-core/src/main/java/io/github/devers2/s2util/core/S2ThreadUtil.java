@@ -78,11 +78,12 @@ public class S2ThreadUtil {
     private static final ThreadFactory DEFAULT_FACTORY;
 
     /**
-     * System-wide common executor.
+     * System-wide common executor (lazily initialized on first access).
      * <p>
-     * 자원 낭비를 방지하기 위해 캐시 유지관리 및 비동기 작업에서 공유하여 사용합니다.
+     * 자원 낭비를 방지하기 위해 최초 접근 시점에 초기화되며,
+     * 캐시 유지관리 및 비동기 작업에서 공유하여 사용합니다.
      */
-    private static final ExecutorService COMMON_EXECUTOR;
+    private static volatile ExecutorService commonExecutor;
 
     /**
      * Explicit platform daemon thread factory.
@@ -124,11 +125,11 @@ public class S2ThreadUtil {
 
     static {
         /**
-         * 초기화 시점에 환경을 분석하고 기본 자원을 할당한다.
+         * 초기화 시점에 환경을 분석하고 팩토리와 가상 스레드 지원 여부만 확인한다.
+         * 공용 실행기(COMMON_EXECUTOR)는 최초 접근 시 지연 생성(Lazy Initialization)된다.
          */
-        ThreadFactory defaultFactory = null;
-        ThreadFactory platformFactory = null;
-        ExecutorService commonExecutor = null;
+        ThreadFactory defaultFactory;
+        ThreadFactory platformFactory;
         MethodHandle virtualExecutorMh = null;
 
         // 기본 플랫폼 데몬 팩토리 설정
@@ -153,79 +154,88 @@ public class S2ThreadUtil {
             virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor",
                     MethodType.methodType(ExecutorService.class));
 
-            // 가상 스레드 환경은 무제한 생성 실행기를 공용으로 사용함
-            commonExecutor = (ExecutorService) virtualExecutorMh.invokeExact();
-
-            // 가상 스레드 감지 및 주의사항을 안내함
-            if (S2Util.isKorean()) {
-                logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다.");
-                logger.info(
-                        "{}[CAUTION_SYNCHRONIZED]{} 가이드: 성능 저하 방지를 위해 {}synchronized{} 대신 {}java.util.concurrent.locks.ReentrantLock{} 사용을 권장합니다.",
-                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
-            } else {
-                logger.info(
-                        "[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads.");
-                logger.info(
-                        "{}[CAUTION_SYNCHRONIZED]{} Guide: To prevent performance degradation, consider using {}java.util.concurrent.locks.ReentrantLock{} instead of {}synchronized{}.",
-                        ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
-            }
-
         } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
             // Java 21 미만 환경 처리
             defaultFactory = platformFactory;
-            commonExecutor = new ThreadPoolExecutor(
-                    CORE_POOL_SIZE,
-                    MAX_POOL_SIZE,
-                    60L,
-                    TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<>(QUEUE_CAPACITY),
-                    platformFactory,
-                    new ThreadPoolExecutor.CallerRunsPolicy());
-
-            String javaVersion = System.getProperty("java.version");
-            if (S2Util.isKorean()) {
-                logger.info(
-                        "[PLATFORM_THREAD] 가상 스레드를 지원하지 않는 환경입니다. (Java Version: {})",
-                        javaVersion);
-                logger.info(
-                        "[PLATFORM_THREAD] 공용 실행기를 제한적인 플랫폼 스레드로 설정합니다. (Core: {}, Max: {}, Queue: {})",
-                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
-            } else {
-                logger.info(
-                        "[PLATFORM_THREAD] Virtual threads are not supported in this environment. (Java Version: {})",
-                        javaVersion);
-                logger.info(
-                        "[PLATFORM_THREAD] Setting common executor to limited platform threads. (Core: {}, Max: {}, Queue: {})",
-                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
-            }
         } catch (Throwable t) {
             defaultFactory = platformFactory;
-            commonExecutor = Executors.newCachedThreadPool(platformFactory);
             String javaVersion = System.getProperty("java.version");
             if (S2Util.isKorean()) {
                 logger.error(
-                        "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 기본 CachedThreadPool로 대체합니다.",
+                        "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 플랫폼 팩토리로 대체합니다.",
                         javaVersion, t);
             } else {
                 logger.error(
-                        "[INIT_ERROR] An unexpected initialization error occurred. (Java Version: {}) Falling back to basic CachedThreadPool.",
+                        "[INIT_ERROR] An unexpected initialization error occurred. (Java Version: {}) Falling back to platform factory.",
                         javaVersion, t);
             }
         }
 
         DEFAULT_FACTORY = defaultFactory;
         PLATFORM_FACTORY = platformFactory;
-        COMMON_EXECUTOR = commonExecutor;
         VIRTUAL_EXECUTOR_MH = virtualExecutorMh;
-
-        /*
-         * JVM 종료 지연 또는 방해, 리소스 누출, 비동기 작업 미완료 등의 문제를 방지하기 위해 시스템 종료 시 자동으로 호출되도록 등록한다.
-         */
-        Runtime.getRuntime().addShutdownHook(new Thread(S2ThreadUtil::shutdownCommonExecutor));
     }
 
     private S2ThreadUtil() {
         // Prevent instantiation
+    }
+
+    /**
+     * Creates the common executor based on the detected environment.
+     * Called once during lazy initialization of {@link #commonExecutor}.
+     */
+    private static ExecutorService createCommonExecutor() {
+        if (VIRTUAL_EXECUTOR_MH != null) {
+            try {
+                ExecutorService executor = (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
+                if (S2Util.isKorean()) {
+                    logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다.");
+                    logger.info(
+                            "{}[CAUTION_SYNCHRONIZED]{} 가이드: 성능 저하 방지를 위해 {}synchronized{} 대신 {}java.util.concurrent.locks.ReentrantLock{} 사용을 권장합니다.",
+                            ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                } else {
+                    logger.info(
+                            "[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads.");
+                    logger.info(
+                            "{}[CAUTION_SYNCHRONIZED]{} Guide: To prevent performance degradation, consider using {}java.util.concurrent.locks.ReentrantLock{} instead of {}synchronized{}.",
+                            ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                }
+                return executor;
+            } catch (Throwable t) {
+                if (S2Util.isKorean()) {
+                    logger.error("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.", t);
+                } else {
+                    logger.error("[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.", t);
+                }
+            }
+        }
+
+        // 플랫폼 스레드 풀 생성
+        String javaVersion = System.getProperty("java.version");
+        if (S2Util.isKorean()) {
+            logger.info(
+                    "[PLATFORM_THREAD] 가상 스레드를 지원하지 않는 환경입니다. (Java Version: {})",
+                    javaVersion);
+            logger.info(
+                    "[PLATFORM_THREAD] 공용 실행기를 제한적인 플랫폼 스레드로 설정합니다. (Core: {}, Max: {}, Queue: {})",
+                    CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
+        } else {
+            logger.info(
+                    "[PLATFORM_THREAD] Virtual threads are not supported in this environment. (Java Version: {})",
+                    javaVersion);
+            logger.info(
+                    "[PLATFORM_THREAD] Setting common executor to limited platform threads. (Core: {}, Max: {}, Queue: {})",
+                    CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
+        }
+
+        return new ThreadPoolExecutor(
+                CORE_POOL_SIZE,
+                MAX_POOL_SIZE,
+                60L,
+                TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(QUEUE_CAPACITY),
+                PLATFORM_FACTORY,
+                new ThreadPoolExecutor.CallerRunsPolicy());
     }
 
     /**
@@ -243,17 +253,37 @@ public class S2ThreadUtil {
     }
 
     /**
-     * Returns the system-wide common executor.
+     * Returns the system-wide common executor (lazily initialized on first access).
+     * <p>
+     * The executor is created only when this method is first called, avoiding unnecessary
+     * thread pool creation during class loading. This is beneficial for short-lived applications,
+     * CLI tools, and test environments where the executor may never be needed.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 시스템 전반에서 공유하여 사용하는 공용 실행기를 반환합니다.
+     * <p>
+     * 최초 호출 시점에 지연 생성(Lazy Initialization)되므로, 클래스 로딩 시
+     * 불필요한 스레드 풀이 미리 생성되는 것을 방지합니다.
+     * </p>
      *
      * @return Virtual or sized Platform Executor service | 가상 혹은 제한된 크기의 플랫폼 실행기
      */
     public static ExecutorService getCommonExecutor() {
-        return COMMON_EXECUTOR;
+        ExecutorService executor = commonExecutor;
+        if (executor == null) {
+            synchronized (S2ThreadUtil.class) {
+                executor = commonExecutor;
+                if (executor == null) {
+                    executor = createCommonExecutor();
+                    commonExecutor = executor;
+                    Runtime.getRuntime().addShutdownHook(new Thread(S2ThreadUtil::shutdownCommonExecutor));
+                }
+            }
+        }
+        return executor;
     }
 
     /**
@@ -334,14 +364,15 @@ public class S2ThreadUtil {
      * 애플리케이션 종료 시 풀을 안전하게 종료합니다. (공용 실행기 전용)
      */
     public static void shutdownCommonExecutor() {
-        if (COMMON_EXECUTOR != null && !COMMON_EXECUTOR.isShutdown()) {
-            COMMON_EXECUTOR.shutdown();
+        ExecutorService executor = commonExecutor;
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
             try {
-                if (!COMMON_EXECUTOR.awaitTermination(60, TimeUnit.SECONDS)) {
-                    COMMON_EXECUTOR.shutdownNow();
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                COMMON_EXECUTOR.shutdownNow();
+                executor.shutdownNow();
                 Thread.currentThread().interrupt();
             }
             if (S2Util.isKorean()) {
