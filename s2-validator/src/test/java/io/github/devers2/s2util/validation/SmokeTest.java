@@ -153,6 +153,9 @@ public class SmokeTest {
         // 20. 와일드카드 필드 조건부(.when/.and) 검증 테스트
         testS2ValidatorWildcardConditional();
 
+        // 21. 와일드카드 필드 간 행 단위 교차 필드 검증 테스트 (ref=start 및 ref=items[].start)
+        testS2ValidatorWildcardCrossField();
+
         logger.info("================================================================================");
         logger.info("[요약] 테스트 결과 보고서");
         logger.info("--------------------------------------------------------------------------------");
@@ -1637,6 +1640,84 @@ public class SmokeTest {
         } catch (Exception e) {
             logger.error("  [FAIL] 와일드카드 조건부 테스트 중 예외 발생: ", e);
             record(false, "와일드카드 조건부 검증 테스트 기술 오류");
+        }
+    }
+
+    /**
+     * 와일드카드(items[].field) 필드 간 행 단위 날짜/동등 비교 테스트.
+     * ref="start" (상대 표기)와 ref="items[].start" (와일드카드 표기) 모두
+     * 같은 행(items[0])의 필드를 정확히 참조하여 검증되는지 확인한다.
+     */
+    private void testS2ValidatorWildcardCrossField() {
+        logger.info(">>> 21. 와일드카드 필드 간 행 단위 교차 비교 테스트 (DATE_AFTER / EQUALS_FIELD)");
+
+        try {
+            // items[0]: start=20260110, end=20260101 (종료일이 시작일보다 이전 -> 거부되어야 함)
+            // items[1]: start=20260101, end=20260110 (정상)
+            Map<String, Object> target = new HashMap<>();
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            Map<String, Object> item0 = new HashMap<>();
+            item0.put("start", "20260110");
+            item0.put("end", "20260101");
+            item0.put("code", "ABC");
+            item0.put("confirmCode", "XYZ");
+
+            Map<String, Object> item1 = new HashMap<>();
+            item1.put("start", "20260101");
+            item1.put("end", "20260110");
+            item1.put("code", "ABC");
+            item1.put("confirmCode", "ABC");
+
+            items.add(item0);
+            items.add(item1);
+            target.put("items", items);
+
+            // 1. 상대 경로 표기 (ref = "start", ref = "code")
+            S2Validator<Map<String, Object>> relativeValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "start")
+                    .field("items[].confirmCode", "코드 확인").rule(S2RuleType.EQUALS_FIELD, "code")
+                    .build();
+
+            List<S2ValidationError> relativeErrors = new ArrayList<>();
+            boolean relativeValid = relativeValidator.validate(target, relativeErrors::add);
+
+            boolean relativeOk = !relativeValid
+                    && relativeErrors.size() == 2
+                    && relativeErrors.stream().anyMatch(e -> "items[0].end".equals(e.fieldName()))
+                    && relativeErrors.stream().anyMatch(e -> "items[0].confirmCode".equals(e.fieldName()));
+            record(relativeOk, "와일드카드 상대 경로 표기(ref=start, ref=code) 행 단위 교차 검증");
+
+            // 2. 와일드카드 경로 표기 (ref = "items[].start", ref = "items[].code")
+            S2Validator<Map<String, Object>> wildcardPathValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "items[].start")
+                    .field("items[].confirmCode", "코드 확인").rule(S2RuleType.EQUALS_FIELD, "items[].code")
+                    .build();
+
+            List<S2ValidationError> wildcardPathErrors = new ArrayList<>();
+            boolean wildcardPathValid = wildcardPathValidator.validate(target, wildcardPathErrors::add);
+
+            boolean wildcardPathOk = !wildcardPathValid
+                    && wildcardPathErrors.size() == 2
+                    && wildcardPathErrors.stream().anyMatch(e -> "items[0].end".equals(e.fieldName()))
+                    && wildcardPathErrors.stream().anyMatch(e -> "items[0].confirmCode".equals(e.fieldName()));
+            record(wildcardPathOk, "와일드카드 전체 경로 표기(ref=items[].start, ref=items[].code) 행 단위 교차 검증");
+
+            // 3. 루트 레벨 필드 참조 (ref = "globalStart")
+            target.put("globalStart", "20260115"); // item0.end(20260101) < globalStart, item1.end(20260110) < globalStart -> 둘 다 실패
+            S2Validator<Map<String, Object>> rootRefValidator = S2Validator.<Map<String, Object>>builder()
+                    .field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "globalStart")
+                    .build();
+
+            List<S2ValidationError> rootRefErrors = new ArrayList<>();
+            boolean rootRefValid = rootRefValidator.validate(target, rootRefErrors::add);
+
+            boolean rootRefOk = !rootRefValid && rootRefErrors.size() == 2;
+            record(rootRefOk, "와일드카드 아이템에서 루트 레벨 필드(ref=globalStart) 교차 검증");
+
+        } catch (Exception e) {
+            logger.error("  [FAIL] 와일드카드 교차 검증 테스트 중 예외 발생: ", e);
+            record(false, "와일드카드 교차 검증 테스트 기술 오류");
         }
     }
 

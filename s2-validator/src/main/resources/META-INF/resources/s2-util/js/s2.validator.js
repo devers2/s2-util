@@ -64,7 +64,7 @@
  * </form>
  */
 export const initS2Validator = () => {
-  if (isS2ValidatorInitialized) return;
+  if (typeof document === 'undefined' || isS2ValidatorInitialized) return;
 
   // 네이티브 제약(required, pattern, type="email" 등)이 하나라도 걸려 있으면, 브라우저가 submit
   // 이벤트 자체를 발생시키지 않고(스펙상 "제약 조건 대화형 검증" 단계에서 자체 차단) 자체 기본
@@ -785,6 +785,87 @@ const getFieldValue = (elements) => {
 };
 
 /**
+ * Resolves the target field value from formData for cross-field comparison rules
+ * (DATE_AFTER, DATE_BEFORE, EQUALS_FIELD).
+ * <p>
+ * Supports:
+ * 1. Relative field names within the same array item (e.g., targetKey="start" for field="items[0].end")
+ * 2. Wildcard array paths (e.g., targetKey="items[].start" -> resolved to "items[0].start")
+ * 3. Exact indexed paths (e.g., targetKey="items[0].start")
+ * 4. Nested object prefix paths (e.g., prefix="user." + targetKey="password")
+ * 5. Fallback to root-level form fields
+ * </p>
+ *
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 교차 필드 검증 규칙(DATE_AFTER, DATE_BEFORE, EQUALS_FIELD)을 위해 formData에서 기준 필드 값을 조회합니다.
+ * 같은 행 내부의 상대 필드명("start"), 와일드카드 표기("items[].start"), 중첩 객체 접두사 및 루트 필드를 모두 지원합니다.
+ *
+ * @function getTargetFieldValue
+ * @param {string} targetKey - The target field name or wildcard path | 기준 필드명 또는 와일드카드 경로
+ * @param {Object} formData - Form data map | 전체 폼 데이터 맵
+ * @param {string} prefix - Current path prefix | 현재 경로 접두사
+ * @param {string} currentFieldName - Full name of the field currently being validated | 현재 검증 중인 필드의 전체 이름
+ * @returns {any} Target field value, or undefined if not found | 기준 필드 값 (없으면 undefined)
+ */
+const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName = '') => {
+  if (!targetKey || !formData) return undefined;
+
+  const keyStr = String(targetKey);
+
+  // 1. 현재 필드가 컬렉션/배열 인덱스를 포함하는지 확인 (예: "items[0].end" -> itemPrefix: "items[0].", currentIndex: "0")
+  let itemPrefix = '';
+  let currentIndex = null;
+  if (currentFieldName) {
+    const match = currentFieldName.match(/^(.*\[(\d+)\])(?:\.|$)/);
+    if (match) {
+      itemPrefix = match[1] + '.';
+      currentIndex = match[2];
+    }
+  }
+
+  // 2. targetKey가 "[]" 와일드카드를 포함하는 경우 (예: "items[].start")
+  if (keyStr.includes('[]')) {
+    if (currentIndex !== null) {
+      // "items[].start" -> "items[0].start"로 치환
+      const resolvedWithIndex = keyStr.replace('[]', `[${currentIndex}]`);
+      if (Object.prototype.hasOwnProperty.call(formData, resolvedWithIndex)) {
+        return formData[resolvedWithIndex];
+      }
+      if (prefix && Object.prototype.hasOwnProperty.call(formData, prefix + resolvedWithIndex)) {
+        return formData[prefix + resolvedWithIndex];
+      }
+    }
+    // 동일 컬렉션 내 상대 경로로 변환 (예: "items[].start" -> "start" -> "items[0].start")
+    const bracketIndex = keyStr.indexOf('[]');
+    let suffix = keyStr.substring(bracketIndex + 2);
+    if (suffix.startsWith('.')) suffix = suffix.substring(1);
+    if (itemPrefix && Object.prototype.hasOwnProperty.call(formData, itemPrefix + suffix)) {
+      return formData[itemPrefix + suffix];
+    }
+  }
+
+  // 3. 현재 아이템 접두사가 있는 경우 행 내부 상대 경로로 우선 탐색 (예: targetKey="start" -> "items[0].start")
+  if (itemPrefix && Object.prototype.hasOwnProperty.call(formData, itemPrefix + keyStr)) {
+    return formData[itemPrefix + keyStr];
+  }
+
+  // 4. 일반 prefix 조합 탐색 (예: 중첩 객체 "address." + "zip")
+  if (prefix && Object.prototype.hasOwnProperty.call(formData, prefix + keyStr)) {
+    return formData[prefix + keyStr];
+  }
+
+  // 5. 루트 레벨 필드 직접 탐색
+  if (Object.prototype.hasOwnProperty.call(formData, keyStr)) {
+    return formData[keyStr];
+  }
+
+  // 6. 폴백
+  return formData[prefix + keyStr] ?? formData[keyStr];
+};
+
+/**
  * Validates an individual check.
  * <p>
  * Executes validation logic based on rule type. Supports numeric comparison,
@@ -889,26 +970,26 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     case 'DATE':
       return validateDate(value); // 문자열/날짜 객체 지원
     case 'DATE_AFTER': {
-      const afterValue = formData[prefix + rule.value];
-      if (!afterValue) return true;
+      const afterRaw = getTargetFieldValue(rule.value, formData, prefix, fieldName);
+      if (!afterRaw) return true;
       const date1 = parseDate(value);
-      const date2 = parseDate(afterValue);
+      const date2 = parseDate(Array.isArray(afterRaw) ? afterRaw[0] : afterRaw);
       return date1 && date2 && date1 >= date2;
     }
     case 'DATE_BEFORE': {
-      const beforeValue = formData[prefix + rule.value];
-      if (!beforeValue) return true;
+      const beforeRaw = getTargetFieldValue(rule.value, formData, prefix, fieldName);
+      if (!beforeRaw) return true;
       const date3 = parseDate(value);
-      const date4 = parseDate(beforeValue);
+      const date4 = parseDate(Array.isArray(beforeRaw) ? beforeRaw[0] : beforeRaw);
       return date3 && date4 && date3 <= date4;
     }
     case 'EQUALS_FIELD': {
-      const eqValue = formData[prefix + rule.value];
+      const eqValue = getTargetFieldValue(rule.value, formData, prefix, fieldName);
       return (
         value === eqValue ||
         (Array.isArray(value) &&
           Array.isArray(eqValue) &&
-          value.sort().join(',') === eqValue.sort().join(','))
+          value.slice().sort().join(',') === eqValue.slice().sort().join(','))
       );
     }
     default:
