@@ -1111,8 +1111,9 @@ public class S2Validator<T> implements Serializable {
 
                         if (rule.isInvalid(fieldValue, target)) {
                             isAllValid = false;
-                            var args = S2Util.isNotEmpty(rule.getCheckValue())
-                                    ? new Object[] { fieldLabel, rule.getCheckValue() }
+                            Object criterion = resolveTargetLabel(rule.getCheckValue(), rule.getRuleType());
+                            var args = S2Util.isNotEmpty(criterion)
+                                    ? new Object[] { fieldLabel, criterion }
                                     : new Object[] { fieldLabel };
                             if (!reportError(
                                     errorHandler, new S2ValidationError(
@@ -1215,8 +1216,9 @@ public class S2Validator<T> implements Serializable {
 
                     if (rule.isInvalid(fieldValue, item, target)) {
                         isValid = false;
-                        var args = S2Util.isNotEmpty(rule.getCheckValue())
-                                ? new Object[] { fieldLabel, rule.getCheckValue() }
+                        Object criterion = resolveTargetLabel(rule.getCheckValue(), rule.getRuleType());
+                        var args = S2Util.isNotEmpty(criterion)
+                                ? new Object[] { fieldLabel, criterion }
                                 : new Object[] { fieldLabel };
                         reportError(
                                 errorHandler, new S2ValidationError(
@@ -1246,6 +1248,23 @@ public class S2Validator<T> implements Serializable {
             }
 
             return isValid;
+        }
+
+        private Object resolveTargetLabel(Object checkValue, S2RuleType ruleType) {
+            if (checkValue == null) {
+                return null;
+            }
+            if (ruleType == S2RuleType.EQUALS_FIELD
+                    || ruleType == S2RuleType.DATE_AFTER
+                    || ruleType == S2RuleType.DATE_BEFORE) {
+                String keyStr = String.valueOf(checkValue);
+                for (var f : config.fields) {
+                    if (f != null && keyStr.equals(String.valueOf(f.getName()))) {
+                        return f.getLabel();
+                    }
+                }
+            }
+            return checkValue;
         }
     }
 

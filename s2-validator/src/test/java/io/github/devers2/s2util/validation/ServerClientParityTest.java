@@ -171,16 +171,21 @@ public class ServerClientParityTest {
                 // ── MIN_VALUE ────────────────────────────────────────────
                 Arguments.of("MIN_VALUE: 10 >= 5 → 성공", S2RuleType.MIN_VALUE, 5, 10, true),
                 Arguments.of("MIN_VALUE: 3 < 5 → 실패", S2RuleType.MIN_VALUE, 5, 3, false),
+                Arguments.of("MIN_VALUE: 폼 문자열 숫자 '25' >= 19 → 성공", S2RuleType.MIN_VALUE, 19, "25", true),
+                Arguments.of("MIN_VALUE: 문자열 기준값 '19' vs 25 → 성공", S2RuleType.MIN_VALUE, "19", 25, true),
                 Arguments.of("MIN_VALUE: 빈값 → 성공(skip)", S2RuleType.MIN_VALUE, 5, null, true),
 
                 // ── MAX_VALUE ────────────────────────────────────────────
                 Arguments.of("MAX_VALUE: 3 <= 5 → 성공", S2RuleType.MAX_VALUE, 5, 3, true),
                 Arguments.of("MAX_VALUE: 10 > 5 → 실패", S2RuleType.MAX_VALUE, 5, 10, false),
+                Arguments.of("MAX_VALUE: 폼 문자열 숫자 '15' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, "15", true),
                 Arguments.of("MAX_VALUE: 빈값 → 성공(skip)", S2RuleType.MAX_VALUE, 5, null, true),
 
                 // ── REGEX ────────────────────────────────────────────────
                 Arguments.of("REGEX: 숫자 패턴 매칭 → 성공", S2RuleType.REGEX, "^[0-9]+$", "12345", true),
                 Arguments.of("REGEX: 문자 포함 → 실패", S2RuleType.REGEX, "^[0-9]+$", "12a45", false),
+                Arguments.of("REGEX: 앵커 없는 정규식 전체일치 parity(\\d+) → abc123 실패", S2RuleType.REGEX, "\\d+", "abc123", false),
+                Arguments.of("REGEX: 앵커 없는 정규식 전체일치 parity(\\d+) → 12345 성공", S2RuleType.REGEX, "\\d+", "12345", true),
                 Arguments.of("REGEX: 빈값 → 성공(skip)", S2RuleType.REGEX, "^[0-9]+$", null, true),
 
                 // ── NUMBER ───────────────────────────────────────────────

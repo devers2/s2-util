@@ -967,8 +967,22 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     case 'PASSWORD_ANSWR':
     case 'BIZRNO':
     case 'NWINO': {
-      const regex = rule.regex || rule.value; // REGEX는 value, 나머지 regex
-      return new RegExp(regex).test(String(value));
+      const rawRegex = rule.regex || rule.value; // REGEX는 value, 나머지 regex
+      if (!rawRegex) return false;
+      try {
+        let pattern = String(rawRegex);
+        // REGEX 타입의 경우 Java의 matcher.matches()와 동일하게 전체 일치(full match)를 보장
+        if (rule.type === 'REGEX' && !pattern.startsWith('^') && !pattern.endsWith('$')) {
+          pattern = `^(?:${pattern})$`;
+        }
+        return new RegExp(pattern).test(String(value));
+      } catch (e) {
+        console.error(
+          `[S2Validator] 정규식 패턴 평가 중 오류가 발생했습니다: "${rawRegex}" (필드: "${fieldName}")`,
+          e
+        );
+        return false;
+      }
     }
     case 'JUMIN':
       return validateJumin(String(value)); // 서버 로직 복제

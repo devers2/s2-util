@@ -283,17 +283,18 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield targetValue.getBytes().length <= maxByte;
             }
             case MIN_VALUE -> {
-                // Number로 비교해 value/checkValue의 박싱 타입이 달라도(Integer 규칙 vs Long 필드 등)
-                // 정상 비교되도록 함 | Compares via Number so differing boxed types (e.g. an Integer
-                // rule against a Long field) still compare correctly instead of always failing
-                if (value instanceof Number targetValue && checkValue instanceof Number minValue) {
-                    yield targetValue.doubleValue() >= minValue.doubleValue();
+                Double numVal = toDouble(value);
+                Double numCheck = toDouble(checkValue);
+                if (numVal != null && numCheck != null) {
+                    yield numVal >= numCheck;
                 }
                 yield false;
             }
             case MAX_VALUE -> {
-                if (value instanceof Number targetValue && checkValue instanceof Number maxValue) {
-                    yield targetValue.doubleValue() <= maxValue.doubleValue();
+                Double numVal = toDouble(value);
+                Double numCheck = toDouble(checkValue);
+                if (numVal != null && numCheck != null) {
+                    yield numVal <= numCheck;
                 }
                 yield false;
             }
@@ -698,6 +699,26 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             return arr.length == 0 || (arr.length == 1 && !arr[0]);
         }
         return false;
+    }
+
+    /**
+     * Converts a value or criterion to {@link Double}, supporting both {@link Number} and numeric {@link String}.
+     *
+     * @param obj Value to convert | 변환할 값
+     * @return Double value, or {@code null} if unparseable | Double 값 또는 변환 실패 시 null
+     */
+    private static Double toDouble(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.parseDouble(obj.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
 }

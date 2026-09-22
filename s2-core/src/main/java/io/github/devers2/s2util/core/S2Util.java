@@ -343,16 +343,21 @@ public class S2Util {
                 final Object finalTarget = currentTarget;
 
                 // 2. Map 처리: S2Cache에 사전 정의된 MAP_GET_KEY를 사용하여 하이패스(getFastHandle)를 태운다.
-                if (finalTarget instanceof Map) {
-                    value = S2Cache.getMethodHandle(
-                            MethodHandleResolver.MAP_GET_KEY,
-                            LookupType.METHOD).map(h -> {
-                                try {
-                                    return h.invoke(finalTarget, fieldName);
-                                } catch (Throwable t) {
-                                    return null;
-                                }
-                            }).orElse(null);
+                if (finalTarget instanceof Map<?, ?> mapTarget) {
+                    if (mapTarget.containsKey(fieldName)) {
+                        value = mapTarget.get(fieldName);
+                    } else {
+                        // Integer, Enum 등 비문자열 키 매핑 대응
+                        Object found = null;
+                        for (Map.Entry<?, ?> entry : mapTarget.entrySet()) {
+                            Object k = entry.getKey();
+                            if (k != null && fieldName.equals(String.valueOf(k))) {
+                                found = entry.getValue();
+                                break;
+                            }
+                        }
+                        value = found;
+                    }
                 }
                 // 3. List Index 처리: List 인터페이스의 get 메서드를 resolve 하여 하이패스를 유도
                 // fieldName이 Number이거나, 숫자형 문자열인 경우 처리

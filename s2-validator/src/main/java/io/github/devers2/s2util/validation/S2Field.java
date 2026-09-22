@@ -117,7 +117,7 @@ public class S2Field<T> implements Serializable {
         }
         this.validator = validator;
         this.name = name;
-        this.label = label != null && !label.isBlank() ? label : (String) name;
+        this.label = label != null && !label.isBlank() ? label : String.valueOf(name);
     }
 
     /**
@@ -431,7 +431,26 @@ public class S2Field<T> implements Serializable {
      * @return Error message | 에러 메시지
      */
     public String getErrorMessage(S2Rule rule, Locale locale) {
-        return getErrorMessage(rule.getErrorMessageTemplate(locale), rule.getCheckValue(), locale);
+        Object criterion = rule.getCheckValue();
+        if (rule.getRuleType() == S2RuleType.EQUALS_FIELD
+                || rule.getRuleType() == S2RuleType.DATE_AFTER
+                || rule.getRuleType() == S2RuleType.DATE_BEFORE) {
+            criterion = resolveTargetFieldLabel(criterion);
+        }
+        return getErrorMessage(rule.getErrorMessageTemplate(locale), criterion, locale);
+    }
+
+    private Object resolveTargetFieldLabel(Object targetFieldKey) {
+        if (targetFieldKey == null || validator == null) {
+            return targetFieldKey;
+        }
+        String keyStr = String.valueOf(targetFieldKey);
+        for (S2Field<?> f : validator.getFields()) {
+            if (keyStr.equals(String.valueOf(f.getName()))) {
+                return f.getLabel();
+            }
+        }
+        return targetFieldKey;
     }
 
     /**
