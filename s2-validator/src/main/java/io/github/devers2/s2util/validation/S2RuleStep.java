@@ -92,6 +92,11 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      */
     S2RuleStep<T> message(Locale locale, String message);
 
+    @Override
+    default S2RuleStep<T> includeEmpty() {
+        throw new IllegalStateException("includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.");
+    }
+
     // =================================================================
     // Mode-Specific Rule Steps
     // =================================================================
@@ -121,6 +126,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         ValidateRuleStep<T> en(String message);
 
         ValidateRuleStep<T> message(Locale locale, String message);
+
+        @Override
+        ValidateRuleStep<T> includeEmpty();
     }
 
     /**
@@ -148,6 +156,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         BuilderRuleStep<T> en(String message);
 
         BuilderRuleStep<T> message(Locale locale, String message);
+
+        @Override
+        BuilderRuleStep<T> includeEmpty();
     }
 
     /**
@@ -193,6 +204,13 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         <V> SimpleCheckRuleStep<T> rule(java.util.function.Predicate<V> logic);
 
         /**
+         * Configures the custom lambda rule to be executed even when the field value is null or empty.
+         *
+         * @return Current step instance | 현재 단계 인스턴스
+         */
+        SimpleCheckRuleStep<T> includeEmpty();
+
+        /**
          * Executes validation immediately.
          *
          * @return {@code true} if valid | 유효한 경우 true
@@ -224,6 +242,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         LabeledCheckRuleStep<T> en(String message);
 
         LabeledCheckRuleStep<T> message(Locale locale, String message);
+
+        @Override
+        LabeledCheckRuleStep<T> includeEmpty();
 
         @Override
         LabeledCheckRuleStep<T> rule(S2RuleType type);

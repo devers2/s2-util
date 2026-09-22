@@ -58,15 +58,46 @@ schema.validate(userC);
 
 ---
 
-### 1-3. Pattern C: Registry Mode
+### 1-3. Pattern C: Spring Standard Alignment (Recommended)
 
-**Usage:** `S2ValidatorFactory.getOrRegister()`
+**Usage:** `S2BindValidator.of(validator)`
 
-**Purpose:** Global singleton caching with lazy initialization.
+**Purpose:** Seamless integration with Spring's `BindingResult` using direct validator instances. Bypasses the global registry, eliminating key collisions, memory leaks, and test isolation issues.
 
 ```java
-// Register validator globally (executed only once)
+@Controller
+@RequestMapping("/member")
+public class MemberController {
 
+    // Define validator instance as a static constant or Spring bean (Recommended)
+    private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>builder()
+        .field("email", "Email").rule(S2RuleType.REQUIRED).rule(S2RuleType.EMAIL)
+        .field("password", "Password").rule(S2RuleType.MIN_LENGTH, 8)
+        .build();
+
+    @PostMapping("/join")
+    public String join(@ModelAttribute UserDTO user, BindingResult result) {
+        // Direct instance path bypassing global registry (Recommended)
+        S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+
+        if (result.hasErrors()) {
+            return "member/join";
+        }
+        return "redirect:/success";
+    }
+}
+```
+
+---
+
+### 1-4. Pattern D: Registry Mode (Optional Global Cache)
+
+**Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+**Purpose:** String key-based global caching for legacy compatibility or lazy-initialized singletons.
+
+```java
+// Register validator globally (logs WARN if key is re-registered with different supplier)
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
     "USER_REGISTRATION",  // Unique key
     () -> S2Validator.<UserDTO>builder()
@@ -75,30 +106,15 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
         .build()
 );
 
-// Retrieved from cache on subsequent calls
-
-S2Validator<UserDTO> sameValidator =
-    S2ValidatorFactory.getOrRegister("USER_REGISTRATION", () -> ...);
-// Returns cached instance, lambda is not executed
+// S2BindValidator with string key
+S2BindValidator.context("USER_REGISTRATION", this::userRules).validate(user, result);
 ```
 
-**Benefits:**
-
-- ✅ Lazy initialization
-- ✅ Global caching
-- ✅ Zero overhead on cache hits
-- ✅ Thread-safe singleton pattern
-
----
-
-### 1-4. Pattern D: Spring Standard Alignment
-
-**Usage:** `S2BindValidator.context()`
-
-**Purpose:** Seamless integration with Spring's `BindingResult`.
+> [!TIP]
+> Validator build overhead is under 500ns per request. For modern Spring applications, we strongly recommend `S2BindValidator.of(validator)` over global string registries. For test isolation, use `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
 
 ```java
-// Controller with automatic Spring integration
+// Controller with automatic Spring integration using context()
 
 @PostMapping("/join")
 public String join(
@@ -229,8 +245,11 @@ Inject Lambda for complex business rules.
     .message("Only adults can sign up.")
 
 // Multi-field validation (BiPredicate)
+// Note: Custom lambdas skip execution on null/empty values by default.
+// If the field is mandatory, always chain with REQUIRED.
 
 .field("confirmPassword", "Confirm Password")
+    .rule(S2RuleType.REQUIRED)
     .rule((val, target) -> {
         String password = S2Util.getValue(target, "password");
         return password.equals(val);
@@ -245,7 +264,22 @@ Inject Lambda for complex business rules.
         return startDate.compareTo((String)val) <= 0;
     })
     .message("End date must be after start date.")
+
+// If the custom lambda MUST evaluate even when value is null/empty (.includeEmpty())
+// e.g., "Either primary or secondary contact is required"
+.field("secondaryContact", "Secondary Contact")
+    .rule((val, target) -> {
+        return val != null || S2Util.isNotEmpty(S2Util.getValue(target, "primaryContact"));
+    }).includeEmpty()
+    .message("Either primary or secondary contact is required.")
 ```
+
+> [!NOTE]
+> **Custom Lambda Empty-Value (Short-Circuit) Policy:**
+> Aligned with Bean Validation and YAVI conventions, custom lambda rules skip evaluation when the field value is `null` or empty (`S2Util.isEmpty(value)`), treating it as valid. This prevents accidental `NullPointerException`s on optional fields.
+> - If a field is required, chain `.rule(S2RuleType.REQUIRED)`.
+> - If the lambda itself needs to inspect empty/null values, specify `.includeEmpty()`.
+> - Uncaught runtime exceptions inside lambdas are wrapped in `S2RuntimeException` with field path context and the original exception as cause.
 
 > [!WARNING]
 > Custom Lambda rules are **not** synchronized to JavaScript automatically. Use built-in `S2RuleType` for full client-server synchronization.

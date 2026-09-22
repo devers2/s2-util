@@ -150,6 +150,7 @@ public final class S2BindValidator {
      *                 .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
      *             .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
      *             .field("confirmPw", "비밀번호 확인")
+     *                 .rule(S2RuleType.REQUIRED)
      *                 .rule((value, target) ->
      *                     S2Util.getValue(target, "userPw", "").equals(value)
      *                 ).ko("비밀번호가 일치하지 않습니다.")
@@ -252,6 +253,33 @@ public final class S2BindValidator {
      */
     public static <T> BoundContext<T> context(String contextKey, Supplier<S2Validator<T>> validatorSupplier) {
         S2Validator<T> validator = S2ValidatorFactory.getOrRegister(contextKey, validatorSupplier);
+        return new BoundContext<>(validator);
+    }
+
+    /**
+     * Binds a validator instance directly without using the global registry.
+     * <p>
+     * Use this method when validators are managed as Spring beans, static constants,
+     * or built per-request, avoiding shared global cache risks.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 전역 캐시(등록부)를 거치지 않고 지정한 검증기 인스턴스를 직접 Spring 환경에 바인딩합니다.
+     * <p>
+     * 검증기를 Spring 빈이나 static 상수로 관리하거나 요청별로 동적 생성할 때 사용하며,
+     * 전역 캐시의 의도치 않은 규칙 공유 위험을 방지합니다.
+     * </p>
+     *
+     * @param <T>       The DTO or Domain model type | DTO 또는 도메인 모델 타입
+     * @param validator The validator instance to bind | 바인딩할 검증기 인스턴스
+     * @return A {@link BoundContext} for fluent execution | 유연한 실행을 위한 BoundContext 객체
+     */
+    public static <T> BoundContext<T> of(S2Validator<T> validator) {
+        if (validator == null) {
+            throw new IllegalArgumentException("validator cannot be null");
+        }
         return new BoundContext<>(validator);
     }
 

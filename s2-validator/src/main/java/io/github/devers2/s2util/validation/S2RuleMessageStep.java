@@ -111,4 +111,18 @@ public interface S2RuleMessageStep {
     default S2RuleMessageStep en(String template) {
         return message(Locale.ENGLISH, template);
     }
+
+    /**
+     * Configures the custom lambda rule to be executed even when the field value is null or empty.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 값이 null이거나 빈 값인 경우에도 커스텀 람다 검증을 생략하지 않고 실행하도록 설정합니다.
+     *
+     * @return This step object for chaining | 체이닝을 위한 현재 객체
+     */
+    default S2RuleMessageStep includeEmpty() {
+        throw new IllegalStateException("includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.");
+    }
 }

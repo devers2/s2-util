@@ -67,8 +67,11 @@ public final class S2ValidatorFactory {
 
     private static final S2Logger logger = S2LogManager.getLogger(S2ValidatorFactory.class);
 
+    private record CacheEntry(S2Validator<?> validator, Class<?> supplierClass) {}
+
     /** 검증 컨텍스트별 빌더 저장소 */
-    private static final Map<String, S2Validator<?>> validatorCache = new ConcurrentHashMap<>();
+    private static final Map<String, CacheEntry> validatorCache = new ConcurrentHashMap<>();
+    private static final java.util.Set<String> warnedKeys = ConcurrentHashMap.newKeySet();
 
     private S2ValidatorFactory() {
         // Prevent instantiation
@@ -119,6 +122,7 @@ public final class S2ValidatorFactory {
      *          .field("email", "이메일").rule(S2RuleType.EMAIL)
      *          .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
      *          .field("confirmPw", "비밀번호 확인")
+     *          .rule(S2RuleType.REQUIRED)
      *          .rule(
      *          (value, target) -> S2Util.getValue(target, "password", "").equals(value)
      *          ).ko("비밀번호가 일치하지 않습니다.")
@@ -166,8 +170,30 @@ public final class S2ValidatorFactory {
      */
     @SuppressWarnings("unchecked")
     public static <T> S2Validator<T> getOrRegister(String contextKey, Supplier<S2Validator<T>> validatorSupplier) {
-        // computeIfAbsent를 사용하여 캐시에 없으면 supplier.get()(빌더 build)을 실행하여 저장
-        return (S2Validator<T>) validatorCache.computeIfAbsent(contextKey, k -> validatorSupplier.get());
+        CacheEntry entry = validatorCache.get(contextKey);
+        if (entry != null) {
+            if (validatorSupplier != null && entry.supplierClass() != null
+                    && entry.supplierClass() != validatorSupplier.getClass()) {
+                if (warnedKeys.add(contextKey)) {
+                    if (S2Util.isKorean()) {
+                        logger.warn(
+                                "검증 컨텍스트 키 충돌이 감지되었습니다 ('{}'). 기존 공급자: {}, 신규 공급자: {}. 최초 등록된 검증기가 재사용됩니다.",
+                                contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
+                    } else {
+                        logger.warn(
+                                "Validation context key collision detected for '{}'. Existing supplier: {}, New supplier: {}. Initial validator will be reused.",
+                                contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
+                    }
+                }
+            }
+            return (S2Validator<T>) entry.validator();
+        }
+
+        return (S2Validator<T>) validatorCache.computeIfAbsent(contextKey, k -> {
+            S2Validator<T> validator = validatorSupplier.get();
+            Class<?> supplierClass = validatorSupplier != null ? validatorSupplier.getClass() : null;
+            return new CacheEntry(validator, supplierClass);
+        }).validator();
     }
 
     /**
@@ -182,7 +208,27 @@ public final class S2ValidatorFactory {
      * @return The registered S2Validator instance (or null if not found) | 등록된 S2Validator 인스턴스 (없으면 null)
      */
     public static S2Validator<?> getValidator(String key) {
-        return validatorCache.get(key);
+        CacheEntry entry = validatorCache.get(key);
+        return entry != null ? entry.validator() : null;
+    }
+
+    /**
+     * Clears all cached validators and warnings.
+     * <p>
+     * Intended for testing purposes to isolate validation configurations between test cases.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 캐시된 모든 검증기 및 경고 기록을 초기화합니다.
+     * <p>
+     * 테스트 케이스 간 검증기 상태를 격리하기 위한 목적으로 사용됩니다.
+     * </p>
+     */
+    public static void clear() {
+        validatorCache.clear();
+        warnedKeys.clear();
     }
 
     /**
@@ -239,7 +285,7 @@ public final class S2ValidatorFactory {
      * }</pre>
      */
     public static String getRulesJson(String contextKey, Locale locale) {
-        S2Validator<?> validator = validatorCache.get(contextKey);
+        S2Validator<?> validator = getValidator(contextKey);
         return getRulesJson(validator, locale);
     }
 

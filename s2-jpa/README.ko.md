@@ -61,7 +61,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-jpa:1.1.8'
+    implementation 'io.github.devers2:s2-jpa:1.2.0'
 }
 ```
 
@@ -71,7 +71,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-jpa</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -224,7 +224,7 @@ String clause = String.format("AND m.name = %s", userName);  // SQL 인젝션!
 
 ---
 
-s2-jpa Version: 1.1.8 (2026-09-11)
+s2-jpa Version: 1.2.0 (2026-09-22)
 
 [//]: # 'S2_DEPS_INFO_START'
 

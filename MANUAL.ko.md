@@ -60,7 +60,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.1.8'
+    implementation 'io.github.devers2:s2-util:1.2.0'
 }
 ```
 
@@ -70,7 +70,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -91,13 +91,13 @@ dependencies {
 ```groovy
 dependencies {
     // 1. 검증 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-validator:1.1.8'
+    implementation 'io.github.devers2:s2-validator:1.2.0'
 
     // 2. 동적 JPQL 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-jpa:1.1.8'
+    implementation 'io.github.devers2:s2-jpa:1.2.0'
 
     // 3. 코어 유틸리티 및 객체 복사 기능만 필요한 경우 (가장 경량)
-    implementation 'io.github.devers2:s2-core:1.1.8'
+    implementation 'io.github.devers2:s2-core:1.2.0'
 }
 ```
 
@@ -202,11 +202,34 @@ schema.validate(userA);
 schema.validate(userB);
 ```
 
-### C. 중앙 캐싱 관리 패턴 (Registry Mode)
+### C. 스프링 표준 통합 패턴 (권장)
 
-**사용법:** `S2ValidatorFactory.getOrRegister()`
+**사용법:** `S2BindValidator.of(validator)`
 
-전역 싱글톤 캐싱을 지원하여, 검증기 생성 로직이 최초 1회만 실행되므로 성능이 극대화됩니다.
+스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다. 전역 등록부를 거치지 않고 검증기 인스턴스를 직접 전달하므로 키 충돌이나 메모리 누수 위험이 없고 테스트 격리가 완벽합니다.
+
+```java
+// Controller 내 static final 또는 Spring Bean으로 선언 (권장)
+private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>builder()
+    .field("name", "이름").rule(S2RuleType.REQUIRED)
+    .build();
+
+@PostMapping("/join")
+public String join(@ModelAttribute UserDTO user, BindingResult result) {
+    S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+
+    if (result.hasErrors()) {
+        return "joinForm"; // 스프링 표준 폼 오류 처리 흐름
+    }
+    return "redirect:/success";
+}
+```
+
+### D. 중앙 캐싱 관리 패턴 (선택 사항)
+
+**사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+전역 싱글톤 캐시가 필요한 경우 사용합니다. 동일 키에 대해 서로 다른 공급자 클래스가 등록을 시도하면 경고(WARN) 로그가 출력되며, 테스트 격리가 필요한 경우 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`로 초기화할 수 있습니다.
 
 ```java
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->
@@ -214,24 +237,6 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
         .field("name", "이름").rule(S2RuleType.REQUIRED)
         .build()
 );
-```
-
-### D. 스프링 표준 통합 패턴 (Spring Standard Alignment)
-
-**사용법:** `S2BindValidator.context()`
-
-스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다.
-
-```java
-@PostMapping("/join")
-public String join(@ModelAttribute UserDTO user, BindingResult result) {
-    S2BindValidator.context("JOIN_CTX", this::joinRules).validate(user, result);
-
-    if (result.hasErrors()) {
-        return "joinForm"; // 스프링 표준 폼 오류 처리 흐름
-    }
-    return "redirect:/success";
-}
 ```
 
 ### E. 독립 조건 검증 패턴 (Field-less Condition Check Mode)
@@ -596,4 +601,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 1.1.8 (2026-09-11)
+s2-util Version: 1.2.0 (2026-09-22)
