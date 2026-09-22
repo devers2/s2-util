@@ -67,6 +67,19 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
 
 ---
 
-## 5. 인코딩 절대 원칙: UTF-8 NoBOM
+## 5. Java 버전 호환성 원칙 (Java 17 Baseline & Java 21+ Dynamic Feature)
+
+1. **기본 호환성 (Java 17 Baseline)**:
+   - 모든 기본 소스코드는 Java 17 바이트코드 타깃(`--release 17`) 호환을 기준으로 작성해야 합니다.
+   - Java 21+ 전용 문법이나 신규 API(예: `Thread.ofVirtual()`, `Thread.startVirtualThread()`, Sequenced Collections `getFirst()` 등)를 소스에 직접 하드코딩해서는 안 됩니다.
+2. **Java 21+ 기능 사용 원칙 (가상 스레드 독점 예외)**:
+   - 가상 스레드(Virtual Thread)는 `s2-core`의 `S2ThreadUtil`에서만 유일하게 Java 21+ 동적 기능으로 지원합니다.
+   - Java 21+ 신규 기능을 활용할 때는 반드시 `S2ThreadUtil`과 같이 **MethodHandle/리플렉션을 통한 런타임 동적 감지** 방식을 취해야 합니다.
+   - 실행 환경이 Java 17인 경우를 대비하여 **안전한 대체 로직(Fallback: 플랫폼 스레드 풀 등)**을 필수적으로 함께 제공해야 합니다.
+
+---
+
+## 6. 인코딩 절대 원칙: UTF-8 NoBOM
 
 - 저장소의 모든 소스 파일, 설정 파일, 마크다운 문서는 순수 UTF-8 NoBOM(Byte Order Mark 없음)이어야 합니다.
+
