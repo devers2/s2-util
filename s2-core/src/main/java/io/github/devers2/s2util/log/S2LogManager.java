@@ -178,6 +178,24 @@ public class S2LogManager {
         }
     }
 
+    /**
+     * Backward-compatible initialization trigger.
+     * <p>
+     * Calling this method ensures the {@link S2LogManager} class is loaded and initialized.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 하위 호환성을 위한 초기화 트리거 메서드입니다.
+     * <p>
+     * 이 메서드를 호출하여 {@link S2LogManager} 클래스 로딩 및 초기화를 강제할 수 있습니다.
+     * </p>
+     */
+    public static void touch() {
+        // No-op to trigger classloading
+    }
+
     public static <T> S2Logger getLogger(Class<T> clazz) {
         var name = clazz == null ? "unknown" : clazz.getName();
         return getLogger(name);
