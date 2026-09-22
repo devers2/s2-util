@@ -81,7 +81,7 @@ import io.github.devers2.buildsupport.S2BuildUtils
  * 새 버전 번호와 실행 당일의 릴리즈 날짜(YYYY-MM-DD)로 함께 자동 갱신됩니다.
  */
 group = "io.github.devers2"
-version = "1.1.8"
+version = "1.2.0"
 
 repositories {
     mavenCentral()

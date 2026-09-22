@@ -60,7 +60,7 @@ Add a single dependency to access all modules (`s2-core`, `s2-validator`, and `s
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.1.8'
+    implementation 'io.github.devers2:s2-util:1.2.0'
 }
 ```
 
@@ -70,7 +70,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -91,13 +91,13 @@ For minimal footprint, declare only the specific sub-modules your application re
 ```groovy
 dependencies {
     // 1. Validation only
-    implementation 'io.github.devers2:s2-validator:1.1.8'
+    implementation 'io.github.devers2:s2-validator:1.2.0'
 
     // 2. JPA dynamic queries only
-    implementation 'io.github.devers2:s2-jpa:1.1.8'
+    implementation 'io.github.devers2:s2-jpa:1.2.0'
 
     // 3. Core utilities & copier only (lightest)
-    implementation 'io.github.devers2:s2-core:1.1.8'
+    implementation 'io.github.devers2:s2-core:1.2.0'
 }
 ```
 
@@ -202,11 +202,34 @@ schema.validate(userA);
 schema.validate(userB);
 ```
 
-### C. Pattern: Registry Mode
+### C. Pattern: Spring Standard Alignment (Recommended)
 
-**Usage:** `S2ValidatorFactory.getOrRegister()`
+**Usage:** `S2BindValidator.of(validator)`
 
-Provides global thread-safe caching. The construction logic executes only once.
+Seamlessly integrates with Spring MVC and automatically populates `BindingResult`. By passing the validator instance directly, it completely avoids global registry key collisions, memory growth, and test isolation concerns.
+
+```java
+// Recommended: Define as a static constant or Spring Bean in controller
+private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>builder()
+    .field("name").rule(S2RuleType.REQUIRED)
+    .build();
+
+@PostMapping("/join")
+public String join(@ModelAttribute UserDTO user, BindingResult result) {
+    S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+
+    if (result.hasErrors()) {
+        return "joinForm"; // Native Spring MVC error handling
+    }
+    return "redirect:/success";
+}
+```
+
+### D. Pattern: Registry Mode (Optional Global Cache)
+
+**Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+Provides global thread-safe caching. The construction logic executes only once. Supplier class collisions on the same key trigger a `WARN` log, and tests can reset state via `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
 
 ```java
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->
@@ -214,24 +237,6 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
         .field("name").rule(S2RuleType.REQUIRED)
         .build()
 );
-```
-
-### D. Pattern: Spring Standard Alignment
-
-**Usage:** `S2BindValidator.context()`
-
-Seamlessly integrates with Spring MVC and automatically populates `BindingResult`.
-
-```java
-@PostMapping("/join")
-public String join(@ModelAttribute UserDTO user, BindingResult result) {
-    S2BindValidator.context("JOIN_CTX", this::joinRules).validate(user, result);
-
-    if (result.hasErrors()) {
-        return "joinForm"; // Native Spring MVC error handling
-    }
-    return "redirect:/success";
-}
 ```
 
 ### E. Pattern: Field-less Condition Check Mode
@@ -598,4 +603,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 1.1.8 (2026-09-11)
+s2-util Version: 1.2.0 (2026-09-22)

@@ -31,6 +31,7 @@ import java.util.function.Predicate;
 
 import io.github.devers2.s2util.core.S2StringUtil;
 import io.github.devers2.s2util.core.S2Util;
+import io.github.devers2.s2util.exception.S2RuntimeException;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 import io.github.devers2.s2util.message.S2ResourceBundle;
@@ -184,7 +185,8 @@ public class S2Field<T> implements Serializable {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public <V> S2Field<T> rule(BiPredicate<V, T> logic, String errorMessageKey) {
-        S2CustomRule<V, T> custom = new S2CustomRule<>(logic, errorMessageKey);
+        String fieldNameStr = this.name != null ? String.valueOf(this.name) : null;
+        S2CustomRule<V, T> custom = new S2CustomRule<>(logic, errorMessageKey, fieldNameStr);
         this.customRules.add(custom);
         this.currentRule = custom; // Update tracking pointer
         return this;
@@ -221,6 +223,25 @@ public class S2Field<T> implements Serializable {
             throw new IllegalStateException("Missing rule definition. Call rule() before setting a message.");
         }
         this.currentRule.storeMessage(lang, template);
+        return this;
+    }
+
+    /**
+     * Configures the current custom lambda rule to evaluate even when the field value is empty.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 직전 커스텀 람다 규칙이 빈 값(null, 빈 문자열, 빈 컬렉션 등)에 대해서도 생략되지 않고 실행되도록 설정합니다.
+     *
+     * @return Current field instance | 현재 필드 인스턴스
+     */
+    public S2Field<T> includeEmpty() {
+        if (this.currentRule instanceof S2CustomRule<?, ?> customRule) {
+            customRule.setIncludeEmpty(true);
+        } else {
+            throw new IllegalStateException("includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.");
+        }
         return this;
     }
 
@@ -543,6 +564,32 @@ public class S2Field<T> implements Serializable {
         private final Map<String, String> messageTemplates = new HashMap<>();
         /** 에러 메시지 프로퍼티 키 */
         private String errorMessageKey;
+        /** 검증 대상 필드 식별자 */
+        private String fieldName;
+        /** 빈 값(null/empty)인 경우에도 람다 검증을 실행할지 여부 */
+        private boolean includeEmpty = false;
+
+        public void setIncludeEmpty(boolean includeEmpty) {
+            this.includeEmpty = includeEmpty;
+        }
+
+        public boolean isIncludeEmpty() {
+            return includeEmpty;
+        }
+
+        public String getFieldName() {
+            return fieldName;
+        }
+
+        public void setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+        }
+
+        @Override
+        public S2RuleMessageStep includeEmpty() {
+            this.includeEmpty = true;
+            return this;
+        }
 
         /**
          * Custom check constructor.
@@ -555,7 +602,7 @@ public class S2Field<T> implements Serializable {
          * @param logic Validation logic | 검증 로직
          */
         public S2CustomRule(BiPredicate<V, T> logic) {
-            this.logic = logic;
+            this(logic, null, null);
         }
 
         /**
@@ -570,8 +617,25 @@ public class S2Field<T> implements Serializable {
          * @param errorMessageKey Error message property key | 에러 메시지 프로퍼티 키
          */
         public S2CustomRule(BiPredicate<V, T> logic, String errorMessageKey) {
+            this(logic, errorMessageKey, null);
+        }
+
+        /**
+         * Custom check constructor with message key and field name.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 커스텀 체크 생성자입니다.
+         *
+         * @param logic           Validation logic | 검증 로직
+         * @param errorMessageKey Error message property key | 에러 메시지 프로퍼티 키
+         * @param fieldName       Target field name | 검증 대상 필드명
+         */
+        public S2CustomRule(BiPredicate<V, T> logic, String errorMessageKey, String fieldName) {
             this.logic = logic;
             this.errorMessageKey = errorMessageKey;
+            this.fieldName = fieldName;
         }
 
         /**
@@ -615,7 +679,7 @@ public class S2Field<T> implements Serializable {
          */
         @SuppressWarnings("unchecked")
         public boolean isValid(Object value, Object target) {
-            if (S2Util.isEmpty(value)) {
+            if (!includeEmpty && S2Util.isEmpty(value)) {
                 return true;
             }
             try {
@@ -635,6 +699,14 @@ public class S2Field<T> implements Serializable {
                             target != null ? target.getClass().getName() : "null");
                 }
                 return false;
+            } catch (RuntimeException e) {
+                String fieldInfo = (fieldName != null && !fieldName.isBlank())
+                        ? " on field '" + fieldName + "'"
+                        : "";
+                String message = S2Util.isKorean()
+                        ? "커스텀 람다 검증 실행 중 예외가 발생했습니다" + (fieldInfo.isEmpty() ? "" : " (필드: '" + fieldName + "')") + ": " + e.getMessage()
+                        : "Custom validation logic threw an exception" + fieldInfo + ": " + e.getMessage();
+                throw new S2RuntimeException(message, e);
             }
         }
 

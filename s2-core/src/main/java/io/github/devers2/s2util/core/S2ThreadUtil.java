@@ -84,6 +84,7 @@ public class S2ThreadUtil {
      * 캐시 유지관리 및 비동기 작업에서 공유하여 사용합니다.
      */
     private static volatile ExecutorService commonExecutor;
+    private static volatile boolean shutdownHookRegistered = false;
 
     /**
      * Explicit platform daemon thread factory.
@@ -279,7 +280,10 @@ public class S2ThreadUtil {
                 if (executor == null) {
                     executor = createCommonExecutor();
                     commonExecutor = executor;
-                    Runtime.getRuntime().addShutdownHook(new Thread(S2ThreadUtil::shutdownCommonExecutor));
+                    if (!shutdownHookRegistered) {
+                        Runtime.getRuntime().addShutdownHook(new Thread(S2ThreadUtil::shutdownCommonExecutor));
+                        shutdownHookRegistered = true;
+                    }
                 }
             }
         }
@@ -374,6 +378,10 @@ public class S2ThreadUtil {
             } catch (InterruptedException e) {
                 executor.shutdownNow();
                 Thread.currentThread().interrupt();
+            } finally {
+                synchronized (S2ThreadUtil.class) {
+                    commonExecutor = null;
+                }
             }
             if (S2Util.isKorean()) {
                 logger.info("[COMMON EXECUTOR SHUTDOWN] 공용 실행기를 종료하였습니다.");

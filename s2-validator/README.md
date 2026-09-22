@@ -107,7 +107,7 @@ Add the following dependency to your `build.gradle` or `pom.xml`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:1.1.8'
+    implementation 'io.github.devers2:s2-validator:1.2.0'
 
     // (Optional) Required only when using Spring integration (S2BindValidator)
     implementation 'org.springframework:spring-context:6.2.19'
@@ -120,7 +120,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -267,10 +267,11 @@ S2Validator.of(form)
 // 2) Custom cross-validation with BiPredicate (value, target)
 S2Validator.of(form)
     .field("confirmPassword", "Confirm Password")
-    .rule((value, target) -> {
-        String password = S2Util.getValue(target, "password", "");
-        return password.equals(value);
-    }).en("{0} must match original password.")
+        .rule(S2RuleType.REQUIRED)
+        .rule((value, target) -> {
+            String password = S2Util.getValue(target, "password", "");
+            return password.equals(value);
+        }).en("{0} must match original password.")
     .validate(errors::add, Locale.ENGLISH);
 ```
 
@@ -396,6 +397,7 @@ public class MemberController {
             .field("userId", "User ID").rule(S2RuleType.REQUIRED)
             .field("userPw", "Password").rule(S2RuleType.MIN_LENGTH, 8)
             .field("confirmPw", "Confirm Password")
+                .rule(S2RuleType.REQUIRED)
                 .rule((value, target) -> S2Util.getValue(target, "userPw", "").equals(value))
                 .en("Passwords do not match.")
             .field("email", "Email").rule(S2RuleType.EMAIL)
@@ -631,7 +633,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 1.1.8 (2026-09-11)
+s2-validator Version: 1.2.0 (2026-09-22)
 
 [//]: # 'S2_DEPS_INFO_START'
 

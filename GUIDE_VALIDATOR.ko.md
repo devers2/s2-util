@@ -60,15 +60,46 @@ schema.validate(userC);
 
 ---
 
-### 1-3. 중앙 관리 패턴
+### 1-3. 스프링 표준 통합 패턴 (권장)
 
-**사용법:** `S2ValidatorFactory.getOrRegister()`
+**사용법:** `S2BindValidator.of(validator)`
 
-**용도:** 검증기를 전역에서 캐싱하여 성능 최적화 (지연 초기화 싱글톤).
+**용도:** 검증기 인스턴스를 직접 전달하여 스프링 표준 `BindingResult`와 통합합니다. 전역 등록부를 거치지 않아 키 충돌 및 메모리 누수 위험이 없고 테스트 격리가 완벽합니다.
 
 ```java
-// 전역 등록 (최초 1회만 실행)
+@Controller
+@RequestMapping("/member")
+public class MemberController {
 
+    // 정적 또는 빈(Bean)으로 검증기 인스턴스 구성 (권장)
+    private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>builder()
+        .field("email", "이메일").rule(S2RuleType.REQUIRED).rule(S2RuleType.EMAIL)
+        .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
+        .build();
+
+    @PostMapping("/join")
+    public String join(@ModelAttribute UserDTO user, BindingResult result) {
+        // 전역 캐시를 거치지 않는 공식 경로 (권장)
+        S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+
+        if (result.hasErrors()) {
+            return "member/join";
+        }
+        return "redirect:/success";
+    }
+}
+```
+
+---
+
+### 1-4. 중앙 캐싱 관리 패턴 (선택 사항)
+
+**사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+**용도:** 문자열 키 기반 전역 캐시가 필요한 레거시 연동 또는 지연 초기화 싱글톤.
+
+```java
+// 전역 등록 (키 충돌 시 WARN 로그 발생)
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
     "USER_REGISTRATION",  // Unique key
     () -> S2Validator.<UserDTO>builder()
@@ -77,42 +108,12 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
         .build()
 );
 
-// 이후 호출은 캐시된 검증기 반환
-
-S2Validator<UserDTO> sameValidator =
-    S2ValidatorFactory.getOrRegister("USER_REGISTRATION", () -> ...);
-// 캐시된 인스턴스 반환, 람다식 미실행
+// S2BindValidator 문자열 키 방식
+S2BindValidator.context("USER_REGISTRATION", this::userRules).validate(user, result);
 ```
 
-**Benefits:**
-
-- ✅ 지연 초기화 (필요한 시점에 생성)
-- ✅ 전역 캐싱 (애플리케이션 생명주기 동안 보존)
-- ✅ 캐시 히트 시 오버헤드 제로 (최고 속도)
-- ✅ 스레드 안전 싱글톤 패턴
-
----
-
-### 1-4. 스프링 표준 통합 패턴
-
-**사용법:** `S2BindValidator.context()`
-
-**용도:** 스프링 표준 `BindingResult`와 완벽한 통합.
-
-```java
-// 스프링 자동 통합
-
-@PostMapping("/join")
-public String join(
-        @ModelAttribute UserDTO user,
-        BindingResult result) {
-
-    // S2 검증 결과를 스프링 BindingResult로 자동 매핑
-
-    S2BindValidator.context("JOIN_RULES", this::joinRules)
-        .validate(user, result);
-
-    if (result.hasErrors()) {
+> [!TIP]
+> 검증기 빌드 비용은 요청당 약 500ns 미만으로 매우 가볍습니다. 따라서 일반적인 애플리케이션에서는 복잡한 전역 문자열 캐시 대신 `S2BindValidator.of(validator)` 직접 인스턴스 패턴을 사용하는 것을 권장합니다. 테스트 환경 격리를 위한 초기화는 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`를 사용합니다.
         return "joinForm";  // 스프링 표준 흐름
     }
 
@@ -231,8 +232,11 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
     .ko("성인만 가입 가능합니다.")
 
 // 다중 필드 검증 (BiPredicate)
+// 주의: 커스텀 람다는 기본적으로 빈 값(null/empty)일 때 실행을 건너뜁니다.
+// 필드가 필수여야 한다면 반드시 REQUIRED 규칙과 함께 체이닝해야 합니다.
 
 .field("confirmPassword", "비밀번호 확인")
+    .rule(S2RuleType.REQUIRED)
     .rule((val, target) -> {
         String password = S2Util.getValue(target, "password");
         return password.equals(val);
@@ -247,7 +251,23 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
         return startDate.compareTo((String)val) <= 0;
     })
     .ko("종료일은 시작일 이후여야 합니다.")
+
+// 빈 값(null/empty)인 경우에도 람다를 반드시 실행해야 하는 경우 (.includeEmpty())
+// 예: "이메일 또는 전화번호 중 하나는 필수"와 같은 상호 배타적 검증
+.field("secondaryContact", "보조 연락처")
+    .rule((val, target) -> {
+        // null 또는 빈 값도 람다로 전달되어 직접 조건 판단 가능
+        return val != null || S2Util.isNotEmpty(S2Util.getValue(target, "primaryContact"));
+    }).includeEmpty()
+    .ko("기본 연락처 또는 보조 연락처 중 하나는 필수입니다.")
 ```
+
+> [!NOTE]
+> **커스텀 람다의 빈 값 단락(Short-circuit) 정책:**
+> 표준 Bean Validation 및 YAVI와 동일하게, 커스텀 람다 규칙은 필드 값이 `null` 또는 비어 있을 때 기본적으로 실행되지 않고 통과합니다. 이는 `REQUIRED`가 없는 선택 입력 필드에서 불필요한 `NullPointerException`을 방지하기 위함입니다.
+> - 값이 반드시 있어야 한다면 `.rule(S2RuleType.REQUIRED)`를 함께 체이닝하세요.
+> - 빈 값 상태 자체를 람다 내부에서 직접 확인해야 하는 특수 규칙의 경우 `.includeEmpty()`를 선언하세요.
+> - 람다 내부에서 처리되지 않은 런타임 예외가 발생하면, 오류가 난 필드 경로 정보가 포함된 `S2RuntimeException`으로 감싸서 전달됩니다.
 
 > [!WARNING]
 > 람다 기반 커스텀 규칙은 클라이언트(JavaScript)로 자동 변환되지 않습니다. 클라이언트-서버 동기화가 필요하면 내장 `S2RuleType`을 사용하세요.

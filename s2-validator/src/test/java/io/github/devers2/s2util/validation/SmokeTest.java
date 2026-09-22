@@ -176,6 +176,9 @@ public class SmokeTest {
         logger.info("================================================================================");
         logger.info("[종료] S2Util & Validator 종합 테스트");
         logger.info("================================================================================");
+
+        org.junit.jupiter.api.Assertions.assertEquals(0, failCount,
+                () -> "종합 스모크 테스트 실패 (" + failCount + "건): " + failDetails);
     }
 
     /**

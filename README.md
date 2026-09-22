@@ -66,7 +66,7 @@ Add the following dependency to your `build.gradle` (Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.1.8'
+    implementation 'io.github.devers2:s2-util:1.2.0'
 }
 ```
 
@@ -76,7 +76,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 

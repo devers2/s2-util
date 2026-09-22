@@ -22,6 +22,7 @@ package io.github.devers2.s2util.validation;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +33,7 @@ import java.util.function.Predicate;
 
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.exception.S2RuntimeException;
+import io.github.devers2.s2util.message.S2ResourceBundle;
 import io.github.devers2.s2util.validation.S2Field.S2CustomRule;
 import com.google.errorprone.annotations.CheckReturnValue;
 
@@ -150,8 +152,6 @@ public class S2Validator<T> implements Serializable {
 
     /** List of field validation configurations */
     private final List<S2Field<T>> fields = new ArrayList<>();
-    /** Current user locale for the validation session */
-    private Locale currentLocale = defaultLocale;
     /** Whether to throw {@link S2RuntimeException} immediately on first failure */
     private boolean failFastWithException = true;
 
@@ -224,11 +224,12 @@ public class S2Validator<T> implements Serializable {
      *
      * S2Validator.of(passwordData)
      *     .field("confirmPw", "비밀번호 확인")
-     *     .rule((value, target) -> {
-     *         String password = S2Util.getValue(target, "password", "");
-     *         return password.equals(value);
-     *     })
-     *     .ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
+     *         .rule(S2RuleType.REQUIRED)
+     *         .rule((value, target) -> {
+     *             String password = S2Util.getValue(target, "password", "");
+     *             return password.equals(value);
+     *         })
+     *         .ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
      *     .validate();
      * }</pre>
      */
@@ -499,6 +500,14 @@ public class S2Validator<T> implements Serializable {
             return this;
         }
 
+        // --- includeEmpty ---
+        @Override
+        public S2ValueChain<T> includeEmpty() {
+            ensureField();
+            currentField.includeEmpty();
+            return this;
+        }
+
         // --- Terminal ---
         @Override
         public boolean validate() {
@@ -713,6 +722,14 @@ public class S2Validator<T> implements Serializable {
             return this;
         }
 
+        // --- includeEmpty ---
+        @Override
+        public S2RuleStep.ValidateRuleStep<T> includeEmpty() {
+            ensureField();
+            currentField.includeEmpty();
+            return this;
+        }
+
         @Override
         public S2FieldStep.ValidateFieldStep<T> field(Object name) {
             return field(name, null);
@@ -856,6 +873,14 @@ public class S2Validator<T> implements Serializable {
             return field(name, null);
         }
 
+        // --- includeEmpty ---
+        @Override
+        public S2RuleStep.BuilderRuleStep<T> includeEmpty() {
+            ensureField();
+            currentField.includeEmpty();
+            return this;
+        }
+
         // --- Terminal ---
         @Override
         public S2Validator<T> build() {
@@ -922,7 +947,7 @@ public class S2Validator<T> implements Serializable {
 
             try {
                 var isAllValid = true;
-                var currentLocale = locale != null ? locale : config.currentLocale;
+                var currentLocale = locale != null ? locale : getDefaultLocale();
 
                 // 1단계: [] 와일드카드가 포함된 필드들을 prefix별로 그룹화
                 Map<String, List<S2Field<?>>> wildcardGroups = new java.util.LinkedHashMap<>();
@@ -1438,8 +1463,31 @@ public class S2Validator<T> implements Serializable {
         S2Validator.defaultLocale = Locale.getDefault();
     }
 
+    /**
+     * Resets all global validation configurations and caches.
+     * <p>
+     * Clears default locale, validation bundle, resource bundle basename, and validator cache.
+     * Intended primarily for test teardown (e.g. {@code @AfterEach}).
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 모든 전역 검증 설정 및 캐시를 일괄 초기화합니다.
+     * <p>
+     * 기본 로케일, 검증 번들, 리소스 번들 기본 이름 및 검증기 캐시를 한 번에 초기화합니다.
+     * 주로 단위 테스트의 {@code @AfterEach} 정리 작업에 사용됩니다.
+     * </p>
+     */
+    public static void resetAll() {
+        resetDefaultLocale();
+        resetValidationBundle();
+        S2ResourceBundle.resetDefaultBasename();
+        S2ValidatorFactory.clear();
+    }
+
     public List<S2Field<T>> getFields() {
-        return fields;
+        return Collections.unmodifiableList(fields);
     }
 
     protected void startField(Object name, String label) {

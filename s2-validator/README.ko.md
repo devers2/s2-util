@@ -107,7 +107,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:1.1.8'
+    implementation 'io.github.devers2:s2-validator:1.2.0'
 
     // (선택사항) Spring 연동 기능(S2BindValidator) 사용 시에만 필요
     implementation 'org.springframework:spring-context:6.2.19'
@@ -120,7 +120,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>1.1.8</version>
+    <version>1.2.0</version>
 </dependency>
 ```
 
@@ -267,10 +267,11 @@ S2Validator.of(form)
 // 2) BiPredicate 람다 기반 커스텀 교차 검증 (value, target)
 S2Validator.of(form)
     .field("confirmPassword", "비밀번호 확인")
-    .rule((value, target) -> {
-        String password = S2Util.getValue(target, "password", "");
-        return password.equals(value);
-    }).ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
+        .rule(S2RuleType.REQUIRED)
+        .rule((value, target) -> {
+            String password = S2Util.getValue(target, "password", "");
+            return password.equals(value);
+        }).ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
     .validate(errors::add, Locale.KOREAN);
 ```
 
@@ -396,6 +397,7 @@ public class MemberController {
             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
             .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
             .field("confirmPw", "비밀번호 확인")
+                .rule(S2RuleType.REQUIRED)
                 .rule((value, target) -> S2Util.getValue(target, "userPw", "").equals(value))
                 .ko("비밀번호가 일치하지 않습니다.")
             .field("email", "이메일").rule(S2RuleType.EMAIL)
@@ -631,7 +633,7 @@ public class MemberController {
 
 ---
 
-s2-validator Version: 1.1.8 (2026-09-11)
+s2-validator Version: 1.2.0 (2026-09-22)
 
 [//]: # 'S2_DEPS_INFO_START'
 
