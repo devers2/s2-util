@@ -86,6 +86,8 @@ dependencies {
      */
     testImplementation(libs.spring6.context)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.graaljs.polyglot)
+    testImplementation(libs.graaljs.js)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
