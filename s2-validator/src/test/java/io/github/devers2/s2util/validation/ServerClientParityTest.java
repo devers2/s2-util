@@ -3,8 +3,12 @@ package io.github.devers2.s2util.validation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.graalvm.polyglot.Context;
@@ -359,16 +363,68 @@ public class ServerClientParityTest {
     }
 
     // ========================================================================================
+    // 전체 규칙 커버리지 검증 — 신규 룰 추가 시 테스트 누락 방지 및 알림
+    // ========================================================================================
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("S2RuleType의 모든 내장 규칙 타입이 테스트에 포함되어 있는지 검증 (신규 룰 누락 방지)")
+    void testAllRuleTypesHaveParityTests() {
+        Set<S2RuleType> testedRules = new HashSet<>();
+
+        // 1. 단일 필드 테스트 케이스에서 다룬 규칙 수집
+        testCases().forEach(args -> {
+            Object[] a = args.get();
+            if (a.length > 1 && a[1] instanceof S2RuleType type) {
+                testedRules.add(type);
+            }
+        });
+
+        // 2. 교차 필드 검증 규칙 추가 (testCrossFieldParity에서 다룸)
+        testedRules.add(S2RuleType.EQUALS_FIELD);
+        testedRules.add(S2RuleType.DATE_AFTER);
+        testedRules.add(S2RuleType.DATE_BEFORE);
+
+        // 3. 구조적(컨테이너) 규칙 제외 목록 (NESTED, EACH: 단일 값 검증이 아닌 하위 검증기 재귀 실행 규칙)
+        Set<S2RuleType> structuralRules = Set.of(S2RuleType.NESTED, S2RuleType.EACH);
+
+        // 4. S2RuleType의 모든 상수를 검사하여 테스트 누락된 규칙 탐지
+        List<S2RuleType> missingRules = Arrays.stream(S2RuleType.values())
+                .filter(type -> !structuralRules.contains(type))
+                .filter(type -> !testedRules.contains(type))
+                .toList();
+
+        Assertions.assertTrue(missingRules.isEmpty(),
+                "\n========================================================================\n"
+                        + "🚨 [신규 룰 누락 알림] 다음 규칙 타입에 대한 서버-클라이언트 일관성 테스트가 누락되었습니다:\n"
+                        + "   " + missingRules + "\n\n"
+                        + "👉 조치 방법:\n"
+                        + "   1. s2.validator.js의 validateCheck()에 신규 룰 검증 로직이 구현되어 있는지 확인하세요.\n"
+                        + "   2. ServerClientParityTest.testCases()에 신규 룰에 대한 (성공/실패/빈값) 테스트 데이터를 추가하세요.\n"
+                        + "========================================================================");
+    }
+
+    // ========================================================================================
     // JSON 구조 일관성 테스트 — getRulesJson이 JS가 기대하는 구조를 생성하는지
     // ========================================================================================
 
     @org.junit.jupiter.api.Test
-    @DisplayName("getRulesJson이 JS validateCheck가 기대하는 JSON 키를 모두 포함한다")
+    @DisplayName("getRulesJson이 JS validateCheck가 기대하는 JSON 키를 모두 포함한다 (NESTED/EACH 포함)")
     void testRulesJsonStructure() {
+        S2Validator<Map<String, Object>> addressValidator = S2Validator.<Map<String, Object>>builder()
+                .field("zip", "우편번호").rule(S2RuleType.REQUIRED).rule(S2RuleType.ZIP)
+                .field("city", "도시").rule(S2RuleType.REQUIRED)
+                .build();
+
+        S2Validator<Map<String, Object>> itemValidator = S2Validator.<Map<String, Object>>builder()
+                .field("name", "품명").rule(S2RuleType.REQUIRED)
+                .build();
+
         S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
                 .field("email", "이메일").rule(S2RuleType.REQUIRED).rule(S2RuleType.EMAIL)
                 .field("name", "이름").rule(S2RuleType.MIN_LENGTH, 2)
                 .field("age", "나이").rule(S2RuleType.MIN_VALUE, 0).rule(S2RuleType.MAX_VALUE, 200)
+                .field("address", "배송주소").rule(S2RuleType.NESTED, addressValidator)
+                .field("items", "주문항목").rule(S2RuleType.EACH, itemValidator)
                 .build();
 
         String json = S2ValidatorFactory.getRulesJson(validator, java.util.Locale.KOREAN);
@@ -378,7 +434,7 @@ public class ServerClientParityTest {
         Value rules = jsContext.eval("js", "__testRules");
 
         Assertions.assertTrue(rules.hasArrayElements(), "JSON은 배열이어야 함");
-        Assertions.assertEquals(3, rules.getArraySize(), "필드 3개");
+        Assertions.assertEquals(5, rules.getArraySize(), "필드 5개");
 
         // 첫 번째 필드(email)의 구조 확인
         Value emailField = rules.getArrayElement(0);
@@ -392,6 +448,22 @@ public class ServerClientParityTest {
         Assertions.assertTrue(firstRule.hasMember("type"), "type 키 필요");
         Assertions.assertTrue(firstRule.hasMember("message"), "message 키 필요");
         Assertions.assertEquals("REQUIRED", firstRule.getMember("type").asString());
+
+        // NESTED 필드의 nestedRules 확인
+        Value addressField = rules.getArrayElement(3);
+        Assertions.assertEquals("address", addressField.getMember("name").asString());
+        Value nestedRule = addressField.getMember("rules").getArrayElement(0);
+        Assertions.assertEquals("NESTED", nestedRule.getMember("type").asString());
+        Assertions.assertTrue(nestedRule.hasMember("nestedRules"), "NESTED는 nestedRules 필요");
+        Assertions.assertEquals(2, nestedRule.getMember("nestedRules").getArraySize());
+
+        // EACH 필드의 nestedRules 확인
+        Value itemsField = rules.getArrayElement(4);
+        Assertions.assertEquals("items", itemsField.getMember("name").asString());
+        Value eachRule = itemsField.getMember("rules").getArrayElement(0);
+        Assertions.assertEquals("EACH", eachRule.getMember("type").asString());
+        Assertions.assertTrue(eachRule.hasMember("nestedRules"), "EACH는 nestedRules 필요");
+        Assertions.assertEquals(1, eachRule.getMember("nestedRules").getArraySize());
     }
 
     // ========================================================================================
