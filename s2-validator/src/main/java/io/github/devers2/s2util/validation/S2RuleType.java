@@ -133,9 +133,9 @@ public enum S2RuleType {
     LOGIN_ID("valid.err.loginid", "{0} 형식이 올바르지 않습니다.", "Invalid Login ID format for {0}.",
             "^[a-zA-Z][a-zA-Z0-9._-]{4,19}$"), // 5~20자리
 
-    /** 비밀번호 형식 체크 ({0}: 필드설명) */
+    /** 비밀번호 형식 체크 ({0}: 필드설명) - 영문, 숫자, 특수문자 조합 8~64자리 */
     PASSWORD("valid.err.password", "{0} 형식이 올바르지 않습니다.", "Invalid password format for {0}.",
-            "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$"), // 9~32자리
+            "^(?=.*[0-9])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?~`])(?=.*[a-zA-Z]).{8,64}$"), // 8~64자리 (영문+숫자+특수문자 조합)
 
     /** 비밀번호 찾기 질문 답변 형식 체크 ({0}: 필드설명) */
     PASSWORD_ANSWR("valid.err.passwordanswr", "{0} 형식이 올바르지 않습니다.", "Invalid password answer format for {0}.",
