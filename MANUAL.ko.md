@@ -523,6 +523,8 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
       return;
   }
   ```
+- **히든 필드 자동 Fallback**:
+  `{fieldName}_error` 프록시가 존재하지 않고 대상 필드가 `type="hidden"` 또는 비표시 상태인 경우, S2Validator가 해당 히든 필드 바로 뒤에 1px 투명 앵커를 자동으로 임시 생성하여 브라우저 네이티브 툴팁이 해당 위치에 표시되도록 합니다 (폼 먹통 방지). 이 앵커는 다음 검증 시 또는 사용자 입력 시 자동으로 제거됩니다.
 
 ---
 
