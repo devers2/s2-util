@@ -133,7 +133,45 @@ public enum S2RuleType {
     LOGIN_ID("valid.err.loginid", "{0} 형식이 올바르지 않습니다.", "Invalid Login ID format for {0}.",
             "^[a-zA-Z][a-zA-Z0-9._-]{4,19}$"), // 5~20자리
 
-    /** 비밀번호 형식 체크 ({0}: 필드설명) - 영문, 숫자, 특수문자 조합 8~64자리 */
+    /**
+     * Password format validation ({0}: field label).
+     * <p>
+     * <b>Default Validation Rules:</b>
+     * <ul>
+     * <li><b>Length:</b> 8 to 64 characters</li>
+     * <li><b>Combination:</b> At least one letter, one digit, and one special character (3-type required)</li>
+     * <li><b>Allowed Special Characters:</b> All 32 printable ASCII special characters<br>
+     * ({@code ! @ # $ % ^ & * ( ) _ + - = [ ] { } ; ' " \ | , . < > / ? ~ `})</li>
+     * </ul>
+     * For custom policies (e.g., 2-type combination or optional special characters), use {@link #REGEX} with a custom
+     * pattern.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 비밀번호 형식 체크 ({0}: 필드설명).
+     * <p>
+     * <b>기본 검증 규칙 (KISA 및 글로벌 보안 표준 부합):</b>
+     * <ul>
+     * <li><b>길이:</b> 8자 이상 64자 이하</li>
+     * <li><b>조합:</b> 영문(대소문자), 숫자, 특수문자 각각 최소 1자 이상 필수 포함 (3종 필수)</li>
+     * <li><b>허용 특수문자:</b> 키보드 표준 ASCII 인쇄 가능 특수문자 32종 전수 허용<br>
+     * ({@code ! @ # $ % ^ & * ( ) _ + - = [ ] { } ; ' " \ | , . < > / ? ~ `})</li>
+     * </ul>
+     * 2종 조합이나 특수문자 선택적 허용 등 다른 비밀번호 정책을 적용하려면 {@link #REGEX} 룰을 활용하여 프로젝트에 맞는 커스텀 정규식과 메시지를 지정하십시오.
+     * </p>
+     *
+     * <pre>{@code
+     * // Custom example: Letters + (digits or special characters) 8~64 chars (Global Tech style)
+     * // 커스텀 예시: 영문 + (숫자 또는 특수문자) 8~64자리 (글로벌 빅테크 스타일)
+     * validator.field("password", "비밀번호")
+     *         .rule(S2RuleType.REQUIRED)
+     *         .rule(S2RuleType.REGEX,
+     *                 "^(?=.*[A-Za-z])(?=.*[\\d!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?~`]).{8,64}$",
+     *                 "비밀번호는 영문과 숫자 또는 특수문자를 조합하여 8~64자리여야 합니다.");
+     * }</pre>
+     */
     PASSWORD("valid.err.password", "{0} 형식이 올바르지 않습니다.", "Invalid password format for {0}.",
             "^(?=.*[0-9])(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?~`])(?=.*[a-zA-Z]).{8,64}$"), // 8~64자리 (영문+숫자+특수문자 조합)
 
