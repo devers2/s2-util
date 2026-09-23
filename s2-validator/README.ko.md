@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
 > 📦 **[s2-util 제품군](../README.ko.md)**의 통합 동적 검증 모듈입니다.
+> 📖 전체 아키텍처 및 엔드투엔드 통합 구현 가이드는 **[개발자 매뉴얼 (MANUAL.ko.md)](../MANUAL.ko.md)**를 참고하세요.
 > 페이징, 파일 처리, Spring 보조 기능이 포함된 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**와 함께 사용하면 더욱 편리합니다.
 
 ---

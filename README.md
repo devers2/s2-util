@@ -9,6 +9,7 @@
 
 > **"Write Once, Validate Anywhere."**
 > The smartest way to validate both **Server (Java)** and **Client (JavaScript)** with a **single configuration**.
+> 📖 Comprehensive developer guide and architecture: **[Developer Manual (MANUAL.md)](./MANUAL.md)**
 
 ---
 

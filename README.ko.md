@@ -9,6 +9,7 @@
 
 > **"Write Once, Validate Anywhere."**
 > **(Java & JavaScript) 한 번의 작성**으로 **서버와 클라이언트 모두를 검증**하는 가장 스마트한 방법.
+> 📖 상세 아키텍처 및 종합 개발자 가이드: **[개발자 매뉴얼 (MANUAL.ko.md)](./MANUAL.ko.md)**
 
 ---
 
