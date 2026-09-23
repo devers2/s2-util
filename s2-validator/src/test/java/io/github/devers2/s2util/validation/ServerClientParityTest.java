@@ -221,8 +221,16 @@ public class ServerClientParityTest {
                 Arguments.of("LOGIN_ID: 숫자 시작 → 실패", S2RuleType.LOGIN_ID, null, "1admin", false),
 
                 // ── PASSWORD ─────────────────────────────────────────────
-                Arguments.of("PASSWORD: 유효한 비밀번호 → 성공", S2RuleType.PASSWORD, null, "Pass1234!", true),
+                Arguments.of("PASSWORD: 유효한 비밀번호 (8자리 최소) → 성공", S2RuleType.PASSWORD, null, "Pass123!", true),
+                Arguments.of("PASSWORD: 특수문자 언더스코어(_) 포함 → 성공", S2RuleType.PASSWORD, null, "Pass123_", true),
+                Arguments.of("PASSWORD: 특수문자 하이픈(-) 포함 → 성공", S2RuleType.PASSWORD, null, "Pass-1234", true),
+                Arguments.of("PASSWORD: 특수문자 틸드(~) 포함 → 성공", S2RuleType.PASSWORD, null, "Pass~1234", true),
+                Arguments.of("PASSWORD: 64자리 (최대 길이) → 성공", S2RuleType.PASSWORD, null, "A1!" + "a".repeat(61), true),
+                Arguments.of("PASSWORD: 7자리 (최소 미달) → 실패", S2RuleType.PASSWORD, null, "Pass12!", false),
+                Arguments.of("PASSWORD: 65자리 (최대 초과) → 실패", S2RuleType.PASSWORD, null, "A1!" + "a".repeat(62), false),
                 Arguments.of("PASSWORD: 특수문자 없음 → 실패", S2RuleType.PASSWORD, null, "Pass1234", false),
+                Arguments.of("PASSWORD: 숫자 없음 → 실패", S2RuleType.PASSWORD, null, "Password!", false),
+                Arguments.of("PASSWORD: 영문 없음 → 실패", S2RuleType.PASSWORD, null, "1234567!", false),
 
                 // ── PASSWORD_ANSWR ───────────────────────────────────────
                 Arguments.of("PASSWORD_ANSWR: 유효한 답변 → 성공", S2RuleType.PASSWORD_ANSWR, null, "서울특별시 강남구 역삼동", true),
