@@ -222,7 +222,7 @@ boolean isValid = userValidator.validate(user, errors::add, Locale.ENGLISH);
 Quickly validate an individual value or variable without creating a DTO or Map:
 - **Boolean Mode (`check(value)`)**: Returns `true`/`false` without throwing exceptions.
 - **Exception Mode with Label (`check(value, label)`)**: Throws `S2RuntimeException` with a localized message on failure.
-- **Custom Predicate**: Validate with custom lambda functions.
+- **Custom Predicate (Server-Only)**: Validate with custom lambda functions (executed on the server side).
 
 ```java
 // 1) Boolean Mode: returns true/false without throwing exceptions
@@ -236,7 +236,7 @@ S2Validator.check(userInput, "Name")
     .rule(S2RuleType.REQUIRED) // Uses default message or .en() for customization
     .validate();
 
-// 3) Custom Predicate validation
+// 3) Custom Predicate validation (Server-Only: executed on the server, not serialized to JS)
 boolean isAdult = S2Validator.check(25)
     .rule((Integer age) -> age >= 19)
     .validate();
@@ -247,8 +247,8 @@ boolean isAdult = S2Validator.check(25)
 #### 2.3. Cross-Field Validation
 
 Validate relationships between multiple fields (e.g., date ranges, password confirmation):
-- **Type-based rules**: Use built-in rules like `DATE_AFTER`, `DATE_BEFORE`, and `EQUALS_FIELD`.
-- **BiPredicate custom rule**: Access both the field value and the entire target object `(value, target) -> boolean`.
+- **Type-based rules**: Use built-in rules like `DATE_AFTER`, `DATE_BEFORE`, and `EQUALS_FIELD` (synchronized to both server and client).
+- **BiPredicate custom rule (Server-Only)**: Access both the field value and the entire target object `(value, target) -> boolean`.
 
 ```java
 Map<String, Object> form = new HashMap<>();
@@ -257,14 +257,14 @@ form.put("endDate", "2025-01-10");
 form.put("password", "s2secret123");
 form.put("confirmPassword", "s2secret123");
 
-// 1) Built-in type-based cross-validation
+// 1) Built-in type-based cross-validation (Supported on both server and client)
 S2Validator.of(form)
     .field("startDate", "Start Date").rule(S2RuleType.DATE_BEFORE, "endDate")
     .field("endDate", "End Date").rule(S2RuleType.DATE_AFTER, "startDate")
     .field("confirmPassword", "Confirm Password").rule(S2RuleType.EQUALS_FIELD, "password")
     .validate(errors::add, Locale.ENGLISH);
 
-// 2) Custom cross-validation with BiPredicate (value, target)
+// 2) Custom cross-validation with BiPredicate (Server-Only: not serialized to client JS)
 S2Validator.of(form)
     .field("confirmPassword", "Confirm Password")
         .rule(S2RuleType.REQUIRED)
@@ -274,6 +274,8 @@ S2Validator.of(form)
         }).en("{0} must match original password.")
     .validate(errors::add, Locale.ENGLISH);
 ```
+
+> ⚠️ **Server-Only Validation Note**: Custom lambda rules (`Predicate`, `BiPredicate`) are executed exclusively on the server side (Java JVM) and are not serialized into client-side JSON rules. For rules that require parity across client and server, use built-in rules or `S2RuleType.REGEX`.
 
 ---
 

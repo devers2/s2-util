@@ -222,7 +222,7 @@ boolean isValid = userValidator.validate(user, errors::add, Locale.KOREAN);
 DTO나 Map 객체를 생성하지 않고 개별 변수나 값 하나만을 신속하게 검증할 때 사용합니다:
 - **Boolean 모드 (`check(value)`)**: 예외 발생 없이 `true`/`false` 불린 결과를 반환합니다.
 - **라벨 지정 예외 모드 (`check(value, label)`)**: 검증 실패 시 라벨이 반영된 다국어 메시지와 함께 `S2RuntimeException` 예외를 던집니다.
-- **커스텀 Predicate 검증**: 람다 표현식을 통해 원하는 검증 로직을 즉시 적용할 수 있습니다.
+- **커스텀 Predicate 검증 (서버 전용)**: 람다 표현식을 통해 원하는 비즈니스 검증 로직을 즉시 적용할 수 있습니다 (서버 측 단독 실행).
 
 ```java
 // 1) Boolean 모드: 예외 없이 true/false 반환
@@ -236,7 +236,7 @@ S2Validator.check(userInput, "이름")
     .rule(S2RuleType.REQUIRED) // 기본 메시지 사용 또는 .ko()로 커스텀 가능
     .validate();
 
-// 3) 커스텀 Predicate 검증
+// 3) 커스텀 Predicate 검증 (서버 전용: 서버에서 단독 실행되며 JS로 직렬화되지 않음)
 boolean isAdult = S2Validator.check(25)
     .rule((Integer age) -> age >= 19)
     .validate();
@@ -247,8 +247,8 @@ boolean isAdult = S2Validator.check(25)
 #### 2.3. 교차 필드 검증 (Cross-Field Validation)
 
 두 개 이상의 필드 간 상관관계(날짜 선후 관계, 비밀번호 일치 여부 등)를 검증합니다:
-- **타입 기반 규칙**: 내장된 `DATE_AFTER`, `DATE_BEFORE`, `EQUALS_FIELD` 등을 사용합니다.
-- **BiPredicate 커스텀 규칙**: 필드 값과 대상 객체 전체를 전달받아 `(value, target) -> boolean` 형태로 자유롭게 교차 검증합니다.
+- **타입 기반 규칙**: 내장된 `DATE_AFTER`, `DATE_BEFORE`, `EQUALS_FIELD` 등을 사용합니다 (서버 및 클라이언트 양쪽 모두 지원).
+- **BiPredicate 커스텀 규칙 (서버 전용)**: 필드 값과 대상 객체 전체를 전달받아 `(value, target) -> boolean` 형태로 자유롭게 교차 검증합니다.
 
 ```java
 Map<String, Object> form = new HashMap<>();
@@ -257,14 +257,14 @@ form.put("endDate", "2025-01-10");
 form.put("password", "s2secret123");
 form.put("confirmPassword", "s2secret123");
 
-// 1) 내장 타입 기반 교차 검증
+// 1) 내장 타입 기반 교차 검증 (서버 및 클라이언트 양쪽 모두 검증 지원)
 S2Validator.of(form)
     .field("startDate", "시작일").rule(S2RuleType.DATE_BEFORE, "endDate")
     .field("endDate", "종료일").rule(S2RuleType.DATE_AFTER, "startDate")
     .field("confirmPassword", "비밀번호 확인").rule(S2RuleType.EQUALS_FIELD, "password")
     .validate(errors::add, Locale.KOREAN);
 
-// 2) BiPredicate 람다 기반 커스텀 교차 검증 (value, target)
+// 2) BiPredicate 람다 기반 커스텀 교차 검증 (서버 전용: 클라이언트 JS로 직렬화되지 않음)
 S2Validator.of(form)
     .field("confirmPassword", "비밀번호 확인")
         .rule(S2RuleType.REQUIRED)
@@ -274,6 +274,8 @@ S2Validator.of(form)
         }).ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
     .validate(errors::add, Locale.KOREAN);
 ```
+
+> ⚠️ **서버 전용(Server-Only) 검증 주의사항**: 자바 람다식(`Predicate`, `BiPredicate`)을 이용한 커스텀 규칙은 JVM 메모리 객체이므로 클라이언트 JSON 규칙으로 직렬화되지 않으며 오직 서버 사이드 검증 시에만 동작합니다. 클라이언트와 서버 양쪽에서 동일하게 교차 검증되어야 하는 규칙은 내장 규칙 또는 `S2RuleType.REGEX`를 사용하십시오.
 
 ---
 

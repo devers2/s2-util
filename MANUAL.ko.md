@@ -29,7 +29,7 @@
 5. [고급 검증 기법](#5-고급-검증-기법)
    - [5-1. 객체 그래프 탐색 (점, 인덱스, 와일드카드)](#5-1-객체-그래프-탐색-점-인덱스-와일드카드)
    - [5-2. 재귀 및 합성 검증 (EACH, NESTED)](#5-2-재귀-및-합성-검증-each-nested)
-   - [5-3. 사용자 정의 비즈니스 람다 (Predicate, BiPredicate)](#5-3-사용자-정의-비즈니스-람다-predicate-bipredicate)
+   - [5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)](#5-3-사용자-정의-비즈니스-람다-predicate--bipredicate-서버-전용)
 6. [서버-클라이언트 통합 동기화 (Server-Client Sync)](#6-서버-클라이언트-통합-동기화-server-client-sync)
    - [6-1. 전 과정 구현 예제 (End-to-End)](#6-1-전-과정-구현-예제-end-to-end)
    - [6-2. 기술 아키텍처 (s2.validator.js)](#6-2-기술-아키텍처-s2validatorjs)
@@ -363,17 +363,37 @@ S2Validator.<OrderDTO>builder()
     .build();
 ```
 
-### 5-3. 사용자 정의 비즈니스 람다 (Predicate, BiPredicate)
+### 5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)
+
+내장 검증 규칙만으로 표현하기 어려운 복잡한 비즈니스 로직을 자바 람다식으로 자유롭게 작성할 수 있습니다:
 
 ```java
+// 1) 단일 필드 Predicate: 필드 값 자체만을 검증
+.field("age", "나이")
+    .rule((Integer val) -> val != null && val >= 19)
+    .ko("만 19세 이상만 가입 가능합니다.")
+
+// 2) 교차 필드 BiPredicate: 대상 필드 값과 전체 루트 객체를 함께 참조하여 검증
 .field("deliveryDate", "배송희망일")
+    .rule(S2RuleType.REQUIRED)
     .rule((val, target) -> {
         LocalDate delivery = (LocalDate) val;
         LocalDate order = S2Util.getValue(target, "orderDate");
-        return delivery.isAfter(order);
+        return order != null && delivery.isAfter(order);
     })
     .ko("배송희망일은 주문일자 이후여야 합니다.")
+
+// 3) 빈 값 포함 검증 (.includeEmpty()): 값이 null/empty 상태여도 람다 검증을 실행
+.field("backupEmail", "비상연락 이메일")
+    .rule((String val) -> val != null && !val.endsWith("@disposable.com"))
+    .includeEmpty()
+    .ko("임시 이메일 주소는 사용할 수 없습니다.")
 ```
+
+> ⚠️ **서버 전용(Server-Only) 검증 주의사항**:
+> Java 람다식(`Predicate`, `BiPredicate`)은 JVM 런타임 메모리 객체이므로 `getRulesJson()` 호출 시 **클라이언트(JavaScript)로 JSON 직렬화되지 않습니다**.
+> 따라서 람다 커스텀 규칙은 **오직 서버 사이드 검증 시에만 동작**합니다.
+> 클라이언트와 서버 양쪽에서 동일하게 교차 검증되어야 하는 규칙은 람다 대신 [`S2RuleType.REGEX`](#3-내장-규칙-카탈로그-rules-catalog) 또는 내장 규칙을 사용하십시오.
 
 ---
 

@@ -117,6 +117,8 @@ S2Validator.of(command)
     .field("name", "Name") // Rule omitted -> REQUIRED by default
     .field("email", "Email").rule(S2RuleType.EMAIL) // Specifying rules disables default REQUIRED (optional); add REQUIRED explicitly if needed
     .field("birthDate", "Birth Date").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    // Custom lambda rule (Server-Only: executed on backend, not serialized to JS)
+    .field("age", "Age").rule((Integer age) -> age != null && age >= 19).en("Must be 19 or older.")
     .validate();
 
 // Option 2: Collect-all mode — passes errors to handler and returns boolean

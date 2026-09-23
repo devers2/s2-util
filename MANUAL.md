@@ -29,7 +29,7 @@
 5. [Advanced Validation Mechanics](#5-advanced-validation-mechanics)
    - [5-1. Object Graph Navigation (Dot, Bracket, Wildcard)](#5-1-object-graph-navigation-dot-bracket-wildcard)
    - [5-2. Recursive & Compositional Validation (EACH, NESTED)](#5-2-recursive--compositional-validation-each-nested)
-   - [5-3. Custom Logic: Predicate & BiPredicate](#5-3-custom-logic-predicate--bipredicate)
+   - [5-3. Custom Logic: Predicate & BiPredicate (Server-Only)](#5-3-custom-logic-predicate--bipredicate-server-only)
 6. [Unified Integration: Server-Client Synchronization](#6-unified-integration-server-client-synchronization)
    - [6-1. End-to-End Implementation Example](#6-1-end-to-end-implementation-example)
    - [6-2. Technical Architecture (s2.validator.js)](#6-2-technical-architecture-s2validatorjs)
@@ -363,19 +363,37 @@ S2Validator.<OrderDTO>builder()
     .build();
 ```
 
-### 5-3. Custom Logic: Predicate & BiPredicate
+### 5-3. Custom Logic: Predicate & BiPredicate (Server-Only)
 
-Inject custom business lambdas:
+Inject custom business lambdas when built-in rule types are not sufficient:
 
 ```java
+// 1) Single-field Predicate: validates only the field value
+.field("age", "Age")
+    .rule((Integer val) -> val != null && val >= 19)
+    .en("Must be 19 or older.")
+
+// 2) Cross-field BiPredicate: inspects both the field value and the root object
 .field("deliveryDate", "Delivery Date")
+    .rule(S2RuleType.REQUIRED)
     .rule((val, target) -> {
         LocalDate delivery = (LocalDate) val;
         LocalDate order = S2Util.getValue(target, "orderDate");
-        return delivery.isAfter(order);
+        return order != null && delivery.isAfter(order);
     })
     .en("Delivery date must be later than order date.")
+
+// 3) Include empty values: runs lambda even when the value is null or empty
+.field("backupEmail", "Backup Email")
+    .rule((String val) -> val != null && !val.endsWith("@disposable.com"))
+    .includeEmpty()
+    .en("Disposable email addresses are not allowed.")
 ```
+
+> ⚠️ **Server-Only Validation Rule**:
+> Java lambdas (`Predicate`, `BiPredicate`) are JVM runtime bytecode objects and **cannot be serialized to JSON** for `s2.validator.js`.
+> Therefore, custom lambda rules **execute exclusively on the server side**.
+> If a rule must be enforced on both client and server, use [`S2RuleType.REGEX`](#3-core-rules-catalog) or built-in rules.
 
 ---
 

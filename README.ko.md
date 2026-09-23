@@ -117,6 +117,8 @@ S2Validator.of(command)
     .field("name", "이름") // 규칙 생략 시 기본 REQUIRED 자동 적용
     .field("email", "이메일").rule(S2RuleType.EMAIL) // 규칙 지정 시 기본 REQUIRED 미적용(선택 입력), 필수 체크 필요 시 명시적 추가 필요
     .field("birthDate", "생년월일").rule(S2RuleType.REQUIRED).rule(S2RuleType.DATE)
+    // 커스텀 람다 규칙 (서버 전용: 백엔드 단독 실행, JS 직렬화 제외)
+    .field("age", "나이").rule((Integer age) -> age != null && age >= 19).ko("만 19세 이상만 가입 가능합니다.")
     .validate();
 
 // 2) 에러 수집 모드 — 에러 핸들러로 전체 오류 목록을 받아 처리 (논리값 반환)
