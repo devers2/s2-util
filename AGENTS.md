@@ -44,6 +44,9 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
    - 확인 필드가 비었을 때 통과되는 것을 방지하기 위해 반드시 `.rule(REQUIRED)`를 선행하고 커스텀 람다를 연결하십시오.
 3. **람다 예외 전파**:
    - 커스텀 람다 내부에서 발생한 런타임 예외는 삼키지 말고 필드명을 포함한 `S2RuntimeException`으로 감싸서 전파해야 합니다.
+4. **서버 전용 검증 원칙 (Server-Only Rule)**:
+   - 커스텀 람다 규칙(`Predicate`, `BiPredicate`)은 JVM 메모리 상의 바이트코드 객체이므로 클라이언트(`s2.validator.js`)로 JSON 직렬화되지 않으며, **오직 서버 사이드 검증 시에만 동작**합니다.
+   - 클라이언트와 서버 양쪽에서 동일(교차)하게 검증되어야 하는 규칙은 람다 대신 `S2RuleType.REGEX` 또는 내장 규칙을 사용해야 합니다.
 
 ---
 

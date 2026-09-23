@@ -195,7 +195,10 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         SimpleCheckRuleStep<T> rule(S2RuleType type, Object value);
 
         /**
-         * Adds a custom Predicate-based rule.
+         * Adds a custom Predicate-based rule (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
          *
          * @param <V>   Field value type | 필드 값의 타입
          * @param logic Validation logic | 검증 로직
@@ -258,7 +261,10 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
         <V> LabeledCheckRuleStep<T> rule(java.util.function.Predicate<V> logic);
 
         /**
-         * Adds a custom Predicate-based rule with a message key.
+         * Adds a custom Predicate-based rule with a message key (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
          *
          * @param <V>             Field value type | 필드 값의 타입
          * @param logic           Validation logic | 검증 로직

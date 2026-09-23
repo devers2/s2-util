@@ -154,12 +154,55 @@ public interface S2FieldStep<T> {
 
         S2RuleStep.ValidateRuleStep<T> rule(S2RuleType type, Object value, String errorMessageKey);
 
+        /**
+         * Adds a custom Predicate validation rule (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>   Field value type | 필드 값의 타입
+         * @param logic Validation logic | 검증 로직 (Predicate)
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.ValidateRuleStep<T> rule(Predicate<V> logic);
 
+        /**
+         * Adds a custom Predicate validation rule with a message key (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>             Field value type | 필드 값의 타입
+         * @param logic           Validation logic | 검증 로직 (Predicate)
+         * @param errorMessageKey Custom message key | 커스텀 메시지 키
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.ValidateRuleStep<T> rule(Predicate<V> logic, String errorMessageKey);
 
+        /**
+         * Adds a custom cross-field BiPredicate validation rule (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>   Field value type | 필드 값의 타입
+         * @param logic Validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체)
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.ValidateRuleStep<T> rule(BiPredicate<V, T> logic);
 
+        /**
+         * Adds a custom cross-field BiPredicate validation rule with a message key (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * For rules that require parity across client and server, use {@link S2RuleType#REGEX} or built-in rules.
+         * </p>
+         *
+         * @param <V>             Field value type | 필드 값의 타입
+         * @param logic           Validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체)
+         * @param errorMessageKey Custom message key | 커스텀 메시지 키
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.ValidateRuleStep<T> rule(BiPredicate<V, T> logic, String errorMessageKey);
 
         S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, Object value);
@@ -256,12 +299,55 @@ public interface S2FieldStep<T> {
 
         S2RuleStep.BuilderRuleStep<T> rule(S2RuleType type, Object value, String errorMessageKey);
 
+        /**
+         * Adds a custom Predicate validation rule (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>   Field value type | 필드 값의 타입
+         * @param logic Validation logic | 검증 로직 (Predicate)
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.BuilderRuleStep<T> rule(Predicate<V> logic);
 
+        /**
+         * Adds a custom Predicate validation rule with a message key (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>             Field value type | 필드 값의 타입
+         * @param logic           Validation logic | 검증 로직 (Predicate)
+         * @param errorMessageKey Custom message key | 커스텀 메시지 키
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.BuilderRuleStep<T> rule(Predicate<V> logic, String errorMessageKey);
 
+        /**
+         * Adds a custom cross-field BiPredicate validation rule (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * </p>
+         *
+         * @param <V>   Field value type | 필드 값의 타입
+         * @param logic Validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체)
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.BuilderRuleStep<T> rule(BiPredicate<V, T> logic);
 
+        /**
+         * Adds a custom cross-field BiPredicate validation rule with a message key (Server-Only).
+         * <p>
+         * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * For rules that require parity across client and server, use {@link S2RuleType#REGEX} or built-in rules.
+         * </p>
+         *
+         * @param <V>             Field value type | 필드 값의 타입
+         * @param logic           Validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체)
+         * @param errorMessageKey Custom message key | 커스텀 메시지 키
+         * @return Next rule step instance | 다음 규칙 단계 인스턴스
+         */
         <V> S2RuleStep.BuilderRuleStep<T> rule(BiPredicate<V, T> logic, String errorMessageKey);
 
         S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, Object value);
