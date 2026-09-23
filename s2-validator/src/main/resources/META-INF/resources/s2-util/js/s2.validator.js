@@ -1029,8 +1029,13 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
 /**
  * JUMIN (Resident Registration Number) validation (replicates server logic).
  * <p>
- * Validates Korean resident registration numbers using checksum algorithm.
- * Supports both Korean citizens (flag < 5 or > 8) and foreigners.
+ * Validates Korean resident registration numbers using a smart hybrid algorithm:
+ * - Checks calendar date validity (YYMMDD) and gender code (0~9).
+ * - For born before October 2020: Evaluates legacy Modulo 11 checksum.
+ * - For born on or after October 2020: Bypasses checksum due to MOIS revision (randomized digits).
+ * </p>
+ * <p>
+ * <b>Notice:</b> Adults who had their number reissued after October 2020 may fail checksum verification.
  * </p>
  *
  * <p>
@@ -1038,8 +1043,13 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
  * </p>
  * JUMIN 검증 (서버 로직 복제).
  * <p>
- * 체크섬 알고리즘을 사용하여 주민등록번호의 유효성을 검증합니다.
- * 내국인(flag < 5 또는 > 8)과 외국인 모두 지원합니다.
+ * 스마트 하이브리드 알고리즘을 사용하여 주민등록번호의 유효성을 검증합니다:
+ * - 생년월일 달력 유효성(윤년 포함) 및 성별 코드(0~9) 검증.
+ * - 2020년 10월 이전 출생자: 기존 Modulo 11 가중치 체크섬 알고리즘 적용.
+ * - 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)에 따라 체크섬 생략.
+ * </p>
+ * <p>
+ * <b>주의:</b> 2020년 10월 이후 주민번호를 새로 재부여/변경받은 성인은 기존 체크섬 검증에 실패할 수 있습니다.
  * </p>
  *
  * @function validateJumin
@@ -1047,18 +1057,47 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
  * @returns {boolean} Validity status | 유효 여부
  */
 const validateJumin = (jumin) => {
+  if (typeof jumin !== 'string') jumin = String(jumin);
   jumin = jumin.replace(/-/g, '');
-  if (jumin.length !== 13) return false;
+  if (!/^\d{13}$/.test(jumin)) return false;
 
-  const flag = parseInt(jumin.charAt(6));
+  const yy = parseInt(jumin.substring(0, 2), 10);
+  const mm = parseInt(jumin.substring(2, 4), 10);
+  const dd = parseInt(jumin.substring(4, 6), 10);
+  const flag = parseInt(jumin.charAt(6), 10);
+
+  let year;
+  if (flag === 9 || flag === 0) {
+    year = 1800 + yy;
+  } else if (flag === 1 || flag === 2 || flag === 5 || flag === 6) {
+    year = 1900 + yy;
+  } else if (flag === 3 || flag === 4 || flag === 7 || flag === 8) {
+    year = 2000 + yy;
+  } else {
+    return false;
+  }
+
+  // 달력 날짜 유효성 검증 (윤년 포함)
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return false;
+  const date = new Date(year, mm - 1, dd);
+  if (date.getFullYear() !== year || date.getMonth() !== mm - 1 || date.getDate() !== dd) {
+    return false;
+  }
+
+  // 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)으로 체크섬 생략
+  if (year > 2020 || (year === 2020 && mm >= 10)) {
+    return true;
+  }
+
+  // 2020년 10월 이전 출생자: 기존 Modulo 11 체크섬 검증
   const isKorean = flag < 5 || flag > 8;
   let check = 0;
 
   for (let i = 0; i < 12; i++) {
     if (isKorean) {
-      check += ((i % 8) + 2) * parseInt(jumin.charAt(i));
+      check += ((i % 8) + 2) * parseInt(jumin.charAt(i), 10);
     } else {
-      check += (9 - (i % 8)) * parseInt(jumin.charAt(i));
+      check += (9 - (i % 8)) * parseInt(jumin.charAt(i), 10);
     }
   }
 
@@ -1075,7 +1114,7 @@ const validateJumin = (jumin) => {
     check = check2 > 9 ? check2 - 10 : check2;
   }
 
-  return check === parseInt(jumin.charAt(12));
+  return check === parseInt(jumin.charAt(12), 10);
 };
 
 /**
