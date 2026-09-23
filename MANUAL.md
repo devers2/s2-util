@@ -523,6 +523,8 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
       return;
   }
   ```
+- **Auto-Fallback for Hidden Fields**:
+  If no `{fieldName}_error` proxy is found and the target field is `type="hidden"` or invisible, S2Validator automatically creates a temporary 1px transparent anchor element next to the hidden field so the browser can display a native tooltip instead of failing silently. This anchor is removed on the next validation or user interaction.
 
 ---
 

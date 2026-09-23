@@ -240,18 +240,32 @@ export const S2Validator = {
    * <p>
    * <b>Proxy Error Element: (프록시 에러 엘리먼트)</b><br>
    * If validation fails for a hidden field or a field where browser tooltips cannot be shown,
-   * you can provide a proxy element with the name <code>"{fieldName}_error"</code> to display the error.
-   * This is useful for file uploads or custom UI widgets where the actual input is hidden.
+   * you can provide a proxy element with the name <code>"{fieldName}_error"</code> to display the error
+   * at the exact UI location you want. This is useful for file uploads or custom UI widgets
+   * where the actual input is hidden.
    * <br>
    * 히든 필드나 브라우저 툴팁을 표시할 수 없는 필드의 경우, <code>"{fieldName}_error"</code> 라는 이름의
-   * 프록시 엘리먼트를 두어 에러를 표시할 수 있습니다. 파일 업로드나 커스텀 UI 위젯 등 실제 input이 숨겨진 경우 유용합니다.
+   * 프록시 엘리먼트를 두어 원하는 화면 위치에 에러를 정확하게 표시할 수 있습니다.
+   * 파일 업로드나 커스텀 UI 위젯 등 실제 input이 숨겨진 경우 유용합니다.
    * </p>
    * <pre>
    * &lt;!-- Example: Hidden file input with proxy error element --&gt;
    * &lt;input type="hidden" name="files" ...&gt;
-   * &lt;!-- Tooltip needed? Use a creating transparent input or just use span/div for text --&gt;
+   * &lt;!-- Tooltip: use a transparent input / Text: use span or div --&gt;
    * &lt;input name="files_error" style="width: 1px; opacity: 0;" /&gt;
    * </pre>
+   * <p>
+   * <b>Auto-Fallback for Hidden Fields: (히든 필드 자동 Fallback)</b><br>
+   * If no <code>"{fieldName}_error"</code> proxy is found and the target field is hidden or invisible,
+   * S2Validator automatically creates a temporary 1px transparent anchor element next to the hidden
+   * field so that the browser can display a native tooltip at that position instead of failing silently.
+   * This anchor is automatically removed on the next validation or when the user interacts with the form.
+   * <br>
+   * <code>"{fieldName}_error"</code> 프록시가 존재하지 않고 대상 필드가 히든이거나 비표시 상태인 경우,
+   * S2Validator가 해당 히든 필드 바로 뒤에 1px 투명 앵커를 자동으로 임시 생성하여 브라우저 네이티브
+   * 툴팁이 해당 위치에 표시되도록 합니다 (폼 먹통 방지). 이 앵커는 다음 검증 시 또는 사용자 입력 시
+   * 자동으로 제거됩니다.
+   * </p>
    *
    * @function validate
    * @param {string|HTMLFormElement} formSource - Form element selector or HTMLFormElement object | 검증할 폼 요소의 셀렉터 또는 HTMLFormElement 객체
@@ -309,6 +323,9 @@ export const S2Validator = {
       return { __system_error__: ['유효한 폼 요소를 찾을 수 없습니다.'] };
     }
 
+    // 검증 전 이전에 생성된 임시 1px 더미 앵커 제거
+    form.querySelectorAll('.__s2_dummy_anchor__').forEach((el) => el.remove());
+
     // 검증 전 모든 폼 엘리먼트의 CustomValidity 초기화 및 자동 초기화 이벤트 등록
     Array.from(form.elements).forEach((el) => {
       if (typeof el.setCustomValidity === 'function') {
@@ -331,12 +348,13 @@ export const S2Validator = {
             } else {
               el.setCustomValidity('');
             }
-            // 커스텀 에러 엘리먼트 초기화
+            // 커스텀 에러 엘리먼트 및 임시 더미 앵커 초기화
             const errorEl = form.querySelector(`[name="${el.name}_error"]`);
             if (errorEl) {
               if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
               errorEl.textContent = '';
             }
+            form.querySelectorAll('.__s2_dummy_anchor__').forEach((anchor) => anchor.remove());
           };
 
           el.addEventListener('input', clearValidity);
@@ -550,10 +568,27 @@ export const S2Validator = {
             const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
             fieldElements.forEach((el) => {
               if (typeof el.setCustomValidity === 'function') {
-                // 화면에 보이지 않는(offsetParent가 없는) 요소는 브라우저가 포커스하지 못하므로,
-                // 검증 메시지를 설정하되 포커스 문제로 인한 오류가 발생하지 않도록 주의가 필요함.
-                // CSS 수정을 통해 시각적으로만 숨기는 것을 검토할 필요가 있다.
-                el.setCustomValidity(firstMessage);
+                // 화면에 보이는 일반 필드: 네이티브 검증 메시지 설정
+                // hidden/비표시 필드: 1px 투명 더미 앵커를 동적 생성하여 네이티브 툴팁 Fallback 제공
+                const isInvisible = el.type === 'hidden' || !el.offsetParent;
+                if (isInvisible) {
+                  // [Fallback] {fieldName}_error 프록시가 없는 히든/비표시 필드의 경우,
+                  // 브라우저가 포커스할 수 있는 1px 투명 인풋을 히든 인풋 바로 뒤에 동적 삽입하여
+                  // 네이티브 툴팁을 해당 위치에 띄운다. (Silent Fail 방지)
+                  const dummy = document.createElement('input');
+                  dummy.type = 'text';
+                  dummy.tabIndex = -1;
+                  dummy.setAttribute('aria-hidden', 'true');
+                  dummy.className = '__s2_dummy_anchor__';
+                  // name 속성을 부여하지 않아 폼 제출 시 서버로 전송되지 않음
+                  dummy.style.cssText =
+                    'position:absolute;width:1px;height:1px;opacity:0;' +
+                    'pointer-events:none;border:0;padding:0;margin:0;outline:none;';
+                  el.insertAdjacentElement('afterend', dummy);
+                  dummy.setCustomValidity(firstMessage);
+                } else {
+                  el.setCustomValidity(firstMessage);
+                }
               }
             });
           }
