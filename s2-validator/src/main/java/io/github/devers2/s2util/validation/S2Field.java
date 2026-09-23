@@ -149,7 +149,23 @@ public class S2Field<T> implements Serializable {
     }
 
     /**
-     * Adds a custom Predicate-based validation rule.
+     * Adds a custom Predicate-based validation rule (Server-Only).
+     * <p>
+     * <b>Notice:</b> This custom lambda rule executes exclusively on the server side (Java JVM) and is
+     * NOT serialized to client-side JavaScript (s2.validator.js). For rules that need parity across client and server,
+     * use {@link S2RuleType#REGEX} or built-in rules.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 람다식(Predicate)을 이용한 커스텀 검증 규칙을 추가합니다 (서버 전용).
+     * <p>
+     * <b>⚠️ 클라이언트-서버 교차 검증 주의사항:</b><br>
+     * Java 람다식은 런타임 메모리 객체이므로 클라이언트(s2.validator.js)로 JSON 직렬화되어 전송되지 않습니다.
+     * 따라서 이 검증 규칙은 <b>오직 서버 사이드 검증 시에만 동작</b>합니다.
+     * 클라이언트와 동일하게 검증되어야 하는 규칙은 {@link S2RuleType#REGEX} 또는 내장 규칙을 사용하십시오.
+     * </p>
      *
      * @param <V>   The field value type | 필드 값의 타입
      * @param logic Validation logic | 검증 로직 (Predicate)
@@ -159,6 +175,27 @@ public class S2Field<T> implements Serializable {
         return rule(logic, null);
     }
 
+    /**
+     * Adds a custom Predicate-based validation rule with a message key (Server-Only).
+     * <p>
+     * <b>Notice:</b> This custom lambda rule executes exclusively on the server side (Java JVM) and is
+     * NOT serialized to client-side JavaScript (s2.validator.js).
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 에러 메시지 프로퍼티 키와 함께 람다식(Predicate) 커스텀 검증 규칙을 추가합니다 (서버 전용).
+     * <p>
+     * <b>⚠️ 클라이언트-서버 교차 검증 주의사항:</b><br>
+     * Java 람다식은 클라이언트로 전송되지 않으며, <b>오직 서버 사이드 검증 시에만 동작</b>합니다.
+     * </p>
+     *
+     * @param <V>             The field value type | 필드 값의 타입
+     * @param logic           Validation logic | 검증 로직 (Predicate)
+     * @param errorMessageKey Custom property key | 커스텀 메시지 키
+     * @return Current field instance | 현재 필드 인스턴스
+     */
     public <V> S2Field<T> rule(Predicate<V> logic, String errorMessageKey) {
         return rule((v, t) -> {
             @SuppressWarnings("unchecked")
@@ -167,17 +204,48 @@ public class S2Field<T> implements Serializable {
         }, errorMessageKey);
     }
 
+    /**
+     * Adds a custom cross-field BiPredicate validation rule (Server-Only).
+     * <p>
+     * <b>Notice:</b> This custom lambda rule executes exclusively on the server side (Java JVM) and is
+     * NOT serialized to client-side JavaScript (s2.validator.js).
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 값과 루트 객체를 인자로 받는 람다식(BiPredicate) 커스텀 검증 규칙을 추가합니다 (서버 전용).
+     * <p>
+     * <b>⚠️ 클라이언트-서버 교차 검증 주의사항:</b><br>
+     * Java 람다식은 클라이언트로 전송되지 않으며, <b>오직 서버 사이드 검증 시에만 동작</b>합니다.
+     * </p>
+     *
+     * @param <V>   The field value type | 필드 값의 타입
+     * @param logic Validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체)
+     * @return Current field instance | 현재 필드 인스턴스
+     */
     public <V> S2Field<T> rule(BiPredicate<V, T> logic) {
         return rule(logic, null);
     }
 
     /**
-     * Adds a custom lambda-based validation rule.
+     * Adds a custom cross-field BiPredicate validation rule with a message key (Server-Only).
+     * <p>
+     * <b>Notice:</b> This custom lambda rule executes exclusively on the server side (Java JVM) and is
+     * NOT serialized to client-side JavaScript (s2.validator.js). For rules that need parity across client and server,
+     * use {@link S2RuleType#REGEX} or built-in rules.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 람다식을 이용한 커스텀 검증 규칙을 추가합니다.
+     * 에러 메시지 프로퍼티 키와 함께 람다식(BiPredicate) 커스텀 검증 규칙을 추가합니다 (서버 전용).
+     * <p>
+     * <b>⚠️ 클라이언트-서버 교차 검증 주의사항:</b><br>
+     * Java 람다식은 런타임 메모리 객체이므로 클라이언트(s2.validator.js)로 JSON 직렬화되어 전송되지 않습니다.
+     * 따라서 이 검증 규칙은 <b>오직 서버 사이드 검증 시에만 동작</b>합니다.
+     * 클라이언트와 동일하게 검증되어야 하는 규칙은 {@link S2RuleType#REGEX} 또는 내장 규칙을 사용하십시오.
+     * </p>
      *
      * @param <V>             The type of the field value | 필드 값의 타입
      * @param logic           The validation logic (accepts value and root object) | 검증 로직 (필드 값과 루트 객체를 인자로 받음)
@@ -559,19 +627,28 @@ public class S2Field<T> implements Serializable {
     }
 
     /**
-     * Wrapper for custom validation logic provided via lambdas.
+     * Wrapper for custom validation logic provided via lambdas (Server-Only).
      * <p>
      * Uses {@link BiPredicate} to allow inspection of both the individual field value
      * and the root object (for cross-field dependency checks).
+     * </p>
+     * <p>
+     * <b>Notice:</b> Custom rules execute exclusively on the server side (Java JVM) and are
+     * NOT serialized to client-side JavaScript (s2.validator.js).
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 람다식으로 제공된 사용자 정의 검증 로직을 관리하는 래퍼 클래스입니다.
+     * 람다식으로 제공된 사용자 정의 검증 로직을 관리하는 래퍼 클래스입니다 (서버 전용).
      * <p>
      * {@link BiPredicate}를 사용하여 개별 필드 값뿐만 아니라 전체 루트 객체를 인자로 받아
      * 필드 간 상관관계 검증(Cross-field validation)을 수행할 수 있습니다.
+     * </p>
+     * <p>
+     * <b>⚠️ 클라이언트 직렬화 제외 안내:</b><br>
+     * 이 클래스로 정의된 람다 검증 규칙은 클라이언트(JavaScript)로 전송되지 않으며,
+     * 오직 서버 사이드 검증 시에만 동작합니다.
      * </p>
      */
     public static class S2CustomRule<V, T> implements S2RuleMessageStep, Serializable {
