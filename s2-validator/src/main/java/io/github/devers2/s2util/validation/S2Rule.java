@@ -374,11 +374,36 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             case JUMIN -> {
                 var jumin = S2StringUtil.removeChars(String.valueOf(value), '-');
 
-                if (jumin.length() != 13) {
+                if (jumin.length() != 13 || !jumin.matches("^[0-9]{13}$")) {
                     yield false;
                 }
 
-                var flag = Character.getNumericValue(jumin.charAt(6));
+                int yy = Integer.parseInt(jumin.substring(0, 2));
+                int mm = Integer.parseInt(jumin.substring(2, 4));
+                int dd = Integer.parseInt(jumin.substring(4, 6));
+                int flag = Character.getNumericValue(jumin.charAt(6));
+
+                int year;
+                switch (flag) {
+                    case 9, 0 -> year = 1800 + yy;
+                    case 1, 2, 5, 6 -> year = 1900 + yy;
+                    case 3, 4, 7, 8 -> year = 2000 + yy;
+                    default -> { yield false; }
+                }
+
+                // 생년월일 달력 유효성 검증 (윤년 포함)
+                try {
+                    LocalDate.of(year, mm, dd);
+                } catch (DateTimeException e) {
+                    yield false;
+                }
+
+                // 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)으로 체크섬 생략
+                if (year > 2020 || (year == 2020 && mm >= 10)) {
+                    yield true;
+                }
+
+                // 2020년 10월 이전 출생자: 기존 Modulo 11 체크섬 알고리즘 적용
                 var isKorean = flag < 5 || flag > 8;
                 var check = 0;
 
