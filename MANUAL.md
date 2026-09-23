@@ -239,14 +239,26 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
 );
 ```
 
-### E. Pattern: Field-less Condition Check Mode
+### E. Pattern: Single Value & Condition Check Mode
 
-**Usage:** `S2Validator.check(condition, [errorCode])`
+**Usage:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`
 
-Validates arbitrary business conditions without needing an enclosing target object or DTO.
+Validates individual variables, values, or arbitrary business conditions without needing an enclosing DTO or Map:
 
 ```java
-// Validates pure condition expressions directly
+// 1) Single Value - Boolean Mode (returns true/false without throwing exceptions)
+boolean isValidEmail = S2Validator.check("user@example.com")
+    .rule(S2RuleType.REQUIRED)
+    .rule(S2RuleType.EMAIL)
+    .validate();
+
+// 2) Single Value - Exception Mode with Label (throws S2RuntimeException on failure)
+S2Validator.check(userInput, "User Name")
+    .rule(S2RuleType.REQUIRED)
+    .rule(S2RuleType.MIN_LENGTH, 2)
+    .validate();
+
+// 3) Pure Condition Expression Mode
 S2Validator.check(order.isPayable())
     .en("The order is not in a payable status.")
     .ko("결제 가능한 주문 상태가 아닙니다.")
@@ -259,15 +271,31 @@ S2Validator.check(order.isPayable())
 
 ### 3-1. 30+ Built-in Rules (S2RuleType)
 
-| Category               | Available Rule Types                                                       |
-| :--------------------- | :------------------------------------------------------------------------- |
-| **Basic Constraints**  | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                  |
-| **Length & Bounds**    | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`               |
-| **Numeric Checks**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                         |
-| **Format Validation**  | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX`                            |
-| **Region-Specific** 🇰🇷 | `TEL_NO`, `MPHONE_NO`, `ZIP`, `BIZRNO`, `JUMIN`, `NWINO`, `PASSWORD_ANSWR` |
-| **Date & Time**        | `DATE`, `DATE_AFTER`, `DATE_BEFORE`                                        |
-| **Text & Content**     | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED`                            |
+| Category               | Available Rule Types                                                                  |
+| :--------------------- | :------------------------------------------------------------------------------------ |
+| **Basic Constraints**  | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                             |
+| **Length & Bounds**    | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`                          |
+| **Numeric Checks**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                                    |
+| **Format Validation**  | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `PASSWORD`, `REGEX`                           |
+| **Region-Specific** 🇰🇷 | `TEL_NO`, `MPHONE_NO`, `ZIP`, `BIZRNO`, `JUMIN`, `NWINO`, `PASSWORD_ANSWR`            |
+| **Date & Time**        | `DATE`, `DATE_AFTER`, `DATE_BEFORE`                                                   |
+| **Text & Content**     | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED`                                       |
+
+#### Key Security & Formatting Rules
+
+- **`PASSWORD` (Modern Standard Compliance)**:
+  - Requires a 3-way combination: English letters (`a-zA-Z`), numbers (`0-9`), and special characters (`!@#$%^&*()_+-=[]{};':"\|,.<>/?~```).
+  - Length: **8 to 64 characters** (aligned with KISA and modern security guidelines).
+  - *Custom Password Policy*: For alternative rules (e.g., requiring uppercase), use `S2RuleType.REGEX`:
+    ```java
+    // Example: Min 8 chars, at least 1 uppercase, 1 lowercase, 1 number, 1 special char
+    .field("password", "Password")
+        .rule(S2RuleType.REGEX, "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")
+        .en("Password must include uppercase, lowercase, numbers, and special characters.");
+    ```
+- **`JUMIN` (Resident Registration Number — Smart Hybrid Policy)**:
+  - **Born before October 2020**: Enforces strict Modulo 11 checksum verification.
+  - **Born in/after October 2020** (or adults who were reissued/assigned a new number after this date): Due to the discontinuation of regional assignment checksums, the checksum is safely bypassed while calendar dates (leap years, month/day validity) and gender codes (1–8, 9, 0) are strictly validated.
 
 ### 3-2. Conditional Validation (`when` & `and`)
 
@@ -476,9 +504,25 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
 
 ### 6-2. Technical Architecture (`s2.validator.js`)
 
-- **Built-in Resource**: `s2.validator.js` is packaged directly inside `s2-validator.jar` at `META-INF/resources/s2-util/js/`.
+- **Built-in Resource**: `s2.validator.js` is packaged directly inside `s2-validator.jar` at `META-INF/resources/s2-util/js/` (Servlet 3.0+ static resource auto-discovery).
 - **Zero Frontend Dependencies**: Vanilla ES6 JavaScript without requiring external libraries (No jQuery/React/Vue lock-in).
-- **Auto-binding**: Automatically observes forms marked with `data-s2-rules`.
+- **Auto-binding**: Automatically observes forms marked with `data-s2-rules` and handles validation on submit and real-time input.
+- **Hidden Input & Custom Widget Error Proxy (`{fieldName}_error`)**:
+  Hidden inputs (`<input type="hidden">`) or custom UI elements cannot display native browser tooltips. Adding a proxy element named `{fieldName}_error` (e.g., `<span id="termsAgreed_error" class="error"></span>`) enables `s2.validator.js` to automatically inject the error message text into it:
+  ```html
+  <input type="hidden" name="termsAgreed" value="" />
+  <!-- Error message will be automatically populated here upon validation failure -->
+  <span id="termsAgreed_error" class="error-msg"></span>
+  ```
+- **Manual AJAX / Fetch Validation**:
+  ```javascript
+  import { S2Validator } from '/s2-util/js/s2.validator.js';
+  const errors = S2Validator.validate('#signupForm');
+  if (Object.keys(errors).length > 0) {
+      // Abort submission and handle errors
+      return;
+  }
+  ```
 
 ---
 

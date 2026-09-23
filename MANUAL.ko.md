@@ -239,14 +239,26 @@ S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", 
 );
 ```
 
-### E. 독립 조건 검증 패턴 (Field-less Condition Check Mode)
+### E. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)
 
-**사용법:** `S2Validator.check(condition, [errorCode])`
+**사용법:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`
 
-특정 DTO나 필드에 종속되지 않고, 순수한 비즈니스 상태나 조건식 자체를 검증할 때 사용합니다.
+DTO나 Map 객체를 만들지 않고 개별 변수, 파라미터 값, 또는 임의의 비즈니스 조건식을 직접 검증할 때 사용합니다:
 
 ```java
-// 순수 조건식 직접 검증
+// 1) 단일 값 - Boolean 모드 (예외 없이 true/false 반환)
+boolean isValidEmail = S2Validator.check("user@example.com")
+    .rule(S2RuleType.REQUIRED)
+    .rule(S2RuleType.EMAIL)
+    .validate();
+
+// 2) 단일 값 - 라벨 지정 예외 모드 (검증 실패 시 S2RuntimeException 발생)
+S2Validator.check(userInput, "사용자 이름")
+    .rule(S2RuleType.REQUIRED)
+    .rule(S2RuleType.MIN_LENGTH, 2)
+    .validate();
+
+// 3) 순수 조건식 직접 검증 모드
 S2Validator.check(order.isPayable())
     .ko("결제 가능한 주문 상태가 아닙니다.")
     .en("The order is not in a payable status.")
@@ -264,10 +276,26 @@ S2Validator.check(order.isPayable())
 | **기본 제약 조건**     | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                                                                    |
 | **문자열 길이/바이트** | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`                                                                 |
 | **수치 범위 검사**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                                                                           |
-| **형식 및 포맷**       | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `REGEX`                                                                              |
+| **형식 및 포맷**       | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `PASSWORD`, `REGEX`                                                                 |
 | **한국 특화 포맷** 🇰🇷  | `TEL_NO`(전화번호), `MPHONE_NO`(휴대폰), `ZIP`(우편번호), `BIZRNO`(사업자번호), `JUMIN`(주민번호), `NWINO`, `PASSWORD_ANSWR` |
 | **날짜 및 기간**       | `DATE`, `DATE_AFTER`, `DATE_BEFORE`                                                                                          |
 | **텍스트 및 컬렉션**   | `TEXT_INTACT`, `TEXT_COMBINE`, `EACH`, `NESTED`                                                                              |
+
+#### 주요 보안 및 특화 규칙 상세 정책
+
+- **`PASSWORD` (현대적 표준 보안 준수)**:
+  - 영문자(`a-zA-Z`), 숫자(`0-9`), 32종 특수문자(`!@#$%^&*()_+-=[]{};':"\|,.<>/?~```)의 **3종 조합 필수**.
+  - 길이: **8자 ~ 64자** (KISA 및 최신 보안 가이드라인 준수).
+  - *비밀번호 정책 커스터마이징*: 기업별 특수 정책(예: 영문 대/소문자 분리 필수 등)이 필요한 경우 `S2RuleType.REGEX`를 활용하여 자유롭게 커스텀할 수 있습니다:
+    ```java
+    // 예: 최소 8자, 대문자/소문자/숫자/특수문자 4종 필수
+    .field("password", "비밀번호")
+        .rule(S2RuleType.REGEX, "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")
+        .ko("비밀번호는 영문 대/소문자, 숫자, 특수문자를 모두 포함해야 합니다.");
+    ```
+- **`JUMIN` (주민등록번호 — 스마트 하이브리드 검증)**:
+  - **2020년 10월 이전 출생자**: 기존 Modulo 11 체크섬 알고리즘으로 위변조를 엄격하게 검증합니다.
+  - **2020년 10월 이후 출생자** (또는 해당 시점 이후 주민번호를 새로 재부여/변경받은 성인): 지역 고유번호 폐지 및 임의 번호 체계 도입에 맞춰 체크섬을 안전하게 면제하며, 캘린더 생년월일(윤년, 2월 30일 등 유효 일자)과 성별 코드(1~8, 9, 0) 체계를 정밀 검증합니다.
 
 ### 3-2. 조건부 검증 (`when` & `and`)
 
@@ -476,9 +504,25 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
 
 ### 6-2. 기술 아키텍처 (`s2.validator.js`)
 
-- **내장 정적 자원**: `s2.validator.js`는 `s2-validator.jar`의 `META-INF/resources/s2-util/js/` 경로에 내장 배포됩니다.
+- **내장 정적 자원**: `s2.validator.js`는 `s2-validator.jar`의 `META-INF/resources/s2-util/js/` 경로에 내장 배포되어 별도 파일 복사 없이 웹 서버에서 즉시 로드됩니다 (Servlet 3.0+ 자동 서빙 규격 준수).
 - **프론트엔드 무의존성**: 순수 바닐라 ES6 자바스크립트로 구현되어 React, Vue, jQuery 등 특정 프레임워크에 종속되지 않습니다.
-- **자동 바인딩**: `data-s2-rules` 속성이 부여된 모든 폼을 감지하여 자동 연동됩니다.
+- **자동 바인딩 및 실시간 초기화**: `data-s2-rules` 속성이 부여된 모든 폼을 자동 감지(`MutationObserver`)하여 제출 시 검증하고, 입력(`input`/`change`) 시 즉시 오류를 리셋합니다.
+- **히든 필드 및 커스텀 위젯 에러 프록시 (`{fieldName}_error`)**:
+  숨김 입력 필드(`<input type="hidden">`)나 커스텀 드롭다운 등 브라우저 네이티브 툴팁을 띄울 수 없는 요소는 `{fieldName}_error`라는 ID나 이름을 가진 태그(`span`, `div` 등)를 선언해두면 `s2.validator.js`가 해당 위치에 오류 메시지를 자동으로 렌더링합니다:
+  ```html
+  <input type="hidden" name="termsAgreed" value="" />
+  <!-- 검증 실패 시 오류 메시지가 이곳에 자동 출력됩니다 -->
+  <span id="termsAgreed_error" class="error-msg"></span>
+  ```
+- **수동 AJAX / Fetch 검증**:
+  ```javascript
+  import { S2Validator } from '/s2-util/js/s2.validator.js';
+  const errors = S2Validator.validate('#signupForm');
+  if (Object.keys(errors).length > 0) {
+      // 검증 실패: 비동기 전송 중단
+      return;
+  }
+  ```
 
 ---
 
