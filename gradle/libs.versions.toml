@@ -19,7 +19,7 @@ lz4 = "1.11.2"
 mockito = "5.23.0"
 graaljs = "25.3.4.1"
 uuid-creator = "6.1.1"
-errorprone = "2.36.0"
+errorprone = "2.50.0"
 
 # Spring Framework
 spring-framework-6 = "6.2.19"
