@@ -220,4 +220,30 @@ public class DefectFixParityTest {
         Assertions.assertTrue(errors.get(0).defaultMessage().contains("[pw]"), errors.get(0).defaultMessage());
         Assertions.assertFalse(errors.get(0).defaultMessage().contains("[pw] 일치"), "조사가 빠지면 안 됨: " + errors.get(0).defaultMessage());
     }
+
+    @Test
+    @DisplayName("행 안의 상대 참조는 값과 같은 순서로 라벨을 찾는다 (같은 이름의 최상위 필드보다 행 필드 우선)")
+    void testRelativeRowLabelPrefersRowOverRootLikeValueLookup() {
+        Map<String, Object> row = new HashMap<>();
+        row.put("start", "2024-02-05");
+        row.put("end", "2024-02-01");
+        Map<String, Object> target = new HashMap<>();
+        target.put("start", "2000-01-01");
+        target.put("items", List.of(row));
+
+        S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                .field("start", "전체 시작일")
+                .field("items[].start", "행 시작일")
+                .field("items[].end", "행 종료일").rule(S2RuleType.DATE_AFTER, "start")
+                .build();
+
+        List<S2ValidationError> errors = new ArrayList<>();
+        validator.validate(target, errors::add, Locale.KOREAN);
+
+        // The row value (2024-02-05) is compared, so the message must name the row field | 행 값(2024-02-05)과 비교하므로 메시지도 행 필드를 가리켜야 함
+        Assertions.assertEquals(1, errors.size(), errors.toString());
+        Assertions.assertEquals("items[0].end", errors.get(0).fieldName());
+        Assertions.assertTrue(errors.get(0).defaultMessage().contains("행 시작일"), errors.get(0).defaultMessage());
+        Assertions.assertTrue(validator.getRulesJson(Locale.KOREAN).contains("행 종료일은 행 시작일"), validator.getRulesJson(Locale.KOREAN));
+    }
 }

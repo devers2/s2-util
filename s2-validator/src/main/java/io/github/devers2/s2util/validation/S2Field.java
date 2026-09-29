@@ -542,13 +542,15 @@ public class S2Field<T> implements Serializable {
             return criterion;
         }
         String key = String.valueOf(criterion);
-        String label = findDeclaredLabel(key);
+        String label = null;
+        // Same order as the value lookup (S2Rule.lookupTargetValue): the row first, then the declared name. | 값 조회(S2Rule.lookupTargetValue)와 같은 순서: 행 먼저, 그다음 선언된 이름
+        String ownName = String.valueOf(name);
+        int wildcard = ownName.indexOf("[]");
+        if (wildcard >= 0 && !key.contains("[]")) {
+            label = findDeclaredLabel(ownName.substring(0, wildcard + 2) + "." + key);
+        }
         if (label == null) {
-            String ownName = String.valueOf(name);
-            int wildcard = ownName.indexOf("[]");
-            if (wildcard >= 0 && !key.contains("[]")) {
-                label = findDeclaredLabel(ownName.substring(0, wildcard + 2) + "." + key);
-            }
+            label = findDeclaredLabel(key);
         }
         return label != null ? label : criterion;
     }
