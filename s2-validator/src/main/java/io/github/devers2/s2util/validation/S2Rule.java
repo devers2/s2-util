@@ -21,6 +21,7 @@
 package io.github.devers2.s2util.validation;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.Year;
@@ -148,6 +149,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 && S2Util.isEmpty(checkValue)) {
             throw new IllegalArgumentException("[S2Rule] checkValue cannot be null.");
         }
+        validateNumericCriterion(ruleType, checkValue);
 
         this.ruleType = ruleType;
         this.checkValue = checkValue;
@@ -284,14 +286,15 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield targetValue.length() <= maxLength;
             }
             case MIN_BYTE -> {
+                // Count UTF-8 bytes regardless of the platform charset, same as the client (Blob size). | 플랫폼 문자셋과 무관하게 클라이언트(Blob size)와 같은 UTF-8 바이트 수로 계산
                 var targetValue = String.valueOf(value);
                 var minByte = Integer.parseInt(String.valueOf(checkValue));
-                yield targetValue.getBytes().length >= minByte;
+                yield targetValue.getBytes(StandardCharsets.UTF_8).length >= minByte;
             }
             case MAX_BYTE -> {
                 var targetValue = String.valueOf(value);
                 var maxByte = Integer.parseInt(String.valueOf(checkValue));
-                yield targetValue.getBytes().length <= maxByte;
+                yield targetValue.getBytes(StandardCharsets.UTF_8).length <= maxByte;
             }
             case MIN_VALUE -> {
                 Double numVal = toDouble(value);
@@ -777,6 +780,51 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @param value Value to normalize | 정규화할 값
      * @return Trimmed string or the original value | 공백 제거된 문자열 또는 원래 값
      */
+    /**
+     * Rejects numeric criteria that can never be evaluated consistently, at rule creation time.
+     * <p>
+     * MIN_VALUE/MAX_VALUE need a finite plain decimal number: NaN/Infinity make every comparison false and are
+     * serialized as invalid JSON, which disables client validation for the whole form. Length and byte rules need an
+     * integer, otherwise validation fails later with {@link NumberFormatException}.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 일관되게 평가할 수 없는 숫자 기준값을 규칙 생성 시점에 거부합니다.
+     * <p>
+     * MIN_VALUE/MAX_VALUE 는 유한한 일반 십진수가 필요합니다. NaN/Infinity 는 모든 비교를 false 로 만들고 올바르지 않은 JSON 으로
+     * 직렬화되어 폼 전체의 클라이언트 검증을 끕니다. 길이·바이트 규칙은 정수가 필요하며, 아니면 검증 시점에
+     * {@link NumberFormatException}으로 실패합니다.
+     * </p>
+     *
+     * @param ruleType   The rule type | 규칙 타입
+     * @param checkValue The criterion | 기준값
+     * @throws IllegalArgumentException If the criterion is not usable | 기준값을 쓸 수 없는 경우
+     */
+    private static void validateNumericCriterion(S2RuleType ruleType, Object checkValue) {
+        switch (ruleType) {
+            case MIN_VALUE, MAX_VALUE -> {
+                Double number = toDouble(checkValue);
+                if (number == null || number.isNaN() || number.isInfinite()) {
+                    throw new IllegalArgumentException(
+                            "[S2Rule] " + ruleType + " requires a finite number criterion, but was: " + checkValue);
+                }
+            }
+            case LENGTH, MIN_LENGTH, MAX_LENGTH, MIN_BYTE, MAX_BYTE -> {
+                try {
+                    Integer.parseInt(String.valueOf(checkValue));
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(
+                            "[S2Rule] " + ruleType + " requires an integer criterion, but was: " + checkValue, e);
+                }
+            }
+            default -> {
+                // Other rule types have no numeric criterion | 그 밖의 규칙은 숫자 기준값이 없음
+            }
+        }
+    }
+
     private static Object trimIfString(Object value) {
         return value instanceof String str ? str.trim() : value;
     }
