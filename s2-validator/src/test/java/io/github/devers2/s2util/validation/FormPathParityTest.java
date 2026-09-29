@@ -201,6 +201,11 @@ public class FormPathParityTest {
                         () -> b().field("items[].start", "시작일").field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "start").build(),
                         F.text("items[0].start", "2024-01-01"), F.text("items[0].end", "2024-01-03"),
                         F.text("items[1].start", "2024-02-05"), F.text("items[1].end", "2024-02-01")),
+                c("행 날짜 비교(상대 표기), 같은 이름의 최상위 필드가 있어도 행 값과 비교",
+                        () -> b().field("start", "전체 시작일").field("items[].start", "행 시작일")
+                                .field("items[].end", "행 종료일").rule(S2RuleType.DATE_AFTER, "start").build(),
+                        F.text("start", "2000-01-01"),
+                        F.text("items[0].start", "2024-02-05"), F.text("items[0].end", "2024-02-01")),
                 c("행 날짜 비교(와일드카드 표기), 1행 종료 < 시작",
                         () -> b().field("items[].start", "시작일").field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "items[].start").build(),
                         F.text("items[0].start", "2024-02-05"), F.text("items[0].end", "2024-02-01")),
