@@ -10,6 +10,8 @@
 > **"Write Once, Validate Anywhere."**
 > The smartest way to validate both **Server (Java)** and **Client (JavaScript)** with a **single configuration**.
 > 📖 Comprehensive developer guide and architecture: **[Developer Manual (MANUAL.md)](./MANUAL.md)**
+>
+> 📝 Release notes and upgrade notes: **[CHANGELOG.md](./CHANGELOG.md)**
 
 ---
 
@@ -95,7 +97,7 @@ pluginManagement {
 
 // build.gradle
 plugins {
-    id 'io.github.devers2.validator' version '1.1.3'
+    id 'io.github.devers2.validator' version '1.2.0'
 }
 ```
 
