@@ -1174,7 +1174,6 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     case 'LOGIN_ID':
     case 'PASSWORD':
     case 'PASSWORD_ANSWR':
-    case 'BIZRNO':
     case 'NWINO': {
       const rawRegex = rule.regex || rule.value; // REGEX는 value, 나머지 regex
       if (!rawRegex) return false;
@@ -1190,9 +1189,15 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
         return false;
       }
     }
+    case 'BIZRNO': {
+      const text = String(value);
+      if (!rule.regex || !new RegExp(`^(?:${rule.regex})$`).test(text)) return false;
+      // Check digit only when the rule criterion is true, same as server S2Rule.isChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isChecksumEnabled 와 동일)
+      return !isChecksumEnabled(rule.value) || isBizrnoChecksumValid(text);
+    }
     case 'JUMIN':
-      // Check digit only when the rule criterion is true, same as server S2Rule.isJuminChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isJuminChecksumEnabled 와 동일)
-      return validateJumin(String(value), rule.value === true || String(rule.value).trim().toLowerCase() === 'true');
+      // Check digit only when the rule criterion is true, same as server S2Rule.isChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isChecksumEnabled 와 동일)
+      return validateJumin(String(value), isChecksumEnabled(rule.value));
     case 'DATE':
       return validateDate(value); // 문자열/날짜 객체 지원
     case 'DATE_AFTER': {
@@ -1231,6 +1236,43 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       );
       return false;
   }
+};
+
+/**
+ * Returns whether the check digit is requested for JUMIN/BIZRNO (true or "true"), same as server S2Rule.isChecksumEnabled.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * JUMIN/BIZRNO 검증번호 검사 요청 여부(true 또는 "true"). 서버 S2Rule.isChecksumEnabled 와 동일합니다.
+ *
+ * @function isChecksumEnabled
+ * @param {*} criterion - The rule criterion | 규칙 기준값
+ * @returns {boolean} Whether checksum verification is enabled | 검증번호 검사 사용 여부
+ */
+const isChecksumEnabled = (criterion) => criterion === true || String(criterion).trim().toLowerCase() === 'true';
+
+/** Check digit weights of the business registration number | 사업자등록번호 검증번호 가중치 */
+const BIZRNO_WEIGHTS = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+
+/**
+ * Verifies the business registration number check digit (replicates server S2Rule.isBizrnoChecksumValid).
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 사업자등록번호 검증번호를 확인합니다 (서버 S2Rule.isBizrnoChecksumValid 복제).
+ *
+ * @function isBizrnoChecksumValid
+ * @param {string} text - A number that already matched the BIZRNO format | BIZRNO 형식을 통과한 번호
+ * @returns {boolean} Whether the check digit matches | 검증번호 일치 여부
+ */
+const isBizrnoChecksumValid = (text) => {
+  const digits = text.replace(/-/g, '');
+  let sum = 0;
+  for (let i = 0; i < BIZRNO_WEIGHTS.length; i++) {
+    sum += Number(digits[i]) * BIZRNO_WEIGHTS[i];
+  }
+  sum += Math.floor((Number(digits[8]) * 5) / 10);
+  return (10 - (sum % 10)) % 10 === Number(digits[9]);
 };
 
 /**

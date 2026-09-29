@@ -179,7 +179,24 @@ public enum S2RuleType {
     PASSWORD_ANSWR("valid.err.passwordanswr", "{0} 형식이 올바르지 않습니다.", "Invalid password answer format for {0}.",
             "^[가-힣a-zA-Z0-9\\s]{10,80}$"), // 10~80자리
 
-    /** 사업자등록번호 형식 체크 ({0}: 필드설명) */
+    /**
+     * Business registration number ({0}: field label).
+     * <ul>
+     * <li><b>Default ({@code rule(BIZRNO)}):</b> format only — {@code 000-00-00000} or 10 digits.</li>
+     * <li><b>Check digit ({@code rule(BIZRNO, true)}):</b> also verifies the 10th digit (weights 1,3,7,1,3,7,1,3,5 plus
+     * {@code (9th digit × 5) / 10}). Opt-in because test data often uses made-up numbers.</li>
+     * </ul>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 사업자등록번호 체크 ({0}: 필드설명).
+     * <ul>
+     * <li><b>기본 ({@code rule(BIZRNO)}):</b> 형식만 검사 — {@code 000-00-00000} 또는 숫자 10자리.</li>
+     * <li><b>검증번호 검사 ({@code rule(BIZRNO, true)}):</b> 10번째 자리 검증번호도 확인합니다(가중치 1,3,7,1,3,7,1,3,5 와
+     * {@code (9번째 자리 × 5) / 10}). 시험 데이터에 임의 번호를 쓰는 경우가 많아 켜야만 동작합니다.</li>
+     * </ul>
+     */
     BIZRNO("valid.err.bizrno", "{0} 형식이 올바르지 않습니다.", "Invalid business registration number for {0}.",
             "^\\d{3}-\\d{2}-\\d{5}$|^\\d{10}$"), // 000-00-00000 또는 0000000000 모두 허용
 

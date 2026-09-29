@@ -88,6 +88,8 @@
 
 ### 추가
 
+- `BIZRNO` 검증번호 검사: `.rule(S2RuleType.BIZRNO, true)`는 형식에 더해 10번째 자리 검증번호를 확인합니다(서버·브라우저 동일). 기본값
+  `.rule(S2RuleType.BIZRNO)`는 이전처럼 형식만 검사합니다.
 - 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()`.
 - `S2BindValidator.bind(validator)`: 검증기 인스턴스를 연결해 `validate(target, bindingResult)`와 `getRulesJson()` 제공.

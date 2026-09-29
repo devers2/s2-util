@@ -330,6 +330,9 @@ S2Validator.check(order.isPayable())
   - **Default (`.rule(S2RuleType.JUMIN)`)**: Validates 13 digits (hyphen allowed), a real calendar birth date (leap years, month/day validity), and the gender code (1–8, 9, 0). The check digit (last digit) is not verified.
   - **Checksum (`.rule(S2RuleType.JUMIN, true)`)**: Additionally verifies the legacy Modulo 11 check digit for people born before October 2020.
   - **Why checksum is off by default**: Since October 2020, any newly issued or changed number gets random suffix digits regardless of birth date. A number cannot reveal when it was issued, so the check digit would reject valid numbers of people born earlier who were reissued a number.
+- **`BIZRNO` (Business Registration Number)**:
+  - **Default (`.rule(S2RuleType.BIZRNO)`)**: Checks the format only: `000-00-00000` or 10 digits.
+  - **Check digit (`.rule(S2RuleType.BIZRNO, true)`)**: Also verifies the 10th (check) digit, rejecting made-up numbers that only match the format (e.g., `123-45-67890`). Opt-in because test data often uses made-up numbers.
 
 ### 3-2. Conditional Validation (`when` & `and`)
 

@@ -343,11 +343,19 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield false;
             }
             case REGEX, NUMBER, TEXT_INTACT, TEXT_COMBINE, MPHONE_NO, TEL_NO, INTERNATIONAL_TEL_NO, EMAIL, ZIP,
-                    LOGIN_ID, PASSWORD, PASSWORD_ANSWR, BIZRNO, NWINO -> {
+                    LOGIN_ID, PASSWORD, PASSWORD_ANSWR, NWINO -> {
                 var regex = ruleType == S2RuleType.REGEX ? String.valueOf(checkValue) : ruleType.getRegex();
                 yield S2Cache.getPattern(regex)
                         .map(pattern -> pattern.matcher(String.valueOf(value)).matches())
                         .orElse(false);
+            }
+            case BIZRNO -> {
+                String text = String.valueOf(value);
+                boolean formatOk = S2Cache.getPattern(ruleType.getRegex())
+                        .map(pattern -> pattern.matcher(text).matches())
+                        .orElse(false);
+                // Check digit only when the rule criterion is true, same as JUMIN. | 검증번호 검사는 JUMIN 과 같이 규칙 기준값이 true 일 때만
+                yield formatOk && (!isChecksumEnabled(checkValue) || isBizrnoChecksumValid(text));
             }
             case DATE -> {
                 // 타입에 따라 다르게 처리: 문자열 파싱 or Temporal 객체 valid 체크
@@ -437,7 +445,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 }
 
                 // Checksum is opt-in (checkValue true): numbers issued or changed from Oct 2020 carry random digits regardless of birth date. | 검증번호 검사는 선택(checkValue true): 2020-10 이후 부여·변경된 번호는 출생일과 무관하게 임의번호이므로
-                if (!isJuminChecksumEnabled(checkValue)) {
+                if (!isChecksumEnabled(checkValue)) {
                     yield true;
                 }
 
@@ -882,13 +890,39 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     }
 
     /**
-     * Returns whether the legacy JUMIN checksum is requested ({@code Boolean.TRUE} or {@code "true"}).
+     * Returns whether the check digit is requested for JUMIN/BIZRNO ({@code Boolean.TRUE} or {@code "true"}).
      *
      * @param checkValue The rule criterion | 규칙 기준값
      * @return {@code true} if checksum verification is enabled | 검증번호 검사 사용 여부
      */
-    private static boolean isJuminChecksumEnabled(Object checkValue) {
+    private static boolean isChecksumEnabled(Object checkValue) {
         return Boolean.TRUE.equals(checkValue) || "true".equalsIgnoreCase(String.valueOf(checkValue).trim());
+    }
+
+    /** Check digit weights of the business registration number | 사업자등록번호 검증번호 가중치 */
+    private static final int[] BIZRNO_WEIGHTS = { 1, 3, 7, 1, 3, 7, 1, 3, 5 };
+
+    /**
+     * Verifies the business registration number check digit (10th digit): weighted sum of the first nine digits with
+     * weights 1,3,7,1,3,7,1,3,5, plus {@code (9th digit × 5) / 10}; the check digit is {@code (10 - sum % 10) % 10}.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 사업자등록번호 검증번호(10번째 자리)를 확인합니다. 앞 9자리에 가중치 1,3,7,1,3,7,1,3,5 를 곱해 더하고
+     * {@code (9번째 자리 × 5) / 10}을 더한 합으로 {@code (10 - 합 % 10) % 10}을 계산합니다.
+     *
+     * @param text A number that already matched the BIZRNO format | BIZRNO 형식을 통과한 번호
+     * @return {@code true} if the check digit matches | 검증번호 일치 여부
+     */
+    private static boolean isBizrnoChecksumValid(String text) {
+        String digits = S2StringUtil.removeChars(text, '-');
+        int sum = 0;
+        for (int i = 0; i < BIZRNO_WEIGHTS.length; i++) {
+            sum += (digits.charAt(i) - '0') * BIZRNO_WEIGHTS[i];
+        }
+        sum += (digits.charAt(8) - '0') * 5 / 10;
+        return (10 - sum % 10) % 10 == digits.charAt(9) - '0';
     }
 
 }

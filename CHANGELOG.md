@@ -97,6 +97,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 ### Added
 
+- `BIZRNO` check digit: `.rule(S2RuleType.BIZRNO, true)` also verifies the 10th (check) digit, on the server and in the
+  browser. The default `.rule(S2RuleType.BIZRNO)` still checks the format only.
 - `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()` for resetting global state (e.g. in tests).
 - `S2BindValidator.bind(validator)`: bind a validator instance for `validate(target, bindingResult)` and `getRulesJson()`.
