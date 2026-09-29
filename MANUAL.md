@@ -529,7 +529,7 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
   }
   ```
 - **Auto-Fallback for Hidden Fields**:
-  If no `{fieldName}_error` proxy is found and the target field is `type="hidden"` or invisible, S2Validator automatically creates a temporary 1px transparent anchor element next to the hidden field so the browser can display a native tooltip instead of failing silently. This anchor is removed on the next validation or user interaction.
+  If no `{fieldName}_error` proxy is found and no element of the field is rendered (`type="hidden"`, or inside a `display:none` container such as a closed tab or accordion), S2Validator creates one temporary 1px transparent anchor so the browser can display a native tooltip instead of failing silently. The anchor is placed right after the hidden field, or after the outermost non-rendered container so that it is itself rendered. Radio/checkbox groups get one anchor per field. The anchor carries the message as `aria-label`, has no `name` (never submitted), and is removed on the next validation or user interaction. This applies to wildcard row fields (`items[].x`) as well.
 
 ---
 

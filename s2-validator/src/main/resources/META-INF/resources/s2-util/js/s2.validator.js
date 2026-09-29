@@ -256,15 +256,15 @@ export const S2Validator = {
    * </pre>
    * <p>
    * <b>Auto-Fallback for Hidden Fields: (히든 필드 자동 Fallback)</b><br>
-   * If no <code>"{fieldName}_error"</code> proxy is found and the target field is hidden or invisible,
-   * S2Validator automatically creates a temporary 1px transparent anchor element next to the hidden
-   * field so that the browser can display a native tooltip at that position instead of failing silently.
-   * This anchor is automatically removed on the next validation or when the user interacts with the form.
+   * If no <code>"{fieldName}_error"</code> proxy is found and no element of the field is rendered (hidden
+   * input, or inside a <code>display:none</code> container), S2Validator creates one temporary 1px anchor
+   * (see <code>applyFieldError</code>) so that the browser can display a native tooltip instead of failing
+   * silently. This anchor is automatically removed on the next validation or when the user interacts with the form.
    * <br>
-   * <code>"{fieldName}_error"</code> 프록시가 존재하지 않고 대상 필드가 히든이거나 비표시 상태인 경우,
-   * S2Validator가 해당 히든 필드 바로 뒤에 1px 투명 앵커를 자동으로 임시 생성하여 브라우저 네이티브
-   * 툴팁이 해당 위치에 표시되도록 합니다 (폼 먹통 방지). 이 앵커는 다음 검증 시 또는 사용자 입력 시
-   * 자동으로 제거됩니다.
+   * <code>"{fieldName}_error"</code> 프록시가 없고 필드의 어떤 요소도 렌더링되지 않는 경우(히든 입력칸,
+   * 또는 <code>display:none</code> 컨테이너 안), S2Validator가 1px 앵커 하나를 임시로 만들어
+   * (<code>applyFieldError</code> 참고) 브라우저 네이티브 툴팁이 표시되도록 합니다 (폼 먹통 방지).
+   * 이 앵커는 다음 검증 시 또는 사용자 입력 시 자동으로 제거됩니다.
    * </p>
    *
    * @function validate
@@ -483,20 +483,7 @@ export const S2Validator = {
               // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
               const firstMessage = fieldErrors[0];
 
-              const errorEl = form.querySelector(`[name="${actualFieldName}_error"]`);
-              if (errorEl) {
-                if (typeof errorEl.setCustomValidity === 'function') {
-                  errorEl.setCustomValidity(firstMessage);
-                } else {
-                  errorEl.textContent = firstMessage;
-                }
-              } else {
-                fieldElements.forEach((el) => {
-                  if (typeof el.setCustomValidity === 'function') {
-                    el.setCustomValidity(firstMessage);
-                  }
-                });
-              }
+              applyFieldError(form, actualFieldName, fieldElements, firstMessage);
             }
 
             processedFields.add(fullPath);
@@ -557,41 +544,8 @@ export const S2Validator = {
           // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
           const firstMessage = fieldErrors[0];
 
-          const errorEl = form.querySelector(`[name="${fullPath}_error"]`);
-          if (errorEl) {
-            if (typeof errorEl.setCustomValidity === 'function') {
-              errorEl.setCustomValidity(firstMessage);
-            } else {
-              errorEl.textContent = firstMessage;
-            }
-          } else {
-            const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-            fieldElements.forEach((el) => {
-              if (typeof el.setCustomValidity === 'function') {
-                // 화면에 보이는 일반 필드: 네이티브 검증 메시지 설정
-                // hidden/비표시 필드: 1px 투명 더미 앵커를 동적 생성하여 네이티브 툴팁 Fallback 제공
-                const isInvisible = el.type === 'hidden' || !el.offsetParent;
-                if (isInvisible) {
-                  // [Fallback] {fieldName}_error 프록시가 없는 히든/비표시 필드의 경우,
-                  // 브라우저가 포커스할 수 있는 1px 투명 인풋을 히든 인풋 바로 뒤에 동적 삽입하여
-                  // 네이티브 툴팁을 해당 위치에 띄운다. (Silent Fail 방지)
-                  const dummy = document.createElement('input');
-                  dummy.type = 'text';
-                  dummy.tabIndex = -1;
-                  dummy.setAttribute('aria-hidden', 'true');
-                  dummy.className = '__s2_dummy_anchor__';
-                  // name 속성을 부여하지 않아 폼 제출 시 서버로 전송되지 않음
-                  dummy.style.cssText =
-                    'position:absolute;width:1px;height:1px;opacity:0;' +
-                    'pointer-events:none;border:0;padding:0;margin:0;outline:none;';
-                  el.insertAdjacentElement('afterend', dummy);
-                  dummy.setCustomValidity(firstMessage);
-                } else {
-                  el.setCustomValidity(firstMessage);
-                }
-              }
-            });
-          }
+          const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
+          applyFieldError(form, fullPath, fieldElements, firstMessage);
         }
       });
     };
@@ -1251,6 +1205,97 @@ const parseDate = (value) => {
     return value;
   }
   return null;
+};
+
+/**
+ * Shows a validation message for a field using the browser's native constraint validation UI.
+ * <p>
+ * Priority: the <code>{fieldName}_error</code> proxy element, then the rendered field elements, then a single 1px
+ * anchor input when no element of the field is rendered (hidden input, or inside a <code>display:none</code>
+ * container). The anchor is placed after the outermost non-rendered ancestor inside the form so that it is rendered
+ * and the browser can focus it. It carries the message as <code>aria-label</code> instead of being hidden from
+ * assistive technology, and has no <code>name</code> so it is never submitted.
+ * </p>
+ *
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 브라우저 기본 제약 검증 UI 로 필드의 오류 메시지를 표시합니다.
+ * <p>
+ * 우선순위: <code>{필드명}_error</code> 대리 요소 → 렌더링된 필드 요소 → 필드의 어떤 요소도 렌더링되지 않을 때(히든 입력칸, 또는
+ * <code>display:none</code> 컨테이너 안) 1px 앵커 입력칸 하나. 앵커는 폼 안에서 렌더링되지 않는 가장 바깥 조상 바로 뒤에 두어 실제로 그려지고
+ * 브라우저가 초점을 줄 수 있게 합니다. 보조기술에서 숨기지 않고 메시지를 <code>aria-label</code>로 제공하며, <code>name</code>이 없어
+ * 전송되지 않습니다.
+ * </p>
+ *
+ * @function applyFieldError
+ * @param {HTMLFormElement} form - The form | 폼
+ * @param {string} fieldName - Full field name | 전체 필드명
+ * @param {NodeList|Array} fieldElements - Elements of the field | 필드 요소들
+ * @param {string} message - The message to show | 표시할 메시지
+ */
+const applyFieldError = (form, fieldName, fieldElements, message) => {
+  const errorEl = form.querySelector(`[name="${fieldName}_error"]`);
+  if (errorEl) {
+    if (typeof errorEl.setCustomValidity === 'function') {
+      errorEl.setCustomValidity(message);
+    } else {
+      errorEl.textContent = message;
+    }
+    return;
+  }
+
+  const elements = Array.from(fieldElements).filter((el) => typeof el.setCustomValidity === 'function');
+  if (elements.length === 0) return;
+
+  const rendered = elements.filter((el) => !isNotRendered(el));
+  if (rendered.length > 0) {
+    rendered.forEach((el) => el.setCustomValidity(message));
+    return;
+  }
+
+  // No element of the field is rendered: one anchor per field (not per radio/checkbox) | 필드 요소가 하나도 렌더링되지 않음: 라디오/체크박스도 필드당 앵커 하나
+  const dummy = document.createElement('input');
+  dummy.type = 'text';
+  dummy.tabIndex = -1;
+  dummy.setAttribute('aria-label', message);
+  dummy.className = '__s2_dummy_anchor__';
+  dummy.style.cssText =
+    'position:absolute;width:1px;height:1px;opacity:0;' +
+    'pointer-events:none;border:0;padding:0;margin:0;outline:none;';
+
+  // Climb out of non-rendered containers (closed tab, accordion) so the anchor itself is rendered | 렌더링되지 않는 컨테이너(닫힌 탭·아코디언) 밖으로 올라가 앵커가 그려지도록 함
+  let host = elements[0];
+  while (host.parentElement && host.parentElement !== form && isNotRendered(host.parentElement)) {
+    host = host.parentElement;
+  }
+  host.insertAdjacentElement('afterend', dummy);
+  dummy.setCustomValidity(message);
+};
+
+/**
+ * Returns whether an element produces no box (hidden input or <code>display:none</code> itself or in an ancestor).
+ * <p>
+ * Uses <code>getClientRects()</code> rather than <code>offsetParent</code>, which is also null for rendered
+ * <code>position:fixed</code> elements.
+ * </p>
+ *
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 요소가 박스를 만들지 않는지(히든 입력칸, 또는 자신·조상이 <code>display:none</code>) 반환합니다.
+ * <p>
+ * 렌더링된 <code>position:fixed</code> 요소에서도 null 인 <code>offsetParent</code> 대신 <code>getClientRects()</code>를 씁니다.
+ * </p>
+ *
+ * @function isNotRendered
+ * @param {Element} el - The element | 요소
+ * @returns {boolean} true if not rendered | 렌더링되지 않으면 true
+ */
+const isNotRendered = (el) => {
+  if (el.type === 'hidden') return true;
+  if (typeof el.getClientRects === 'function') return el.getClientRects().length === 0;
+  return !el.offsetParent;
 };
 
 /**
