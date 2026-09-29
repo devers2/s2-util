@@ -24,8 +24,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.devers2.s2util.core.S2Util;
+import io.github.devers2.s2util.log.S2LogManager;
+import io.github.devers2.s2util.log.S2Logger;
 
 /**
  * Internal writer that serializes {@link S2Validator} rules into the JSON consumed by {@code s2.validator.js}.
@@ -42,6 +46,11 @@ import io.github.devers2.s2util.core.S2Util;
  * </p>
  */
 final class S2RulesJsonWriter {
+
+    private static final S2Logger logger = S2LogManager.getLogger(S2RulesJsonWriter.class);
+
+    /** Definition sites already reported as server-only (bounded by the number of lambdas in the code) | 이미 서버 전용으로 안내한 정의 위치 (코드의 람다 수로 한정) */
+    private static final Set<String> reportedServerOnly = ConcurrentHashMap.newKeySet();
 
     private S2RulesJsonWriter() {
         // Prevent instantiation
@@ -93,6 +102,10 @@ final class S2RulesJsonWriter {
             // [서버-클라이언트 일관성] 규칙이 하나도 없으면 서버와 동일하게 REQUIRED 규칙을 기본으로 적용한다.
             if (rules.isEmpty() && field.getCustomRules().isEmpty()) {
                 rules = Collections.singletonList(S2Rule.required());
+            }
+
+            if (!field.getCustomRules().isEmpty()) {
+                noticeServerOnlyRules(field);
             }
 
             if (!firstField)
@@ -215,6 +228,47 @@ final class S2RulesJsonWriter {
         throw new IllegalStateException("REGEX rule \"" + pattern + "\" on field '" + fieldName
                 + "' uses Java-only syntax that the browser (JavaScript) cannot evaluate the same way: " + problem
                 + ". Use ECMAScript-compatible syntax for client-side validation (e.g. [Aa] instead of (?i)).");
+    }
+
+    /**
+     * Logs once per definition site that a field's custom lambda rules are not exported and run on the server only.
+     * <p>
+     * Validators are often rebuilt per request, so the key is the lambda's class (one per definition site) plus the field
+     * name, not the validator instance; the set is bounded by the number of lambdas in the code.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드의 커스텀 람다 규칙이 내보내지지 않고 서버에서만 검증된다는 사실을 정의 위치마다 한 번 기록합니다.
+     * <p>
+     * 검증기는 요청마다 다시 만들어지는 경우가 많으므로 검증기 인스턴스가 아니라 람다 클래스(정의 위치마다 하나)와 필드 이름을 키로 쓰며, 키의 수는 코드의
+     * 람다 수로 한정됩니다.
+     * </p>
+     *
+     * @param field The field with custom rules | 커스텀 규칙을 가진 필드
+     */
+    private static void noticeServerOnlyRules(S2Field<?> field) {
+        String fieldName = String.valueOf(field.getName());
+        for (S2Field.S2CustomRule<?, ?> custom : field.getCustomRules()) {
+            String site = (custom.origin != null ? custom.origin.getName() : "?") + "#" + fieldName;
+            if (!reportedServerOnly.add(site)) {
+                continue;
+            }
+            if (S2Util.isKorean()) {
+                logger.info("필드 '{}'의 커스텀 람다 규칙은 클라이언트 규칙 JSON 에 포함되지 않으며 서버에서만 검증됩니다. "
+                        + "브라우저에서도 검증하려면 내장 규칙이나 REGEX 를 사용하십시오. (정의 위치: {})", fieldName, custom.origin != null ? custom.origin.getName() : "?");
+            } else {
+                logger.info("Custom lambda rules on field '{}' are not included in the client rules JSON and are validated on "
+                        + "the server only. Use built-in rules or REGEX to validate in the browser as well. (defined at: {})",
+                        fieldName, custom.origin != null ? custom.origin.getName() : "?");
+            }
+        }
+    }
+
+    /** Clears the server-only notice history (tests) | 서버 전용 안내 기록 초기화 (시험용) */
+    static void resetServerOnlyNotices() {
+        reportedServerOnly.clear();
     }
 
     private static String toJsonString(Object obj) {

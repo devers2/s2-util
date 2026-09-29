@@ -72,6 +72,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - **Index gaps**: `null` elements in wildcard/EACH collections (e.g. rows 0 and 2 submitted, row 1 deleted) are not
   validated as rows, matching the browser.
 - **Conditions**: a blank string counts as empty, like an empty form field in the browser (`when(field, null)`).
+- **Server-only notice**: `getRulesJson()` logs an `INFO` notice once per definition site when a field has custom
+  lambda rules, which are not exported to the browser (previously they were dropped silently).
 - **Nesting depth**: `NESTED`/`EACH` stop at depth 64 and report `valid.err.maxdepth` instead of risking a
   `StackOverflowError`.
 - **`check(value, label)`**: exceptions report the label as the field name (was the internal key `"value"`).

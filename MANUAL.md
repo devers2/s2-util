@@ -11,8 +11,8 @@
 
 1. [Installation & Infrastructure](#1-installation--infrastructure)
    - [1-1. Dependencies & Components](#1-1-dependencies--components)
-   - [1-2. S2Validator Static Analysis Plugin & Dead Code Detection](#1-2-s2validator-static-analysis-plugin--dead-code-detection)
-   - [1-3. Global Configuration (ResourceBundle)](#1-3-global-configuration-resourcebundle)
+   - [1-2. S2Validator Static Analysis Plugin & Dead Code Detection](#1-2-s2validator-static-analysis-plugin--dead-code-detection-)
+   - [1-3. Global Configuration (ResourceBundle)](#1-3-global-configuration-resourcebundle---optional)
 2. [S2Validator: Strategic Validation Patterns](#2-s2validator-strategic-validation-patterns)
    - [A. Pattern: Immediate Mode](#a-pattern-immediate-mode)
    - [B. Pattern: Blueprint Mode](#b-pattern-blueprint-mode)
@@ -487,7 +487,8 @@ Inject custom business lambdas when built-in rule types are not sufficient:
 > ⚠️ **Server-Only Validation Rule**:
 > Java lambdas (`Predicate`, `BiPredicate`) are JVM runtime bytecode objects and **cannot be serialized to JSON** for `s2.validator.js`.
 > Therefore, custom lambda rules **execute exclusively on the server side**.
-> If a rule must be enforced on both client and server, use [`S2RuleType.REGEX`](#3-core-rules-catalog) or built-in rules.
+> If a rule must be enforced on both client and server, use [`S2RuleType.REGEX`](#3-1-30-built-in-rules-s2ruletype) or built-in rules.
+> When `getRulesJson()` meets such a rule, it logs an `INFO` notice once per definition site (not per request) so this is visible during development.
 
 ---
 
