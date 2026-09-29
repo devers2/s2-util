@@ -104,6 +104,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - Browser: `S2Validator.setRenderer({ show, clear, clearField })` to draw errors the application's way instead of native
   bubbles, and `S2Validator.classRenderer()` (adds `is-invalid`, writes messages into `[data-s2-error-for]`, focuses the
   first error).
+- Browser: `S2Validator.reindex(form, collection)` renumbers row indices to `0..n-1` after a row is deleted (explicit
+  call only; never automatic).
 - Browser: a 1px anchor next to hidden/non-rendered fields without a `{field}_error` proxy, so the native message is shown.
 
 ### Fixed

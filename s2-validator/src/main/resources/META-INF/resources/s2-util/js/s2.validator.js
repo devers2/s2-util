@@ -669,6 +669,66 @@ export const S2Validator = {
         if (focus && first && typeof first.focus === 'function') first.focus();
       }
     };
+  },
+
+  /**
+   * Renumbers the rows of a collection so the indices are contiguous (<code>0..n-1</code>), in document order.
+   * <p>
+   * Call it after removing a row. Deleting a row can leave names such as <code>items[0]</code> and
+   * <code>items[2]</code>; Spring's DTO list binding then auto-grows the list and fills the gap with an empty object
+   * that the server validates as a real (empty) row. This renames the <code>name</code> of inputs (including sub-paths
+   * such as <code>items[2].addr.zip</code> and <code>{fieldName}_error</code> proxies) and
+   * <code>data-s2-error-for</code> attributes. Other collections, <code>id</code> attributes and elements outside
+   * the form are not changed. For a nested collection pass its full path, e.g. <code>'items[0].options'</code>.
+   * It is never applied automatically: indices may be meaningful (e.g. map keys or IDs such as <code>items[1234]</code>).
+   * </p>
+   *
+   * <p>
+   * <b>[한국어 설명]</b>
+   * </p>
+   * 컬렉션 행의 인덱스를 문서 순서대로 연속 번호(<code>0..n-1</code>)로 다시 매깁니다.
+   * <p>
+   * 행을 삭제한 뒤 호출합니다. 행을 삭제하면 <code>items[0]</code>, <code>items[2]</code> 같은 이름이 남을 수 있고, Spring 의 DTO 목록 바인딩은
+   * 목록을 자동 확장하며 빈칸을 빈 객체로 채워 서버가 이를 실제(빈) 행으로 검증합니다. 입력칸의 <code>name</code>(<code>items[2].addr.zip</code>
+   * 같은 하위 경로와 <code>{필드명}_error</code> 대리 요소 포함)과 <code>data-s2-error-for</code> 속성을 바꿉니다. 다른 컬렉션, <code>id</code>
+   * 속성, 폼 밖의 요소는 바꾸지 않습니다. 중첩 컬렉션은 전체 경로를 넘깁니다(예: <code>'items[0].options'</code>). 인덱스가 의미를 가질 수 있으므로
+   * (예: Map 키나 <code>items[1234]</code> 같은 ID) 자동으로 적용하지 않습니다.
+   * </p>
+   *
+   * @param {HTMLFormElement|string} formSource - Form element or selector | 폼 요소 또는 선택자
+   * @param {string} collection - Collection path, e.g. 'items' or 'items[0].options' | 컬렉션 경로
+   * @returns {number} Number of rows after renumbering | 재번호 후 행 수
+   * @example
+   * row.remove();
+   * S2Validator.reindex(form, 'items'); // items[0], items[2] -> items[0], items[1]
+   */
+  reindex(formSource, collection) {
+    const form = typeof formSource === 'string' ? document.querySelector(formSource) : formSource;
+    if (!form || !collection) return 0;
+
+    const pattern = new RegExp(`^${escapeRegExp(collection)}\\[(\\d+)\\]`);
+    const attributes = ['name', 'data-s2-error-for'];
+    const elements = Array.from(form.querySelectorAll('[name], [data-s2-error-for]'));
+
+    // Old index -> new index, in order of first appearance in the document | 문서에 처음 나타나는 순서대로 이전 인덱스 -> 새 인덱스
+    const mapping = new Map();
+    elements.forEach((el) => {
+      attributes.forEach((attr) => {
+        const match = el.getAttribute(attr)?.match(pattern);
+        if (match && !mapping.has(match[1])) mapping.set(match[1], mapping.size);
+      });
+    });
+
+    elements.forEach((el) => {
+      attributes.forEach((attr) => {
+        const value = el.getAttribute(attr);
+        const match = value?.match(pattern);
+        if (match) {
+          el.setAttribute(attr, value.replace(pattern, `${collection}[${mapping.get(match[1])}]`));
+        }
+      });
+    });
+    return mapping.size;
   }
 };
 

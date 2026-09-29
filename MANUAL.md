@@ -443,19 +443,19 @@ S2Validator.<OrderDTO>builder()
 // → "Delivery date cannot be earlier than Order date." (a field with the same name in the row wins over the root)
 ```
 
-**Dynamic rows: keep indices contiguous.** When the user deletes a row, the remaining inputs may be named `items[0]` and `items[2]`. The browser validates only the rows that exist, and a `null` element in a `Map`/`List` target is skipped on the server too. But Spring's data binding to a DTO list auto-grows the list and fills the gap with an **empty object** (`new ItemDTO()`), which the server cannot tell apart from a real empty row, so the server reports `items[1].*` errors for a row that is not on the screen. Renumber the rows after deleting one so the indices stay `0..n-1`:
+**Dynamic rows: keep indices contiguous.** When the user deletes a row, the remaining inputs may be named `items[0]` and `items[2]`. The browser validates only the rows that exist, and a `null` element in a `Map`/`List` target is skipped on the server too. But Spring's data binding to a DTO list auto-grows the list and fills the gap with an **empty object** (`new ItemDTO()`), which the server cannot tell apart from a real empty row, so the server reports `items[1].*` errors for a row that is not on the screen. Renumber the rows after deleting one so the indices stay `0..n-1`, with `S2Validator.reindex(form, collection)`:
 
 ```javascript
-// Call after removing a row: items[2].name -> items[1].name, ... (also update _error proxies / data-s2-error-for if used)
-function reindexRows(container, collection) {
-  const pattern = new RegExp(`^${collection}\\[\\d+\\]`);
-  container.querySelectorAll('[data-row]').forEach((row, index) => {
-    row.querySelectorAll('[name]').forEach((el) => {
-      el.name = el.name.replace(pattern, `${collection}[${index}]`);
-    });
-  });
-}
+import { S2Validator } from '/s2-util/js/s2.validator.js';
+
+deleteButton.addEventListener('click', () => {
+  row.remove();
+  S2Validator.reindex(form, 'items'); // items[0], items[2], items[5] -> items[0], items[1], items[2]
+});
+// Nested collection: pass its full path, e.g. S2Validator.reindex(form, 'items[0].options')
 ```
+
+It renames, in document order, the `name` of inputs (including sub-paths such as `items[2].addr.zip` and `{fieldName}_error` proxies) and `data-s2-error-for` attributes; other collections and `id` attributes are left as they are. It is never applied automatically, because indices can be meaningful (e.g. map keys or IDs such as `items[1234]`). If other scripts look inputs up by `name`, let them do so after renumbering.
 
 ### 5-3. Custom Logic: Predicate & BiPredicate (Server-Only)
 
