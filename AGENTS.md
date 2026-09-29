@@ -33,7 +33,9 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
 4. **교차 필드 메시지 가독성**:
    - `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`의 에러 메시지는 내부 영문 필드명(`pw`, `startDate`)이 아닌 대상 필드의 논리 라벨(`비밀번호`, `시작일`)로 치환되어야 합니다.
 5. **실제 브라우저 시험**:
-   - `s2.validator.js`의 DOM 처리(오류 표시, 히든 필드 앵커, 렌더러, `reindex`)를 수정했다면 `./gradlew check`에 더해 `s2-validator/browser-test`에서 `npm test`(Playwright)를 실행하여 통과를 확인해야 합니다.
+   - `s2.validator.js`의 DOM 처리(오류 표시, 히든 필드 앵커, 렌더러, `reindex`)를 수정했다면 `./gradlew check`에 더해 `s2-validator/browser-test/run.sh`(Playwright)를 실행하여 통과를 확인해야 합니다. 스크립트가 npm 패키지·Chromium·시스템 라이브러리 중 없는 것만 준비한 뒤 시험을 실행합니다.
+   - 시스템 라이브러리 설치에는 sudo 비밀번호가 필요합니다. 에이전트는 sudo 를 실행하지 말고, 라이브러리가 없다고 나오면 사용자에게 `! s2-validator/browser-test/run.sh` 실행을 요청하십시오.
+   - 이 시험은 `./gradlew check`에 포함되지 않으며, GitHub Actions `Browser tests (s2.validator.js)` 워크플로가 JS·`browser-test/` 변경 시에만 자동 실행합니다.
    - 데모 규칙(`BrowserDemoRules.java`)을 바꾸면 `./gradlew :s2-validator:writeBrowserDemoRules`로 `demo/rules.json`을 다시 생성하십시오.
 
 ---
