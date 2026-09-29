@@ -164,7 +164,7 @@ S2Validator는 목적에 따라 두 가지 주요 실행 방식을 지원합니�
 #### 2.1. 기본 검증 (즉시 검증 vs 재사용 설계도)
 
 - **즉시 검증 모드 (`S2Validator.of`)**: 클라이언트 연동 설정 없이 검증 대상 객체(DTO/VO 또는 Map)에 대해 1회성 검증을 즉시 수행합니다. `.rule(...)`을 생략하면 기본값으로 `S2RuleType.REQUIRED`가 자동 적용됩니다.
-  - `.validate()`를 바로 호출하면 첫 번째 에러 발생 시 `S2RuntimeException`을 즉시 던집니다 (Fail-Fast 모드).
+  - `.validate()`를 바로 호출하면 첫 번째 에러 발생 시 `S2ValidationException`을 즉시 던집니다 (Fail-Fast 모드).
   - 에러 핸들러(`Consumer<S2ValidationError>`)를 넘기면 예외를 던지지 않고 전체 에러 목록을 수집할 수 있습니다.
 - **설계도 / 빌더 모드 (`S2Validator.builder`)**: 검증 로직을 재사용 가능한 '설계도(Blueprint)'로 정의합니다. 빌드된 `S2Validator` 인스턴스는 스레드 안전(Thread-safe)하여 고동시성 환경에서 캐싱 및 반복 재사용에 최적화되어 있습니다.
 
@@ -176,7 +176,7 @@ data.put("userId", "admin");
 data.put("email", "test@s2.kr");
 data.put("birthDate", "20250101");
 
-// 1) Fail-fast 모드: 실패 시 즉시 S2RuntimeException 발생
+// 1) Fail-fast 모드: 실패 시 즉시 S2ValidationException 발생
 // 클라이언트 연동이 필요 없는 REST API, 서비스 레이어 등에서 가장 간결하게 사용:
 S2Validator.of(data)
     .field("userId", "아이디") // 규칙 생략 시 기본 REQUIRED 자동 적용
@@ -223,7 +223,7 @@ boolean isValid = userValidator.validate(user, errors::add, Locale.KOREAN);
 
 DTO나 Map 객체를 생성하지 않고 개별 변수나 값 하나만을 신속하게 검증할 때 사용합니다:
 - **Boolean 모드 (`check(value)`)**: 예외 발생 없이 `true`/`false` 불린 결과를 반환합니다.
-- **라벨 지정 예외 모드 (`check(value, label)`)**: 검증 실패 시 라벨이 반영된 다국어 메시지와 함께 `S2RuntimeException` 예외를 던집니다.
+- **라벨 지정 예외 모드 (`check(value, label)`)**: 검증 실패 시 라벨이 반영된 다국어 메시지와 함께 `S2ValidationException` 예외를 던집니다.
 - **커스텀 Predicate 검증 (서버 전용)**: 람다 표현식을 통해 원하는 비즈니스 검증 로직을 즉시 적용할 수 있습니다 (서버 측 단독 실행).
 
 ```java
@@ -233,7 +233,7 @@ boolean isValidEmail = S2Validator.check("test@s2.kr")
     .rule(S2RuleType.EMAIL)
     .validate();
 
-// 2) 라벨 지정 예외 모드: 실패 시 S2RuntimeException 발생
+// 2) 라벨 지정 예외 모드: 실패 시 S2ValidationException 발생
 S2Validator.check(userInput, "이름")
     .rule(S2RuleType.REQUIRED) // 기본 메시지 사용 또는 .ko()로 커스텀 가능
     .validate();

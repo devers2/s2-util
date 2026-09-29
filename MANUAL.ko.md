@@ -13,12 +13,11 @@
    - [1-1. 의존성 및 모듈 구성](#1-1-의존성-및-모듈-구성)
    - [1-2. S2Validator 정적 분석 플러그인 & Dead Code 감지](#1-2-s2validator-정적-분석-플러그인--dead-code-감지)
    - [1-3. 전역 메시지 번들 설정 (선택 사항)](#1-3-전역-메시지-번들-설정-선택-사항)
-2. [S2Validator 5대 전략적 검증 패턴](#2-s2validator-5대-전략적-검증-패턴)
+2. [S2Validator 4대 전략적 검증 패턴](#2-s2validator-4대-전략적-검증-패턴)
    - [A. 즉시 검증 패턴 (Immediate Mode)](#a-즉시-검증-패턴-immediate-mode)
    - [B. 설계도 재사용 패턴 (Blueprint Mode)](#b-설계도-재사용-패턴-blueprint-mode)
-   - [C. 중앙 캐싱 관리 패턴 (Registry Mode)](#c-중앙-캐싱-관리-패턴-registry-mode)
-   - [D. 스프링 표준 통합 패턴 (Spring Standard Alignment)](#d-스프링-표준-통합-패턴-spring-standard-alignment)
-   - [E. 독립 조건 검증 패턴 (Field-less Condition Check Mode)](#e-독립-조건-검증-패턴-field-less-condition-check-mode)
+   - [C. 스프링 표준 통합 패턴 (권장)](#c-스프링-표준-통합-패턴-권장)
+   - [D. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)](#d-단일-값-및-독립-조건-검증-패턴-single-value--condition-check-mode)
 3. [풍부한 검증 규칙 및 조건부 검증](#3-풍부한-검증-규칙-및-조건부-검증)
    - [3-1. 30가지 이상의 내장 규칙 (S2RuleType)](#3-1-30가지-이상의-내장-규칙-s2ruletype)
    - [3-2. 조건부 검증 (when & and)](#3-2-조건부-검증-when--and)
@@ -152,18 +151,17 @@ S2BindValidator.setValidationBundle("messages");
 
 ---
 
-## 2. S2Validator 5대 전략적 검증 패턴
+## 2. S2Validator 4대 전략적 검증 패턴
 
-S2Validator는 비즈니스 상황에 맞춰 선택할 수 있는 5가지 실행 패턴을 제공합니다:
+S2Validator는 비즈니스 상황에 맞춰 선택할 수 있는 4가지 실행 패턴을 제공합니다:
 
 ```mermaid
 flowchart TD
     Req["검증 요청 데이터"] --> Choice{"상황별 패턴 선택"}
     Choice -->|"메서드 내부 1회성 검증"| A["즉시 검증 모드<br>S2Validator.of()"]
     Choice -->|"재사용 가능한 검증 규칙"| B["설계도 모드<br>S2Validator.builder()"]
-    Choice -->|"전역 싱글톤 캐싱"| C["중앙 캐싱 관리 모드<br>S2ValidatorFactory"]
-    Choice -->|"스프링 MVC 폼 검증"| D["스프링 표준 연동<br>S2BindValidator.of()"]
-    Choice -->|"단순 상태/조건 검증"| E["독립 조건 검증 모드<br>S2Validator.check()"]
+    Choice -->|"스프링 MVC 폼 검증"| C["스프링 표준 연동<br>S2BindValidator.of()"]
+    Choice -->|"단일 값/조건 검증"| D["단일 값 검증 모드<br>S2Validator.check()"]
 ```
 
 ### A. 즉시 검증 패턴 (Immediate Mode)
@@ -173,7 +171,7 @@ flowchart TD
 서비스 메서드 내부에서 들어온 파라미터를 1회성으로 빠르게 검증할 때 사용합니다.
 
 ```java
-// 1. 예외 발생 모드 (기본값: 검증 실패 시 S2RuntimeException 즉시 발생)
+// 1. 예외 발생 모드 (기본값: 검증 실패 시 S2ValidationException 즉시 발생)
 S2Validator.of(userInput)
     .field("email").rule(S2RuleType.REQUIRED).rule(S2RuleType.EMAIL)
     .validate();
@@ -206,7 +204,7 @@ schema.validate(userB);
 
 **사용법:** `S2BindValidator.of(validator)`
 
-스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다. 전역 등록부를 거치지 않고 검증기 인스턴스를 직접 전달하므로 키 충돌이나 메모리 누수 위험이 없고 테스트 격리가 완벽합니다.
+스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다. 검증기 인스턴스를 직접 전달하므로 충돌하거나 시험 사이에 초기화해야 할 전역 상태가 없습니다. 검증기 생성 비용은 일반적인 폼에서 1마이크로초 미만이라 요청마다 만들어도 되며, 규칙 정의 자체가 무거우면 상수나 Spring 빈으로 보관하십시오. GET 폼(`getRulesJson()`)과 POST 처리(`validate()`)에 같은 인스턴스(또는 같은 규칙 정의 메서드)를 쓰면 양쪽이 동일한 규칙을 적용합니다.
 
 ```java
 // Controller 내 static final 또는 Spring Bean으로 선언 (권장)
@@ -225,24 +223,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 }
 ```
 
-### D. 중앙 캐싱 관리 패턴 (선택 사항)
-
-**사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
-
-> [!WARNING]
-> 키는 그 키로 **처음** 만든 검증기에 고정됩니다. 역할·상태에 따라 규칙이 다르면(예: 관리자는 `MAX_LENGTH`가 다름) 규칙 집합마다 다른 키를 쓰십시오. 그렇지 않으면 첫 규칙이 모든 호출에 경고 없이 재사용됩니다. 확실하지 않으면 `S2BindValidator.of(validator)`를 쓰십시오.
-
-전역 싱글톤 캐시가 필요한 경우 사용합니다. 동일 키에 대해 서로 다른 공급자 클래스가 등록을 시도하면 디버그(DEBUG) 로그가 출력되며(규칙이 같아도 호출 위치가 다른 메서드 참조는 서로 다른 클래스이므로), 테스트 격리가 필요한 경우 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`로 초기화할 수 있습니다.
-
-```java
-S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->
-    S2Validator.<UserDTO>builder()
-        .field("name", "이름").rule(S2RuleType.REQUIRED)
-        .build()
-);
-```
-
-### E. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)
+### D. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)
 
 **사용법:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`
 
@@ -255,7 +236,7 @@ boolean isValidEmail = S2Validator.check("user@example.com")
     .rule(S2RuleType.EMAIL)
     .validate();
 
-// 2) 단일 값 - 라벨 지정 예외 모드 (검증 실패 시 S2RuntimeException 발생)
+// 2) 단일 값 - 라벨 지정 예외 모드 (검증 실패 시 S2ValidationException 발생)
 S2Validator.check(userInput, "사용자 이름")
     .rule(S2RuleType.REQUIRED)
     .rule(S2RuleType.MIN_LENGTH, 2)

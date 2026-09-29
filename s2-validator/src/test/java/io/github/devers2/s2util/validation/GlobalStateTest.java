@@ -5,7 +5,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.function.Supplier;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -49,8 +48,6 @@ public class GlobalStateTest {
         Assertions.assertNotNull(json);
         Assertions.assertTrue(json.contains("username"));
 
-        // 전역 캐시에 등록되지 않았는지 확인
-        Assertions.assertNull(S2ValidatorFactory.getValidator("user"));
     }
 
     @Test
@@ -66,48 +63,19 @@ public class GlobalStateTest {
     }
 
     @Test
-    @DisplayName("S2ValidatorFactory.clear()는 캐시를 비워 새 검증기 등록을 허용한다")
-    void testValidatorFactoryClear() {
-        String key = "TEST_KEY";
-        S2Validator<Map<String, Object>> v1 = S2ValidatorFactory.getOrRegister(key, () ->
-                S2Validator.<Map<String, Object>>builder().field("f1").rule(S2RuleType.REQUIRED).build()
-        );
+    @DisplayName("전역 등록부 API 는 1.2.0 에서 삭제되었다 (S2BindValidator.of 만 제공)")
+    void testRegistryApiIsRemoved() {
+        java.util.Set<String> factoryApi = java.util.Arrays.stream(S2ValidatorFactory.class.getDeclaredMethods())
+                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
+                .map(java.lang.reflect.Method::getName)
+                .collect(java.util.stream.Collectors.toSet());
+        Assertions.assertEquals(java.util.Set.of("getRulesJson"), factoryApi);
+        Assertions.assertEquals(1, java.util.Arrays.stream(S2ValidatorFactory.class.getDeclaredMethods())
+                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers())).count(),
+                "only getRulesJson(S2Validator, Locale) remains");
 
-        S2Validator<Map<String, Object>> v2 = S2ValidatorFactory.getOrRegister(key, () ->
-                S2Validator.<Map<String, Object>>builder().field("f2").rule(S2RuleType.REQUIRED).build()
-        );
-        Assertions.assertSame(v1, v2);
-
-        S2ValidatorFactory.clear();
-
-        S2Validator<Map<String, Object>> v3 = S2ValidatorFactory.getOrRegister(key, () ->
-                S2Validator.<Map<String, Object>>builder().field("f3").rule(S2RuleType.REQUIRED).build()
-        );
-        Assertions.assertNotSame(v1, v3);
-    }
-
-    static class SupplierA implements Supplier<S2Validator<Map<String, Object>>> {
-        @Override
-        public S2Validator<Map<String, Object>> get() {
-            return S2Validator.<Map<String, Object>>builder().field("a").rule(S2RuleType.REQUIRED).build();
-        }
-    }
-
-    static class SupplierB implements Supplier<S2Validator<Map<String, Object>>> {
-        @Override
-        public S2Validator<Map<String, Object>> get() {
-            return S2Validator.<Map<String, Object>>builder().field("b").rule(S2RuleType.REQUIRED).build();
-        }
-    }
-
-    @Test
-    @DisplayName("동일 키에 다른 Supplier 클래스가 전달되어도 최초 등록된 검증기가 유지된다")
-    void testSupplierCollisionRetainsFirst() {
-        String key = "COLLISION_KEY";
-        S2Validator<Map<String, Object>> first = S2ValidatorFactory.getOrRegister(key, new SupplierA());
-        S2Validator<Map<String, Object>> second = S2ValidatorFactory.getOrRegister(key, new SupplierB());
-
-        Assertions.assertSame(first, second);
+        Assertions.assertTrue(java.util.Arrays.stream(S2BindValidator.class.getDeclaredMethods())
+                .noneMatch(m -> m.getName().equals("context")));
     }
 
     @Test

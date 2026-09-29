@@ -8,7 +8,7 @@
 
 ---
 
-## 1. 4가지 전략 패턴
+## 1. 3가지 전략 패턴
 
 S2Validator는 네 가지 서로 다른 사용 패턴을 지원합니다. 상황에 가장 적합한 패턴을 선택하여 사용하세요.
 
@@ -22,7 +22,7 @@ S2Validator는 네 가지 서로 다른 사용 패턴을 지원합니다. 상황
 // 예외 모드 (기본값)
 S2Validator.of(userInput)
     .field("email").rule(S2RuleType.EMAIL)
-    .validate();  // Throws S2RuntimeException on failure
+    .validate();  // Throws S2ValidationException on failure
 
 // 논리값 모드
 boolean isValid = S2Validator.of(userInput, false)
@@ -31,7 +31,7 @@ boolean isValid = S2Validator.of(userInput, false)
 ```
 
 > [!NOTE]
-> 기본 `of(target)`은 검증 실패 시 `S2RuntimeException`을 발생시킵니다. 예외 발생 대신 `true/false` 결과가 필요하면 `of(target, false)`를 사용하세요.
+> 기본 `of(target)`은 검증 실패 시 `S2ValidationException`을 발생시킵니다. 예외 발생 대신 `true/false` 결과가 필요하면 `of(target, false)`를 사용하세요.
 
 ---
 
@@ -64,7 +64,7 @@ schema.validate(userC);
 
 **사용법:** `S2BindValidator.of(validator)`
 
-**용도:** 검증기 인스턴스를 직접 전달하여 스프링 표준 `BindingResult`와 통합합니다. 전역 등록부를 거치지 않아 키 충돌 및 메모리 누수 위험이 없고 테스트 격리가 완벽합니다.
+**용도:** 검증기 인스턴스를 직접 전달하여 스프링 표준 `BindingResult`와 통합합니다. 전역 상태가 없어 충돌하거나 시험 사이에 남는 것이 없습니다. 검증기 생성 비용은 일반적인 폼에서 1마이크로초 미만이라 상수, Spring 빈, 요청마다 생성 모두 괜찮으며, GET 폼과 POST 처리에 같은 인스턴스(또는 규칙 정의 메서드)를 쓰십시오.
 
 ```java
 @Controller
@@ -79,7 +79,7 @@ public class MemberController {
 
     @PostMapping("/join")
     public String join(@ModelAttribute UserDTO user, BindingResult result) {
-        // 전역 캐시를 거치지 않는 공식 경로 (권장)
+        // 검증기 인스턴스를 직접 바인딩
         S2BindValidator.of(USER_VALIDATOR).validate(user, result);
 
         if (result.hasErrors()) {
@@ -87,48 +87,6 @@ public class MemberController {
         }
         return "redirect:/success";
     }
-}
-```
-
----
-
-### 1-4. 중앙 캐싱 관리 패턴 (선택 사항)
-
-**사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
-
-> [!WARNING]
-> 키는 그 키로 **처음** 만든 검증기에 고정됩니다. 역할·상태에 따라 규칙이 다르면(예: 관리자는 `MAX_LENGTH`가 다름) 규칙 집합마다 다른 키를 쓰십시오. 그렇지 않으면 첫 규칙이 모든 호출에 경고 없이 재사용됩니다. 확실하지 않으면 `S2BindValidator.of(validator)`를 쓰십시오.
-
-**용도:** 문자열 키 기반 전역 캐시가 필요한 레거시 연동 또는 지연 초기화 싱글톤.
-
-```java
-// 전역 등록 (공급자 클래스가 다르면 DEBUG 로그 발생)
-S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
-    "USER_REGISTRATION",  // Unique key
-    () -> S2Validator.<UserDTO>builder()
-        .field("email").rule(S2RuleType.EMAIL)
-        .field("password").rule(S2RuleType.MIN_LENGTH, 8)
-        .build()
-);
-
-// S2BindValidator 문자열 키 방식
-S2BindValidator.context("USER_REGISTRATION", this::userRules).validate(user, result);
-```
-
-> [!TIP]
-> 검증기 빌드 비용은 요청당 약 500ns 미만으로 매우 가볍습니다. 따라서 일반적인 애플리케이션에서는 복잡한 전역 문자열 캐시 대신 `S2BindValidator.of(validator)` 직접 인스턴스 패턴을 사용하는 것을 권장합니다. 테스트 환경 격리를 위한 초기화는 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`를 사용합니다.
-        return "joinForm";  // 스프링 표준 흐름
-    }
-
-    userService.save(user);
-    return "redirect:/success";
-}
-
-private S2Validator<UserDTO> joinRules() {
-    return S2Validator.<UserDTO>builder()
-        .field("email", "이메일").rule(S2RuleType.EMAIL)
-        .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
-        .build();
 }
 ```
 
@@ -270,7 +228,7 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
 > 표준 Bean Validation 및 YAVI와 동일하게, 커스텀 람다 규칙은 필드 값이 `null` 또는 비어 있을 때 기본적으로 실행되지 않고 통과합니다. 이는 `REQUIRED`가 없는 선택 입력 필드에서 불필요한 `NullPointerException`을 방지하기 위함입니다.
 > - 값이 반드시 있어야 한다면 `.rule(S2RuleType.REQUIRED)`를 함께 체이닝하세요.
 > - 빈 값 상태 자체를 람다 내부에서 직접 확인해야 하는 특수 규칙의 경우 `.includeEmpty()`를 선언하세요.
-> - 람다 내부에서 처리되지 않은 런타임 예외가 발생하면, 오류가 난 필드 경로 정보가 포함된 `S2RuntimeException`으로 감싸서 전달됩니다.
+> - 람다 내부에서 처리되지 않은 런타임 예외가 발생하면, 오류가 난 필드 경로 정보가 포함된 `S2RuleExecutionException`으로 감싸서 전달됩니다.
 
 > [!WARNING]
 > 람다 기반 커스텀 규칙은 클라이언트(JavaScript)로 자동 변환되지 않습니다. 클라이언트-서버 동기화가 필요하면 내장 `S2RuleType`을 사용하세요.
@@ -499,7 +457,7 @@ public String signup(
 
 ```
 1. ✅ 규칙을 별도 메서드에 정의하여 중복 정의 방지
-2. ✅ 기본은 Pattern C (S2BindValidator.of) 사용, 전역 캐시가 꼭 필요할 때만 Pattern D (Registry 모드)
+2. ✅ 스프링 MVC 폼은 Pattern C (S2BindValidator.of) 사용
 3. ✅ 항상 서버 측 최종 검증 수행 (클라이언트 단독 신뢰 금지)
 4. ✅ 클라이언트 동기화가 필요한 경우 내장 S2RuleType 활용
 5. ✅ 서버와 클라이언트 양쪽에서 검증 로직 테스트
@@ -548,9 +506,9 @@ if (result.hasErrors()) {
 ## 8. 성능 팁
 
 ```
-1. 검증기 빌드 비용은 매우 작으므로 Pattern C (S2BindValidator.of)로 충분하며, 필요 시 필드·빈에 보관해 재사용
-2. 가능한 경우 검증 결과를 캐싱하여 중복 검증 최소화
+1. 검증기 생성 비용은 작아서(일반적인 가입 폼 약 0.5µs) 요청마다 S2BindValidator.of(rules())로 만들어도 됩니다.
+   규칙 정의 자체가 무거울 때(예: DB 에서 선택지를 불러옴)만 필드·빈에 보관하십시오
+2. 가장 비싼 단계는 GET 폼용 규칙 JSON 생성(약 15µs)입니다. 매우 자주 열리는 화면이면 JSON 문자열을 캐시하십시오
 3. 대량 루프 내부에서 무거운 람다 규칙 생성 회피
-4. 검증기 인스턴스를 재사용하고 매 요청마다 새로 생성하지 않기
-5. 복잡한 문자열 형식 검증에는 PATTERN 규칙 사용
+4. 문자열 형식 검증에는 내장 규칙이나 REGEX 사용: 서버에서 실행되고 브라우저로도 내보내집니다
 ```

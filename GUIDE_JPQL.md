@@ -499,7 +499,7 @@ List<Product> results = S2Jpql.from(em)
 
 8. ❌ NEVER skip bindParameter for values
 
-9. ✅ Use Registry Pattern for frequently used queries
+9. ✅ Put frequently used queries in reusable query-building methods
 
 10. ✅ Test pagination with boundary values
     경계 값으로 페이징 테스트
@@ -516,7 +516,7 @@ List<Product> results = S2Jpql.from(em)
 
 3. Use appropriate index on WHERE clause fields
 
-4. Cache frequently used validators in Registry Mode
+4. Reuse query-building methods instead of duplicating conditions
 
 5. Monitor query performance with EXPLAIN
 

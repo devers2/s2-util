@@ -16,9 +16,8 @@
 2. [S2Validator: Strategic Validation Patterns](#2-s2validator-strategic-validation-patterns)
    - [A. Pattern: Immediate Mode](#a-pattern-immediate-mode)
    - [B. Pattern: Blueprint Mode](#b-pattern-blueprint-mode)
-   - [C. Pattern: Registry Mode](#c-pattern-registry-mode)
-   - [D. Pattern: Spring Standard Alignment](#d-pattern-spring-standard-alignment)
-   - [E. Pattern: Field-less Condition Check Mode](#e-pattern-field-less-condition-check-mode)
+   - [C. Pattern: Spring Standard Alignment (Recommended)](#c-pattern-spring-standard-alignment-recommended)
+   - [D. Pattern: Single Value & Condition Check Mode](#d-pattern-single-value--condition-check-mode)
 3. [Comprehensive Rules & Conditional Logic](#3-comprehensive-rules--conditional-logic)
    - [3-1. 30+ Built-in Rules (S2RuleType)](#3-1-30-built-in-rules-s2ruletype)
    - [3-2. Conditional Validation (when & and)](#3-2-conditional-validation-when--and)
@@ -154,16 +153,15 @@ S2BindValidator.setValidationBundle("messages");
 
 ## 2. S2Validator: Strategic Validation Patterns
 
-S2Validator provides 5 distinct execution patterns tailored for various scenarios:
+S2Validator provides 4 execution patterns tailored for various scenarios:
 
 ```mermaid
 flowchart TD
     Req["Incoming Data"] --> Choice{"Validation Scenario"}
     Choice -->|"One-off method logic"| A["Immediate Mode<br>S2Validator.of()"]
     Choice -->|"Reusable instance rules"| B["Blueprint Mode<br>S2Validator.builder()"]
-    Choice -->|"Cached globally"| C["Registry Mode<br>S2ValidatorFactory"]
-    Choice -->|"Spring MVC Form"| D["Spring Standard<br>S2BindValidator.of()"]
-    Choice -->|"Simple state/condition"| E["Field-less Mode<br>S2Validator.check()"]
+    Choice -->|"Spring MVC Form"| C["Spring Standard<br>S2BindValidator.of()"]
+    Choice -->|"Simple value/condition"| D["Single Value Mode<br>S2Validator.check()"]
 ```
 
 ### A. Pattern: Immediate Mode
@@ -173,7 +171,7 @@ flowchart TD
 Ideal for quick, one-off validation within service or controller methods.
 
 ```java
-// 1. Exception Mode (Default: throws S2RuntimeException upon failure)
+// 1. Exception Mode (Default: throws S2ValidationException upon failure)
 S2Validator.of(userInput)
     .field("email").rule(S2RuleType.REQUIRED).rule(S2RuleType.EMAIL)
     .validate();
@@ -206,7 +204,7 @@ schema.validate(userB);
 
 **Usage:** `S2BindValidator.of(validator)`
 
-Seamlessly integrates with Spring MVC and automatically populates `BindingResult`. By passing the validator instance directly, it completely avoids global registry key collisions, memory growth, and test isolation concerns.
+Seamlessly integrates with Spring MVC and automatically populates `BindingResult`. The validator instance is passed directly, so there is no global state to collide or reset between tests. Building a validator is cheap (well under a microsecond for a typical form), so it may also be built per request; keep it in a constant or Spring bean when the rule definition itself is expensive. Use the same instance (or the same rule-definition method) for the GET form (`getRulesJson()`) and the POST handler (`validate()`) so both apply identical rules.
 
 ```java
 // Recommended: Define as a static constant or Spring Bean in controller
@@ -225,24 +223,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 }
 ```
 
-### D. Pattern: Registry Mode (Optional Global Cache)
-
-**Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
-
-> [!WARNING]
-> A key is bound to the **first** validator built for it. If rules differ by role or state (e.g. a different `MAX_LENGTH` for admins), use a different key per rule set; otherwise the first rules are silently reused for every call. Prefer `S2BindValidator.of(validator)` when in doubt.
-
-Provides global thread-safe caching. The construction logic executes only once. Supplier class collisions on the same key are logged at `DEBUG` level (method references at different call sites are distinct classes even for identical rules), and tests can reset state via `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
-
-```java
-S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->
-    S2Validator.<UserDTO>builder()
-        .field("name").rule(S2RuleType.REQUIRED)
-        .build()
-);
-```
-
-### E. Pattern: Single Value & Condition Check Mode
+### D. Pattern: Single Value & Condition Check Mode
 
 **Usage:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`
 
@@ -255,7 +236,7 @@ boolean isValidEmail = S2Validator.check("user@example.com")
     .rule(S2RuleType.EMAIL)
     .validate();
 
-// 2) Single Value - Exception Mode with Label (throws S2RuntimeException on failure)
+// 2) Single Value - Exception Mode with Label (throws S2ValidationException on failure)
 S2Validator.check(userInput, "User Name")
     .rule(S2RuleType.REQUIRED)
     .rule(S2RuleType.MIN_LENGTH, 2)

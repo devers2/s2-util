@@ -103,10 +103,10 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     private static final String ANSI_BOLD = "\u001B[1m";
 
     /**
-     * 검증기 획득 호출(context/getOrRegister/getValidator) 뒤에 이어져도 정상으로 취급하는 메서드 이름들.
+     * 검증기 바인딩 호출({@code S2BindValidator.of(...)}) 뒤에 이어져도 정상으로 취급하는 메서드 이름들.
      * {@code validate}뿐 아니라 {@code getRulesJson}(클라이언트 공유용 JSON 규칙 조회)도 문서화된 정상
      * 사용 패턴이라 포함한다 — 이걸 빠뜨리면 GET 폼 렌더링에서 흔히 쓰는
-     * {@code S2BindValidator.context(...).getRulesJson()} 패턴이 오탐 처리된다.
+     * {@code S2BindValidator.of(...).getRulesJson()} 패턴이 오탐 처리된다.
      */
     private static final Set<String> TERMINAL_CALL_NAMES = Set.of("validate", "getRulesJson");
 
@@ -312,7 +312,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         getLogger().warn(ANSI_YELLOW + ANSI_BOLD + "[S2BindValidator Usage Warning]" + ANSI_RESET);
         getLogger().warn(
                 ANSI_YELLOW
-                        + "⚠️  {}개 파일에서 validate() 호출이 확인되지 않는 검증기 획득(S2BindValidator.context / S2ValidatorFactory.getOrRegister,getValidator) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
+                        + "⚠️  {}개 파일에서 validate()/getRulesJson() 호출이 확인되지 않는 S2BindValidator.of(...) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
                         + ANSI_RESET,
                 warningsByFile.size(), totalWarnings);
 
@@ -322,8 +322,8 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             getLogger().warn("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
             warnings.forEach(
                     w -> getLogger().warn(
-                            "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " context(\"{}\") - {}",
-                            w.lineNumber, w.contextKey, w.reason));
+                            "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " of({}) - {}",
+                            w.lineNumber, w.target, w.reason));
         });
         getLogger().warn("");
     }
@@ -523,23 +523,19 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 검증기 획득 호출 지점({@code S2BindValidator.context(...)} 등)을 찾아, 그 결과에서 {@code validate()}가
-     * 호출되는지 확인합니다.
+     * 검증기 바인딩 호출 지점({@code S2BindValidator.of(...)})을 찾아, 그 결과에서 {@code validate()}나
+     * {@code getRulesJson()}이 호출되는지 확인합니다.
      * <p>
-     * 검증기를 얻는 두 가지 경로를 모두 다룹니다: {@code S2BindValidator.context(...)}(Spring 연동용)와
-     * {@code S2ValidatorFactory.getOrRegister(...)}/{@code getValidator(...)}(팩토리에서 직접 얻어
-     * {@code S2Validator}에 바로 {@code validate()}를 호출하는 경로). 어느 쪽이든 판단 로직은 동일하며,
      * 다음 세 가지 경우를 구분합니다:
      * </p>
      * <ol>
-     * <li>{@code .context(...).validate(...)}처럼 바로 체이닝됨 → 정상.</li>
+     * <li>{@code .of(...).validate(...)}처럼 바로 체이닝됨 → 정상.</li>
      * <li>변수에 담긴 뒤 같은 메서드/생성자/람다 안에서 {@code 변수.validate(...)}가 호출됨 → 정상.</li>
      * <li>그 외(반환값을 그냥 버림, 변수에 담고 다시는 참조하지 않음, 변수에 담았지만 validate() 호출을 못 찾음)
      * → 경고 대상.</li>
      * </ol>
      * 결과가 다른 메서드의 인자로 전달되거나 {@code return}되는 경우는 호출된 곳에서 검증할 수도 있어
-     * 판단하지 않고 건너뜁니다(과잉 오탐 방지). {@code getValidator(...)}로 조회만 하고 등록은 다른
-     * 파일/메서드에서 이루어지는 경우처럼, 파일 하나를 벗어난 연결까지는 추적하지 않습니다.
+     * 판단하지 않고 건너뜁니다(과잉 오탐 방지). 파일 하나를 벗어난 연결까지는 추적하지 않습니다.
      *
      * @param cu 탐색 대상 파일의 CompilationUnit
      * @return 발견된 경고 목록 (없으면 빈 목록)
@@ -550,7 +546,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         List<MethodCallExpr> acquisitionCalls = cu.findAll(MethodCallExpr.class, this::isValidatorAcquisitionCall);
 
         for (MethodCallExpr acquisitionCall : acquisitionCalls) {
-            String contextKey = extractContextKey(acquisitionCall);
+            String target = describeBoundValidator(acquisitionCall);
             String calledAs = acquisitionCall.getNameAsString() + "(...)";
             int line = acquisitionCall.getBegin().map(pos -> pos.line).orElse(0);
             Node parent = acquisitionCall.getParentNode().orElse(null);
@@ -558,11 +554,11 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             if (parent instanceof MethodCallExpr outerCall
                     && outerCall.getScope().isPresent()
                     && outerCall.getScope().get() == acquisitionCall) {
-                // 직접 체이닝: .context(...)/.getOrRegister(...)/.getValidator(...) 뒤에 뭔가 더 호출됨
+                // 직접 체이닝: .of(...) 뒤에 뭔가 더 호출됨
                 if (!TERMINAL_CALL_NAMES.contains(outerCall.getNameAsString())) {
                     warnings.add(
                             new BindValidatorWarning(
-                                    contextKey, line,
+                                    target, line,
                                     calledAs + " 뒤에 validate()/getRulesJson()이 아닌 " + outerCall.getNameAsString()
                                             + "()가 호출되었습니다."));
                 }
@@ -578,7 +574,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             }
 
             if (variableName != null) {
-                checkVariableValidated(variableName, acquisitionCall, contextKey, calledAs, line, warnings);
+                checkVariableValidated(variableName, acquisitionCall, target, calledAs, line, warnings);
                 continue;
             }
 
@@ -586,7 +582,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                 // 체이닝도, 변수 할당도 아닌 단독 구문 -> 반환값이 그냥 버려짐 (항상 의도치 않은 실수)
                 warnings.add(
                         new BindValidatorWarning(
-                                contextKey, line,
+                                target, line,
                                 calledAs + "의 반환값이 사용되지 않고 버려졌습니다. validate()를 호출해야 실제로 검증이 수행됩니다."));
             }
             // 그 외(다른 메서드의 인자로 전달, return 등)는 호출된 곳에서 검증할 수 있어 판단하지 않고 건너뜀
@@ -596,22 +592,16 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 검증기를 "얻는" 지점인지 확인합니다: {@code S2BindValidator.context(...)} 또는
-     * {@code S2ValidatorFactory.getOrRegister(...)}/{@code getValidator(...)}.
+     * 검증기를 Spring 환경에 바인딩하는 지점({@code S2BindValidator.of(...)})인지 확인합니다.
      *
      * @param call 검사할 메서드 호출 표현식
-     * @return 검증기 획득 호출이면 true
+     * @return 검증기 바인딩 호출이면 true
      */
     private boolean isValidatorAcquisitionCall(MethodCallExpr call) {
         if (call.getScope().isEmpty()) {
             return false;
         }
-        String scope = call.getScope().get().toString();
-        String name = call.getNameAsString();
-        if ("context".equals(name) && scope.endsWith("S2BindValidator")) {
-            return true;
-        }
-        return ("getOrRegister".equals(name) || "getValidator".equals(name)) && scope.endsWith("S2ValidatorFactory");
+        return "of".equals(call.getNameAsString()) && call.getScope().get().toString().endsWith("S2BindValidator");
     }
 
     /**
@@ -621,12 +611,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      *
      * @param variableName    검증기 획득 호출 결과가 담긴 변수 이름
      * @param acquisitionCall 원본 검증기 획득 호출 (탐색 범위 결정용)
-     * @param contextKey      획득 호출의 첫 번째 인자(컨텍스트 키)
-     * @param calledAs        원본 호출의 표시용 문자열 (예: {@code "context(...)"})
+     * @param target          바인딩한 검증기 표현식(표시용)
+     * @param calledAs        원본 호출의 표시용 문자열 (예: {@code "of(...)"})
      * @param line            원본 호출의 소스 라인 번호
      * @param warnings        경고를 누적할 리스트
      */
-    private void checkVariableValidated(String variableName, MethodCallExpr acquisitionCall, String contextKey,
+    private void checkVariableValidated(String variableName, MethodCallExpr acquisitionCall, String target,
             String calledAs, int line, List<BindValidatorWarning> warnings) {
         Node scopeNode = findEnclosingCallableBody(acquisitionCall);
         if (scopeNode == null) {
@@ -650,24 +640,24 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         if (!referencedElsewhere) {
             warnings.add(
                     new BindValidatorWarning(
-                            contextKey, line,
+                            target, line,
                             calledAs + " 결과가 변수 '" + variableName + "'에 저장된 후 어디에서도 사용되지 않았습니다."));
         } else {
             warnings.add(
                     new BindValidatorWarning(
-                            contextKey, line,
+                            target, line,
                             "변수 '" + variableName + "'(" + calledAs + ")에서 validate()/getRulesJson() 호출을 찾지 못했습니다. "
                                     + "(다른 메서드/파일에 위임했다면 무시해도 됩니다)"));
         }
     }
 
-    /** {@code context(...)} 호출의 첫 번째 인자(문자열 리터럴인 contextKey)를 추출합니다. 리터럴이 아니면 "?"를 반환합니다. */
-    private String extractContextKey(MethodCallExpr contextCall) {
-        if (!contextCall.getArguments().isEmpty()
-                && contextCall.getArguments().get(0) instanceof StringLiteralExpr strExpr) {
-            return strExpr.getValue();
+    /** {@code of(...)} 호출의 첫 번째 인자(바인딩한 검증기 표현식)를 표시용 문자열로 반환합니다. 없으면 "?"를 반환합니다. */
+    private String describeBoundValidator(MethodCallExpr ofCall) {
+        if (ofCall.getArguments().isEmpty()) {
+            return "?";
         }
-        return "?";
+        String text = ofCall.getArguments().get(0).toString();
+        return text.length() > 60 ? text.substring(0, 57) + "..." : text;
     }
 
     /** 주어진 노드를 감싸는 가장 가까운 메서드/생성자/람다 본문을 찾습니다(변수 사용처 탐색 범위 결정용). */
@@ -878,14 +868,14 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         }
     }
 
-    /** 검증기 획득 호출(예: {@code S2BindValidator.context(...)}, {@code S2ValidatorFactory.getOrRegister(...)})이 validate() 없이 버려진 것으로 의심되는 지점의 경고 정보 */
+    /** 검증기 바인딩 호출({@code S2BindValidator.of(...)})이 validate() 없이 버려진 것으로 의심되는 지점의 경고 정보 */
     static class BindValidatorWarning {
-        final String contextKey;
+        final String target;
         final int lineNumber;
         final String reason;
 
-        BindValidatorWarning(String contextKey, int lineNumber, String reason) {
-            this.contextKey = contextKey;
+        BindValidatorWarning(String target, int lineNumber, String reason) {
+            this.target = target;
             this.lineNumber = lineNumber;
             this.reason = reason;
         }
