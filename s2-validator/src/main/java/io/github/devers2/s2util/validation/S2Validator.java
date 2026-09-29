@@ -22,10 +22,12 @@ package io.github.devers2.s2util.validation;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -1728,6 +1730,37 @@ public class S2Validator<T> implements Serializable {
             String errorCode,
             Object[] errorArgs,
             String defaultMessage) {
+
+        /**
+         * Compares {@code errorArgs} by content, not by array identity (the record default).
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * {@code errorArgs}를 배열 참조(레코드 기본 동작)가 아닌 내용으로 비교합니다.
+         */
+        @Override
+        public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (!(o instanceof S2ValidationError other))
+                return false;
+            return Objects.equals(fieldName, other.fieldName)
+                    && Objects.equals(errorCode, other.errorCode)
+                    && Arrays.deepEquals(errorArgs, other.errorArgs)
+                    && Objects.equals(defaultMessage, other.defaultMessage);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(fieldName, errorCode, Arrays.deepHashCode(errorArgs), defaultMessage);
+        }
+
+        @Override
+        public String toString() {
+            return "S2ValidationError[fieldName=" + fieldName + ", errorCode=" + errorCode
+                    + ", errorArgs=" + Arrays.deepToString(errorArgs) + ", defaultMessage=" + defaultMessage + "]";
+        }
     }
 
 }
