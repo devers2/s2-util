@@ -776,9 +776,19 @@ const isConditionSatisfied = (rule, formData, prefix = '', wildcardIndex = null)
           ']' +
           condField.substring(bracketIndex + 2);
       }
-      const fullPath = prefix + condField;
-      const actualValue = formData[fullPath];
-      const normalizedActual = normalizeConditionValue(actualValue);
+      // Look the field up in the current object, then in each outer object up to the root, while absent (same order as
+      // the server's S2Condition). | 값이 없으면 현재 객체 → 바깥 객체들 → 루트 순서로 조회 (서버 S2Condition 과 같은 순서)
+      let normalizedActual = null;
+      let scope = prefix;
+      for (;;) {
+        const candidate = normalizeConditionValue(formData[scope + condField]);
+        if (candidate !== undefined && candidate !== null && candidate !== '') {
+          normalizedActual = candidate;
+          break;
+        }
+        if (!scope) break;
+        scope = parentPrefix(scope);
+      }
       const normalizedExpected = normalizeConditionValue(cond.value);
 
       if (normalizedActual === undefined || normalizedActual === null) {
@@ -797,6 +807,19 @@ const isConditionSatisfied = (rule, formData, prefix = '', wildcardIndex = null)
       return normalizedActual === normalizedExpected;
     });
   });
+};
+
+/**
+ * Returns the prefix of the enclosing object: {@code "order.lines[0]."} → {@code "order."} → {@code ""}.
+ *
+ * @function parentPrefix
+ * @param {string} prefix - A nested prefix ending with "." | "."로 끝나는 중첩 접두사
+ * @returns {string} The parent prefix | 부모 접두사
+ */
+const parentPrefix = (prefix) => {
+  const trimmed = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix;
+  const dot = trimmed.lastIndexOf('.');
+  return dot < 0 ? '' : trimmed.slice(0, dot + 1);
 };
 
 /**

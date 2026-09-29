@@ -64,6 +64,14 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   - A relative cross-field target in wildcard rows (`items[].end` → `"start"`) shows the label (`시작일`), not `start`.
   - The circular reference error uses the bundle key `valid.err.circular` (was `ERR_CIRCULAR_REFERENCE`) and is
     localized ("Circular reference detected at {0}."); it was Korean-only.
+- **NESTED/EACH and outer fields**: cross-field targets and `when` conditions inside NESTED/EACH sub-validators and
+  wildcard rows are looked up in the current object, then in each outer object up to the root (the browser uses the same
+  order). Previously a sub-validator could not see outer fields, so e.g. `items[].end DATE_AFTER "globalStart"` inside
+  EACH or `when("globalType", "X")` inside NESTED was silently skipped. Target labels are resolved the same way
+  ("…전체 시작일보다" instead of "…globalStart보다").
+- **Index gaps**: `null` elements in wildcard/EACH collections (e.g. rows 0 and 2 submitted, row 1 deleted) are not
+  validated as rows, matching the browser.
+- **Conditions**: a blank string counts as empty, like an empty form field in the browser (`when(field, null)`).
 - **Nesting depth**: `NESTED`/`EACH` stop at depth 64 and report `valid.err.maxdepth` instead of risking a
   `StackOverflowError`.
 - **`check(value, label)`**: exceptions report the label as the field name (was the internal key `"value"`).

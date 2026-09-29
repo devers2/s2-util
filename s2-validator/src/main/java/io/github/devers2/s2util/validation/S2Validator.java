@@ -933,7 +933,29 @@ public class S2Validator<T> implements Serializable {
      */
     protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale,
             java.util.Set<Object> visited, int depth) {
-        return new Runner<>(this).run(target, errorHandler, locale, visited, depth);
+        return run(target, errorHandler, locale, visited, depth, List.of(), List.of());
+    }
+
+    /**
+     * Runs this validator as a nested validator, with the outer objects used to resolve cross-field targets.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 간 비교 대상을 찾을 바깥 객체들과 함께 이 검증기를 하위 검증기로 실행합니다.
+     *
+     * @param target       The object to validate | 검증 대상
+     * @param errorHandler Error handler | 오류 처리기
+     * @param locale       Locale | 로케일
+     * @param visited      Visited objects (circular reference guard) | 방문한 객체 (순환 참조 방지)
+     * @param depth        Current nesting depth | 현재 중첩 깊이
+     * @param outerTargets    Outer objects, nearest first | 가까운 순서의 바깥 객체들
+     * @param outerValidators Validators of the outer objects, same order | 바깥 객체들의 검증기, 같은 순서
+     * @return {@code true} if valid | 유효하면 true
+     */
+    protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale,
+            java.util.Set<Object> visited, int depth, List<Object> outerTargets, List<S2Validator<?>> outerValidators) {
+        return new Runner<>(this, outerTargets, outerValidators).run(target, errorHandler, locale, visited, depth);
     }
 
     // =========================================================================
@@ -953,8 +975,45 @@ public class S2Validator<T> implements Serializable {
     public static class Runner<T> {
         private final S2Validator<T> config;
 
+        /** Outer objects of the current target, nearest first (empty at the top level) | 현재 대상의 바깥 객체들, 가까운 순서 (최상위에서는 비어 있음) */
+        private final List<Object> outerTargets;
+
+        /** Validators of {@link #outerTargets}, same order (used for target labels) | {@link #outerTargets}의 검증기들, 같은 순서 (대상 라벨용) */
+        private final List<S2Validator<?>> outerValidators;
+
         protected Runner(S2Validator<T> config) {
+            this(config, List.of(), List.of());
+        }
+
+        protected Runner(S2Validator<T> config, List<Object> outerTargets, List<S2Validator<?>> outerValidators) {
             this.config = config;
+            this.outerTargets = outerTargets != null ? outerTargets : List.of();
+            this.outerValidators = outerValidators != null ? outerValidators : List.of();
+        }
+
+        /**
+         * Returns {@link #config} followed by {@link #outerValidators} (the validator chain seen from one level deeper).
+         *
+         * @return The new chain | 새 체인
+         */
+        private List<S2Validator<?>> withOuterValidator() {
+            List<S2Validator<?>> chain = new ArrayList<>(outerValidators.size() + 1);
+            chain.add(config);
+            chain.addAll(outerValidators);
+            return chain;
+        }
+
+        /**
+         * Returns {@code first} followed by {@link #outerTargets} (the context chain seen from one level deeper).
+         *
+         * @param first The nearer object | 더 가까운 객체
+         * @return The new chain | 새 체인
+         */
+        private List<Object> withOuter(Object first) {
+            List<Object> chain = new ArrayList<>(outerTargets.size() + 1);
+            chain.add(first);
+            chain.addAll(outerTargets);
+            return chain;
         }
 
         public boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale) {
@@ -1032,14 +1091,20 @@ public class S2Validator<T> implements Serializable {
                     if (collectionValue instanceof Iterable<?> it) {
                         int idx = 0;
                         for (Object item : it) {
-                            isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target,
-                                    errorHandler, currentLocale, visited, depth);
+                            // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
+                            if (item != null) {
+                                isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target,
+                                        errorHandler, currentLocale, visited, depth);
+                            }
                             idx++;
                         }
                     } else if (collectionValue != null && collectionValue.getClass().isArray()) {
                         int len = java.lang.reflect.Array.getLength(collectionValue);
                         for (int i = 0; i < len; i++) {
                             Object item = java.lang.reflect.Array.get(collectionValue, i);
+                            if (item == null) {
+                                continue;
+                            }
                             isAllValid &= processWildcardItem(item, collectionPrefix, i, groupFields, target,
                                     errorHandler, currentLocale, visited, depth);
                         }
@@ -1053,7 +1118,7 @@ public class S2Validator<T> implements Serializable {
 
                 // 3단계: 일반 필드 처리 (와일드카드가 아닌 필드 or 이미 처리되지 않은 필드)
                 for (var field : config.fields) {
-                    if (field == null || !field.shouldValidate(target))
+                    if (field == null || !field.shouldValidate(target, -1, outerTargets))
                         continue;
 
                     String fieldName = String.valueOf(field.getName());
@@ -1133,7 +1198,7 @@ public class S2Validator<T> implements Serializable {
                                                             err.errorArgs(),
                                                             err.defaultMessage()),
                                                     config.failFastWithException);
-                                        }, currentLocale, visited, depth + 1);
+                                        }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
                                         if (!subOk)
                                             isAllValid = false;
                                     }
@@ -1142,6 +1207,11 @@ public class S2Validator<T> implements Serializable {
                                         int idx = 0;
                                         for (Object item : it) {
                                             final int finalIdx = idx;
+                                            if (item == null) {
+                                                // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
+                                                idx++;
+                                                continue;
+                                            }
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
                                                 reportError(
                                                         errorHandler, new S2ValidationError(
@@ -1152,7 +1222,7 @@ public class S2Validator<T> implements Serializable {
                                                                 err.errorArgs(),
                                                                 err.defaultMessage()),
                                                         config.failFastWithException);
-                                            }, currentLocale, visited, depth + 1);
+                                            }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
                                             if (!subOk)
                                                 isAllValid = false;
                                             idx++;
@@ -1162,6 +1232,9 @@ public class S2Validator<T> implements Serializable {
                                         for (int i = 0; i < len; i++) {
                                             final int finalIdx = i;
                                             Object item = java.lang.reflect.Array.get(fieldValue, i);
+                                            if (item == null) {
+                                                continue;
+                                            }
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
                                                 reportError(
                                                         errorHandler, new S2ValidationError(
@@ -1172,7 +1245,7 @@ public class S2Validator<T> implements Serializable {
                                                                 err.errorArgs(),
                                                                 err.defaultMessage()),
                                                         config.failFastWithException);
-                                            }, currentLocale, visited, depth + 1);
+                                            }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
                                             if (!subOk)
                                                 isAllValid = false;
                                         }
@@ -1182,9 +1255,9 @@ public class S2Validator<T> implements Serializable {
                             continue;
                         }
 
-                        if (rule.isInvalid(fieldValue, target)) {
+                        if (!rule.isValidIn(fieldValue, target, outerTargets)) {
                             isAllValid = false;
-                            Object criterion = field.resolveMessageCriterion(rule);
+                            Object criterion = field.resolveMessageCriterion(rule, outerValidators);
                             var args = S2Util.isNotEmpty(criterion)
                                     ? new Object[] { fieldLabel, criterion }
                                     : new Object[] { fieldLabel };
@@ -1193,7 +1266,7 @@ public class S2Validator<T> implements Serializable {
                                             fieldName,
                                             rule.getErrorMessageKey(),
                                             args,
-                                            field.getErrorMessage(rule, currentLocale)),
+                                            field.getErrorMessage(rule, currentLocale, outerValidators)),
                                     config.failFastWithException))
                                 return false;
                         }
@@ -1243,7 +1316,7 @@ public class S2Validator<T> implements Serializable {
             boolean isValid = true;
 
             for (S2Field<?> field : groupFields) {
-                if (!field.shouldValidate(target, index)) {
+                if (!field.shouldValidate(target, index, outerTargets)) {
                     continue;
                 }
 
@@ -1287,9 +1360,9 @@ public class S2Validator<T> implements Serializable {
                         continue;
                     }
 
-                    if (rule.isInvalid(fieldValue, item, target)) {
+                    if (!rule.isValidIn(fieldValue, item, withOuter(target))) {
                         isValid = false;
-                        Object criterion = field.resolveMessageCriterion(rule);
+                        Object criterion = field.resolveMessageCriterion(rule, outerValidators);
                         var args = S2Util.isNotEmpty(criterion)
                                 ? new Object[] { fieldLabel, criterion }
                                 : new Object[] { fieldLabel };
@@ -1298,7 +1371,7 @@ public class S2Validator<T> implements Serializable {
                                         errorPath,
                                         rule.getErrorMessageKey(),
                                         args,
-                                        field.getErrorMessage(rule, locale)),
+                                        field.getErrorMessage(rule, locale, outerValidators)),
                                 config.failFastWithException);
                     }
                 }

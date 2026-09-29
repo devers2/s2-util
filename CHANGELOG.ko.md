@@ -60,6 +60,12 @@
   - 와일드카드 행의 상대 표기 비교 대상(`items[].end` → `"start"`)도 `start`가 아니라 라벨(`시작일`)로 보여 줍니다.
   - 순환 참조 오류는 번들 키 `valid.err.circular`(이전 `ERR_CIRCULAR_REFERENCE`)를 쓰고 로케일에 맞춰 표시합니다
     ("{0}에서 순환 참조가 감지되었습니다."). 이전에는 항상 한국어였습니다.
+- **NESTED/EACH 와 바깥 필드**: NESTED/EACH 하위 검증기와 와일드카드 행 안의 필드 간 비교 대상과 `when` 조건을 현재 객체 → 바깥 객체들 →
+  루트 순서로 찾습니다(브라우저도 같은 순서). 이전에는 하위 검증기가 바깥 필드를 볼 수 없어, 예를 들어 EACH 안의
+  `items[].end DATE_AFTER "globalStart"`나 NESTED 안의 `when("globalType", "X")`가 조용히 건너뛰어졌습니다. 대상 라벨도 같은 방식으로 찾습니다
+  ("…globalStart보다" 대신 "…전체 시작일보다").
+- **인덱스 빈칸**: 와일드카드/EACH 컬렉션의 `null` 요소(예: 0·2번 행만 전송되고 1번 행 삭제)는 행으로 검증하지 않습니다(브라우저와 같음).
+- **조건**: 빈 문자열은 브라우저의 빈 폼 필드처럼 빈 값으로 봅니다 (`when(field, null)`).
 - **중첩 깊이**: `NESTED`/`EACH`는 64단계에서 멈추고 `valid.err.maxdepth`를 보고합니다 (`StackOverflowError` 방지).
 - **`check(value, label)`**: 예외의 필드 이름이 내부 키 `"value"` 대신 라벨입니다.
 - **`EMAIL`**: 최상위 도메인 2~63자를 허용합니다 (이전 2~6자라 `.technology` 등을 거부). 빈 레이블(`b..com`)과 `-`로 시작·끝나는 레이블은

@@ -61,7 +61,7 @@ final class S2RulesJsonWriter {
      */
     static String write(S2Validator<?> validator, Locale locale) {
         StringBuilder sb = new StringBuilder();
-        appendRulesJson(sb, validator, locale);
+        appendRulesJson(sb, validator, locale, List.of());
         return sb.toString();
     }
 
@@ -83,7 +83,8 @@ final class S2RulesJsonWriter {
      * @param validator The validator instance to export | 내보낼 검증기 인스턴스
      * @param locale    The locale for error message resolution | 에러 메시지 해석용 로케일
      */
-    private static void appendRulesJson(StringBuilder sb, S2Validator<?> validator, Locale locale) {
+    private static void appendRulesJson(StringBuilder sb, S2Validator<?> validator, Locale locale,
+            List<S2Validator<?>> outerValidators) {
         sb.append("[");
         boolean firstField = true;
         for (S2Field<?> field : validator.getFields()) {
@@ -117,12 +118,15 @@ final class S2RulesJsonWriter {
                 sb.append("{");
                 sb.append("\"type\":\"").append(ruleType.name()).append("\",");
                 sb.append("\"regex\":").append(toJsonString(ruleType.getRegex())).append(",");
-                sb.append("\"message\":").append(toJsonString(field.getErrorMessage(rule, locale)));
+                sb.append("\"message\":").append(toJsonString(field.getErrorMessage(rule, locale, outerValidators)));
 
                 if (ruleType == S2RuleType.NESTED || ruleType == S2RuleType.EACH) {
                     if (rule.getCheckValue() instanceof S2Validator<?> sub) {
                         sb.append(",\"nestedRules\":");
-                        appendRulesJson(sb, sub, locale);
+                        List<S2Validator<?>> chain = new java.util.ArrayList<>(outerValidators.size() + 1);
+                        chain.add(validator);
+                        chain.addAll(outerValidators);
+                        appendRulesJson(sb, sub, locale, chain);
                     }
                 } else {
                     sb.append(",\"value\":").append(toJsonString(rule.getCheckValue()));

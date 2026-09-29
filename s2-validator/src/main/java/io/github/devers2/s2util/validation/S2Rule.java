@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.temporal.Temporal;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -252,12 +253,38 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return {@code true} if valid | 유효한 경우 true
      */
     public boolean isValid(Object value, Object target, Object rootTarget) {
+        return isValidIn(value, target, rootTarget != null ? List.of(rootTarget) : List.of());
+    }
+
+    /**
+     * Validates with a chain of outer objects used to resolve cross-field targets.
+     * <p>
+     * A target field is looked up in {@code target} first (and, for wildcard references, relative to it), then in each
+     * outer object in order (nearest first, e.g. the row's parent object, then the root). This is the same order the
+     * client uses (row → nested prefix → root).
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 간 비교 대상을 찾기 위한 바깥 객체 체인과 함께 검증합니다.
+     * <p>
+     * 대상 필드는 먼저 {@code target}에서(와일드카드 참조는 그 기준 상대 경로로도), 그다음 바깥 객체들에서 가까운 순서로(예: 행의 부모 객체, 그다음 루트)
+     * 찾습니다. 클라이언트와 같은 순서(행 → 중첩 접두사 → 루트)입니다.
+     * </p>
+     *
+     * @param value        The value to validate | 검증할 값
+     * @param target       The object that holds the value | 값을 가진 객체
+     * @param outerTargets Outer objects, nearest first | 가까운 순서의 바깥 객체들
+     * @return {@code true} if valid | 유효하면 true
+     */
+    boolean isValidIn(Object value, Object target, List<Object> outerTargets) {
         // Trim string values before judging, matching the client which trims form values on extraction. | 클라이언트가 폼 값 추출 시 공백을 제거하므로 판정 전 문자열 값의 앞뒤 공백 제거
-        return evaluate(trimIfString(value), target, rootTarget);
+        return evaluate(trimIfString(value), target, outerTargets);
     }
 
     @SuppressWarnings("unchecked")
-    private boolean evaluate(Object value, Object target, Object rootTarget) {
+    private boolean evaluate(Object value, Object target, List<Object> outerTargets) {
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
@@ -354,7 +381,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield false;
             }
             case DATE_AFTER -> {
-                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
+                Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
                 if (S2Util.isEmpty(targetValue))
                     yield true; // 타겟 empty 시 무시 (optional 의미)
 
@@ -367,7 +394,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) >= 0;
             }
             case DATE_BEFORE -> {
-                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
+                Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
                 if (S2Util.isEmpty(targetValue))
                     yield true;
 
@@ -379,7 +406,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) <= 0;
             }
             case EQUALS_FIELD -> {
-                Object targetValue = resolveTargetValue(target, checkValue, rootTarget);
+                Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
                 yield Objects.equals(value, targetValue);
             }
             case JUMIN -> {
@@ -494,8 +521,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * Searches the local {@code target} first (e.g. row item in a collection).
      * If {@code checkValue} contains a wildcard marker (e.g. {@code "items[].start"}),
      * it extracts the relative field name ({@code "start"}) and resolves it against {@code target}.
-     * If not found on {@code target}, falls back to {@code rootTarget} to allow referencing
-     * global or outer fields.
+     * If not found on {@code target}, searches {@code outerTargets} in order (nearest parent first, root last) to allow
+     * referencing outer or global fields.
      * </p>
      *
      * <p>
@@ -506,19 +533,19 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * 먼저 로컬 {@code target}(예: 컬렉션 내의 특정 행 아이템)에서 값을 조회합니다.
      * 만약 {@code checkValue}에 와일드카드 표기(예: {@code "items[].start"})가 포함되어 있다면,
      * 상대 경로({@code "start"})를 추출하여 {@code target}에서 재조회합니다.
-     * {@code target}에서 찾지 못한 경우 {@code rootTarget}에서 조회하여 전역/상위 필드 참조를 지원합니다.
+     * {@code target}에서 찾지 못한 경우 {@code outerTargets}를 순서대로(가까운 부모 먼저, 루트 마지막) 조회하여 상위/전역 필드 참조를 지원합니다.
      * </p>
      *
      * @param target     The current target object | 현재 대상 객체
      * @param checkValue The criterion field name or expression | 기준 필드명 또는 표현식
-     * @param rootTarget The top-level root target object | 최상위 루트 대상 객체
+     * @param outerTargets Outer objects, nearest first | 가까운 순서의 바깥 객체들
      * @return The resolved target value, or {@code null} | 해석된 기준 값 (없으면 null)
      */
-    private Object resolveTargetValue(Object target, Object checkValue, Object rootTarget) {
-        return trimIfString(lookupTargetValue(target, checkValue, rootTarget));
+    private Object resolveTargetValue(Object target, Object checkValue, List<Object> outerTargets) {
+        return trimIfString(lookupTargetValue(target, checkValue, outerTargets));
     }
 
-    private Object lookupTargetValue(Object target, Object checkValue, Object rootTarget) {
+    private Object lookupTargetValue(Object target, Object checkValue, List<Object> outerTargets) {
         if (checkValue == null) {
             return null;
         }
@@ -544,9 +571,12 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             }
         }
 
-        // 3. target에서 찾지 못했고 rootTarget이 있는 경우 rootTarget에서 조회
-        if (rootTarget != null) {
-            value = S2Util.getValue(rootTarget, checkValue);
+        // 3. target에서 찾지 못하면 바깥 객체들(가까운 순서: 부모 객체 → ... → 루트)에서 조회
+        for (Object outer : outerTargets) {
+            if (outer == null) {
+                continue;
+            }
+            value = S2Util.getValue(outer, checkValue);
             if (value != null) {
                 return value;
             }
