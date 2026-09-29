@@ -210,6 +210,12 @@ public class ServerClientParityTest {
                 // ── EMAIL ────────────────────────────────────────────────
                 Arguments.of("EMAIL: 유효한 이메일 → 성공", S2RuleType.EMAIL, null, "test@example.com", true),
                 Arguments.of("EMAIL: @ 없음 → 실패", S2RuleType.EMAIL, null, "testexample.com", false),
+                Arguments.of("EMAIL: 7자 이상 최상위 도메인(.technology) → 성공", S2RuleType.EMAIL, null, "a@b.technology", true),
+                Arguments.of("EMAIL: 2단계 국가 도메인(.co.kr) → 성공", S2RuleType.EMAIL, null, "user.name+tag@mail.co.kr", true),
+                Arguments.of("EMAIL: 연속 점(b..com) → 실패", S2RuleType.EMAIL, null, "a@b..com", false),
+                Arguments.of("EMAIL: 하이픈으로 시작하는 레이블(-b.com) → 실패", S2RuleType.EMAIL, null, "a@-b.com", false),
+                Arguments.of("EMAIL: 1자 최상위 도메인(b.c) → 실패", S2RuleType.EMAIL, null, "a@b.c", false),
+                Arguments.of("EMAIL: 점 없는 도메인(localhost) → 실패", S2RuleType.EMAIL, null, "a@localhost", false),
 
                 // ── MPHONE_NO ────────────────────────────────────────────
                 Arguments.of("MPHONE_NO: 010-1234-5678 → 성공", S2RuleType.MPHONE_NO, null, "010-1234-5678", true),

@@ -124,7 +124,7 @@ public enum S2RuleType {
 
     /** 이메일 형식 체크 ({0}: 필드설명) */
     EMAIL("valid.err.email", "{0} 형식이 올바르지 않습니다.", "Invalid email format for {0}.",
-            "^[a-zA-Z0-9_%+-]+(?:\\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$"),
+            "^[a-zA-Z0-9_%+-]+(?:\\.[a-zA-Z0-9_%+-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}$"),
 
     /** 우편번호 형식 체크 ({0}: 필드설명) */
     ZIP("valid.err.zip", "{0} 형식이 올바르지 않습니다.", "Invalid zip code format for {0}.", "^[0-9]{5}$"),
