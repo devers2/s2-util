@@ -946,6 +946,31 @@ public class S2Validator<T> implements Serializable {
                     java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()), 0);
         }
 
+        /** Message key for a circular reference between nested objects | 중첩 객체 간 순환 참조 메시지 키 */
+        static final String CIRCULAR_REFERENCE_KEY = "valid.err.circular";
+
+        /** Message key for exceeding {@link #MAX_NESTED_DEPTH} | 최대 중첩 깊이 초과 메시지 키 */
+        static final String MAX_DEPTH_KEY = "valid.err.maxdepth";
+
+        /** Maximum NESTED/EACH nesting depth | NESTED/EACH 최대 중첩 깊이 */
+        static final int MAX_NESTED_DEPTH = 64;
+
+        /**
+         * Resolves a system message from the validation bundle, falling back to the built-in Korean/English template.
+         *
+         * @param key    The message key | 메시지 키
+         * @param ko     The built-in Korean template | 기본 한국어 템플릿
+         * @param en     The built-in English template | 기본 영어 템플릿
+         * @param locale The locale | 로케일
+         * @param args   Template arguments | 템플릿 인자
+         * @return The formatted message | 완성된 메시지
+         */
+        private static String systemMessage(String key, String ko, String en, Locale locale, Object... args) {
+            String template = S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), key, locale)
+                    .orElse(S2Util.isKorean(locale) ? ko : en);
+            return io.github.devers2.s2util.core.S2StringUtil.formatMessage(template, args);
+        }
+
         protected boolean run(T target, Consumer<S2ValidationError> errorHandler, Locale locale,
                 java.util.Set<Object> visited, int depth) {
             if (target == null)
@@ -1053,9 +1078,29 @@ public class S2Validator<T> implements Serializable {
                                     if (!reportError(
                                             errorHandler, new S2ValidationError(
                                                     fieldName,
-                                                    "ERR_CIRCULAR_REFERENCE",
+                                                    CIRCULAR_REFERENCE_KEY,
                                                     new Object[] { fieldLabel },
-                                                    "순환 참조가 감지되었습니다."),
+                                                    systemMessage(CIRCULAR_REFERENCE_KEY,
+                                                            "{0}에서 순환 참조가 감지되었습니다.",
+                                                            "Circular reference detected at {0}.",
+                                                            currentLocale, fieldLabel)),
+                                            config.failFastWithException))
+                                        return false;
+                                    continue;
+                                }
+
+                                // Guard against stack overflow on very deep (acyclic) object graphs. | 매우 깊은(순환이 아닌) 객체 그래프에서 스택 오버플로를 막음
+                                if (fieldValue != null && depth >= MAX_NESTED_DEPTH) {
+                                    isAllValid = false;
+                                    if (!reportError(
+                                            errorHandler, new S2ValidationError(
+                                                    fieldName,
+                                                    MAX_DEPTH_KEY,
+                                                    new Object[] { fieldLabel, MAX_NESTED_DEPTH },
+                                                    systemMessage(MAX_DEPTH_KEY,
+                                                            "{0}의 중첩 깊이가 최대 {1}단계를 초과했습니다.",
+                                                            "{0} exceeds the maximum nesting depth of {1}.",
+                                                            currentLocale, fieldLabel, MAX_NESTED_DEPTH)),
                                             config.failFastWithException))
                                         return false;
                                     continue;
