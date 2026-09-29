@@ -162,7 +162,7 @@ flowchart TD
     Choice -->|"메서드 내부 1회성 검증"| A["즉시 검증 모드<br>S2Validator.of()"]
     Choice -->|"재사용 가능한 검증 규칙"| B["설계도 모드<br>S2Validator.builder()"]
     Choice -->|"전역 싱글톤 캐싱"| C["중앙 캐싱 관리 모드<br>S2ValidatorFactory"]
-    Choice -->|"스프링 MVC 폼 검증"| D["스프링 표준 연동<br>S2BindValidator.context()"]
+    Choice -->|"스프링 MVC 폼 검증"| D["스프링 표준 연동<br>S2BindValidator.of()"]
     Choice -->|"단순 상태/조건 검증"| E["독립 조건 검증 모드<br>S2Validator.check()"]
 ```
 
@@ -228,6 +228,9 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 ### D. 중앙 캐싱 관리 패턴 (선택 사항)
 
 **사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+> [!WARNING]
+> 키는 그 키로 **처음** 만든 검증기에 고정됩니다. 역할·상태에 따라 규칙이 다르면(예: 관리자는 `MAX_LENGTH`가 다름) 규칙 집합마다 다른 키를 쓰십시오. 그렇지 않으면 첫 규칙이 모든 호출에 경고 없이 재사용됩니다. 확실하지 않으면 `S2BindValidator.of(validator)`를 쓰십시오.
 
 전역 싱글톤 캐시가 필요한 경우 사용합니다. 동일 키에 대해 서로 다른 공급자 클래스가 등록을 시도하면 디버그(DEBUG) 로그가 출력되며(규칙이 같아도 호출 위치가 다른 메서드 참조는 서로 다른 클래스이므로), 테스트 격리가 필요한 경우 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`로 초기화할 수 있습니다.
 
@@ -473,7 +476,7 @@ private S2Validator<UserCommand> signupRules() {
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
-    String rules = S2BindValidator.context("signup", this::signupRules).getRulesJson();
+    String rules = S2BindValidator.of(signupRules()).getRulesJson();
     model.addAttribute("rules", rules);
     return "signup";
 }
@@ -499,7 +502,7 @@ public String signupPage(Model model) {
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
-    S2BindValidator.context("signup", this::signupRules).validate(command, result);
+    S2BindValidator.of(signupRules()).validate(command, result);
     if (result.hasErrors()) {
         return "signup";
     }

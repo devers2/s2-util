@@ -94,6 +94,9 @@ public class MemberController {
 
 **Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
 
+> [!WARNING]
+> A key is bound to the **first** validator built for it. If rules differ by role or state (e.g. a different `MAX_LENGTH` for admins), use a different key per rule set; otherwise the first rules are silently reused for every call. Prefer `S2BindValidator.of(validator)` when in doubt.
+
 **Purpose:** String key-based global caching for legacy compatibility or lazy-initialized singletons.
 
 ```java
@@ -395,7 +398,7 @@ public String signupPage(
         Model model) {
 
     // Extract rules as JSON
-    String rules = S2BindValidator.context("signup", this::signupRules)
+    String rules = S2BindValidator.of(signupRules())
         .getRulesJson();
 
     model.addAttribute("rules", rules);
@@ -453,7 +456,7 @@ public String signup(
         Model model) {
 
     // Reuse identical rules from GET
-    S2BindValidator.context("signup", this::signupRules)
+    S2BindValidator.of(signupRules())
         .validate(command, result);
 
     if (result.hasErrors()) {
@@ -487,7 +490,7 @@ public String signup(
 ┌─────────────────────────────────────────────────────────────┐
 │              Spring MVC Controller                          │
 ├─────────────────────────────────────────────────────────────┤
-│  S2BindValidator.context().validate(data, result)          │
+│  S2BindValidator.of(v).validate(data, result)              │
 │  ├─ Same rule definitions                                   │
 │  ├─ Error mapping to BindingResult                          │
 │  └─ Server-side enforcement                                │

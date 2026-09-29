@@ -177,14 +177,14 @@ private S2Validator<UserCommand> profileValidator() {
 @GetMapping("/sign-up")
 public String signUpPage(@ModelAttribute("command") UserCommand command, Model model) {
     // Convert validator to JSON and pass to client for validation
-    model.addAttribute("rules", S2BindValidator.context("sign-up", this::profileValidator).getRulesJson());
+    model.addAttribute("rules", S2BindValidator.of(profileValidator()).getRulesJson());
     return "sign-up";
 }
 
 @PostMapping("/sign-up")
 public String signUp(@ModelAttribute("command") UserCommand command, BindingResult result, Model model) {
     // Perform server-side validation using the same validator configuration
-    S2BindValidator.context("sign-up", this::profileValidator).validate(command, result);
+    S2BindValidator.of(profileValidator()).validate(command, result);
 
     if (result.hasErrors()) {
         return signUpPage(command, model);

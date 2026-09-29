@@ -395,14 +395,14 @@ Seamlessly bridges `s2-validator` validation with Spring MVC's `BindingResult`, 
 @RequestMapping("/member")
 public class MemberController {
 
-    // 1) Supplier pattern for validation rules (compiled once and cached)
+    // 1) Validation rules (building a validator is cheap, so it can be built per request)
     private S2Validator<MemberDTO> memberRules() {
         return S2Validator.<MemberDTO>builder()
             .field("userId", "User ID").rule(S2RuleType.REQUIRED)
             .field("userPw", "Password").rule(S2RuleType.MIN_LENGTH, 8)
             .field("confirmPw", "Confirm Password")
                 .rule(S2RuleType.REQUIRED)
-                .rule((value, target) -> S2Util.getValue(target, "userPw", "").equals(value))
+                .rule(S2RuleType.EQUALS_FIELD, "userPw") // built-in rule: validated on both server and client
                 .en("Passwords do not match.")
             .field("email", "Email").rule(S2RuleType.EMAIL)
             .build();
@@ -413,7 +413,7 @@ public class MemberController {
     public String joinForm(Model model) {
         model.addAttribute("member", new MemberDTO());
         // Generate JSON metadata for client-side s2.validator.js
-        String rulesJson = S2BindValidator.context("MEMBER_JOIN", this::memberRules).getRulesJson();
+        String rulesJson = S2BindValidator.of(memberRules()).getRulesJson();
         model.addAttribute("validationRules", rulesJson);
         return "member/join";
     }
@@ -422,11 +422,11 @@ public class MemberController {
     @PostMapping("/join")
     public String joinSubmit(@ModelAttribute MemberDTO member, BindingResult result, Model model) {
         // Execute server validation: automatically registers field errors to BindingResult
-        S2BindValidator.context("MEMBER_JOIN", this::memberRules).validate(member, result);
+        S2BindValidator.of(memberRules()).validate(member, result);
 
         if (result.hasErrors()) {
             model.addAttribute("validationRules",
-                S2BindValidator.context("MEMBER_JOIN", this::memberRules).getRulesJson());
+                S2BindValidator.of(memberRules()).getRulesJson());
             return "member/join";
         }
 

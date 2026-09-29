@@ -162,7 +162,7 @@ flowchart TD
     Choice -->|"One-off method logic"| A["Immediate Mode<br>S2Validator.of()"]
     Choice -->|"Reusable instance rules"| B["Blueprint Mode<br>S2Validator.builder()"]
     Choice -->|"Cached globally"| C["Registry Mode<br>S2ValidatorFactory"]
-    Choice -->|"Spring MVC Form"| D["Spring Standard<br>S2BindValidator.context()"]
+    Choice -->|"Spring MVC Form"| D["Spring Standard<br>S2BindValidator.of()"]
     Choice -->|"Simple state/condition"| E["Field-less Mode<br>S2Validator.check()"]
 ```
 
@@ -228,6 +228,9 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 ### D. Pattern: Registry Mode (Optional Global Cache)
 
 **Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
+
+> [!WARNING]
+> A key is bound to the **first** validator built for it. If rules differ by role or state (e.g. a different `MAX_LENGTH` for admins), use a different key per rule set; otherwise the first rules are silently reused for every call. Prefer `S2BindValidator.of(validator)` when in doubt.
 
 Provides global thread-safe caching. The construction logic executes only once. Supplier class collisions on the same key are logged at `DEBUG` level (method references at different call sites are distinct classes even for identical rules), and tests can reset state via `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
 
@@ -473,7 +476,7 @@ private S2Validator<UserCommand> signupRules() {
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
-    String rules = S2BindValidator.context("signup", this::signupRules).getRulesJson();
+    String rules = S2BindValidator.of(signupRules()).getRulesJson();
     model.addAttribute("rules", rules);
     return "signup";
 }
@@ -499,7 +502,7 @@ public String signupPage(Model model) {
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
-    S2BindValidator.context("signup", this::signupRules).validate(command, result);
+    S2BindValidator.of(signupRules()).validate(command, result);
     if (result.hasErrors()) {
         return "signup";
     }
