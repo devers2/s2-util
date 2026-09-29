@@ -21,17 +21,19 @@
 package io.github.devers2.s2util.validation;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 import io.github.devers2.s2util.core.S2Util;
 
 /**
  * Metadata representing a single conditional requirement for validation.
  * <p>
- * This record stores a field name (or Map key) and its expected value.
- * It is used by {@link S2Field} to determine if its rules should be executed
- * based on the current state of the target object.
+ * This record stores a field name (or Map key), a comparison {@link S2Operator} and the value to compare with. It is
+ * used by {@link S2Field} to determine if its rules should be executed based on the current state of the target
+ * object. {@code s2.validator.js} judges conditions the same way.
  * </p>
  *
  * <p>
@@ -39,44 +41,83 @@ import io.github.devers2.s2util.core.S2Util;
  * </p>
  * 특정 필드 값에 따라 검증 수행 여부를 결정하는 조건 메타데이터입니다.
  * <p>
- * {@link S2Field}에서 사용되며, 대상 객체의 특정 필드 상태가 기대값과 일치하는지 확인하여
- * 해당 필드의 유효성 검사 규칙을 실행할지 여부를 결정합니다.
+ * 필드 이름(또는 Map 키), 비교 연산자({@link S2Operator}), 비교 값을 담으며, {@link S2Field}가 대상 객체의 상태로 이 필드의 규칙을
+ * 실행할지 결정할 때 사용합니다. {@code s2.validator.js}도 같은 방식으로 판정합니다.
  * </p>
  *
  * @param fieldName The name of the field or Map key to inspect | 검사 대상 필드 이름 또는 Map 키
- * @param value     The expected value to satisfy the condition | 조건을 만족하기 위한 기대값
+ * @param operator  The comparison operator | 비교 연산자
+ * @param value     The value to compare with (a list for IN/NOT_IN, null for EMPTY/NOT_EMPTY) | 비교 값
+ *                  (IN/NOT_IN 은 목록, EMPTY/NOT_EMPTY 는 null)
  *
  * @author devers2
  * @version 1.5
  * @since 1.0
  */
-public record S2Condition(Object fieldName, Object value) implements Serializable {
+public record S2Condition(Object fieldName, S2Operator operator, Object value) implements Serializable {
+
+    /**
+     * Validates the operator and value at creation, so a condition that can never be judged consistently fails fast.
+     * Arrays for IN/NOT_IN are stored as an unmodifiable list.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 일관되게 판정할 수 없는 조건이 바로 실패하도록 생성 시점에 연산자와 비교 값을 검사합니다. IN/NOT_IN 의 배열은 수정할 수 없는
+     * 목록으로 저장합니다.
+     *
+     * @throws IllegalArgumentException If the value does not fit the operator | 비교 값이 연산자에 맞지 않는 경우
+     */
+    public S2Condition {
+        Objects.requireNonNull(operator, "operator");
+        if (operator.isUnary() && value != null) {
+            throw new IllegalArgumentException("[S2Condition] " + operator + " takes no value, but was: " + value);
+        }
+        if (operator.isNumeric()) {
+            Double number = S2Rule.toDouble(value);
+            if (number == null || number.isNaN() || number.isInfinite()) {
+                throw new IllegalArgumentException(
+                        "[S2Condition] " + operator + " requires a finite number, but was: " + value);
+            }
+        }
+        if (operator.isList()) {
+            if (value instanceof Object[] array) {
+                value = List.of(array);
+            } else if (value instanceof Collection<?> collection) {
+                value = List.copyOf(collection);
+            } else {
+                throw new IllegalArgumentException(
+                        "[S2Condition] " + operator + " requires a collection or array, but was: " + value);
+            }
+        }
+    }
+
+    /**
+     * Creates an equality ({@link S2Operator#EQ}) condition; {@code null} means the field must be empty.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 같음({@link S2Operator#EQ}) 조건을 만듭니다. {@code null}은 필드가 비어 있어야 함을 뜻합니다.
+     *
+     * @param fieldName The field to inspect | 검사 대상 필드
+     * @param value     The expected value | 기대값
+     */
+    public S2Condition(Object fieldName, Object value) {
+        this(fieldName, S2Operator.EQ, value);
+    }
 
     /**
      * Evaluates whether the condition is met by the given target object.
-     * <p>
-     * <b>Comparison Logic:</b>
-     * <ul>
-     * <li>If the actual value is a {@link Collection}, it checks if the
-     * expected value exists within the collection (useful for checkboxes).</li>
-     * <li>Otherwise, it performs a string-based equality check.</li>
-     * </ul>
-     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 대상 객체의 현재 상태가 이 조건을 만족하는지 평가합니다.
-     * <p>
-     * <b>상세 비교 로직:</b>
-     * <ul>
-     * <li>실제 값이 {@link Collection}인 경우, 기대값이 컬렉션 내에 포함되어 있는지 확인합니다 (체크박스 그룹 등).</li>
-     * <li>그 외의 경우에는 문자열로 변환하여 동등 여부를 비교합니다.</li>
-     * </ul>
-     * </p>
      *
      * @param target The object to inspect | 검사 대상 객체 인스턴스
      * @return {@code true} if satisfied | 조건이 만족된 경우 true
+     * @see S2Operator
      */
     public boolean isSatisfied(Object target) {
         return isSatisfied(target, List.of());
@@ -84,15 +125,16 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
 
     /**
      * Evaluates the condition, looking the field up in {@code target} first and then in each outer object (nearest
-     * first, root last) while the value is absent. This lets a condition inside a NESTED/EACH sub-validator refer to a
-     * field of an outer object, in the same order the client uses. A blank string counts as absent, like an empty form
-     * field on the client.
+     * first, root last) while the value is empty. This lets a condition inside a NESTED/EACH sub-validator refer to a
+     * field of an outer object, in the same order the client uses. A blank string or an empty collection counts as
+     * empty, like an empty form field on the client.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 값이 없으면 {@code target}에서 시작해 바깥 객체들(가까운 순서, 루트 마지막)에서 조건 필드를 찾아 평가합니다. NESTED/EACH 하위 검증기의
-     * 조건이 바깥 객체의 필드를 가리킬 수 있으며, 클라이언트와 같은 순서입니다. 빈 문자열은 클라이언트의 빈 폼 필드처럼 값이 없는 것으로 봅니다.
+     * 값이 비어 있으면 {@code target}에서 시작해 바깥 객체들(가까운 순서, 루트 마지막)에서 조건 필드를 찾아 평가합니다. NESTED/EACH
+     * 하위 검증기의 조건이 바깥 객체의 필드를 가리킬 수 있으며, 클라이언트와 같은 순서입니다. 공백 문자열과 빈 컬렉션은 클라이언트의 빈 폼
+     * 필드처럼 빈 값으로 봅니다.
      *
      * @param target       The object to inspect | 검사 대상 객체
      * @param outerTargets Outer objects, nearest first | 가까운 순서의 바깥 객체들
@@ -103,27 +145,63 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
         for (int i = 0; actualValue == null && i < outerTargets.size(); i++) {
             actualValue = presentValue(outerTargets.get(i));
         }
+        return switch (operator) {
+            case EQ -> isEqual(actualValue);
+            case NE -> !isEqual(actualValue);
+            case IN -> isIn(actualValue);
+            case NOT_IN -> !isIn(actualValue);
+            case EMPTY -> actualValue == null;
+            case NOT_EMPTY -> actualValue != null;
+            case GT, GTE, LT, LTE -> compareNumber(actualValue);
+        };
+    }
+
+    /** EQ: empty matches only {@code null}; a collection matches when it contains the value. | EQ: 빈 값은 null 과만 일치, 컬렉션은 값을 포함하면 일치 */
+    private boolean isEqual(Object actualValue) {
         if (actualValue == null)
             return value == null;
         if (value == null)
             return false;
+        String expected = normalizeValue(value);
+        return valuesOf(actualValue).stream().map(this::normalizeValue).anyMatch(expected::equals);
+    }
 
-        // 기대값을 미리 정규화 (한 번만 수행)
-        String normalizedValue = normalizeValue(value);
+    /** IN: any of the actual values is one of the listed values; empty never matches. | IN: 실제 값 중 하나가 목록에 있으면 일치, 빈 값은 불일치 */
+    private boolean isIn(Object actualValue) {
+        if (actualValue == null)
+            return false;
+        List<String> expected = ((List<?>) value).stream().map(this::normalizeValue).toList();
+        return valuesOf(actualValue).stream().map(this::normalizeValue).anyMatch(expected::contains);
+    }
 
-        // 실제 값이 컬렉션(체크박스 등)인 경우 포함 여부 확인
-        if (actualValue instanceof Collection<?> collection) {
-            return collection.stream()
-                    .map(this::normalizeValue)
-                    .anyMatch(v -> v.equals(normalizedValue));
-        }
+    /** GT/GTE/LT/LTE on plain numbers; empty, non-numeric and collection values do not match. | 일반 숫자의 크기 비교. 빈 값·숫자 아님·컬렉션은 불일치 */
+    private boolean compareNumber(Object actualValue) {
+        if (actualValue == null || actualValue instanceof Collection<?> || actualValue instanceof Object[])
+            return false;
+        Double actual = S2Rule.toDouble(actualValue);
+        if (actual == null || actual.isNaN())
+            return false;
+        int cmp = Double.compare(actual, S2Rule.toDouble(value));
+        return switch (operator) {
+            case GT -> cmp > 0;
+            case GTE -> cmp >= 0;
+            case LT -> cmp < 0;
+            default -> cmp <= 0;
+        };
+    }
 
-        // 단일 값인 경우 정규화된 값 비교
-        return normalizeValue(actualValue).equals(normalizedValue);
+    /** The actual value as a list: collection/array elements, or the single value. | 실제 값을 목록으로: 컬렉션/배열 요소 또는 단일 값 */
+    private static List<?> valuesOf(Object actualValue) {
+        if (actualValue instanceof Collection<?> collection)
+            return List.copyOf(collection);
+        if (actualValue instanceof Object[] array)
+            return Arrays.asList(array);
+        return List.of(actualValue);
     }
 
     /**
-     * Returns the condition field's value in {@code source}, treating {@code null} sources and blank strings as absent.
+     * Returns the condition field's value in {@code source}, treating {@code null} sources, blank strings and empty
+     * collections as absent.
      *
      * @param source The object to read from | 값을 읽을 객체
      * @return The value, or {@code null} if absent | 값 (없으면 null)
@@ -133,7 +211,11 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
             return null;
         }
         Object v = S2Util.getValue(source, fieldName);
-        return v instanceof String str && str.isBlank() ? null : v;
+        if (v instanceof String str && str.isBlank())
+            return null;
+        if (v instanceof Collection<?> collection && collection.isEmpty())
+            return null;
+        return v instanceof Object[] array && array.length == 0 ? null : v;
     }
 
     /**
@@ -211,7 +293,7 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
         if (fieldName instanceof String path && path.contains("[]")) {
             int bracketIndex = path.indexOf("[]");
             String resolved = path.substring(0, bracketIndex) + "[" + index + "]" + path.substring(bracketIndex + 2);
-            return new S2Condition(resolved, value);
+            return new S2Condition(resolved, operator, value);
         }
         return this;
     }
@@ -230,6 +312,23 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
      */
     public static S2Condition of(Object fieldName, Object value) {
         return new S2Condition(fieldName, value);
+    }
+
+    /**
+     * Static factory method for a condition with an operator.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 연산자가 있는 조건을 만드는 정적 팩토리 메서드입니다.
+     *
+     * @param fieldName Name of the criteria field | 기준 필드 이름
+     * @param operator  Comparison operator | 비교 연산자
+     * @param value     Value to compare with | 비교 값
+     * @return A new S2Condition instance | 새로운 S2Condition 인스턴스
+     */
+    public static S2Condition of(Object fieldName, S2Operator operator, Object value) {
+        return new S2Condition(fieldName, operator, value);
     }
 
 }

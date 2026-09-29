@@ -354,6 +354,28 @@ S2Validator.<PaymentDTO>builder()
     .build();
 ```
 
+#### 비교 연산자 (`S2Operator`)
+
+`when(field, value)`는 "같음"입니다. 다른 비교는 연산자를 넘깁니다. 서버와 브라우저가 같은 방식으로 판정합니다.
+
+```java
+.field("guardianName").when("age", S2Operator.LT, 14).rule(S2RuleType.REQUIRED)          // 14세 미만이면 보호자 필수
+.field("reason").when("status", S2Operator.IN, List.of("REJECT", "HOLD")).rule(S2RuleType.REQUIRED)
+.field("memo").when("type", S2Operator.NE, "NORMAL").and("amount", S2Operator.GTE, 1000000).rule(S2RuleType.REQUIRED)
+.field("phone").when("email", S2Operator.EMPTY).rule(S2RuleType.REQUIRED)                 // 이메일이 없으면 전화번호 필수
+```
+
+| 연산자 | 조건 충족 |
+|---|---|
+| `EQ` (기본) | 같음. 체크박스 그룹이면 해당 값을 포함. `when(field, null)`은 비었음 |
+| `NE` | 같지 않음 (`EQ`의 반대이므로 빈 값도 충족) |
+| `GT` `GTE` `LT` `LTE` | 숫자 비교. `MIN_VALUE`와 같이 일반 숫자만 인정하며, 비었거나 `"1,000"`처럼 숫자가 아니면 불충족 |
+| `IN` / `NOT_IN` | 목록(컬렉션 또는 배열) 중 하나와 같음 / 어느 것과도 같지 않음. 체크박스 그룹은 하나라도 포함하면 `IN` |
+| `EMPTY` / `NOT_EMPTY` | 비었음 / 값 있음. 공백 문자열과 체크하지 않은 그룹도 빈 값 |
+
+- 비교 값이 연산자에 맞지 않으면(`GT`에 `"abc"`, `IN`에 목록이 아닌 값) 검증기를 만들 때 `IllegalArgumentException`이 납니다.
+- 조건 필드는 현재 행/객체에서 먼저 찾고, 없으면 바깥 객체를 거쳐 루트에서 찾습니다(`items[].type` 같은 행 조건 포함).
+
 ### 3-3. 필드 간 상호 비교 (Cross-Field Comparisons)
 
 동일 객체 내 서로 다른 두 필드의 값을 직관적으로 비교합니다:

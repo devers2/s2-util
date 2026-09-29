@@ -249,6 +249,42 @@ public interface S2FieldStep<T> {
         S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, Object value);
 
         /**
+         * Starts a new condition group (OR branch) that compares the field with an operator, e.g.
+         * {@code when("age", S2Operator.GT, 19)}, {@code when("type", S2Operator.IN, List.of("A", "B"))}.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 연산자로 필드를 비교하는 새 조건 그룹(OR 분기)을 시작합니다. 예: {@code when("age", S2Operator.GT, 19)},
+         * {@code when("type", S2Operator.IN, List.of("A", "B"))}.
+         *
+         * @param fieldName The field to check | 확인 대상 필드
+         * @param operator  The comparison operator | 비교 연산자
+         * @param value     The value to compare with (a collection or array for IN/NOT_IN) | 비교 값 (IN/NOT_IN 은 컬렉션 또는 배열)
+         * @return The condition step | 조건 단계
+         * @throws IllegalArgumentException If the value does not fit the operator | 비교 값이 연산자에 맞지 않는 경우
+         * @see S2Operator
+         */
+        S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, S2Operator operator, Object value);
+
+        /**
+         * Starts a new condition group (OR branch) with an operator that takes no value: {@code when("memo", S2Operator.NOT_EMPTY)}.
+         * A {@code null} operator keeps the meaning of {@code when(field, null)} (the field is empty).
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 비교 값이 없는 연산자로 새 조건 그룹(OR 분기)을 시작합니다: {@code when("memo", S2Operator.NOT_EMPTY)}.
+         * {@code null} 연산자는 {@code when(field, null)}의 의미(필드가 비었음)를 유지합니다.
+         *
+         * @param fieldName The field to check | 확인 대상 필드
+         * @param operator  {@link S2Operator#EMPTY} or {@link S2Operator#NOT_EMPTY} | EMPTY 또는 NOT_EMPTY
+         * @return The condition step | 조건 단계
+         * @see S2Operator
+         */
+        S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, S2Operator operator);
+
+        /**
          * Executes validation immediately and returns the result.
          *
          * @return {@code true} if all rules passed | 규칙을 모두 통과한 경우 true
@@ -400,6 +436,42 @@ public interface S2FieldStep<T> {
         <V> S2RuleStep.BuilderRuleStep<T> rule(BiPredicate<V, T> logic, String errorMessageKey);
 
         S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, Object value);
+
+        /**
+         * Starts a new condition group (OR branch) that compares the field with an operator, e.g.
+         * {@code when("age", S2Operator.GT, 19)}, {@code when("type", S2Operator.IN, List.of("A", "B"))}.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 연산자로 필드를 비교하는 새 조건 그룹(OR 분기)을 시작합니다. 예: {@code when("age", S2Operator.GT, 19)},
+         * {@code when("type", S2Operator.IN, List.of("A", "B"))}.
+         *
+         * @param fieldName The field to check | 확인 대상 필드
+         * @param operator  The comparison operator | 비교 연산자
+         * @param value     The value to compare with (a collection or array for IN/NOT_IN) | 비교 값 (IN/NOT_IN 은 컬렉션 또는 배열)
+         * @return The condition step | 조건 단계
+         * @throws IllegalArgumentException If the value does not fit the operator | 비교 값이 연산자에 맞지 않는 경우
+         * @see S2Operator
+         */
+        S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, S2Operator operator, Object value);
+
+        /**
+         * Starts a new condition group (OR branch) with an operator that takes no value: {@code when("memo", S2Operator.NOT_EMPTY)}.
+         * A {@code null} operator keeps the meaning of {@code when(field, null)} (the field is empty).
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 비교 값이 없는 연산자로 새 조건 그룹(OR 분기)을 시작합니다: {@code when("memo", S2Operator.NOT_EMPTY)}.
+         * {@code null} 연산자는 {@code when(field, null)}의 의미(필드가 비었음)를 유지합니다.
+         *
+         * @param fieldName The field to check | 확인 대상 필드
+         * @param operator  {@link S2Operator#EMPTY} or {@link S2Operator#NOT_EMPTY} | EMPTY 또는 NOT_EMPTY
+         * @return The condition step | 조건 단계
+         * @see S2Operator
+         */
+        S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, S2Operator operator);
 
         /**
          * Completes the builder process and generates a reusable validator instance.

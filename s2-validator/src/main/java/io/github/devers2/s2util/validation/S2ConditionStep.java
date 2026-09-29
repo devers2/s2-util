@@ -68,6 +68,40 @@ public interface S2ConditionStep<T> {
      */
     S2ConditionStep<T> and(Object fieldName, Object value);
 
+    /**
+     * Appends an AND condition that compares the field with an operator, e.g. {@code and("age", S2Operator.GTE, 20)}.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 연산자로 필드를 비교하는 AND 조건을 추가합니다. 예: {@code and("age", S2Operator.GTE, 20)}.
+     *
+     * @param fieldName The field to check | 확인 대상 필드
+     * @param operator  The comparison operator | 비교 연산자
+     * @param value     The value to compare with (a collection or array for IN/NOT_IN) | 비교 값 (IN/NOT_IN 은 컬렉션 또는 배열)
+     * @return The next step in the condition chain | 조건 체인의 다음 단계
+     * @throws IllegalArgumentException If the value does not fit the operator | 비교 값이 연산자에 맞지 않는 경우
+     * @see S2Operator
+     */
+    S2ConditionStep<T> and(Object fieldName, S2Operator operator, Object value);
+
+    /**
+     * Appends an AND condition with an operator that takes no value: {@code and("memo", S2Operator.EMPTY)}. A
+     * {@code null} operator keeps the meaning of {@code and(field, null)} (the field is empty).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 비교 값이 없는 연산자로 AND 조건을 추가합니다: {@code and("memo", S2Operator.EMPTY)}. {@code null} 연산자는
+     * {@code and(field, null)}의 의미(필드가 비었음)를 유지합니다.
+     *
+     * @param fieldName The field to check | 확인 대상 필드
+     * @param operator  {@link S2Operator#EMPTY} or {@link S2Operator#NOT_EMPTY} | EMPTY 또는 NOT_EMPTY
+     * @return The next step in the condition chain | 조건 체인의 다음 단계
+     * @see S2Operator
+     */
+    S2ConditionStep<T> and(Object fieldName, S2Operator operator);
+
     // =================================================================
     // Mode-Specific Condition Steps
     // =================================================================
@@ -91,6 +125,12 @@ public interface S2ConditionStep<T> {
     interface ValidateConditionStep<T> extends S2ConditionStep<T>, S2FieldStep.ValidateFieldStep<T> {
         @Override
         ValidateConditionStep<T> and(Object fieldName, Object value);
+
+        @Override
+        ValidateConditionStep<T> and(Object fieldName, S2Operator operator, Object value);
+
+        @Override
+        ValidateConditionStep<T> and(Object fieldName, S2Operator operator);
     }
 
     /**
@@ -112,5 +152,11 @@ public interface S2ConditionStep<T> {
     interface BuilderConditionStep<T> extends S2ConditionStep<T>, S2FieldStep.BuilderFieldStep<T> {
         @Override
         BuilderConditionStep<T> and(Object fieldName, Object value);
+
+        @Override
+        BuilderConditionStep<T> and(Object fieldName, S2Operator operator, Object value);
+
+        @Override
+        BuilderConditionStep<T> and(Object fieldName, S2Operator operator);
     }
 }

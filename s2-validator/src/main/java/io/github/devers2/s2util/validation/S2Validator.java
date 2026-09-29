@@ -610,6 +610,25 @@ public class S2Validator<T> implements Serializable {
             currentField.and(fieldName, value);
         }
 
+        // A null operator keeps when(field, null) meaning "empty": Java resolves the null literal to the operator overload. | null 연산자는 when(field, null)의 "빈 값" 의미를 유지: Java 는 null 리터럴을 연산자 오버로드로 해석함
+        protected void doWhen(Object fieldName, S2Operator operator, Object value) {
+            ensureField();
+            if (operator == null) {
+                currentField.when(fieldName, (Object) null);
+            } else {
+                currentField.when(fieldName, operator, value);
+            }
+        }
+
+        protected void doAnd(Object fieldName, S2Operator operator, Object value) {
+            ensureField();
+            if (operator == null) {
+                currentField.and(fieldName, (Object) null);
+            } else {
+                currentField.and(fieldName, operator, value);
+            }
+        }
+
         /**
          * Ensures that a field context is active before defining rules.
          *
@@ -711,6 +730,30 @@ public class S2Validator<T> implements Serializable {
         @Override
         public S2ConditionStep.ValidateConditionStep<T> and(Object fieldName, Object value) {
             doAnd(fieldName, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, S2Operator operator, Object value) {
+            doWhen(fieldName, operator, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.ValidateConditionStep<T> when(Object fieldName, S2Operator operator) {
+            doWhen(fieldName, operator, null);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.ValidateConditionStep<T> and(Object fieldName, S2Operator operator, Object value) {
+            doAnd(fieldName, operator, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.ValidateConditionStep<T> and(Object fieldName, S2Operator operator) {
+            doAnd(fieldName, operator, null);
             return this;
         }
 
@@ -863,6 +906,30 @@ public class S2Validator<T> implements Serializable {
         @Override
         public S2ConditionStep.BuilderConditionStep<T> and(Object fieldName, Object value) {
             doAnd(fieldName, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, S2Operator operator, Object value) {
+            doWhen(fieldName, operator, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.BuilderConditionStep<T> when(Object fieldName, S2Operator operator) {
+            doWhen(fieldName, operator, null);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.BuilderConditionStep<T> and(Object fieldName, S2Operator operator, Object value) {
+            doAnd(fieldName, operator, value);
+            return this;
+        }
+
+        @Override
+        public S2ConditionStep.BuilderConditionStep<T> and(Object fieldName, S2Operator operator) {
+            doAnd(fieldName, operator, null);
             return this;
         }
 

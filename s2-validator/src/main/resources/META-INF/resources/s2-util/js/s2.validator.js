@@ -793,7 +793,8 @@ const getFormData = (form) => {
 /**
  * Determines whether the conditions set in the rule are satisfied by comparing with current form data.
  * <p>
- * For array data (checkboxes, etc.), checks for inclusion; for single values, checks for equality.
+ * Each condition compares with its operator ({@code op}, default EQ; see evaluateCondition). For array data
+ * (checkboxes, etc.), EQ/IN check for inclusion.
  * Implements OR logic between condition groups and AND logic within each group.
  * Normalizes Boolean, Enum, Number, and String values for consistent comparison.
  * </p>
@@ -803,7 +804,8 @@ const getFormData = (form) => {
  * </p>
  * 규칙에 설정된 조건(conditions)을 현재 폼 데이터와 비교하여 만족 여부를 판단합니다.
  * <p>
- * 배열(체크박스 등) 데이터일 경우 포함 여부를 확인하며, 단일 값은 일치 여부를 확인합니다.
+ * 각 조건은 연산자({@code op}, 기본 EQ, evaluateCondition 참고)로 비교하며, 배열(체크박스 등) 데이터에서 EQ/IN 은 포함 여부를
+ * 확인합니다.
  * 조건 그룹 간에는 OR 로직을, 각 그룹 내에서는 AND 로직을 적용합니다.
  * Boolean, Enum, Number, String 값을 정규화하여 일관된 비교를 수행합니다.
  * </p>
@@ -836,37 +838,92 @@ const isConditionSatisfied = (rule, formData, prefix = '', wildcardIndex = null)
           ']' +
           condField.substring(bracketIndex + 2);
       }
-      // Look the field up in the current object, then in each outer object up to the root, while absent (same order as
-      // the server's S2Condition). | 값이 없으면 현재 객체 → 바깥 객체들 → 루트 순서로 조회 (서버 S2Condition 과 같은 순서)
-      let normalizedActual = null;
+      // Look the field up in the current object, then in each outer object up to the root, while empty (same order as
+      // the server's S2Condition). | 값이 비어 있으면 현재 객체 → 바깥 객체들 → 루트 순서로 조회 (서버 S2Condition 과 같은 순서)
+      let actual = null;
       let scope = prefix;
       for (;;) {
         const candidate = normalizeConditionValue(formData[scope + condField]);
-        if (candidate !== undefined && candidate !== null && candidate !== '') {
-          normalizedActual = candidate;
+        if (!isEmptyConditionValue(candidate)) {
+          actual = candidate;
           break;
         }
         if (!scope) break;
         scope = parentPrefix(scope);
       }
-      const normalizedExpected = normalizeConditionValue(cond.value);
-
-      if (normalizedActual === undefined || normalizedActual === null) {
-        return normalizedExpected === null;
-      }
-      if (normalizedExpected === null) {
-        return false;
-      }
-
-      // 실제 값이 배열(체크박스/멀티셀렉트)인 경우 포함 여부 확인
-      if (Array.isArray(normalizedActual)) {
-        return normalizedActual.some((v) => v === normalizedExpected);
-      }
-
-      // 단일 값 비교
-      return normalizedActual === normalizedExpected;
+      return evaluateCondition(cond.op || 'EQ', actual, cond.value);
     });
   });
+};
+
+/**
+ * Empty for conditions: null, '' or an empty array (unchecked group), same as the server's S2Condition.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 조건에서의 빈 값: null, '' 또는 빈 배열(체크 안 한 그룹). 서버 S2Condition 과 같습니다.
+ *
+ * @param {*} value - Normalized value | 정규화한 값
+ * @returns {boolean} Whether the value is empty | 빈 값 여부
+ */
+const isEmptyConditionValue = (value) =>
+  value === null || value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+
+/**
+ * Judges one condition operator (replicates server S2Condition, see S2Operator).
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 조건 연산자 하나를 판정합니다 (서버 S2Condition 복제, S2Operator 참고).
+ *
+ * @param {string} op - EQ, NE, GT, GTE, LT, LTE, IN, NOT_IN, EMPTY, NOT_EMPTY
+ * @param {*} actual - Normalized field value, null when empty; an array for groups | 정규화한 필드 값 (비면 null, 그룹은 배열)
+ * @param {*} criterion - The condition value from the rules JSON | 규칙 JSON 의 조건 값
+ * @returns {boolean} Whether the condition is satisfied | 충족 여부
+ */
+const evaluateCondition = (op, actual, criterion) => {
+  const values = Array.isArray(actual) ? actual : [actual];
+  const isEqual = () => {
+    const expected = normalizeConditionValue(criterion);
+    if (actual === null) return expected === null;
+    if (expected === null) return false;
+    return values.some((v) => v === expected);
+  };
+  const isIn = () => {
+    if (actual === null || !Array.isArray(criterion)) return false;
+    const expected = criterion.map(normalizeConditionValue);
+    return values.some((v) => expected.includes(v));
+  };
+  switch (op) {
+    case 'EQ':
+      return isEqual();
+    case 'NE':
+      return !isEqual();
+    case 'IN':
+      return isIn();
+    case 'NOT_IN':
+      return !isIn();
+    case 'EMPTY':
+      return actual === null;
+    case 'NOT_EMPTY':
+      return actual !== null;
+    case 'GT':
+    case 'GTE':
+    case 'LT':
+    case 'LTE': {
+      if (actual === null || Array.isArray(actual)) return false;
+      const a = toStrictNumber(actual);
+      const b = toStrictNumber(criterion);
+      if (Number.isNaN(a) || Number.isNaN(b)) return false;
+      if (op === 'GT') return a > b;
+      if (op === 'GTE') return a >= b;
+      if (op === 'LT') return a < b;
+      return a <= b;
+    }
+    default:
+      // Unknown operator (newer server): not satisfied, so conditional rules are skipped; the server still validates. | 모르는 연산자(더 새 서버): 불충족으로 보아 조건부 규칙을 건너뜀. 서버 검증은 그대로 수행됨
+      return false;
+  }
 };
 
 /**
@@ -907,6 +964,13 @@ const parentPrefix = (prefix) => {
 const normalizeConditionValue = (val) => {
   if (val === null || val === undefined) {
     return null;
+  }
+
+  // Arrays (checkbox group, multi-select) keep their elements for "contains" checks; joining them into "a,b" broke
+  // conditions when several boxes were checked. | 배열(체크박스 그룹, 다중 선택)은 "포함" 판정을 위해 요소를 유지. "a,b"로 합치면 여러 개를
+  // 체크했을 때 조건이 깨졌음
+  if (Array.isArray(val)) {
+    return val.map(normalizeConditionValue);
   }
 
   // Boolean 처리: true -> "true", false -> "false"

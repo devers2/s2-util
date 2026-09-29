@@ -354,6 +354,28 @@ S2Validator.<PaymentDTO>builder()
     .build();
 ```
 
+#### Comparison Operators (`S2Operator`)
+
+`when(field, value)` means "equal". For other comparisons pass an operator. The server and the browser judge them the same way.
+
+```java
+.field("guardianName").when("age", S2Operator.LT, 14).rule(S2RuleType.REQUIRED)          // guardian required under 14
+.field("reason").when("status", S2Operator.IN, List.of("REJECT", "HOLD")).rule(S2RuleType.REQUIRED)
+.field("memo").when("type", S2Operator.NE, "NORMAL").and("amount", S2Operator.GTE, 1000000).rule(S2RuleType.REQUIRED)
+.field("phone").when("email", S2Operator.EMPTY).rule(S2RuleType.REQUIRED)                 // phone required without email
+```
+
+| Operator | Satisfied when |
+|---|---|
+| `EQ` (default) | Equal. For a checkbox group, it contains the value. `when(field, null)` means empty |
+| `NE` | Not equal (the negation of `EQ`, so an empty value also satisfies it) |
+| `GT` `GTE` `LT` `LTE` | Numeric comparison. Only plain numbers count, as with `MIN_VALUE`; empty or non-numeric values such as `"1,000"` do not satisfy it |
+| `IN` / `NOT_IN` | Equal to one of the listed values (collection or array) / to none of them. A checkbox group satisfies `IN` if it contains any |
+| `EMPTY` / `NOT_EMPTY` | Empty / present. Blank strings and unchecked groups are empty |
+
+- A value that does not fit the operator (`"abc"` for `GT`, a non-list for `IN`) throws `IllegalArgumentException` when the validator is built.
+- The condition field is looked up in the current row/object first, then outer objects up to the root (including row conditions such as `items[].type`).
+
 ### 3-3. Cross-Field Comparisons
 
 Easily compare two fields within the same target object:
