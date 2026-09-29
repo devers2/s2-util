@@ -160,11 +160,11 @@ private S2Validator<UserCommand> profileValidator() {
                 .rule(S2RuleType.EQUALS_FIELD, "password")
                     // 영문 에러 메시지 설정
                     .en("Password check does not match.")
-                    .message(Locale.ENGLISH, "Password check does not match.")
+                    .message("Password check does not match.", Locale.ENGLISH)
                     // 한글 에러 메시지 설정
                     .ko("비밀번호가 일치하지 않습니다.")
                     // 힌디어 에러 메시지 설정
-                    .message(Locale.forLanguageTag("hi"), "पासवर्ड मेल नहीं खाते.")
+                    .message("पासवर्ड मेल नहीं खाते.", Locale.forLanguageTag("hi"))
             .field("userType", "회원 유형")
             .field("paymentMethod", "결제 방법")
             .field("cardNumber", "카드 번호")

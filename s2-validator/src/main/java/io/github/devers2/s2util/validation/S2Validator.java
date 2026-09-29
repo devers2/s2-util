@@ -484,19 +484,25 @@ public class S2Validator<T> implements Serializable {
 
         @Override
         public S2ValueChain<T> ko(String msg) {
-            doMessage(Locale.KOREAN, msg);
+            doMessage(msg, Locale.KOREAN);
             return this;
         }
 
         @Override
         public S2ValueChain<T> en(String msg) {
-            doMessage(Locale.ENGLISH, msg);
+            doMessage(msg, Locale.ENGLISH);
             return this;
         }
 
         @Override
-        public S2ValueChain<T> message(Locale loc, String msg) {
-            doMessage(loc, msg);
+        public S2ValueChain<T> message(String msg, Locale loc) {
+            doMessage(msg, loc);
+            return this;
+        }
+
+        @Override
+        public S2ValueChain<T> message(String msg) {
+            doMessage(msg, null);
             return this;
         }
 
@@ -587,9 +593,9 @@ public class S2Validator<T> implements Serializable {
             currentField.rule(logic, errorMessageKey);
         }
 
-        protected void doMessage(Locale locale, String template) {
+        protected void doMessage(String template, Locale locale) {
             ensureField();
-            currentField.message(locale, template);
+            currentField.message(template, locale);
         }
 
         protected void doWhen(Object fieldName, Object value) {
@@ -716,19 +722,25 @@ public class S2Validator<T> implements Serializable {
         // --- Message Step ---
         @Override
         public S2RuleStep.ValidateRuleStep<T> ko(String msg) {
-            doMessage(Locale.KOREAN, msg);
+            doMessage(msg, Locale.KOREAN);
             return this;
         }
 
         @Override
         public S2RuleStep.ValidateRuleStep<T> en(String msg) {
-            doMessage(Locale.ENGLISH, msg);
+            doMessage(msg, Locale.ENGLISH);
             return this;
         }
 
         @Override
-        public S2RuleStep.ValidateRuleStep<T> message(Locale loc, String msg) {
-            doMessage(loc, msg);
+        public S2RuleStep.ValidateRuleStep<T> message(String msg, Locale loc) {
+            doMessage(msg, loc);
+            return this;
+        }
+
+        @Override
+        public S2RuleStep.ValidateRuleStep<T> message(String msg) {
+            doMessage(msg, null);
             return this;
         }
 
@@ -862,19 +874,25 @@ public class S2Validator<T> implements Serializable {
         // --- Message Step ---
         @Override
         public S2RuleStep.BuilderRuleStep<T> ko(String msg) {
-            doMessage(Locale.KOREAN, msg);
+            doMessage(msg, Locale.KOREAN);
             return this;
         }
 
         @Override
         public S2RuleStep.BuilderRuleStep<T> en(String msg) {
-            doMessage(Locale.ENGLISH, msg);
+            doMessage(msg, Locale.ENGLISH);
             return this;
         }
 
         @Override
-        public S2RuleStep.BuilderRuleStep<T> message(Locale loc, String msg) {
-            doMessage(loc, msg);
+        public S2RuleStep.BuilderRuleStep<T> message(String msg, Locale loc) {
+            doMessage(msg, loc);
+            return this;
+        }
+
+        @Override
+        public S2RuleStep.BuilderRuleStep<T> message(String msg) {
+            doMessage(msg, null);
             return this;
         }
 

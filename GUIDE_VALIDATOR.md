@@ -266,11 +266,17 @@ Specify error messages at the field level.
 .field("email", "Email")
     .rule(S2RuleType.EMAIL, null, "validation.email.invalid")
 
-// Option 2: Direct message per language
+// Option 2: One default message for every language
 .field("email", "Email")
     .rule(S2RuleType.EMAIL)
-    .en("Please enter a valid email address.")
+    .message("Please enter a valid email address.")
+
+// Option 3: Default message + per-language overrides (.en/.ko or .message(template, locale))
+.field("email", "Email")
+    .rule(S2RuleType.EMAIL)
+    .message("Please enter a valid email address.")
     .ko("올바른 이메일 주소를 입력하십시오.")
+    .message("有効なメールアドレスを入力してください。", Locale.JAPANESE)
 ```
 
 ### 3-2. Language-Specific Messages
@@ -283,7 +289,7 @@ Set messages for different locales.
     // Set English message
     .en("Password must be at least 8 characters.")
     // Set French message
-    .message(Locale.FRANCE, "Le mot de passe doit comporter au moins 8 caractères.")
+    .message("Le mot de passe doit comporter au moins 8 caractères.", Locale.FRANCE)
 ```
 
 ### 3-3. Korean Particle Handling 🇰🇷

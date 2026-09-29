@@ -18,6 +18,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (the warning banner and its thread were removed)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (replaced by Error Prone's `@CheckReturnValue`)
+  - `message(Locale, String)` → replaced by `message(String, Locale)` (template first, like `message(String)`); `.ko()`
+    and `.en()` are unchanged
 - **The global validator registry and `S2ValidatorFactory` are removed.** `S2BindValidator.context(key, supplier)` and
   the whole `S2ValidatorFactory` class (`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`,
   `getRulesJson(validator, locale)`) no longer exist. A key was bound to the first validator built for it, so rule sets
@@ -87,6 +89,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - `S2Validator.getRulesJson()` / `getRulesJson(locale)`: export the validator's rules as JSON for the browser (replaces
   `S2ValidatorFactory.getRulesJson(validator, locale)`).
 - `.includeEmpty()` modifier for custom lambda rules.
+- `.message(template)`: a default message for every language without a language-specific one. Lookup order: bundle key →
+  request language → default message → default locale's language → built-in.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - Browser: `S2Validator.setRenderer({ show, clear, clearField })` to draw errors the application's way instead of native
   bubbles, and `S2Validator.classRenderer()` (adds `is-invalid`, writes messages into `[data-s2-error-for]`, focuses the
@@ -123,6 +127,7 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 6. Custom lambdas that must run on empty values (e.g. "one of two fields is required") need `.includeEmpty()`.
 7. If exception-mode failures are handled as `S2RuntimeException`, consider handling `S2ValidationException`
    (input error → 400) and `S2RuleExecutionException` (bug → 500) separately.
+8. Swap the arguments of `.message(Locale, "…")` to `.message("…", Locale)`.
 
 ## s2-validator-plugin [1.2.0] - Unreleased
 

@@ -86,11 +86,24 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
      * </p>
      * 특정 로케일에 대한 메시지 템플릿을 설정합니다.
      *
-     * @param locale  Target locale | 대상 로케일
      * @param message Message template for the locale | 로케일용 메시지 템플릿
+     * @param locale  Target locale | 대상 로케일
      * @return Current step instance | 현재 단계 인스턴스
      */
-    S2RuleStep<T> message(Locale locale, String message);
+    S2RuleStep<T> message(String message, Locale locale);
+
+    /**
+     * Sets the default message template for every language without a language-specific template.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 언어별 템플릿이 없는 모든 언어에 쓰는 기본 메시지 템플릿을 설정합니다.
+     *
+     * @param message Message template | 메시지 템플릿
+     * @return Current step instance | 현재 단계 인스턴스
+     */
+    S2RuleStep<T> message(String message);
 
     @Override
     default S2RuleStep<T> includeEmpty() {
@@ -125,7 +138,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
 
         ValidateRuleStep<T> en(String message);
 
-        ValidateRuleStep<T> message(Locale locale, String message);
+        ValidateRuleStep<T> message(String message, Locale locale);
+
+        ValidateRuleStep<T> message(String message);
 
         @Override
         ValidateRuleStep<T> includeEmpty();
@@ -155,7 +170,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
 
         BuilderRuleStep<T> en(String message);
 
-        BuilderRuleStep<T> message(Locale locale, String message);
+        BuilderRuleStep<T> message(String message, Locale locale);
+
+        BuilderRuleStep<T> message(String message);
 
         @Override
         BuilderRuleStep<T> includeEmpty();
@@ -244,7 +261,9 @@ public interface S2RuleStep<T> extends S2RuleMessageStep {
 
         LabeledCheckRuleStep<T> en(String message);
 
-        LabeledCheckRuleStep<T> message(Locale locale, String message);
+        LabeledCheckRuleStep<T> message(String message, Locale locale);
+
+        LabeledCheckRuleStep<T> message(String message);
 
         @Override
         LabeledCheckRuleStep<T> includeEmpty();

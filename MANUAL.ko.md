@@ -352,15 +352,42 @@ S2Validator.<RegisterDTO>builder()
 
 ### 4-1. 인라인 다국어 설정 (`.ko`, `.en`, `.message`)
 
-체이닝 과정에서 언어별 메시지를 손쉽게 지정할 수 있습니다:
+체이닝 과정에서 규칙 바로 뒤에 메시지를 붙입니다. 각 호출은 바로 앞의 규칙에 적용됩니다.
+
+| 메서드 | 의미 |
+|---|---|
+| `.message(문구)` | 언어별 문구가 없는 **모든 언어의 기본 메시지**. 한 언어만 쓰는 서비스는 이것 하나로 충분합니다. |
+| `.message(문구, 로케일)` | 특정 언어의 메시지 (`Locale.JAPAN`과 `Locale.JAPANESE`는 같음: 언어만 사용). 로케일이 `null`이면 `.message(문구)`와 같습니다. |
+| `.ko(문구)` / `.en(문구)` | `.message(문구, Locale.KOREAN)` / `.message(문구, Locale.ENGLISH)`의 단축형. |
+| `.rule(타입, 기준값, 메시지키)` | `S2Validator.setValidationBundle(...)`로 설정한 번들에서 키로 메시지를 조회 (1-3 참고). |
 
 ```java
+// 1) 한 언어만 쓰는 서비스: 기본 메시지 하나
+.field("name", "이름")
+    .rule(S2RuleType.REQUIRED)
+    .message("{0|은/는} 꼭 입력해 주세요.")
+
+// 2) 기본 메시지 + 언어별 덮어쓰기
 .field("age", "나이")
     .rule(S2RuleType.MIN_VALUE, 19)
-    .ko("만 19세 이상만 가입할 수 있습니다.")
-    .en("Age must be at least 19.")
-    .message(Locale.JAPAN, "19歳以上である必要があります。")
+    .message("만 19세 이상이어야 합니다.")               // 별도 문구가 없는 모든 언어
+    .en("Age must be at least 19.")                    // 영어 요청
+    .message("19歳以上である必要があります。", Locale.JAPAN) // 일본어 요청
+
+// 3) 번들의 메시지 키 사용 (messages.properties: err.adult={0|은/는} {1}세 이상이어야 합니다.)
+.field("age", "나이")
+    .rule(S2RuleType.MIN_VALUE, 19, "err.adult")
 ```
+
+**조회 순서** (요청 로케일 기준):
+
+1. 규칙 키에 해당하는 번들 메시지 (`setValidationBundle` + 키)
+2. 요청 언어의 메시지 (`.message(문구, 로케일)`, `.ko`, `.en`)
+3. 기본 메시지 (`.message(문구)`)
+4. 기본 로케일 언어의 메시지 (`S2Validator.setDefaultLocale`)
+5. 규칙의 내장 메시지 (한국어/영어)
+
+치환자: `{0}`은 필드 라벨, `{1}`은 규칙 기준값입니다(예: `19`, `EQUALS_FIELD`는 대상 필드의 라벨). 메시지는 서버에서 만들어지므로 브라우저로 보내는 규칙 JSON 에는 요청 로케일의 문구가 이미 들어 있습니다.
 
 ### 4-2. 한국어 조사 자동 완성 (은/는, 이/가 등)
 

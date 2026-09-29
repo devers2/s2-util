@@ -46,20 +46,45 @@ import java.util.Locale;
 public interface S2RuleMessageStep {
 
     /**
-     * Stores a message template for a specific locale.
+     * Sets the default message template used for every language that has no language-specific template.
+     * <p>
+     * Lookup order: the request language's template ({@link #message(String, Locale)}, {@link #ko(String)},
+     * {@link #en(String)}) → this default template → the default locale's template → the built-in message.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 특정 로케일에 대한 메시지 템플릿을 저장합니다.
+     * 언어별 템플릿이 없는 모든 언어에 쓰는 기본 메시지 템플릿을 설정합니다.
+     * <p>
+     * 조회 순서: 요청 언어의 템플릿({@link #message(String, Locale)}, {@link #ko(String)}, {@link #en(String)}) → 이 기본 템플릿 →
+     * 기본 로케일의 템플릿 → 내장 메시지.
+     * </p>
      *
-     * @param locale   Target locale | 대상 로케일
      * @param template Message template | 메시지 템플릿
      * @return This step object for chaining | 체이닝을 위한 현재 객체
      */
-    default S2RuleMessageStep message(Locale locale, String template) {
-        if (locale == null)
-            return this;
+    default S2RuleMessageStep message(String template) {
+        return storeMessage(S2Rule.ANY_LANGUAGE, template);
+    }
+
+    /**
+     * Sets a message template for a specific language (the country part of the locale is ignored).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 특정 언어의 메시지 템플릿을 설정합니다 (로케일의 국가 정보는 무시).
+     *
+     * @param template Message template | 메시지 템플릿
+     * @param locale   Target locale; {@code null} sets the default template like {@link #message(String)} | 대상 로케일
+     *                 ({@code null}이면 {@link #message(String)}처럼 기본 템플릿 설정)
+     * @return This step object for chaining | 체이닝을 위한 현재 객체
+     */
+    default S2RuleMessageStep message(String template, Locale locale) {
+        if (locale == null) {
+            return message(template);
+        }
         // getLanguage()를 사용하여 국가 정보를 버리고 언어만 취함
         return storeMessage(locale.getLanguage(), template);
     }
@@ -68,7 +93,7 @@ public interface S2RuleMessageStep {
      * Saves a message template for a specific language code to the underlying storage.
      * <p>
      * This method is designed for internal use. External callers should prefer
-     * {@link #message(Locale, String)}, {@link #ko(String)}, or {@link #en(String)}.
+     * {@link #message(String)}, {@link #message(String, Locale)}, {@link #ko(String)}, or {@link #en(String)}.
      * </p>
      *
      * <p>
@@ -94,7 +119,7 @@ public interface S2RuleMessageStep {
      * @return This step object for chaining | 현재 객체
      */
     default S2RuleMessageStep ko(String template) {
-        return message(Locale.KOREAN, template);
+        return message(template, Locale.KOREAN);
     }
 
     /**
@@ -109,7 +134,7 @@ public interface S2RuleMessageStep {
      * @return This step object for chaining | 현재 객체
      */
     default S2RuleMessageStep en(String template) {
-        return message(Locale.ENGLISH, template);
+        return message(template, Locale.ENGLISH);
     }
 
     /**

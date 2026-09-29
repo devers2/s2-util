@@ -18,6 +18,7 @@
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (경고 배너와 배너 스레드 제거)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (Error Prone 의 `@CheckReturnValue`로 대체)
+  - `message(Locale, String)` → `message(String, Locale)`로 대체 (`message(String)`처럼 문구가 먼저). `.ko()`, `.en()`은 그대로
 - **전역 검증기 등록부와 `S2ValidatorFactory`를 삭제했습니다.** `S2BindValidator.context(key, supplier)`와 `S2ValidatorFactory` 클래스
   전체(`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`, `getRulesJson(validator, locale)`)가 없어졌습니다. 키가 처음 만든
   검증기에 고정되어 역할별로 다른 규칙이 경고 없이 공유됐고, 캐시로 아끼는 시간은 요청당 약 0.5µs 뿐이었습니다(GET 폼의 규칙 JSON 생성
@@ -81,6 +82,7 @@
 - `S2Validator.getRulesJson()` / `getRulesJson(locale)`: 검증기 규칙을 브라우저용 JSON 으로 내보냄
   (`S2ValidatorFactory.getRulesJson(validator, locale)` 대체).
 - 커스텀 람다 규칙용 `.includeEmpty()` 수식어.
+- `.message(문구)`: 언어별 문구가 없는 모든 언어에 쓰는 기본 메시지. 조회 순서: 번들 키 → 요청 언어 → 기본 메시지 → 기본 로케일 언어 → 내장 메시지.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - 브라우저: 기본 말풍선 대신 애플리케이션 방식으로 오류를 그리는 `S2Validator.setRenderer({ show, clear, clearField })`와
   `S2Validator.classRenderer()`(`is-invalid` 추가, `[data-s2-error-for]`에 메시지 표시, 첫 오류로 초점 이동).
@@ -113,6 +115,7 @@
 6. 빈 값에서도 실행해야 하는 커스텀 람다(예: "두 필드 중 하나 필수")는 `.includeEmpty()`가 필요합니다.
 7. 예외 모드 실패를 `S2RuntimeException`으로 처리하고 있다면, `S2ValidationException`(입력 오류 → 400)과
    `S2RuleExecutionException`(버그 → 500)을 나눠 처리하는 것을 검토하십시오.
+8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
 
 ## s2-validator-plugin [1.2.0] - 미배포
 

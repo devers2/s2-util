@@ -269,11 +269,17 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
 .field("email", "이메일")
     .rule(S2RuleType.EMAIL, null, "validation.email.invalid")
 
-// 옵션 2: 언어별 직접 메시지
+// 옵션 2: 모든 언어에 쓰는 기본 메시지 하나
 .field("email", "이메일")
     .rule(S2RuleType.EMAIL)
-    .ko("올바른 이메일 주소를 입력하십시오.")
+    .message("올바른 이메일 주소를 입력하십시오.")
+
+// 옵션 3: 기본 메시지 + 언어별 덮어쓰기 (.ko/.en 또는 .message(문구, 로케일))
+.field("email", "이메일")
+    .rule(S2RuleType.EMAIL)
+    .message("올바른 이메일 주소를 입력하십시오.")
     .en("Please enter a valid email address.")
+    .message("有効なメールアドレスを入力してください。", Locale.JAPANESE)
 ```
 
 ### 3-2. 언어별 메시지
@@ -285,7 +291,7 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
     .rule(S2RuleType.MIN_LENGTH, 8)
     .ko("비밀번호는 8자 이상이어야 합니다.")
     .en("Password must be at least 8 characters.")
-    .message(Locale.FRANCE, "Le mot de passe doit comporter au moins 8 caractères.")
+    .message("Le mot de passe doit comporter au moins 8 caractères.", Locale.FRANCE)
 ```
 
 ### 3-3. 한국어 조사 자동 선택

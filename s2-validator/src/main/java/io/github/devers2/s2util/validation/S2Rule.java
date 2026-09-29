@@ -59,8 +59,9 @@ import io.github.devers2.s2util.message.S2ResourceBundle;
  * When a validation failure occurs, the error message is resolved in the following order:
  * <ol>
  * <li><b>Global Bundle:</b> If {@link S2Validator#setValidationBundle(String)} is set and contains the key.</li>
- * <li><b>Local Template:</b> If {@link #storeMessage(String, String)} was called for the current locale.</li>
- * <li><b>Default Template:</b> If {@link #storeMessage(String, String)} was called for the default system locale.</li>
+ * <li><b>Local Template:</b> A template set for the request language ({@code message(template, locale)}, {@code ko}, {@code en}).</li>
+ * <li><b>Default Template:</b> A language-independent template set with {@code message(template)}.</li>
+ * <li><b>Default Locale Template:</b> A template set for the default locale's language.</li>
  * <li><b>System Default:</b> The built-in template defined in {@link S2RuleType}.</li>
  * </ol>
  *
@@ -84,6 +85,9 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     /** The evaluation criterion (e.g., min/max length, regex pattern) */
     private final Object checkValue;
     /** Error message templates mapped by language (e.g., "ko", "en") */
+    /** Storage key for the language-independent default template ({@code message(String)}) | 언어 구분 없는 기본 템플릿({@code message(String)})의 저장 키 */
+    static final String ANY_LANGUAGE = "*";
+
     private final Map<String, String> messageTemplates = new HashMap<>();
     /** Custom property key for localized error message resolution */
     private String errorMessageKey;
@@ -599,6 +603,9 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     public String getErrorMessageTemplate(Locale locale) {
         return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale).orElseGet(() -> {
             String template = messageTemplates.get(locale.getLanguage());
+            if (template == null || template.isBlank()) {
+                template = messageTemplates.get(ANY_LANGUAGE);
+            }
             if (template == null || template.isBlank()) {
                 template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
             }
