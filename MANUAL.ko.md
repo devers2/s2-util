@@ -223,6 +223,29 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 }
 ```
 
+#### 바인딩 방식 고르기
+
+| 방식 | 언제 쓰나 |
+|---|---|
+| **필드** `private final BoundContext<T> x = S2BindValidator.bind(rules());` | 기본. 컨트롤러 인스턴스마다 한 번 만들어 GET 폼과 POST 처리가 공유합니다. |
+| **생성자** `this.x = S2BindValidator.bind(rules());` | 규칙 정의가 주입받은 의존성(예: 코드 목록 서비스)을 쓰는 경우. |
+| **호출마다** `S2BindValidator.bind(rules()).validate(...)` | 규칙이 실행 중에 바뀌는 경우(예: DB 에서 선택지를 불러옴). 일반적인 폼에서 생성 비용은 약 0.5µs 입니다. |
+
+> [!WARNING]
+> 필드 초기화는 생성자 본문보다 **먼저** 실행됩니다. `rules()`가 생성자에서 넣거나 `@Autowired`로 주입받는 의존성을 읽으면 그 시점에는 아직 `null`이라 필드 초기화에서 `NullPointerException`이 납니다. 대입 뒤 생성자에서 바인딩하거나 호출마다 바인딩하십시오:
+>
+> ```java
+> private final CodeService codeService;
+> private final S2BindValidator.BoundContext<SignupCommand> signup;
+>
+> public SignupController(CodeService codeService) {
+>     this.codeService = codeService;
+>     this.signup = S2BindValidator.bind(signupRules()); // 여기서는 signupRules()가 codeService 를 써도 됨
+> }
+> ```
+
+`BoundContext`는 검증기만 들고 있고 요청 로케일은 호출할 때마다 읽으므로, 필드에 두어도 스레드에 안전합니다.
+
 ### D. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)
 
 **사용법:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`

@@ -88,6 +88,29 @@ public class MemberController {
 }
 ```
 
+#### Choosing how to bind
+
+| Approach | When to use |
+|---|---|
+| **Field** `private final BoundContext<T> x = S2BindValidator.bind(rules());` | Default. Built once per controller instance and shared by the GET form and the POST handler. |
+| **Constructor** `this.x = S2BindValidator.bind(rules());` | The rule definition uses injected dependencies (e.g. a code-list service). |
+| **Per call** `S2BindValidator.bind(rules()).validate(...)` | Rules change at runtime (e.g. options loaded from a DB). Building costs ~0.5µs for a typical form. |
+
+> [!WARNING]
+> Field initializers run **before** the constructor body. If `rules()` reads a dependency assigned in the constructor or injected with `@Autowired`, it is still `null` there and a field initializer throws `NullPointerException`. Bind in the constructor after the assignment, or bind per call:
+>
+> ```java
+> private final CodeService codeService;
+> private final S2BindValidator.BoundContext<SignupCommand> signup;
+>
+> public SignupController(CodeService codeService) {
+>     this.codeService = codeService;
+>     this.signup = S2BindValidator.bind(signupRules()); // signupRules() may use codeService here
+> }
+> ```
+
+`BoundContext` only holds the validator and reads the request locale on every call, so keeping it in a field is thread-safe.
+
 ---
 
 ## 2. Core Validation Features
