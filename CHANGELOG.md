@@ -97,6 +97,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 ### Added
 
+- Condition operators `S2Operator`: `when(field, operator, value)` / `and(...)` support `NE`, `GT`/`GTE`/`LT`/`LTE` (numeric),
+  `IN`/`NOT_IN` and `EMPTY`/`NOT_EMPTY`, judged the same on the server and in the browser. `when(field, value)` stays
+  equality (`EQ`). Conditions in the rules JSON carry `"op"` only when it is not `EQ`.
 - `BIZRNO` check digit: `.rule(S2RuleType.BIZRNO, true)` also verifies the 10th (check) digit, on the server and in the
   browser. The default `.rule(S2RuleType.BIZRNO)` still checks the format only.
 - `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
@@ -117,6 +120,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 ### Fixed
 
+- Browser: a condition such as `when("hobbies", "a")` was not satisfied when several boxes of a checkbox group were
+  checked (the values were joined into `"a,b"`); it now means "contains", as on the server. The server treats an empty
+  collection as empty, like an unchecked group in the browser.
 - Wildcard rows report rule execution errors with the concrete path (`items[1].qty`).
 - `field(Object)` without a label no longer throws `ClassCastException` for non-String keys.
 - The common executor is recreated after shutdown.

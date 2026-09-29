@@ -177,6 +177,10 @@ final class S2RulesJsonWriter {
                         firstCond = false;
                         sb.append("{");
                         sb.append("\"field\":\"").append(escapeJsonString(String.valueOf(cond.fieldName()))).append("\",");
+                        // EQ is the default and omitted, keeping plain conditions unchanged. | EQ 는 기본값이라 생략하여 기존 조건 JSON 을 그대로 유지
+                        if (cond.operator() != S2Operator.EQ) {
+                            sb.append("\"op\":\"").append(cond.operator().name()).append("\",");
+                        }
                         sb.append("\"value\":").append(toJsonString(cond.value()));
                         sb.append("}");
                     }

@@ -88,6 +88,9 @@
 
 ### 추가
 
+- 조건 비교 연산자 `S2Operator`: `when(field, 연산자, 값)` / `and(...)`로 `NE`, `GT`/`GTE`/`LT`/`LTE`(숫자), `IN`/`NOT_IN`,
+  `EMPTY`/`NOT_EMPTY` 조건을 씁니다(서버·브라우저 동일). 기존 `when(field, 값)`은 그대로 "같음"(`EQ`)입니다. 규칙 JSON 의 조건에는
+  `EQ`가 아닐 때만 `"op"`가 들어갑니다.
 - `BIZRNO` 검증번호 검사: `.rule(S2RuleType.BIZRNO, true)`는 형식에 더해 10번째 자리 검증번호를 확인합니다(서버·브라우저 동일). 기본값
   `.rule(S2RuleType.BIZRNO)`는 이전처럼 형식만 검사합니다.
 - 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
@@ -105,6 +108,8 @@
 
 ### 수정
 
+- 브라우저: 체크박스 그룹에서 여러 개를 체크하면 `when("hobbies", "a")` 조건이 충족되지 않던 문제(값을 `"a,b"`로 합쳐 비교함)를
+  고쳤습니다. 서버처럼 "포함"으로 판정합니다. 서버는 빈 컬렉션을 빈 값으로 봅니다(브라우저의 체크 안 한 그룹과 같음).
 - 와일드카드 행의 규칙 실행 오류가 실제 경로(`items[1].qty`)를 담습니다.
 - 라벨 없는 `field(Object)`가 문자열이 아닌 키에서 `ClassCastException`을 내지 않습니다.
 - 공용 실행기가 종료된 뒤 다시 만들어집니다.

@@ -793,7 +793,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @param obj Value to convert | 변환할 값
      * @return Double value, or {@code null} if unparseable | Double 값 또는 변환 실패 시 null
      */
-    private static Double toDouble(Object obj) {
+    static Double toDouble(Object obj) {
         if (obj == null) {
             return null;
         }

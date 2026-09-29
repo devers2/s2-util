@@ -360,9 +360,52 @@ public class S2Field<T> implements Serializable {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public S2Field<T> and(Object fieldName, Object value) {
+        return and(new S2Condition(fieldName, value));
+    }
+
+    /**
+     * Starts a new conditional group (OR branch) with a comparison operator.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 비교 연산자로 새로운 조건 그룹(OR 분기)을 시작합니다.
+     *
+     * @param fieldName The field to check | 확인 대상 필드 이름
+     * @param operator  The comparison operator | 비교 연산자
+     * @param value     The value to compare with | 비교 값
+     * @return Current field instance | 현재 필드 인스턴스
+     * @see S2Operator
+     */
+    public S2Field<T> when(Object fieldName, S2Operator operator, Object value) {
+        List<S2Condition> group = new ArrayList<>();
+        group.add(new S2Condition(fieldName, operator, value));
+        this.conditionGroups.add(group);
+        return this;
+    }
+
+    /**
+     * Appends a condition with a comparison operator to the current group (AND relationship).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 비교 연산자 조건을 현재 그룹에 추가합니다 (AND 관계).
+     *
+     * @param fieldName The field to check | 확인 대상 필드 이름
+     * @param operator  The comparison operator | 비교 연산자
+     * @param value     The value to compare with | 비교 값
+     * @return Current field instance | 현재 필드 인스턴스
+     * @see S2Operator
+     */
+    public S2Field<T> and(Object fieldName, S2Operator operator, Object value) {
+        return and(new S2Condition(fieldName, operator, value));
+    }
+
+    private S2Field<T> and(S2Condition condition) {
         if (this.conditionGroups.isEmpty())
             throw new IllegalStateException("and() must be called after when().");
-        this.conditionGroups.get(this.conditionGroups.size() - 1).add(new S2Condition(fieldName, value));
+        this.conditionGroups.get(this.conditionGroups.size() - 1).add(condition);
         return this;
     }
 
