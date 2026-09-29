@@ -1280,6 +1280,12 @@ public class Test {
             assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로/로"));
             assert "집으로".equals(S2StringUtil.appendJosa("집", "으로/로"));
             assert "차로".equals(S2StringUtil.appendJosa("차", "으로/로"));
+            // 받침 판별 불가(영문 등): 조사를 빠뜨리지 않고 병기형을 붙임
+            assert "[pw]과(와)".equals(S2StringUtil.appendJosa("pw", "과/와"));
+            assert "[documentId]은(는)".equals(S2StringUtil.appendJosa("documentId", "은/는"));
+            assert "[ID]이(가)".equals(S2StringUtil.appendJosa("ID", "가/이"));
+            assert "[URL](으)로".equals(S2StringUtil.appendJosa("URL", "으로/로"));
+            assert "[x]이에요(예요)".equals(S2StringUtil.appendJosa("x", "이에요/예요"));
             assert "사과와".equals(S2StringUtil.appendJosa("사과", "와/과"));
             assert "책과".equals(S2StringUtil.appendJosa("책", "와/과"));
 
