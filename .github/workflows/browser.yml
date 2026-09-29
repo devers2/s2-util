@@ -1,0 +1,49 @@
+name: Browser tests (s2.validator.js)
+
+# Runs only when the client validator, the browser demo, or its tests change. | 클라이언트 검증기·브라우저 데모·시험이 바뀔 때만 실행
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "s2-validator/src/main/resources/META-INF/resources/s2-util/js/**"
+      - "s2-validator/browser-test/**"
+      - ".github/workflows/browser.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "s2-validator/src/main/resources/META-INF/resources/s2-util/js/**"
+      - "s2-validator/browser-test/**"
+      - ".github/workflows/browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: s2-validator/browser-test
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: s2-validator/browser-test/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium with system libraries
+        run: npx playwright install --with-deps chromium
+      - name: Run browser tests
+        run: npm test
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: s2-validator/browser-test/test-results/
+          retention-days: 7

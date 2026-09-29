@@ -1478,6 +1478,10 @@ const applyFieldError = (form, fieldName, fieldElements, message) => {
   while (host.parentElement && host.parentElement !== form && isNotRendered(host.parentElement)) {
     host = host.parentElement;
   }
+  // Go after anchors already placed there so the bubble order follows the field order | 이미 놓인 앵커 뒤에 두어 말풍선 순서가 필드 순서를 따르도록 함
+  while (host.nextElementSibling && host.nextElementSibling.classList.contains('__s2_dummy_anchor__')) {
+    host = host.nextElementSibling;
+  }
   host.insertAdjacentElement('afterend', dummy);
   dummy.setCustomValidity(message);
 };

@@ -108,3 +108,18 @@ tasks.configureEach {
         }
     }
 }
+
+// Writes the browser test rules (browser-test/demo/rules.json) from real server validators. | 실제 서버 검증기로 브라우저 시험 규칙(browser-test/demo/rules.json)을 생성
+tasks.register<JavaExec>("writeBrowserDemoRules") {
+    group = "verification"
+    description = "Writes browser-test/demo/rules.json from the server validators (BrowserDemoRules)."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("io.github.devers2.s2util.validation.BrowserDemoRules")
+    workingDir = projectDir
+}
+
+// Re-run tests when the committed browser demo rules change (BrowserDemoRulesTest checks they are up to date). | 커밋된 브라우저 데모 규칙이 바뀌면 시험 재실행 (BrowserDemoRulesTest 가 최신 여부 확인)
+tasks.named<Test>("test") {
+    inputs.file(layout.projectDirectory.file("browser-test/demo/rules.json"))
+        .withPropertyName("browserDemoRules").optional()
+}
