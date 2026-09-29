@@ -529,7 +529,7 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
   }
   ```
 - **히든 필드 자동 Fallback**:
-  `{fieldName}_error` 프록시가 존재하지 않고 대상 필드가 `type="hidden"` 또는 비표시 상태인 경우, S2Validator가 해당 히든 필드 바로 뒤에 1px 투명 앵커를 자동으로 임시 생성하여 브라우저 네이티브 툴팁이 해당 위치에 표시되도록 합니다 (폼 먹통 방지). 이 앵커는 다음 검증 시 또는 사용자 입력 시 자동으로 제거됩니다.
+  `{fieldName}_error` 프록시가 없고 필드의 어떤 요소도 렌더링되지 않는 경우(`type="hidden"`, 또는 닫힌 탭·아코디언 같은 `display:none` 컨테이너 안), S2Validator가 1px 투명 앵커 하나를 임시로 만들어 브라우저 네이티브 툴팁이 표시되도록 합니다 (폼 먹통 방지). 앵커는 히든 필드 바로 뒤, 또는 앵커 자신이 그려지도록 렌더링되지 않는 가장 바깥 컨테이너 바로 뒤에 둡니다. 라디오·체크박스 그룹은 필드당 앵커 하나입니다. 앵커는 메시지를 `aria-label`로 제공하고 `name`이 없어 전송되지 않으며, 다음 검증 시 또는 사용자 입력 시 자동으로 제거됩니다. 와일드카드 행 필드(`items[].x`)에도 적용됩니다.
 
 ---
 
