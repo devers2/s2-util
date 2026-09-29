@@ -1,0 +1,12 @@
+{
+  "name": "s2-validator-browser-test",
+  "private": true,
+  "description": "Real-browser tests for s2.validator.js (Playwright). Not part of the Gradle build.",
+  "scripts": {
+    "test": "playwright test",
+    "demo": "node server.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
