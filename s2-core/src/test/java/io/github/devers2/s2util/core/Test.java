@@ -293,6 +293,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -312,6 +313,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -334,6 +336,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -353,6 +356,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -373,6 +377,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -398,6 +403,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -430,6 +436,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -449,6 +456,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -476,6 +484,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -499,6 +508,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -522,6 +532,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -546,6 +557,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -569,6 +581,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -632,6 +645,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -655,6 +669,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -678,6 +693,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -712,6 +728,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -737,6 +754,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -762,6 +780,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -805,6 +824,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -841,6 +861,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -870,6 +891,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -899,6 +921,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -928,6 +951,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -970,6 +994,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1001,6 +1026,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1030,6 +1056,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1067,6 +1094,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1091,6 +1119,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1117,6 +1146,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1136,6 +1166,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1155,6 +1186,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1172,6 +1204,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1190,6 +1223,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1207,6 +1241,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1225,6 +1260,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1252,6 +1288,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
@@ -1281,6 +1318,7 @@ public class Test {
         } catch (Throwable e) {
             stats.recordFailure(testName, e);
             logger.error("✗ " + testName + " FAILED", e);
+            throw new AssertionError(testName + " FAILED", e); // Record for the report, then fail the test. | 보고서용으로 기록한 뒤 시험을 실패시킴
         }
     }
 
