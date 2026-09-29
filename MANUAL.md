@@ -283,6 +283,10 @@ S2Validator.check(order.isPayable())
 
 #### Key Security & Formatting Rules
 
+- **`ASSERT_TRUE` / `ASSERT_FALSE` (checkboxes and consent)**:
+  - Empty values (an unchecked checkbox is not submitted) are judged too, so `ASSERT_TRUE` alone is enough for a required consent checkbox.
+  - Adding `REQUIRED` as well produces two messages (required + must be checked) when unchecked.
+  - The strings `true`/`on` (checked) and `false`/`off`/empty (unchecked) are recognized, so `Map` binding works as well.
 - **`PASSWORD` (Modern Standard Compliance)**:
   - Requires a 3-way combination: English letters (`a-zA-Z`), numbers (`0-9`), and special characters (`!@#$%^&*()_+-=[]{};':"\|,.<>/?~```).
   - Length: **8 to 64 characters** (aligned with KISA and modern security guidelines).

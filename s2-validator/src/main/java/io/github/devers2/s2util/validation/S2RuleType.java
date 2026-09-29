@@ -59,10 +59,10 @@ public enum S2RuleType {
     REQUIRED("valid.err.required", "{0|은/는} 필수 입력 항목입니다.", "{0} is required.", null),
 
     /** 값이 true 인지 검증 (Boolean 타입) ({0}: 필드설명) */
-    ASSERT_TRUE("valid.err.asserttrue", "{0|은/는} 반드시 true여야 합니다.", "{0} must be true.", null),
+    ASSERT_TRUE("valid.err.asserttrue", "{0|을/를} 선택(동의)해야 합니다.", "{0} must be checked.", null),
 
     /** 값이 false 인지 검증 (Boolean 타입) ({0}: 필드설명) */
-    ASSERT_FALSE("valid.err.assertfalse", "{0|은/는} 반드시 false여야 합니다.", "{0} must be false.", null),
+    ASSERT_FALSE("valid.err.assertfalse", "{0|은/는} 선택할 수 없습니다.", "{0} must not be checked.", null),
 
     /** 길이 체크 ({0}: 필드설명, {1}: 기준값) */
     LENGTH("valid.err.length", "{0|은/는} {1}자를 입력해야 합니다.", "{0} must be {1} characters.", null),
