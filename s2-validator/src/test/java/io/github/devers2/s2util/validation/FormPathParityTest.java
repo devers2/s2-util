@@ -210,6 +210,152 @@ public class FormPathParityTest {
                         () -> b().field("items[].start", "시작일").field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "items[].start").build(),
                         F.text("items[0].start", "2024-02-05"), F.text("items[0].end", "2024-02-01")),
 
+                // ── 점 경로(중첩 객체 필드) ──
+                c("점 경로 필수, address.zip 빈 값",
+                        () -> b().field("address.zip", "우편번호").rule(S2RuleType.REQUIRED).build(),
+                        F.text("address.zip", "")),
+                c("점 경로 조건부 필수, 조건 충족",
+                        () -> b().field("address.country", "국가")
+                                .field("address.zip", "우편번호").when("address.country", "KR").rule(S2RuleType.REQUIRED).build(),
+                        F.text("address.country", "KR"), F.text("address.zip", "")),
+                c("점 경로 조건부 필수, 조건 불충족",
+                        () -> b().field("address.country", "국가")
+                                .field("address.zip", "우편번호").when("address.country", "KR").rule(S2RuleType.REQUIRED).build(),
+                        F.text("address.country", "US"), F.text("address.zip", "")),
+
+                // ── NESTED ──
+                c("NESTED 하위 필수 누락",
+                        () -> b().field("address", "주소").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("address.zip", "")),
+                c("NESTED 하위 정상",
+                        () -> b().field("address", "주소").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("address.zip", "12345")),
+                c("NESTED 하위 형제 비교(EQUALS_FIELD)",
+                        () -> b().field("account", "계정").rule(S2RuleType.NESTED, sub().field("pw", "비밀번호")
+                                .field("pw2", "비밀번호 확인").rule(S2RuleType.REQUIRED).rule(S2RuleType.EQUALS_FIELD, "pw").build()).build(),
+                        F.text("account.pw", "a1"), F.text("account.pw2", "b2")),
+                c("NESTED 하위에서 최상위 필드와 비교(DATE_AFTER)",
+                        () -> b().field("globalStart", "전체 시작일")
+                                .field("period", "기간").rule(S2RuleType.NESTED, sub().field("end", "종료일").rule(S2RuleType.DATE_AFTER, "globalStart").build()).build(),
+                        F.text("globalStart", "2024-02-05"), F.text("period.end", "2024-02-01")),
+
+                // ── EACH ──
+                c("EACH 행 필수, 2행 중 1행 빈 값",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("name", "품목명").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("items[0].name", "A"), F.text("items[1].name", "")),
+                c("EACH 행 안 비교(DATE_AFTER)",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("start", "시작일")
+                                .field("end", "종료일").rule(S2RuleType.DATE_AFTER, "start").build()).build(),
+                        F.text("items[0].start", "2024-01-01"), F.text("items[0].end", "2024-01-05"),
+                        F.text("items[1].start", "2024-02-05"), F.text("items[1].end", "2024-02-01")),
+                c("EACH 행에서 최상위 필드와 비교(DATE_AFTER)",
+                        () -> b().field("globalStart", "전체 시작일")
+                                .field("items", "품목").rule(S2RuleType.EACH, sub().field("end", "종료일").rule(S2RuleType.DATE_AFTER, "globalStart").build()).build(),
+                        F.text("globalStart", "2024-02-05"), F.text("items[0].end", "2024-02-01")),
+
+                // ── 중첩 조합 ──
+                c("NESTED 안의 EACH",
+                        () -> b().field("order", "주문").rule(S2RuleType.NESTED, sub()
+                                .field("lines", "주문 행").rule(S2RuleType.EACH, sub().field("qty", "수량").rule(S2RuleType.MIN_VALUE, 1).build()).build()).build(),
+                        F.text("order.lines[0].qty", "3"), F.text("order.lines[1].qty", "0")),
+                c("EACH 안의 NESTED",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub()
+                                .field("addr", "배송지").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build()).build()).build(),
+                        F.text("items[0].addr.zip", "12345"), F.text("items[1].addr.zip", "")),
+
+                // ── 와일드카드 ──
+                c("와일드카드 하위 경로(items[].period.start)",
+                        () -> b().field("items[].period.start", "시작일").rule(S2RuleType.REQUIRED).build(),
+                        F.text("items[0].period.start", "2024-01-01"), F.text("items[1].period.start", "")),
+                c("와일드카드 행 조건(items[].type)",
+                        () -> b().field("items[].type", "유형")
+                                .field("items[].code", "코드").when("items[].type", "X").rule(S2RuleType.REQUIRED).build(),
+                        F.text("items[0].type", "X"), F.text("items[0].code", ""),
+                        F.text("items[1].type", "Y"), F.text("items[1].code", "")),
+                c("와일드카드 행에서 최상위 필드와 비교",
+                        () -> b().field("globalStart", "전체 시작일")
+                                .field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "globalStart").build(),
+                        F.text("globalStart", "2024-02-05"), F.text("items[0].end", "2024-02-01"), F.text("items[1].end", "2024-03-01")),
+                c("와일드카드 행이 하나도 없음",
+                        () -> b().field("items[].name", "품목명").rule(S2RuleType.REQUIRED).build()),
+                c("기본형 배열(tags[])",
+                        () -> b().field("tags[]", "태그").rule(S2RuleType.REQUIRED).build(),
+                        F.text("tags[0]", "a"), F.text("tags[1]", "")),
+                c("와일드카드 인덱스 빈칸(0, 2 행만 있음)",
+                        () -> b().field("items[].name", "품목명").rule(S2RuleType.REQUIRED).build(),
+                        F.text("items[0].name", "A"), F.text("items[2].name", "B")),
+                c("이중 와일드카드(orders[].items[].qty)",
+                        () -> b().field("orders[].items[].qty", "수량").rule(S2RuleType.MIN_VALUE, 1).build(),
+                        F.text("orders[0].items[0].qty", "1"), F.text("orders[0].items[1].qty", "0")),
+
+                // ── 조건·중첩 조합 ──
+                c("NESTED 안 형제 조건(when country=KR)",
+                        () -> b().field("address", "주소").rule(S2RuleType.NESTED, sub().field("country", "국가")
+                                .field("zip", "우편번호").when("country", "KR").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("address.country", "KR"), F.text("address.zip", "")),
+                c("NESTED 안 형제 조건 불충족(country=US)",
+                        () -> b().field("address", "주소").rule(S2RuleType.NESTED, sub().field("country", "국가")
+                                .field("zip", "우편번호").when("country", "KR").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("address.country", "US"), F.text("address.zip", "")),
+                c("EACH 행 안 형제 조건(when type=X)",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("type", "유형")
+                                .field("code", "코드").when("type", "X").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("items[0].type", "X"), F.text("items[0].code", ""),
+                        F.text("items[1].type", "Y"), F.text("items[1].code", "")),
+                c("NESTED 안 와일드카드 행에서 최상위 필드와 비교",
+                        () -> b().field("globalStart", "전체 시작일")
+                                .field("order", "주문").rule(S2RuleType.NESTED, sub()
+                                        .field("lines[].end", "종료일").rule(S2RuleType.DATE_AFTER, "globalStart").build()).build(),
+                        F.text("globalStart", "2024-02-05"), F.text("order.lines[0].end", "2024-02-01"), F.text("order.lines[1].end", "2024-03-01")),
+                c("NESTED 대상 입력이 아예 없음",
+                        () -> b().field("address", "주소").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("other", "x")),
+                c("EACH 대상 행이 아예 없음",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("name", "품목명").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("other", "x")),
+                c("3단계 점 경로(a.b.c) 최대 길이",
+                        () -> b().field("company.ceo.name", "대표자명").rule(S2RuleType.MAX_LENGTH, 3).build(),
+                        F.text("company.ceo.name", "홍길동전")),
+                c("행 안 EQUALS_FIELD 상대 표기",
+                        () -> b().field("items[].pw", "비밀번호").field("items[].pw2", "비밀번호 확인").rule(S2RuleType.EQUALS_FIELD, "pw").build(),
+                        F.text("items[0].pw", "a"), F.text("items[0].pw2", "a"), F.text("items[1].pw", "a"), F.text("items[1].pw2", "b")),
+                c("EACH 행 숫자 규칙(쉼표·공백)",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("qty", "수량").rule(S2RuleType.MAX_VALUE, 100).build()).build(),
+                        F.text("items[0].qty", " 50 "), F.text("items[1].qty", "1,000")),
+
+                c("NESTED 안 조건이 최상위 필드를 참조(when globalType=X)",
+                        () -> b().field("globalType", "유형")
+                                .field("address", "주소").rule(S2RuleType.NESTED, sub()
+                                        .field("zip", "우편번호").when("globalType", "X").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("globalType", "X"), F.text("address.zip", "")),
+                c("와일드카드 행 조건이 최상위 필드를 참조(when globalType=X)",
+                        () -> b().field("globalType", "유형")
+                                .field("items[].code", "코드").when("globalType", "X").rule(S2RuleType.REQUIRED).build(),
+                        F.text("globalType", "X"), F.text("items[0].code", "")),
+                c("EACH 행 조건이 최상위 필드를 참조(when globalType=X)",
+                        () -> b().field("globalType", "유형")
+                                .field("items", "품목").rule(S2RuleType.EACH, sub()
+                                        .field("code", "코드").when("globalType", "X").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("globalType", "X"), F.text("items[0].code", "")),
+
+                c("EACH 행 조건, 같은 이름의 최상위 필드보다 행 값 우선",
+                        () -> b().field("type", "전체 유형")
+                                .field("items", "품목").rule(S2RuleType.EACH, sub().field("type", "유형")
+                                        .field("code", "코드").when("type", "X").rule(S2RuleType.REQUIRED).build()).build(),
+                        F.text("type", "X"), F.text("items[0].type", "Y"), F.text("items[0].code", "")),
+                c("빈 값 조건(when memo = null), memo 빈 문자열",
+                        () -> b().field("memo", "메모")
+                                .field("reason", "사유").when("memo", null).rule(S2RuleType.REQUIRED).build(),
+                        F.text("memo", ""), F.text("reason", "")),
+
+                // ── 체크박스 그룹 ──
+                c("체크박스 그룹 필수, 하나도 선택 안 함",
+                        () -> b().field("hobbies", "취미").rule(S2RuleType.REQUIRED).build(),
+                        F.checkbox("hobbies", "a", false), F.checkbox("hobbies", "b", false), F.checkbox("hobbies", "c", false)),
+                c("체크박스 그룹 필수, 하나 선택",
+                        () -> b().field("hobbies", "취미").rule(S2RuleType.REQUIRED).build(),
+                        F.checkbox("hobbies", "a", false), F.checkbox("hobbies", "b", true), F.checkbox("hobbies", "c", false)),
+
                 // ── 가입 폼 형태(정상 입력은 양쪽 모두 통과해야 함) ──
                 c("가입 폼 정상 입력",
                         () -> b()
@@ -246,31 +392,76 @@ public class FormPathParityTest {
     }
 
     /**
-     * Builds the server-side Map as Spring Map binding would: unchecked checkboxes are absent, and indexed names
-     * ({@code items[0].name}) become nested lists of maps.
+     * Builds the server-side target as Spring binding would: unchecked checkboxes/radios are absent, a checkbox group
+     * with several elements becomes a list of the checked values, and paths such as {@code a.b[0].c} or
+     * {@code tags[1]} become nested maps and lists. Missing list positions (index gaps) are left {@code null}.
      */
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> toServerTarget(List<F> fields) {
         Map<String, Object> root = new HashMap<>();
+        Map<String, Long> checkboxCounts = new HashMap<>();
         for (F f : fields) {
+            if ("checkbox".equals(f.type())) {
+                checkboxCounts.merge(f.name(), 1L, Long::sum);
+            }
+        }
+        Map<String, List<Object>> groups = new java.util.LinkedHashMap<>();
+        for (F f : fields) {
+            boolean group = "checkbox".equals(f.type()) && checkboxCounts.get(f.name()) > 1;
+            if (group) {
+                List<Object> checked = groups.computeIfAbsent(f.name(), k -> new ArrayList<>());
+                if (f.checked()) {
+                    checked.add(f.value());
+                }
+                continue;
+            }
             if (("checkbox".equals(f.type()) || "radio".equals(f.type())) && !f.checked()) {
                 continue;
             }
-            int bracket = f.name().indexOf('[');
-            if (bracket < 0) {
-                root.put(f.name(), f.value());
-                continue;
-            }
-            String listName = f.name().substring(0, bracket);
-            int index = Integer.parseInt(f.name().substring(bracket + 1, f.name().indexOf(']')));
-            String property = f.name().substring(f.name().indexOf("].") + 2);
-            List<Map<String, Object>> rows = (List<Map<String, Object>>) root.computeIfAbsent(listName, k -> new ArrayList<>());
-            while (rows.size() <= index) {
-                rows.add(new HashMap<>());
-            }
-            rows.get(index).put(property, f.value());
+            setPath(root, f.name(), f.value());
         }
+        groups.forEach((name, checked) -> {
+            if (!checked.isEmpty()) {
+                setPath(root, name, checked);
+            }
+        });
         return root;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void setPath(Map<String, Object> root, String path, Object value) {
+        List<Object> keys = new ArrayList<>();
+        for (String segment : path.split("\\.")) {
+            int bracket = segment.indexOf('[');
+            keys.add(bracket < 0 ? segment : segment.substring(0, bracket));
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[(\\d+)\\]").matcher(segment);
+            while (m.find()) {
+                keys.add(Integer.parseInt(m.group(1)));
+            }
+        }
+        Object container = root;
+        for (int i = 0; i < keys.size(); i++) {
+            Object key = keys.get(i);
+            boolean last = i == keys.size() - 1;
+            Object child = last ? value : (keys.get(i + 1) instanceof Integer ? new ArrayList<>() : new HashMap<String, Object>());
+            if (key instanceof Integer index) {
+                List<Object> list = (List<Object>) container;
+                while (list.size() <= index) {
+                    list.add(null);
+                }
+                if (last || list.get(index) == null) {
+                    list.set(index, child);
+                }
+                container = list.get(index);
+            } else {
+                Map<String, Object> map = (Map<String, Object>) container;
+                if (last) {
+                    map.put((String) key, child);
+                } else {
+                    map.putIfAbsent((String) key, child);
+                }
+                container = map.get(key);
+            }
+        }
     }
 
     private static String toFieldsJson(List<F> fields) {
@@ -290,6 +481,10 @@ public class FormPathParityTest {
 
     private static String jsonString(String s) {
         return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    private static S2FieldStep.BuilderStartStep<Object> sub() {
+        return S2Validator.builder();
     }
 
     private static S2FieldStep.BuilderStartStep<Map<String, Object>> b() {

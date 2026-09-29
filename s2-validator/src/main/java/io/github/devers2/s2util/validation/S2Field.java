@@ -472,6 +472,23 @@ public class S2Field<T> implements Serializable {
      * @return {@code true} if satisfied | 조건이 만족된 경우 true
      */
     public boolean shouldValidate(Object target, int wildcardIndex) {
+        return shouldValidate(target, wildcardIndex, List.of());
+    }
+
+    /**
+     * Evaluates the conditions with the outer objects of {@code target} (nearest first) available for lookup.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code target}의 바깥 객체들(가까운 순서)도 조회에 쓰면서 조건을 평가합니다.
+     *
+     * @param target        The object holding the condition fields | 조건 필드를 가진 객체
+     * @param wildcardIndex Row index for wildcard conditions, or -1 | 와일드카드 조건의 행 인덱스 (없으면 -1)
+     * @param outerTargets  Outer objects, nearest first | 가까운 순서의 바깥 객체들
+     * @return {@code true} if the field should be validated | 검증해야 하면 true
+     */
+    boolean shouldValidate(Object target, int wildcardIndex, List<Object> outerTargets) {
         if (conditionGroups.isEmpty())
             return true;
         // OR: 하나라도 만족하는 그룹이 있으면 검증 진행함
@@ -479,7 +496,7 @@ public class S2Field<T> implements Serializable {
             // AND: 그룹 내 모든 조건이 만족되어야 함
             return group.stream().allMatch(cond -> {
                 S2Condition effective = wildcardIndex >= 0 ? cond.resolveForWildcardIndex(wildcardIndex) : cond;
-                return effective.isSatisfied(target);
+                return effective.isSatisfied(target, outerTargets);
             });
         });
     }
@@ -508,7 +525,25 @@ public class S2Field<T> implements Serializable {
      * @return Error message | 에러 메시지
      */
     public String getErrorMessage(S2Rule rule, Locale locale) {
-        return getErrorMessage(rule.getErrorMessageTemplate(locale), resolveMessageCriterion(rule), locale);
+        return getErrorMessage(rule, locale, List.of());
+    }
+
+    /**
+     * Returns the error message, also resolving cross-field target labels in the outer validators (nearest first) when
+     * this field belongs to a NESTED/EACH sub-validator.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 이 필드가 NESTED/EACH 하위 검증기에 속할 때, 필드 간 비교 대상 라벨을 바깥 검증기들(가까운 순서)에서도 찾아 오류 메시지를 반환합니다.
+     *
+     * @param rule            Validation rule | 검증 규칙
+     * @param locale          Current user locale | 현재 사용자 로케일
+     * @param outerValidators Outer validators, nearest first | 가까운 순서의 바깥 검증기들
+     * @return Error message | 에러 메시지
+     */
+    String getErrorMessage(S2Rule rule, Locale locale, List<S2Validator<?>> outerValidators) {
+        return getErrorMessage(rule.getErrorMessageTemplate(locale), resolveMessageCriterion(rule, outerValidators), locale);
     }
 
     /**
@@ -532,6 +567,18 @@ public class S2Field<T> implements Serializable {
      * @return The criterion for the message | 메시지용 기준값
      */
     Object resolveMessageCriterion(S2Rule rule) {
+        return resolveMessageCriterion(rule, List.of());
+    }
+
+    /**
+     * Same as {@link #resolveMessageCriterion(S2Rule)}, then falls back to the outer validators' declared fields
+     * (nearest first), matching how the target value is looked up in outer objects.
+     *
+     * @param rule            The rule | 규칙
+     * @param outerValidators Outer validators, nearest first | 가까운 순서의 바깥 검증기들
+     * @return The criterion for the message | 메시지용 기준값
+     */
+    Object resolveMessageCriterion(S2Rule rule, List<S2Validator<?>> outerValidators) {
         Object criterion = rule.getCheckValue();
         if (criterion == null || validator == null) {
             return criterion;
@@ -547,16 +594,22 @@ public class S2Field<T> implements Serializable {
         String ownName = String.valueOf(name);
         int wildcard = ownName.indexOf("[]");
         if (wildcard >= 0 && !key.contains("[]")) {
-            label = findDeclaredLabel(ownName.substring(0, wildcard + 2) + "." + key);
+            label = findDeclaredLabel(validator, ownName.substring(0, wildcard + 2) + "." + key);
         }
         if (label == null) {
-            label = findDeclaredLabel(key);
+            label = findDeclaredLabel(validator, key);
+        }
+        for (int i = 0; label == null && i < outerValidators.size(); i++) {
+            label = findDeclaredLabel(outerValidators.get(i), key);
         }
         return label != null ? label : criterion;
     }
 
-    private String findDeclaredLabel(String fieldName) {
-        for (S2Field<?> f : validator.getFields()) {
+    private static String findDeclaredLabel(S2Validator<?> owner, String fieldName) {
+        if (owner == null) {
+            return null;
+        }
+        for (S2Field<?> f : owner.getFields()) {
             if (f != null && fieldName.equals(String.valueOf(f.getName()))) {
                 return f.getLabel();
             }

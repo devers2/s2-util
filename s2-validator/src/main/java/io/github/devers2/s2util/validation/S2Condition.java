@@ -22,6 +22,7 @@ package io.github.devers2.s2util.validation;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 
 import io.github.devers2.s2util.core.S2Util;
 
@@ -78,7 +79,30 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
      * @return {@code true} if satisfied | 조건이 만족된 경우 true
      */
     public boolean isSatisfied(Object target) {
-        Object actualValue = S2Util.getValue(target, fieldName);
+        return isSatisfied(target, List.of());
+    }
+
+    /**
+     * Evaluates the condition, looking the field up in {@code target} first and then in each outer object (nearest
+     * first, root last) while the value is absent. This lets a condition inside a NESTED/EACH sub-validator refer to a
+     * field of an outer object, in the same order the client uses. A blank string counts as absent, like an empty form
+     * field on the client.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 값이 없으면 {@code target}에서 시작해 바깥 객체들(가까운 순서, 루트 마지막)에서 조건 필드를 찾아 평가합니다. NESTED/EACH 하위 검증기의
+     * 조건이 바깥 객체의 필드를 가리킬 수 있으며, 클라이언트와 같은 순서입니다. 빈 문자열은 클라이언트의 빈 폼 필드처럼 값이 없는 것으로 봅니다.
+     *
+     * @param target       The object to inspect | 검사 대상 객체
+     * @param outerTargets Outer objects, nearest first | 가까운 순서의 바깥 객체들
+     * @return {@code true} if satisfied | 조건이 만족된 경우 true
+     */
+    boolean isSatisfied(Object target, List<Object> outerTargets) {
+        Object actualValue = presentValue(target);
+        for (int i = 0; actualValue == null && i < outerTargets.size(); i++) {
+            actualValue = presentValue(outerTargets.get(i));
+        }
         if (actualValue == null)
             return value == null;
         if (value == null)
@@ -96,6 +120,20 @@ public record S2Condition(Object fieldName, Object value) implements Serializabl
 
         // 단일 값인 경우 정규화된 값 비교
         return normalizeValue(actualValue).equals(normalizedValue);
+    }
+
+    /**
+     * Returns the condition field's value in {@code source}, treating {@code null} sources and blank strings as absent.
+     *
+     * @param source The object to read from | 값을 읽을 객체
+     * @return The value, or {@code null} if absent | 값 (없으면 null)
+     */
+    private Object presentValue(Object source) {
+        if (source == null) {
+            return null;
+        }
+        Object v = S2Util.getValue(source, fieldName);
+        return v instanceof String str && str.isBlank() ? null : v;
     }
 
     /**
