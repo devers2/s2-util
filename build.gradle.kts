@@ -359,3 +359,10 @@ subprojects {
 // 루트프로젝트 README 및 MANUAL 파일 버전 & 의존성 가이드 업데이트 (정규식 패턴으로 README, MANUAL 및 다국어 문서 매칭)
 // --------------------------------------------------------------------------------------
 S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^(README|MANUAL)(\\..+)?\\.md$")
+
+// --------------------------------------------------------------------------------------
+// Run the included s2-validator-plugin build's checks as part of the root check. | 루트 check 실행 시 포함 빌드(s2-validator-plugin)의 check 도 함께 실행
+// --------------------------------------------------------------------------------------
+tasks.named("check") {
+    dependsOn(gradle.includedBuild("s2-validator-plugin").task(":check"))
+}
