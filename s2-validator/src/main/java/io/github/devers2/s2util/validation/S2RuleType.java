@@ -190,18 +190,18 @@ public enum S2RuleType {
     /**
      * Resident registration number (RRN) / Alien registration number (ARN) validation ({0}: field label).
      * <p>
-     * <b>Validation Policy (Smart Hybrid System):</b>
+     * <b>Validation Policy:</b>
      * <ul>
-     * <li><b>General format:</b> 13 digits (hyphen allowed), valid calendar birth date (YYMMDD), and valid gender code (0~9).</li>
-     * <li><b>Born before October 2020:</b> Evaluated using the legacy Modulo 11 checksum algorithm.</li>
-     * <li><b>Born on or after October 2020:</b> In accordance with the Ministry of the Interior and Safety revision
-     * (which abolished region codes and checksums and introduced arbitrary random digits), the checksum check is bypassed
-     * and only format and birth date validity are verified.</li>
+     * <li><b>Default ({@code rule(JUMIN)}):</b> 13 digits (hyphen allowed), valid calendar birth date (YYMMDD), and valid
+     * gender code (0~9). The check digit is not verified.</li>
+     * <li><b>Checksum ({@code rule(JUMIN, true)}):</b> additionally applies the legacy Modulo 11 check digit to people born
+     * before October 2020.</li>
      * </ul>
      * </p>
      * <p>
-     * <b>Notice:</b> Even for individuals born before October 2020, adults who had their registration number newly reissued
-     * or changed after October 2020 may have randomized suffix digits, which may cause legacy checksum verification to fail.
+     * <b>Why checksum is off by default:</b> since October 2020 the Ministry of the Interior and Safety assigns random digits
+     * to any number that is newly issued or changed, regardless of birth date. A number cannot reveal when it was issued, so
+     * the check digit would reject valid numbers of people born earlier who were reissued a number.
      * </p>
      *
      * <p>
@@ -209,18 +209,18 @@ public enum S2RuleType {
      * </p>
      * 주민등록번호 / 외국인등록번호 형식 체크 ({0}: 필드설명).
      * <p>
-     * <b>검증 정책 (스마트 하이브리드 검증):</b>
+     * <b>검증 정책:</b>
      * <ul>
-     * <li><b>공통 검증:</b> 13자리 숫자(하이픈 허용), 생년월일 달력 유효성(윤년 포함), 성별 코드(0~9) 검증.</li>
-     * <li><b>2020년 10월 이전 출생자:</b> 기존 Modulo 11 가중치 체크섬 알고리즘 적용 (내국인/외국인 구분).</li>
-     * <li><b>2020년 10월 이후 출생자:</b> 행정안전부 주민등록번호 개정(지역번호/검증번호 폐지 및 뒷자리 6자리 임의번호 부여)에 따라
-     * 체크섬 검증을 생략하고, 포맷 및 생년월일 유효성 검증만 수행.</li>
+     * <li><b>기본 ({@code rule(JUMIN)}):</b> 13자리 숫자(하이픈 허용), 생년월일 달력 유효성(윤년 포함), 성별 코드(0~9)만 검증합니다.
+     * 검증번호는 검사하지 않습니다.</li>
+     * <li><b>검증번호 검사 ({@code rule(JUMIN, true)}):</b> 2020년 10월 이전 출생자에 한해 기존 Modulo 11 검증번호도 검사합니다
+     * (내국인/외국인 구분).</li>
      * </ul>
      * </p>
      * <p>
-     * <b>⚠️ 주의사항:</b><br>
-     * 2020년 10월 이전에 태어난 사람이라 하더라도, 개인정보 유출 피해 등으로 인해 2020년 10월 이후에 주민등록번호를
-     * 새로 '재부여/변경'받은 성인은 뒷자리가 임의 번호로 발급되어 기존 체크섬 검증에 실패할 수 있습니다.
+     * <b>검증번호 검사가 기본값 끔인 이유:</b> 2020년 10월부터 행정안전부는 주민등록번호를 신규로 부여하거나 변경하는 경우 출생일과 무관하게
+     * 뒷자리를 임의번호로 부여합니다. 번호만으로는 부여 시점을 알 수 없으므로, 검증번호 검사는 그 전에 태어나 번호를 새로 받은 사람의
+     * 정상 번호를 거부할 수 있습니다.
      * </p>
      */
     JUMIN("valid.err.jumin", "{0|은/는} 주민번호 형식이 올바르지 않습니다.", "Invalid resident registration number for {0}.", null),

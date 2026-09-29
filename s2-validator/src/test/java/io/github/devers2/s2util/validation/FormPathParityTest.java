@@ -174,6 +174,14 @@ public class FormPathParityTest {
                         () -> b().field("type", "유형").field("vipCode", "VIP 코드").when("type", "VIP").rule(S2RuleType.REQUIRED).build(),
                         F.text("type", "NORMAL"), F.text("vipCode", "")),
 
+                // ── 주민번호 (검증번호 검사는 규칙 JSON 의 value 로 전달) ──
+                c("JUMIN 기본값, 검증번호 불일치 번호",
+                        () -> b().field("rrn", "주민번호").rule(S2RuleType.JUMIN).build(),
+                        F.text("rrn", "900101-1234560")),
+                c("JUMIN(true), 검증번호 불일치 번호",
+                        () -> b().field("rrn", "주민번호").rule(S2RuleType.JUMIN, true).build(),
+                        F.text("rrn", "900101-1234560")),
+
                 // ── 필드 간 비교 ──
                 c("EQUALS_FIELD 불일치",
                         () -> b().field("pw", "비밀번호").field("pw2", "비밀번호 확인").rule(S2RuleType.REQUIRED).rule(S2RuleType.EQUALS_FIELD, "pw").build(),

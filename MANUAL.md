@@ -293,9 +293,10 @@ S2Validator.check(order.isPayable())
         .rule(S2RuleType.REGEX, "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")
         .en("Password must include uppercase, lowercase, numbers, and special characters.");
     ```
-- **`JUMIN` (Resident Registration Number — Smart Hybrid Policy)**:
-  - **Born before October 2020**: Enforces strict Modulo 11 checksum verification.
-  - **Born in/after October 2020** (or adults who were reissued/assigned a new number after this date): Due to the discontinuation of regional assignment checksums, the checksum is safely bypassed while calendar dates (leap years, month/day validity) and gender codes (1–8, 9, 0) are strictly validated.
+- **`JUMIN` (Resident Registration Number)**:
+  - **Default (`.rule(S2RuleType.JUMIN)`)**: Validates 13 digits (hyphen allowed), a real calendar birth date (leap years, month/day validity), and the gender code (1–8, 9, 0). The check digit (last digit) is not verified.
+  - **Checksum (`.rule(S2RuleType.JUMIN, true)`)**: Additionally verifies the legacy Modulo 11 check digit for people born before October 2020.
+  - **Why checksum is off by default**: Since October 2020, any newly issued or changed number gets random suffix digits regardless of birth date. A number cannot reveal when it was issued, so the check digit would reject valid numbers of people born earlier who were reissued a number.
 
 ### 3-2. Conditional Validation (`when` & `and`)
 

@@ -261,7 +261,11 @@ public class ServerClientParityTest {
                 // 테스트용 유효한 주민번호 (체크섬 통과하는 가상번호: 900101-1234568)
                 Arguments.of("JUMIN: 유효한 번호 → 성공", S2RuleType.JUMIN, null, "9001011234568", true),
                 Arguments.of("JUMIN: 하이픈 포함 유효한 번호 → 성공", S2RuleType.JUMIN, null, "900101-1234568", true),
-                Arguments.of("JUMIN: 체크섬 불일치 (2020년 10월 이전) → 실패", S2RuleType.JUMIN, null, "9001011234560", false),
+                Arguments.of("JUMIN: 기본값은 검증번호 미검사, 1990년생 재부여 번호(검증번호 불일치) → 성공", S2RuleType.JUMIN, null, "9001011234560", true),
+                Arguments.of("JUMIN(true): 검증번호 검사, 체크섬 불일치 (2020년 10월 이전) → 실패", S2RuleType.JUMIN, true, "9001011234560", false),
+                Arguments.of("JUMIN(true): 검증번호 검사, 유효한 번호 → 성공", S2RuleType.JUMIN, true, "900101-1234568", true),
+                Arguments.of("JUMIN(\"true\"): 문자열 기준값도 검증번호 검사 → 실패", S2RuleType.JUMIN, "true", "9001011234560", false),
+                Arguments.of("JUMIN(true): 2020년 10월 이후 출생자는 검증번호 생략 → 성공", S2RuleType.JUMIN, true, "201101-3123456", true),
                 Arguments.of("JUMIN: 2020년 10월 이후 출생자 (임의번호 수용) → 성공", S2RuleType.JUMIN, null, "201101-3123456", true),
                 Arguments.of("JUMIN: 2021년 출생자 (임의번호 수용) → 성공", S2RuleType.JUMIN, null, "2105054123456", true),
                 Arguments.of("JUMIN: 존재하지 않는 날짜 (2월 30일) → 실패", S2RuleType.JUMIN, null, "900230-1234567", false),
