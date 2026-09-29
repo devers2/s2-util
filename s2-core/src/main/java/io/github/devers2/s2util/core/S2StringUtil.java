@@ -475,8 +475,44 @@ public class S2StringUtil {
             return word + josa;
         }
 
-        // 판별 불가(영문/특수문자 등) 시 대괄호 강조 (기존 정책 유지)
-        return "[" + word + "]";
+        // Undeterminable (Latin letters, symbols): keep the bracket emphasis and append the dual form instead of dropping the particle. | 판별 불가(영문/특수문자 등): 대괄호 강조는 유지하고 조사를 빠뜨리는 대신 병기형을 붙임
+        return "[" + word + "]" + dualFormJosa(josa);
+    }
+
+    /**
+     * Returns the conventional dual form of a particle pair for words whose final consonant cannot be determined.
+     * <p>
+     * e.g. {@code 은/는 → 은(는)}, {@code 이/가 → 이(가)}, {@code 으로/로 → (으)로}. A particle without {@code /} is returned as is.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 받침을 판별할 수 없는 단어에 붙일 조사 병기형을 반환합니다.
+     * <p>
+     * 예: {@code 은/는 → 은(는)}, {@code 이/가 → 이(가)}, {@code 으로/로 → (으)로}. {@code /}가 없는 조사는 그대로 반환합니다.
+     * </p>
+     *
+     * @param josa The particle pattern | 조사 패턴
+     * @return The dual form | 조사 병기형
+     */
+    private static String dualFormJosa(String josa) {
+        int slashIdx = josa.indexOf('/');
+        if (slashIdx == -1) {
+            return josa;
+        }
+        String first = josa.substring(0, slashIdx);
+        String second = josa.substring(slashIdx + 1);
+        String batchim = BATCHIM_JOSA_MAP.get(josa);
+        if (batchim == null) {
+            return first + "(" + second + ")";
+        }
+        String noBatchim = batchim.equals(first) ? second : first;
+        // "으로/로", "이나/나", "이란/란": the no-batchim form is a suffix of the batchim form → "(으)로" | 받침 없는 형태가 받침형의 접미사이면 "(으)로" 형태
+        if (batchim.endsWith(noBatchim) && batchim.length() > noBatchim.length()) {
+            return "(" + batchim.substring(0, batchim.length() - noBatchim.length()) + ")" + noBatchim;
+        }
+        return batchim + "(" + noBatchim + ")";
     }
 
     /** 한글 또는 숫자 여부 확인 */
