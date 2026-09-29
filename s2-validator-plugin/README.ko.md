@@ -39,15 +39,18 @@
    - CI/CD 파이프라인을 위한 `check` 태스크 통합
    - `bootRun` 및 기타 JavaExec 태스크 지원
 
-5. **성능 최적화를 위한 필드 캐싱**
-   - 분석된 DTO 필드 정보를 메모리에 캐싱
-   - 반복적인 검증 확인을 위해 캐시된 데이터 재사용
-   - 반복적인 파일 I/O 및 파싱 작업 최소화
+5. **증분 빌드·빌드 캐시**
+   - 모든 프로젝트의 `src/main/java`를 태스크 입력으로 선언: 바뀐 소스가 없으면 `UP-TO-DATE`로 건너뜀
+   - `@CacheableTask`: `--build-cache`에서 이전 결과를 `FROM-CACHE`로 복원
+   - 한 번의 실행 안에서는 분석한 DTO 필드 정보를 메모리에 캐싱
+   - `bind(...)` 사용 경고는 `build/s2-validator/checkS2Validators.txt`에도 남음 (`UP-TO-DATE`일 때는 다시 출력되지 않음)
 
-6. **스마트 검증 스킵**
-   - `?` 또는 `Object`를 가진 제네릭 타입에 대한 검증 스킵
-   - 완전한 타입 정보를 사용할 수 없는 경우를 우아하게 처리
-   - 불완전한 제네릭 타입 매개변수로 인한 거짓 양성 방지
+6. **대상 DTO 추론**
+   - 명시적 타입 인자: `S2Validator.<UserDTO>builder()`, `S2Validator.<UserDTO>of(dto)`
+   - 타입 추론: `S2Validator.of(dto)`는 인자의 선언 타입(메서드·람다 파라미터, 지역 변수, 필드, `var x = new UserDTO()`,
+     `new UserDTO()`, 캐스트)에서 DTO 를 찾음
+   - `builder()`는 Java 가 대입 대상에서 타입을 추론하지 않으므로 타입 인자가 필요
+   - `?`, `Object`, JDK 타입(`Map` 등), 판별할 수 없는 타입은 검증 스킵 (소스가 없는 클래스는 한 번만 알림)
 
 7. **상세한 에러 보고**
    - 색상 코딩된 명확한 에러 메시지

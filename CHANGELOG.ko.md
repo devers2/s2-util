@@ -103,6 +103,8 @@
 - 와일드카드 행의 규칙 실행 오류가 실제 경로(`items[1].qty`)를 담습니다.
 - 라벨 없는 `field(Object)`가 문자열이 아닌 키에서 `ClassCastException`을 내지 않습니다.
 - 공용 실행기가 종료된 뒤 다시 만들어집니다.
+- `S2ValidationError`가 `errorArgs` 배열을 참조가 아닌 내용으로 비교합니다(`equals`/`hashCode`/`toString`). 같은 오류가 서로 다르다고
+  판정되거나 `Set`에서 중복 제거되지 않던 문제를 고쳤습니다.
 
 ### 업그레이드 안내
 
@@ -133,3 +135,7 @@
 - **바인딩 검사**: `S2BindValidator.bind(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된
   `context`/`getOrRegister`/`getValidator` 검사는 없앴습니다.
 - **record DTO**: record 컴포넌트를 필드로 인식하며, 소스를 Java 17 언어 수준으로 파싱합니다.
+- **대상 DTO 추론**: 타입 인자 없는 `S2Validator.of(dto)`도 인자의 선언 타입(파라미터, 지역 변수, 필드, `var`, `new`, 캐스트)으로
+  DTO 를 찾아 필드명을 검사합니다(이전에는 조용히 건너뜀). JDK 타입(`Map` 등)은 건너뛰고, 소스가 없는 클래스는 한 번만 알립니다.
+- **증분 빌드·빌드 캐시**: `checkS2Validators`가 모든 프로젝트의 `src/main/java`를 입력으로, `build/s2-validator/checkS2Validators.txt`를
+  출력으로 선언한 `@CacheableTask`입니다. 소스가 바뀌지 않으면 매 컴파일마다 다시 파싱하지 않습니다.

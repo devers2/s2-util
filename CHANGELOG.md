@@ -115,6 +115,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - Wildcard rows report rule execution errors with the concrete path (`items[1].qty`).
 - `field(Object)` without a label no longer throws `ClassCastException` for non-String keys.
 - The common executor is recreated after shutdown.
+- `S2ValidationError` compares its `errorArgs` array by content, not by reference (`equals`/`hashCode`/`toString`), so
+  equal errors are equal and deduplicate in a `Set`.
 
 ### Upgrade notes
 
@@ -149,3 +151,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - **Binding check**: warns when `S2BindValidator.bind(...)` is neither validated nor exported (`validate`/`getRulesJson`);
   the checks for the removed `context`/`getOrRegister`/`getValidator` are gone.
 - **Record DTOs**: record components are recognized as fields; sources are parsed at the Java 17 language level.
+- **Target DTO inference**: `S2Validator.of(dto)` without a type argument is now checked, using the argument's declared
+  type (parameter, local variable, field, `var`, `new`, cast); previously it was silently skipped. JDK types (`Map`, ...)
+  are skipped, and a class without source is reported once.
+- **Incremental build & build cache**: `checkS2Validators` is a `@CacheableTask` with the `src/main/java` trees of all
+  projects as inputs and `build/s2-validator/checkS2Validators.txt` as output, so unchanged sources are not re-parsed on
+  every compile.

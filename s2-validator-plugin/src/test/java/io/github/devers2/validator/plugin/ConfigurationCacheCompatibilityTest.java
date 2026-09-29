@@ -48,7 +48,8 @@ public class ConfigurationCacheCompatibilityTest {
         assertTrue(first.getOutput().contains("Configuration cache entry stored"), first.getOutput());
 
         BuildResult second = runner.build();
-        assertEquals(TaskOutcome.SUCCESS, second.task(":checkS2Validators").getOutcome());
+        // Inputs are unchanged, so the reused entry runs nothing. | 입력이 그대로라 재사용된 항목은 실행할 것이 없음
+        assertEquals(TaskOutcome.UP_TO_DATE, second.task(":checkS2Validators").getOutcome());
         assertTrue(second.getOutput().contains("Configuration cache entry reused"), second.getOutput());
     }
 }
