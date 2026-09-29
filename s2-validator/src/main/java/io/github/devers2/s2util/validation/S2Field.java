@@ -260,17 +260,27 @@ public class S2Field<T> implements Serializable {
     }
 
     /**
-     * Sets a message template for the specific locale.
+     * Sets a message template for the specific language; {@code null} locale sets the default template.
      *
+     * @param message Message template | 에러 메시지 템플릿
      * @param locale  Target locale | 대상 로케일
+     * @return Current field instance | 현재 필드 인스턴스
+     */
+    public S2Field<T> message(String message, Locale locale) {
+        if (locale == null) {
+            return message(message);
+        }
+        return storeMessage(locale.getLanguage(), message);
+    }
+
+    /**
+     * Sets the default message template for every language without a language-specific template.
+     *
      * @param message Message template | 에러 메시지 템플릿
      * @return Current field instance | 현재 필드 인스턴스
      */
-    public S2Field<T> message(Locale locale, String message) {
-        if (locale == null) {
-            return this;
-        }
-        return storeMessage(locale.getLanguage(), message);
+    public S2Field<T> message(String message) {
+        return storeMessage(S2Rule.ANY_LANGUAGE, message);
     }
 
     /**
@@ -864,6 +874,9 @@ public class S2Field<T> implements Serializable {
             return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale)
                     .orElseGet(() -> {
                         String template = messageTemplates.get(locale.getLanguage());
+                        if (template == null || template.isBlank()) {
+                            template = messageTemplates.get(S2Rule.ANY_LANGUAGE);
+                        }
                         if (template == null || template.isBlank()) {
                             template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
                         }

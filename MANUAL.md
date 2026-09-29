@@ -352,15 +352,42 @@ S2Validator.<RegisterDTO>builder()
 
 ### 4-1. Inline Localization (`.en`, `.ko`, `.message`)
 
-Attach language-specific messages directly in the builder chain:
+Attach messages right after a rule in the builder chain. Each call applies to the rule just before it.
+
+| Method | Meaning |
+|---|---|
+| `.message(template)` | **Default message for every language** that has no language-specific message. Enough for a single-language service. |
+| `.message(template, locale)` | Message for one language (`Locale.JAPAN` and `Locale.JAPANESE` are the same: only the language is used). `null` locale = `.message(template)`. |
+| `.ko(template)` / `.en(template)` | Shortcuts for `.message(template, Locale.KOREAN)` / `.message(template, Locale.ENGLISH)`. |
+| `.rule(type, value, messageKey)` | Look the message up by key in the bundle set with `S2Validator.setValidationBundle(...)` (see 1-3). |
 
 ```java
-.field("age", "Age")
+// 1) Single-language service: one default message
+.field("name", "이름")
+    .rule(S2RuleType.REQUIRED)
+    .message("{0|은/는} 꼭 입력해 주세요.")
+
+// 2) Default message + per-language overrides
+.field("age", "나이")
     .rule(S2RuleType.MIN_VALUE, 19)
-    .en("Age must be at least 19.")
-    .ko("만 19세 이상이어야 합니다.")
-    .message(Locale.JAPAN, "19歳以上である必要があります。")
+    .message("만 19세 이상이어야 합니다.")               // any language without its own message
+    .en("Age must be at least 19.")                    // English requests
+    .message("19歳以上である必要があります。", Locale.JAPAN) // Japanese requests
+
+// 3) Message key from the bundle (messages.properties: err.adult={0} must be at least {1}.)
+.field("age", "Age")
+    .rule(S2RuleType.MIN_VALUE, 19, "err.adult")
 ```
+
+**Lookup order** (for the request locale):
+
+1. Bundle message for the rule's key (`setValidationBundle` + key)
+2. Message for the request language (`.message(template, locale)`, `.ko`, `.en`)
+3. Default message (`.message(template)`)
+4. Message for the default locale's language (`S2Validator.setDefaultLocale`)
+5. Built-in message of the rule (Korean/English)
+
+Placeholders: `{0}` is the field label and `{1}` the rule criterion (e.g. `19`, or the target field's label for `EQUALS_FIELD`). Messages are rendered on the server, so the rules JSON sent to the browser already contains the text for the request locale.
 
 ### 4-2. Smart Korean Particle Handling
 

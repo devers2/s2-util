@@ -74,7 +74,7 @@
 6. **포괄적인 국제화(i18n) 및 한국어 조사 지원**
    - 모든 내장 규칙에 한국어/영어 기본 메시지 탑재
    - 커스텀 메시지가 필요한 경우에만 `.ko()`, `.en()`으로 재정의
-   - `.message(Locale, String)` 메서드로 제3의 언어(일본어, 중국어 등) 확장 지원
+   - `.message(String, Locale)` 메서드로 제3의 언어(일본어, 중국어 등) 확장 지원
    - `S2ResourceBundle` 통합으로 중앙 집중식 메시지 관리
    - 메시지 매개변수 치환: `{0}`(필드 라벨), `{1}`(규칙 기준값)
    - 한국어 조사 자동 치환: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}`로 문법에 맞는 메시지 자동 생성
@@ -354,7 +354,7 @@ S2Validator<OrderVO> orderValidator = S2Validator.<OrderVO>builder()
 
 - **기본 내장 메시지 완비**: `S2RuleType`의 모든 내장 규칙은 한국어와 영어 기본 메시지를 이미 기본 탑재하고 있습니다 (예: `REQUIRED`는 한국어 로케일에서 `"{0|은/는} 필수 입력 항목입니다."`, 영어 로케일에서 `"{0} is required."` 자동 생성). **따라서 일반적인 상황에서는 `.ko()`나 `.en()`을 호출할 필요가 없습니다.**
 - **커스텀 메시지 재정의 (`.ko()`, `.en()`)**: 기본 메시지 대신 특정 문구를 사용하고 싶을 때만 `.ko("...")` 또는 `.en("...")`을 체이닝하여 메시지를 재정의합니다.
-- **기타 언어 지원 (`.message(Locale, String)`)**: 한국어/영어 외의 다국어(일본어, 중국어, 프랑스어 등) 메시지가 필요할 때는 `.message(Locale locale, String template)` 메서드를 사용하여 원하는 로케일의 메시지를 자유롭게 등록할 수 있습니다 (예: `.message(Locale.JAPANESE, "{0}は必須入力項目です。")`).
+- **기타 언어 지원 (`.message(String, Locale)`)**: 한국어/영어 외의 다국어(일본어, 중국어, 프랑스어 등) 메시지가 필요할 때는 `.message(String template, Locale locale)` 메서드를 사용하여 원하는 로케일의 메시지를 자유롭게 등록할 수 있습니다 (예: `.message("{0}は必須入力項目です。", Locale.JAPANESE)`).
 - **메시지 플레이스홀더**:
   - `{0}`: 필드 라벨 (예: "사용자명", "아이디").
   - `{1}`: 규칙 기준값 (예: 최소 자릿수, 최소 금액 등).
@@ -376,8 +376,8 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
     // 기타 다국어 지원 (.message)
     .field("email", "이메일")
         .rule(S2RuleType.EMAIL)
-            .message(Locale.JAPANESE, "{0}の形式が正しくありません。")
-            .message(Locale.SIMPLIFIED_CHINESE, "{0}格式不正确。")
+            .message("{0}の形式が正しくありません。", Locale.JAPANESE)
+            .message("{0}格式不正确。", Locale.SIMPLIFIED_CHINESE)
     .build();
 
 // 전역 리소스 번들 연동 (예: messages/validation_ko.properties)

@@ -1058,7 +1058,7 @@ public class SmokeTest {
                 .rule(S2RuleType.REQUIRED)
                 .rule(S2RuleType.EMAIL)
                 .rule((String v) -> !v.endsWith("spam.com"))
-                .message(Locale.ENGLISH, "Email from 'spam.com' is not allowed.")
+                .message("Email from 'spam.com' is not allowed.", Locale.ENGLISH)
 
                 // --- 필드: confirmPassword ---
                 // 교차 필드 검증 (BiPredicate)
@@ -1592,11 +1592,12 @@ public class SmokeTest {
 
             S2Validator.of(data)
                     .field("f", "F").rule(S2RuleType.REQUIRED)
-                    .message(null, "무시되어야 하는 메시지")
+                    .message("로케일 없는 기본 메시지", (Locale) null)
                     .validate(errors::add, Locale.KOREAN);
 
-            boolean messageNullOk = errors.size() == 1 && !"무시되어야 하는 메시지".equals(errors.get(0).defaultMessage());
-            record(messageNullOk, "message(null, ...) 호출 시 NPE 없이 안전하게 무시되는지 테스트");
+            // null 로케일은 message(template)과 같이 모든 언어의 기본 메시지로 저장됨
+            boolean messageNullOk = errors.size() == 1 && "로케일 없는 기본 메시지".equals(errors.get(0).defaultMessage());
+            record(messageNullOk, "message(template, null) 호출 시 NPE 없이 기본 메시지로 저장되는지 테스트");
         } catch (Exception e) {
             logger.error("  [FAIL] message(null,...) 테스트 중 예외 발생: ", e);
             record(false, "message(null,...) 안전성 테스트 기술 오류");

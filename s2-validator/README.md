@@ -74,7 +74,7 @@ While standard Bean Validation (JSR-380 / Hibernate Validator) works well for st
 6. **Comprehensive Internationalization (i18n)**
    - Default built-in messages for Korean and English on every rule
    - Custom message overrides via `.ko()` and `.en()` methods
-   - Custom locale support via `.message(Locale, String)` method (e.g., Japanese, Chinese, etc.)
+   - Custom locale support via `.message(String, Locale)` method (e.g., Japanese, Chinese, etc.)
    - `S2ResourceBundle` integration for centralized message management
    - Message parameter substitution: `{0}`, `{1}` for field names and rule values
    - Korean particle support: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}` for grammatically correct messages
@@ -354,7 +354,7 @@ S2Validator<OrderVO> orderValidator = S2Validator.<OrderVO>builder()
 
 - **Default Built-in Messages**: Every built-in rule in `S2RuleType` already provides default messages for both English and Korean out-of-the-box (e.g., `REQUIRED` generates `"{0} is required."` for English, and `"{0|은/는} 필수 입력 항목입니다."` for Korean). **You do not need to call `.en()` or `.ko()` in standard situations.**
 - **Custom Messages (`.en()`, `.ko()`)**: Use `.en("...")` or `.ko("...")` only when you need to customize or override the default message for a specific rule.
-- **Other Languages (`.message(Locale, String)`)**: For languages other than English and Korean (e.g., Japanese, Chinese, French, etc.), use `.message(Locale locale, String template)` (e.g., `.message(Locale.JAPANESE, "{0}は必須入力項目です。")`).
+- **Other Languages (`.message(String, Locale)`)**: For languages other than English and Korean (e.g., Japanese, Chinese, French, etc.), use `.message(String template, Locale locale)` (e.g., `.message("{0}は必須入力項目です。", Locale.JAPANESE)`).
 - **Message Placeholders**:
   - `{0}`: Field label (e.g., "User ID", "Username").
   - `{1}`: Rule criteria value (e.g., minimum length, numeric threshold).
@@ -373,11 +373,11 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
             .en("{0} must be at least {1} characters for security.")
             .ko("{0|은/는} 보안을 위해 최소 {1}자 이상이어야 합니다.")
 
-    // Support for other languages via .message(Locale, String)
+    // Support for other languages via .message(String, Locale)
     .field("email", "Email")
         .rule(S2RuleType.EMAIL)
-            .message(Locale.JAPANESE, "{0}の形式が正しくありません。")
-            .message(Locale.SIMPLIFIED_CHINESE, "{0}格式不正确。")
+            .message("{0}の形式が正しくありません。", Locale.JAPANESE)
+            .message("{0}格式不正确。", Locale.SIMPLIFIED_CHINESE)
     .build();
 
 // Global ResourceBundle integration (e.g., messages/validation_en.properties)
