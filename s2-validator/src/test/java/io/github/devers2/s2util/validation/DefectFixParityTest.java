@@ -176,4 +176,48 @@ public class DefectFixParityTest {
 
         Assertions.assertFalse(invalid, "문자열 'false'는 ASSERT_TRUE 실패해야 함");
     }
+
+    @Test
+    @DisplayName("행 단위 상대 참조(\"start\")도 대상 라벨(시작일)로 치환된다 - 서버 메시지와 규칙 JSON 모두")
+    void testWildcardRelativeCrossFieldLabel() {
+        Map<String, Object> row = new HashMap<>();
+        row.put("start", "2024-02-05");
+        row.put("end", "2024-02-01");
+        Map<String, Object> target = new HashMap<>();
+        target.put("items", List.of(row));
+
+        S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                .field("items[].start", "시작일")
+                .field("items[].end", "종료일").rule(S2RuleType.DATE_AFTER, "start")
+                .build();
+
+        List<S2ValidationError> errors = new ArrayList<>();
+        validator.validate(target, errors::add, Locale.KOREAN);
+        Assertions.assertEquals(1, errors.size());
+        Assertions.assertEquals("items[0].end", errors.get(0).fieldName());
+        Assertions.assertTrue(errors.get(0).defaultMessage().contains("시작일"), errors.get(0).defaultMessage());
+        Assertions.assertEquals("시작일", errors.get(0).errorArgs()[1]);
+
+        String json = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+        Assertions.assertTrue(json.contains("종료일은 시작일"), json);
+        Assertions.assertFalse(json.contains("start보다"), json);
+    }
+
+    @Test
+    @DisplayName("선언되지 않은 대상 필드는 이름 그대로 두되 조사를 빠뜨리지 않는다")
+    void testUndeclaredCrossFieldTargetKeepsParticle() {
+        Map<String, Object> target = new HashMap<>();
+        target.put("pw", "a");
+        target.put("pw2", "b");
+
+        List<S2ValidationError> errors = new ArrayList<>();
+        S2Validator.<Map<String, Object>>builder()
+                .field("pw2", "비밀번호 확인").rule(S2RuleType.EQUALS_FIELD, "pw")
+                .build()
+                .validate(target, errors::add, Locale.KOREAN);
+
+        Assertions.assertEquals(1, errors.size());
+        Assertions.assertTrue(errors.get(0).defaultMessage().contains("[pw]"), errors.get(0).defaultMessage());
+        Assertions.assertFalse(errors.get(0).defaultMessage().contains("[pw] 일치"), "조사가 빠지면 안 됨: " + errors.get(0).defaultMessage());
+    }
 }

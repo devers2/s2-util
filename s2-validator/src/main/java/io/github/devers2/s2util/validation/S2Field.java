@@ -498,26 +498,58 @@ public class S2Field<T> implements Serializable {
      * @return Error message | 에러 메시지
      */
     public String getErrorMessage(S2Rule rule, Locale locale) {
-        Object criterion = rule.getCheckValue();
-        if (rule.getRuleType() == S2RuleType.EQUALS_FIELD
-                || rule.getRuleType() == S2RuleType.DATE_AFTER
-                || rule.getRuleType() == S2RuleType.DATE_BEFORE) {
-            criterion = resolveTargetFieldLabel(criterion);
-        }
-        return getErrorMessage(rule.getErrorMessageTemplate(locale), criterion, locale);
+        return getErrorMessage(rule.getErrorMessageTemplate(locale), resolveMessageCriterion(rule), locale);
     }
 
-    private Object resolveTargetFieldLabel(Object targetFieldKey) {
-        if (targetFieldKey == null || validator == null) {
-            return targetFieldKey;
+    /**
+     * Returns the criterion to show in the error message: the target field's label for cross-field rules, otherwise the
+     * criterion itself.
+     * <p>
+     * In wildcard rows a relative target ({@code "start"} on {@code "items[].end"}) is resolved against the row
+     * ({@code "items[].start"}), the same way the server resolves the target value.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 오류 메시지에 보여 줄 기준값을 반환합니다. 필드 간 비교 규칙은 대상 필드의 라벨, 그 밖에는 기준값 그대로입니다.
+     * <p>
+     * 와일드카드 행에서 상대 표기({@code "items[].end"}의 {@code "start"})는 서버가 대상 값을 찾는 방식과 같이 행 기준({@code "items[].start"})으로
+     * 해석합니다.
+     * </p>
+     *
+     * @param rule The rule | 규칙
+     * @return The criterion for the message | 메시지용 기준값
+     */
+    Object resolveMessageCriterion(S2Rule rule) {
+        Object criterion = rule.getCheckValue();
+        if (criterion == null || validator == null) {
+            return criterion;
         }
-        String keyStr = String.valueOf(targetFieldKey);
+        if (rule.getRuleType() != S2RuleType.EQUALS_FIELD
+                && rule.getRuleType() != S2RuleType.DATE_AFTER
+                && rule.getRuleType() != S2RuleType.DATE_BEFORE) {
+            return criterion;
+        }
+        String key = String.valueOf(criterion);
+        String label = findDeclaredLabel(key);
+        if (label == null) {
+            String ownName = String.valueOf(name);
+            int wildcard = ownName.indexOf("[]");
+            if (wildcard >= 0 && !key.contains("[]")) {
+                label = findDeclaredLabel(ownName.substring(0, wildcard + 2) + "." + key);
+            }
+        }
+        return label != null ? label : criterion;
+    }
+
+    private String findDeclaredLabel(String fieldName) {
         for (S2Field<?> f : validator.getFields()) {
-            if (keyStr.equals(String.valueOf(f.getName()))) {
+            if (f != null && fieldName.equals(String.valueOf(f.getName()))) {
                 return f.getLabel();
             }
         }
-        return targetFieldKey;
+        return null;
     }
 
     /**
