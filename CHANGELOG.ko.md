@@ -21,7 +21,7 @@
 - **전역 검증기 등록부와 `S2ValidatorFactory`를 삭제했습니다.** `S2BindValidator.context(key, supplier)`와 `S2ValidatorFactory` 클래스
   전체(`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`, `getRulesJson(validator, locale)`)가 없어졌습니다. 키가 처음 만든
   검증기에 고정되어 역할별로 다른 규칙이 경고 없이 공유됐고, 캐시로 아끼는 시간은 요청당 약 0.5µs 뿐이었습니다(GET 폼의 규칙 JSON 생성
-  약 15µs 는 캐시되지 않았음). Spring 에서는 `S2BindValidator.of(validator)`, Spring 없이 규칙을 내보낼 때는
+  약 15µs 는 캐시되지 않았음). Spring 에서는 `S2BindValidator.bind(validator)`, Spring 없이 규칙을 내보낼 때는
   `validator.getRulesJson(locale)`을 쓰십시오. 업그레이드 안내 참고.
 
 ### 변경 (동작)
@@ -75,7 +75,7 @@
 
 - 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()`.
-- `S2BindValidator.of(validator)`: 검증기 인스턴스를 연결해 `validate(target, bindingResult)`와 `getRulesJson()` 제공.
+- `S2BindValidator.bind(validator)`: 검증기 인스턴스를 연결해 `validate(target, bindingResult)`와 `getRulesJson()` 제공.
 - `S2Validator.getRulesJson()` / `getRulesJson(locale)`: 검증기 규칙을 브라우저용 JSON 으로 내보냄
   (`S2ValidatorFactory.getRulesJson(validator, locale)` 대체).
 - 커스텀 람다 규칙용 `.includeEmpty()` 수식어.
@@ -91,16 +91,16 @@
 ### 업그레이드 안내
 
 1. `s2-support`를 `s2-core`와 함께 올리십시오 (호환성 참고).
-2. 등록부를 `S2BindValidator.of(...)`로 바꾸십시오. GET 폼과 POST 처리가 계속 같은 규칙 정의를 쓰므로 동일한 규칙이 적용됩니다:
+2. 등록부를 `S2BindValidator.bind(...)`로 바꾸십시오. GET 폼과 POST 처리가 계속 같은 규칙 정의를 쓰므로 동일한 규칙이 적용됩니다:
    ```java
    // 이전
    S2BindValidator.context("signup", this::signupRules).getRulesJson();    // GET
    S2BindValidator.context("signup", this::signupRules).validate(cmd, r);  // POST
    // 이후
-   S2BindValidator.of(signupRules()).getRulesJson();    // GET
-   S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
+   S2BindValidator.bind(signupRules()).getRulesJson();    // GET
+   S2BindValidator.bind(signupRules()).validate(cmd, r);  // POST
    ```
-   규칙 생성 자체가 무거운 경우에만 필드나 Spring 빈에 보관하십시오(`S2BindValidator.of(signupValidator)`).
+   규칙 생성 자체가 무거운 경우에만 필드나 Spring 빈에 보관하십시오(`S2BindValidator.bind(signupValidator)`).
    Spring 없이 쓰던 `S2ValidatorFactory.getRulesJson(validator, locale)`은 `validator.getRulesJson(locale)`로 바꾸십시오.
 3. `s2.validator.js`를 애플리케이션에 복사해 쓰고 있다면 사본을 교체하거나, jar 의 `/s2-util/js/s2.validator.js` 경로로 서빙하십시오.
    위의 브라우저 동작 변경은 이 파일에 들어 있습니다.
@@ -113,6 +113,6 @@
 ## s2-validator-plugin [1.2.0] - 미배포
 
 - **Configuration cache**: `checkS2Validators`가 실행 시점에 `getProject()`를 호출하지 않아 `--configuration-cache`에서 동작합니다.
-- **바인딩 검사**: `S2BindValidator.of(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된
+- **바인딩 검사**: `S2BindValidator.bind(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된
   `context`/`getOrRegister`/`getValidator` 검사는 없앴습니다.
 - **record DTO**: record 컴포넌트를 필드로 인식하며, 소스를 Java 17 언어 수준으로 파싱합니다.

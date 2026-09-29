@@ -94,7 +94,7 @@ import io.github.devers2.s2util.validation.S2Validator;
  * <ul>
  * <li><b>Spring Native Integration:</b> Automatically resolves the current user's
  * locale using {@link LocaleContextHolder}.</li>
- * <li><b>Contextual Binding:</b> {@link #of(S2Validator)} wraps a validator instance in a {@link BoundContext}
+ * <li><b>Contextual Binding:</b> {@link #bind(S2Validator)} wraps a validator instance in a {@link BoundContext}
  * for server-side validation and client-side rule export, without any global registry.</li>
  * <li><b>Static Analysis Friendly:</b> Designed to work with {@code s2-validator-plugin}
  * for compile-time verification of field names in DTOs.</li>
@@ -160,16 +160,16 @@ public final class S2BindValidator {
      *     &#64;GetMapping("/join")
      *     public String joinForm(Model model) {
      *         model.addAttribute("member", new MemberDTO());
-     *         model.addAttribute("validationRules", S2BindValidator.of(memberRules()).getRulesJson());
+     *         model.addAttribute("validationRules", S2BindValidator.bind(memberRules()).getRulesJson());
      *         return "member/join";
      *     }
      *
      *     &#64;PostMapping("/join")
      *     public String joinSubmit(@ModelAttribute("member") MemberDTO member, BindingResult result, Model model) {
-     *         S2BindValidator.of(memberRules()).validate(member, result);
+     *         S2BindValidator.bind(memberRules()).validate(member, result);
      *
      *         if (result.hasErrors()) {
-     *             model.addAttribute("validationRules", S2BindValidator.of(memberRules()).getRulesJson());
+     *             model.addAttribute("validationRules", S2BindValidator.bind(memberRules()).getRulesJson());
      *             return "member/join";
      *         }
      *         memberService.join(member);
@@ -195,7 +195,7 @@ public final class S2BindValidator {
      * &#64;PostMapping("/api/validate")
      * public ResponseEntity<?> validateData(@RequestBody Map<String, Object> data) {
      *     BindingResult result = new MapBindingResult(data, "apiData");
-     *     S2BindValidator.of(apiRules()).validate(data, result);
+     *     S2BindValidator.bind(apiRules()).validate(data, result);
      *
      *     if (result.hasErrors()) {
      *         Map<String, String> errorMap = result.getFieldErrors().stream()
@@ -207,7 +207,7 @@ public final class S2BindValidator {
      * }
      *           </pre>
      */
-    public static <T> BoundContext<T> of(S2Validator<T> validator) {
+    public static <T> BoundContext<T> bind(S2Validator<T> validator) {
         if (validator == null) {
             throw new IllegalArgumentException("validator cannot be null");
         }
@@ -291,7 +291,7 @@ public final class S2BindValidator {
          *
          *          <pre>{@code
          * // Controller (Java): uses the current request locale (LocaleContextHolder)
-         * model.addAttribute("validationRules", S2BindValidator.of(validator).getRulesJson());
+         * model.addAttribute("validationRules", S2BindValidator.bind(validator).getRulesJson());
          *
          * // View (HTML/Thymeleaf)
          * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;

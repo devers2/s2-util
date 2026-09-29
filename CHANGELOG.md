@@ -22,7 +22,7 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   the whole `S2ValidatorFactory` class (`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`,
   `getRulesJson(validator, locale)`) no longer exist. A key was bound to the first validator built for it, so rule sets
   that differed by role were silently shared, and caching saved only ~0.5µs per request (the rules JSON for the GET
-  form, ~15µs, was never cached). Use `S2BindValidator.of(validator)` with Spring, and `validator.getRulesJson(locale)`
+  form, ~15µs, was never cached). Use `S2BindValidator.bind(validator)` with Spring, and `validator.getRulesJson(locale)`
   to export rules without Spring; see Upgrade notes.
 
 ### Changed (behavior)
@@ -81,7 +81,7 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 - `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()` for resetting global state (e.g. in tests).
-- `S2BindValidator.of(validator)`: bind a validator instance for `validate(target, bindingResult)` and `getRulesJson()`.
+- `S2BindValidator.bind(validator)`: bind a validator instance for `validate(target, bindingResult)` and `getRulesJson()`.
 - `S2Validator.getRulesJson()` / `getRulesJson(locale)`: export the validator's rules as JSON for the browser (replaces
   `S2ValidatorFactory.getRulesJson(validator, locale)`).
 - `.includeEmpty()` modifier for custom lambda rules.
@@ -97,17 +97,17 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 ### Upgrade notes
 
 1. Upgrade `s2-support` together with `s2-core` (see Compatibility).
-2. Replace the registry with `S2BindValidator.of(...)`. Both the GET form and the POST handler keep using the same rule
+2. Replace the registry with `S2BindValidator.bind(...)`. Both the GET form and the POST handler keep using the same rule
    definition, so they still apply identical rules:
    ```java
    // Before
    S2BindValidator.context("signup", this::signupRules).getRulesJson();    // GET
    S2BindValidator.context("signup", this::signupRules).validate(cmd, r);  // POST
    // After
-   S2BindValidator.of(signupRules()).getRulesJson();    // GET
-   S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
+   S2BindValidator.bind(signupRules()).getRulesJson();    // GET
+   S2BindValidator.bind(signupRules()).validate(cmd, r);  // POST
    ```
-   Keep the validator in a field or Spring bean (`S2BindValidator.of(signupValidator)`) only if building the rules is
+   Keep the validator in a field or Spring bean (`S2BindValidator.bind(signupValidator)`) only if building the rules is
    itself expensive. Without Spring, replace `S2ValidatorFactory.getRulesJson(validator, locale)` with
    `validator.getRulesJson(locale)`.
 3. If you copied `s2.validator.js` into your application, replace the copy (or serve it from the jar at
@@ -123,6 +123,6 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 - **Configuration cache**: `checkS2Validators` no longer calls `getProject()` at execution time and works with
   `--configuration-cache`.
-- **Binding check**: warns when `S2BindValidator.of(...)` is neither validated nor exported (`validate`/`getRulesJson`);
+- **Binding check**: warns when `S2BindValidator.bind(...)` is neither validated nor exported (`validate`/`getRulesJson`);
   the checks for the removed `context`/`getOrRegister`/`getValidator` are gone.
 - **Record DTOs**: record components are recognized as fields; sources are parsed at the Java 17 language level.

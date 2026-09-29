@@ -174,17 +174,20 @@ private S2Validator<UserCommand> profileValidator() {
             .build();
 }
 
+// 한 번 바인딩해 GET 폼과 POST 처리에서 함께 사용 (요청 로케일은 호출할 때마다 적용)
+private final S2BindValidator.BoundContext<UserCommand> profile = S2BindValidator.bind(profileValidator());
+
 @GetMapping("/sign-up")
 public String signUpPage(@ModelAttribute("command") UserCommand command, Model model) {
     // 클라이언트 유효성 검증을 위해 JSON으로 변환하여 전달
-    model.addAttribute("rules", S2BindValidator.of(profileValidator()).getRulesJson());
+    model.addAttribute("rules", profile.getRulesJson());
     return "sign-up";
 }
 
 @PostMapping("/sign-up")
 public String signUp(@ModelAttribute("command") UserCommand command, BindingResult result, Model model) {
     // 설정된 검증기로 서버 측에서도 동일하게 검증 수행
-    S2BindValidator.of(profileValidator()).validate(command, result);
+    profile.validate(command, result);
 
     if (result.hasErrors()) {
         return signUpPage(command, model);

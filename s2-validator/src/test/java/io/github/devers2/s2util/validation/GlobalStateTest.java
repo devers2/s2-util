@@ -26,13 +26,13 @@ public class GlobalStateTest {
     }
 
     @Test
-    @DisplayName("S2BindValidator.of()는 등록부를 거치지 않고 검증 및 JSON 생성을 수행한다")
+    @DisplayName("S2BindValidator.bind()는 등록부를 거치지 않고 검증 및 JSON 생성을 수행한다")
     void testBindValidatorOf() {
         S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
                 .field("username", "사용자명").rule(S2RuleType.REQUIRED)
                 .build();
 
-        S2BindValidator.BoundContext<Map<String, Object>> context = S2BindValidator.of(validator);
+        S2BindValidator.BoundContext<Map<String, Object>> context = S2BindValidator.bind(validator);
 
         Map<String, Object> invalidData = new HashMap<>();
         invalidData.put("username", "");
@@ -76,7 +76,7 @@ public class GlobalStateTest {
     }
 
     @Test
-    @DisplayName("전역 등록부와 S2ValidatorFactory 는 1.2.0 에서 삭제되었다 (S2BindValidator.of, S2Validator.getRulesJson 만 제공)")
+    @DisplayName("전역 등록부와 S2ValidatorFactory 는 1.2.0 에서 삭제되었다 (S2BindValidator.bind, S2Validator.getRulesJson 만 제공)")
     void testRegistryApiIsRemoved() {
         Assertions.assertThrows(ClassNotFoundException.class,
                 () -> Class.forName("io.github.devers2.s2util.validation.S2ValidatorFactory"));

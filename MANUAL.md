@@ -160,7 +160,7 @@ flowchart TD
     Req["Incoming Data"] --> Choice{"Validation Scenario"}
     Choice -->|"One-off method logic"| A["Immediate Mode<br>S2Validator.of()"]
     Choice -->|"Reusable instance rules"| B["Blueprint Mode<br>S2Validator.builder()"]
-    Choice -->|"Spring MVC Form"| C["Spring Standard<br>S2BindValidator.of()"]
+    Choice -->|"Spring MVC Form"| C["Spring Standard<br>S2BindValidator.bind()"]
     Choice -->|"Simple value/condition"| D["Single Value Mode<br>S2Validator.check()"]
 ```
 
@@ -202,7 +202,7 @@ schema.validate(userB);
 
 ### C. Pattern: Spring Standard Alignment (Recommended)
 
-**Usage:** `S2BindValidator.of(validator)`
+**Usage:** `S2BindValidator.bind(validator)` — binds a validator built with `S2Validator.builder()` to Spring (unlike `S2Validator.of(target)`, which validates one object immediately)
 
 Seamlessly integrates with Spring MVC and automatically populates `BindingResult`. The validator instance is passed directly, so there is no global state to collide or reset between tests. Building a validator is cheap (well under a microsecond for a typical form), so it may also be built per request; keep it in a constant or Spring bean when the rule definition itself is expensive. Use the same instance (or the same rule-definition method) for the GET form (`getRulesJson()`) and the POST handler (`validate()`) so both apply identical rules.
 
@@ -214,7 +214,7 @@ private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>
 
 @PostMapping("/join")
 public String join(@ModelAttribute UserDTO user, BindingResult result) {
-    S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+    S2BindValidator.bind(USER_VALIDATOR).validate(user, result);
 
     if (result.hasErrors()) {
         return "joinForm"; // Native Spring MVC error handling
@@ -450,6 +450,9 @@ private S2Validator<UserCommand> signupRules() {
             .en("Passwords do not match.")
         .build();
 }
+
+// Bind once; the GET form and the POST handler share it
+private final S2BindValidator.BoundContext<UserCommand> signup = S2BindValidator.bind(signupRules());
 ```
 
 #### 2. Pass JSON in Controller (GET)
@@ -457,7 +460,7 @@ private S2Validator<UserCommand> signupRules() {
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
-    String rules = S2BindValidator.of(signupRules()).getRulesJson();
+    String rules = signup.getRulesJson();
     model.addAttribute("rules", rules);
     return "signup";
 }
@@ -483,7 +486,7 @@ public String signupPage(Model model) {
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
-    S2BindValidator.of(signupRules()).validate(command, result);
+    signup.validate(command, result);
     if (result.hasErrors()) {
         return "signup";
     }

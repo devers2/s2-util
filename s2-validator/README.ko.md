@@ -373,7 +373,7 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
             .ko("{0|은/는} 보안을 위해 최소 {1}자 이상이어야 합니다.")
             .en("{0} must be at least {1} characters for security.")
 
-    // 3) 기타 다국어 지원 (.message)
+    // 기타 다국어 지원 (.message)
     .field("email", "이메일")
         .rule(S2RuleType.EMAIL)
             .message(Locale.JAPANESE, "{0}の形式が正しくありません。")
@@ -395,7 +395,7 @@ S2Validator.setValidationBundle("messages/validation");
 @RequestMapping("/member")
 public class MemberController {
 
-    // 1) 검증 규칙 정의 (검증기 생성 비용이 매우 작아 요청마다 만들어도 됨)
+    // 검증 규칙 정의 (GET 과 POST 가 공유하는 하나의 정의)
     private S2Validator<MemberDTO> memberRules() {
         return S2Validator.<MemberDTO>builder()
             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
@@ -408,25 +408,27 @@ public class MemberController {
             .build();
     }
 
-    // 2) GET: 클라이언트 검증 규칙 JSON을 뷰로 전달
+    // 한 번 바인딩해 GET 과 POST 에서 함께 사용 (요청 로케일은 호출할 때마다 적용)
+    private final S2BindValidator.BoundContext<MemberDTO> joinValidator = S2BindValidator.bind(memberRules());
+
+    // GET: 클라이언트 검증 규칙 JSON을 뷰로 전달
     @GetMapping("/join")
     public String joinForm(Model model) {
         model.addAttribute("member", new MemberDTO());
         // s2.validator.js 연동용 JSON 메타데이터 생성
-        String rulesJson = S2BindValidator.of(memberRules()).getRulesJson();
+        String rulesJson = joinValidator.getRulesJson();
         model.addAttribute("validationRules", rulesJson);
         return "member/join";
     }
 
-    // 3) POST: 서버 측 검증 수행 및 BindingResult 자동 바인딩
+    // POST: 서버 측 검증 수행 및 BindingResult 자동 바인딩
     @PostMapping("/join")
     public String joinSubmit(@ModelAttribute MemberDTO member, BindingResult result, Model model) {
         // 서버 검증 실행: 오류 발생 시 BindingResult에 필드 에러 자동 등록
-        S2BindValidator.of(memberRules()).validate(member, result);
+        joinValidator.validate(member, result);
 
         if (result.hasErrors()) {
-            model.addAttribute("validationRules",
-                S2BindValidator.of(memberRules()).getRulesJson());
+            model.addAttribute("validationRules", joinValidator.getRulesJson());
             return "member/join";
         }
 

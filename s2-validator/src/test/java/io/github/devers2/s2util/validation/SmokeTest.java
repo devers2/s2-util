@@ -674,7 +674,7 @@ public class SmokeTest {
     private void testS2BindValidatorChaining() {
         logger.info(">>> 7. S2BindValidator 체이닝 & JSON 테스트");
         // 검증기 인스턴스를 직접 바인딩하여 JSON 반환함
-        String json = S2BindValidator.of(memberRules()).getRulesJson();
+        String json = S2BindValidator.bind(memberRules()).getRulesJson();
 
         record(json != null && json.contains("userId") && json.contains("userPw"), "S2BindValidator JSON 생성 테스트");
         logger.debug("생성된 JSON: {}", json);
@@ -699,7 +699,7 @@ public class SmokeTest {
         BindingResult bindingResult = new MapBindingResult(invalidData, "memberDto");
 
         // 체이닝을 통한 검증 수행함
-        S2BindValidator.of(memberRules()).validate(invalidData, bindingResult);
+        S2BindValidator.bind(memberRules()).validate(invalidData, bindingResult);
 
         record(bindingResult.getErrorCount() == 3, "S2BindValidator 검증 수행 테스트 (에러 3건 예상)");
 
@@ -728,7 +728,7 @@ public class SmokeTest {
 
         // 구체적인 타입의 검증기(specificRules())가 에러 없이 전달되어야 함
         try {
-            S2BindValidator.BoundContext<SpecificVO> ctx = S2BindValidator.of(specificRules());
+            S2BindValidator.BoundContext<SpecificVO> ctx = S2BindValidator.bind(specificRules());
             String json = ctx.getRulesJson();
 
             SpecificVO vo = new SpecificVO();
