@@ -49,7 +49,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   `java.util.Date` / `java.sql.Date` (previously always invalid).
 - **`MIN_BYTE` / `MAX_BYTE`**: count UTF-8 bytes regardless of the platform charset (Java 17 on Korean Windows used MS949).
 - **Rule criteria are validated at creation**: `MIN_VALUE`/`MAX_VALUE` require a finite number (NaN/Infinity/`"abc"` throw
-  `IllegalArgumentException`); length and byte rules require an integer.
+  `IllegalArgumentException`); length and byte rules require an integer
+  (surrounding whitespace is ignored at both creation and validation, like the browser).
 - **Cross-field messages** (`EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`) show the target field's label instead of its
   internal name when the target is declared in the same validator.
 - **Exception mode**: validation failures throw `S2ValidationException` (with `getFieldName()` / `getErrorCode()`), and

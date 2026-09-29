@@ -158,6 +158,8 @@ public class ServerClientParityTest {
                 Arguments.of("MAX_LENGTH: 3자 이하 → 성공", S2RuleType.MAX_LENGTH, 5, "hi", true),
                 Arguments.of("MAX_LENGTH: 6자 → 실패", S2RuleType.MAX_LENGTH, 5, "toolong", false),
                 Arguments.of("MAX_LENGTH: 끝 공백은 길이에서 제외('abc ' 최대 3) → 성공", S2RuleType.MAX_LENGTH, 3, "abc ", true),
+                Arguments.of("MAX_LENGTH: 공백 포함 문자열 기준값(' 5 ') → 6자 실패", S2RuleType.MAX_LENGTH, " 5 ", "toolng", false),
+                Arguments.of("MAX_LENGTH: 공백 포함 문자열 기준값(' 5 ') → 5자 성공", S2RuleType.MAX_LENGTH, " 5 ", "hello", true),
                 Arguments.of("MAX_LENGTH: 빈값 → 성공(skip)", S2RuleType.MAX_LENGTH, 5, null, true),
 
                 // ── MIN_BYTE ─────────────────────────────────────────────

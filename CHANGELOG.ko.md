@@ -45,7 +45,8 @@
   허용합니다 (이전에는 항상 무효).
 - **`MIN_BYTE` / `MAX_BYTE`**: 플랫폼 문자셋과 무관하게 UTF-8 바이트 수로 셉니다 (Java 17 + 한국어 Windows 는 MS949 로 셌습니다).
 - **규칙 기준값을 생성 시점에 검사**: `MIN_VALUE`/`MAX_VALUE`는 유한한 숫자가 필요합니다(NaN/Infinity/`"abc"`는
-  `IllegalArgumentException`). 길이·바이트 규칙은 정수가 필요합니다.
+  `IllegalArgumentException`). 길이·바이트 규칙은 정수가 필요합니다
+  (브라우저처럼 생성·판정 시점 모두 앞뒤 공백은 무시).
 - **필드 간 메시지** (`EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`): 대상 필드가 같은 검증기에 선언되어 있으면 내부 이름 대신 라벨을
   보여 줍니다.
 - **예외 모드**: 검증 실패는 `S2ValidationException`(`getFieldName()` / `getErrorCode()` 제공), 커스텀 규칙 내부 오류는
