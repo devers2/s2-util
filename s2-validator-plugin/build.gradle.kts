@@ -45,8 +45,7 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     signing
-    // Declare with the catalog version so that a fresh clone without ../../s2-build-support can resolve it from Maven Central.
-    // 버전 카탈로그의 버전으로 선언하여 ../../s2-build-support 가 없는 새 클론에서도 Maven Central 에서 받을 수 있도록 한다.
+    // Declare with the catalog version so a fresh clone without ../../s2-build-support resolves it from Maven Central. | 버전 카탈로그의 버전으로 선언하여 ../../s2-build-support 가 없는 새 클론에서도 Maven Central 에서 받도록 함
     alias(libs.plugins.s2.build.support)
 }
 

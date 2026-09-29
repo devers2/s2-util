@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.MapBindingResult;
@@ -66,6 +67,13 @@ public class SmokeTest {
         logger = S2LogManager.getLogger(SmokeTest.class);
         // 테스트용 리소스 번들 설정 (src/test/resources/test_messages.properties)
         S2ResourceBundle.setDefaultBasename("test_messages");
+        // Pin the validator locale so Korean message assertions do not depend on the host locale (e.g. en_US CI runners). | 한국어 메시지 단언이 실행 환경 로케일(예: en_US CI 러너)에 좌우되지 않도록 검증기 로케일 고정
+        S2Validator.setDefaultLocale(Locale.KOREAN);
+    }
+
+    @AfterAll
+    static void teardown() {
+        S2Validator.resetAll();
     }
 
     /**
