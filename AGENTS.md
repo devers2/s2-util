@@ -32,6 +32,9 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
    - `MIN_VALUE`, `MAX_VALUE` 등 숫자 규칙은 DTO의 `Number`뿐 아니라 폼 및 `Map` 바인딩에서 들어오는 숫자 문자열(`"25"`)과 문자열 기준값(`"19"`)도 정상적으로 비교되어야 합니다.
 4. **교차 필드 메시지 가독성**:
    - `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`의 에러 메시지는 내부 영문 필드명(`pw`, `startDate`)이 아닌 대상 필드의 논리 라벨(`비밀번호`, `시작일`)로 치환되어야 합니다.
+5. **실제 브라우저 시험**:
+   - `s2.validator.js`의 DOM 처리(오류 표시, 히든 필드 앵커, 렌더러, `reindex`)를 수정했다면 `./gradlew check`에 더해 `s2-validator/browser-test`에서 `npm test`(Playwright)를 실행하여 통과를 확인해야 합니다.
+   - 데모 규칙(`BrowserDemoRules.java`)을 바꾸면 `./gradlew :s2-validator:writeBrowserDemoRules`로 `demo/rules.json`을 다시 생성하십시오.
 
 ---
 
