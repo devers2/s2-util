@@ -51,6 +51,7 @@ jakarta-persistence-api = { group = "jakarta.persistence", name = "jakarta.persi
 # Testing
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher" }
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version = "2.0.17" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 graaljs-polyglot = { group = "org.graalvm.polyglot", name = "polyglot", version.ref = "graaljs" }
 graaljs-js = { group = "org.graalvm.polyglot", name = "js", version.ref = "graaljs" }
