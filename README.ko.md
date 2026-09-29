@@ -177,14 +177,14 @@ private S2Validator<UserCommand> profileValidator() {
 @GetMapping("/sign-up")
 public String signUpPage(@ModelAttribute("command") UserCommand command, Model model) {
     // 클라이언트 유효성 검증을 위해 JSON으로 변환하여 전달
-    model.addAttribute("rules", S2BindValidator.context("sign-up", this::profileValidator).getRulesJson());
+    model.addAttribute("rules", S2BindValidator.of(profileValidator()).getRulesJson());
     return "sign-up";
 }
 
 @PostMapping("/sign-up")
 public String signUp(@ModelAttribute("command") UserCommand command, BindingResult result, Model model) {
     // 설정된 검증기로 서버 측에서도 동일하게 검증 수행
-    S2BindValidator.context("sign-up", this::profileValidator).validate(command, result);
+    S2BindValidator.of(profileValidator()).validate(command, result);
 
     if (result.hasErrors()) {
         return signUpPage(command, model);

@@ -395,14 +395,14 @@ S2Validator.setValidationBundle("messages/validation");
 @RequestMapping("/member")
 public class MemberController {
 
-    // 1) 검증 규칙 Supplier 정의 (최초 1회 컴파일 후 캐싱)
+    // 1) 검증 규칙 정의 (검증기 생성 비용이 매우 작아 요청마다 만들어도 됨)
     private S2Validator<MemberDTO> memberRules() {
         return S2Validator.<MemberDTO>builder()
             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
             .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
             .field("confirmPw", "비밀번호 확인")
                 .rule(S2RuleType.REQUIRED)
-                .rule((value, target) -> S2Util.getValue(target, "userPw", "").equals(value))
+                .rule(S2RuleType.EQUALS_FIELD, "userPw") // 내장 규칙: 서버와 클라이언트 모두에서 검증
                 .ko("비밀번호가 일치하지 않습니다.")
             .field("email", "이메일").rule(S2RuleType.EMAIL)
             .build();
@@ -413,7 +413,7 @@ public class MemberController {
     public String joinForm(Model model) {
         model.addAttribute("member", new MemberDTO());
         // s2.validator.js 연동용 JSON 메타데이터 생성
-        String rulesJson = S2BindValidator.context("MEMBER_JOIN", this::memberRules).getRulesJson();
+        String rulesJson = S2BindValidator.of(memberRules()).getRulesJson();
         model.addAttribute("validationRules", rulesJson);
         return "member/join";
     }
@@ -422,11 +422,11 @@ public class MemberController {
     @PostMapping("/join")
     public String joinSubmit(@ModelAttribute MemberDTO member, BindingResult result, Model model) {
         // 서버 검증 실행: 오류 발생 시 BindingResult에 필드 에러 자동 등록
-        S2BindValidator.context("MEMBER_JOIN", this::memberRules).validate(member, result);
+        S2BindValidator.of(memberRules()).validate(member, result);
 
         if (result.hasErrors()) {
             model.addAttribute("validationRules",
-                S2BindValidator.context("MEMBER_JOIN", this::memberRules).getRulesJson());
+                S2BindValidator.of(memberRules()).getRulesJson());
             return "member/join";
         }
 

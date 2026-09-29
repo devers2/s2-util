@@ -96,6 +96,9 @@ public class MemberController {
 
 **사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
 
+> [!WARNING]
+> 키는 그 키로 **처음** 만든 검증기에 고정됩니다. 역할·상태에 따라 규칙이 다르면(예: 관리자는 `MAX_LENGTH`가 다름) 규칙 집합마다 다른 키를 쓰십시오. 그렇지 않으면 첫 규칙이 모든 호출에 경고 없이 재사용됩니다. 확실하지 않으면 `S2BindValidator.of(validator)`를 쓰십시오.
+
 **용도:** 문자열 키 기반 전역 캐시가 필요한 레거시 연동 또는 지연 초기화 싱글톤.
 
 ```java
@@ -382,7 +385,7 @@ public String signupPage(
         Model model) {
 
     // 규칙을 JSON으로 추출
-    String rules = S2BindValidator.context("signup", this::signupRules)
+    String rules = S2BindValidator.of(signupRules())
         .getRulesJson();
 
     model.addAttribute("rules", rules);
@@ -440,7 +443,7 @@ public String signup(
         Model model) {
 
     // GET에서 정의한 규칙을 그대로 재사용
-    S2BindValidator.context("signup", this::signupRules)
+    S2BindValidator.of(signupRules())
         .validate(command, result);
 
     if (result.hasErrors()) {
@@ -474,7 +477,7 @@ public String signup(
 ┌─────────────────────────────────────────────────────────────┐
 │              Spring MVC Controller                          │
 ├─────────────────────────────────────────────────────────────┤
-│  S2BindValidator.context().validate(data, result)          │
+│  S2BindValidator.of(v).validate(data, result)              │
 │  ├─ Same rule definitions                                   │
 │  ├─ Error mapping to BindingResult                          │
 │  └─ Server-side enforcement                                │
