@@ -326,6 +326,9 @@ export const S2Validator = {
     // 검증 전 이전에 생성된 임시 1px 더미 앵커 제거
     form.querySelectorAll('.__s2_dummy_anchor__').forEach((el) => el.remove());
 
+    // Custom renderer: clear the previous error display before validating | 사용자 렌더러: 검증 전 이전 오류 표시 제거
+    callRenderer('clear', form);
+
     // 검증 전 모든 폼 엘리먼트의 CustomValidity 초기화 및 자동 초기화 이벤트 등록
     Array.from(form.elements).forEach((el) => {
       if (typeof el.setCustomValidity === 'function') {
@@ -341,6 +344,11 @@ export const S2Validator = {
         // HTML5 Validation 연동: 사용자가 입력을 시작하면 즉시 에러 상태를 해제
         if (!el.__s2_val_bound__) {
           const clearValidity = () => {
+            if (activeRenderer) {
+              // Custom renderer owns the display; let it clear this field | 사용자 렌더러가 표시를 담당하므로 해당 필드 해제를 위임
+              callRenderer('clearField', form, el.name);
+              return;
+            }
             if (el.type === 'radio' || el.type === 'checkbox') {
               // 라디오/체크박스는 그룹 전체의 에러를 해제해야 함
               const group = form.querySelectorAll(`[name="${el.name}"]`);
@@ -483,7 +491,7 @@ export const S2Validator = {
               // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
               const firstMessage = fieldErrors[0];
 
-              applyFieldError(form, actualFieldName, fieldElements, firstMessage);
+              if (!activeRenderer) applyFieldError(form, actualFieldName, fieldElements, firstMessage);
             }
 
             processedFields.add(fullPath);
@@ -544,27 +552,145 @@ export const S2Validator = {
           // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
           const firstMessage = fieldErrors[0];
 
-          const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-          applyFieldError(form, fullPath, fieldElements, firstMessage);
+          if (!activeRenderer) {
+            const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
+            applyFieldError(form, fullPath, fieldElements, firstMessage);
+          }
         }
       });
     };
 
     validateRules(rules);
 
-    // 에러 발생 시 브라우저 에러 메시지 즉시 표시 (HTML5 Validation 연동)
+    // 에러 발생 시 표시: 사용자 렌더러가 있으면 위임, 없으면 브라우저 에러 메시지 즉시 표시 (HTML5 Validation 연동)
     if (Object.keys(errors).length > 0) {
-      try {
-        form.reportValidity();
-      } catch (e) {
-        console.warn(
-          'S2Validator: 브라우저가 에러 메시지를 표시할 수 없습니다. 비표시 필드 설정을 확인하세요.',
-          e
-        );
+      if (activeRenderer) {
+        callRenderer('show', form, errors);
+      } else {
+        try {
+          form.reportValidity();
+        } catch (e) {
+          console.warn(
+            'S2Validator: 브라우저가 에러 메시지를 표시할 수 없습니다. 비표시 필드 설정을 확인하세요.',
+            e
+          );
+        }
       }
     }
 
     return errors;
+  },
+
+  /**
+   * Replaces the browser's native error UI with an application renderer (global).
+   * <p>
+   * The renderer is an object with optional methods: <code>clear(form)</code> before each validation,
+   * <code>show(form, errors)</code> when there are errors (<code>{ fieldName: [messages] }</code>), and
+   * <code>clearField(form, fieldName)</code> when the user edits a field. While a renderer is set, native bubbles,
+   * <code>{fieldName}_error</code> proxies and hidden-field anchors are not used. Exceptions thrown by the renderer
+   * are logged and do not change the result, so a form with errors still is not submitted. Pass <code>null</code> to
+   * restore the native UI.
+   * </p>
+   *
+   * <p>
+   * <b>[한국어 설명]</b>
+   * </p>
+   * 브라우저 기본 오류 UI 를 애플리케이션 렌더러로 바꿉니다 (전역).
+   * <p>
+   * 렌더러는 선택 메서드를 가진 객체입니다: 검증 전 <code>clear(form)</code>, 오류가 있을 때 <code>show(form, errors)</code>
+   * (<code>{ 필드명: [메시지] }</code>), 사용자가 필드를 고칠 때 <code>clearField(form, fieldName)</code>. 렌더러가 설정되어 있으면 브라우저
+   * 말풍선, <code>{필드명}_error</code> 대리 요소, 히든 필드 앵커를 쓰지 않습니다. 렌더러가 던진 예외는 기록만 하고 결과를 바꾸지 않으므로
+   * 오류가 있는 폼은 여전히 제출되지 않습니다. <code>null</code>을 넘기면 기본 UI 로 돌아갑니다.
+   * </p>
+   *
+   * @param {{show?: Function, clear?: Function, clearField?: Function}|null} renderer - Renderer or null | 렌더러 또는 null
+   * @example
+   * S2Validator.setRenderer(S2Validator.classRenderer()); // is-invalid + [data-s2-error-for]
+   * S2Validator.setRenderer({
+   *   show(form, errors) { showToast(Object.values(errors)[0][0]); },
+   *   clear(form) {}
+   * });
+   * S2Validator.setRenderer(null); // back to native bubbles
+   */
+  setRenderer(renderer) {
+    activeRenderer = renderer || null;
+  },
+
+  /**
+   * Creates a renderer that marks invalid fields with a CSS class and writes the first message into
+   * <code>[data-s2-error-for="fieldName"]</code> elements (Bootstrap-style <code>is-invalid</code> by default).
+   * <p>
+   * On <code>show</code> it also focuses the first invalid field. <code>clear</code> removes the class and empties the
+   * message elements; <code>clearField</code> does the same for one field.
+   * </p>
+   *
+   * <p>
+   * <b>[한국어 설명]</b>
+   * </p>
+   * 오류 필드에 CSS 클래스를 붙이고 <code>[data-s2-error-for="필드명"]</code> 요소에 첫 메시지를 넣는 렌더러를 만듭니다
+   * (기본값은 Bootstrap 방식의 <code>is-invalid</code>).
+   * <p>
+   * <code>show</code> 시 첫 오류 필드로 초점을 옮깁니다. <code>clear</code>는 클래스를 제거하고 메시지 요소를 비우며,
+   * <code>clearField</code>는 필드 하나에 대해 같은 일을 합니다.
+   * </p>
+   *
+   * @param {{invalidClass?: string, messageAttribute?: string, focus?: boolean}} [options] - Options | 옵션
+   * @returns {{show: Function, clear: Function, clearField: Function}} Renderer | 렌더러
+   * @example
+   * <input name="email" /> <div class="invalid-feedback" data-s2-error-for="email"></div>
+   * S2Validator.setRenderer(S2Validator.classRenderer({ invalidClass: 'is-invalid' }));
+   */
+  classRenderer({ invalidClass = 'is-invalid', messageAttribute = 'data-s2-error-for', focus = true } = {}) {
+    const messageElements = (form, name) => form.querySelectorAll(`[${messageAttribute}="${name}"]`);
+    const clearField = (form, name) => {
+      form.querySelectorAll(`[name="${name}"]`).forEach((el) => el.classList?.remove(invalidClass));
+      messageElements(form, name).forEach((el) => {
+        el.textContent = '';
+      });
+    };
+    return {
+      clear(form) {
+        form.querySelectorAll(`.${invalidClass}`).forEach((el) => el.classList?.remove(invalidClass));
+        form.querySelectorAll(`[${messageAttribute}]`).forEach((el) => {
+          el.textContent = '';
+        });
+      },
+      clearField,
+      show(form, errors) {
+        let first = null;
+        Object.entries(errors).forEach(([name, messages]) => {
+          const fields = form.querySelectorAll(`[name="${name}"]`);
+          fields.forEach((el) => el.classList?.add(invalidClass));
+          messageElements(form, name).forEach((el) => {
+            el.textContent = messages[0];
+          });
+          if (!first && fields.length > 0) first = fields[0];
+        });
+        if (focus && first && typeof first.focus === 'function') first.focus();
+      }
+    };
+  }
+};
+
+/**
+ * Currently active error renderer (see <code>S2Validator.setRenderer</code>); null means the native browser UI.
+ */
+let activeRenderer = null;
+
+/**
+ * Calls a renderer hook, isolating its exceptions so validation results and submit blocking are unaffected.
+ *
+ * @function callRenderer
+ * @param {string} hook - Hook name (show, clear, clearField) | 훅 이름
+ * @param {...*} args - Hook arguments | 훅 인자
+ */
+const callRenderer = (hook, ...args) => {
+  const fn = activeRenderer && activeRenderer[hook];
+  if (typeof fn !== 'function') return;
+  try {
+    fn.apply(activeRenderer, args);
+  } catch (e) {
+    console.error(`[S2Validator] renderer.${hook}() 실행 중 오류가 발생했습니다.`, e);
   }
 };
 
