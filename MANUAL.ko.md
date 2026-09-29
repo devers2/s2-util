@@ -180,7 +180,18 @@ S2Validator.of(userInput)
 boolean isValid = S2Validator.of(userInput, false)
     .field("age").rule(S2RuleType.MIN_VALUE, 20)
     .validate();
+
+// 3. 간단한 필수 검증: 규칙을 생략하면 REQUIRED 가 적용됩니다
+S2Validator.of(userInput)
+    .field("name", "이름")
+    .field("phone", "연락처")
+    .validate();
 ```
+
+> **규칙 없는 `field()`는 필수 검증입니다.** 서버와 브라우저(규칙 JSON) 모두 `REQUIRED`로 동작합니다. 커스텀 람다 규칙만 있는 필드는
+> 해당하지 않습니다. 이때 메시지는 내장 문구(`{0|은/는} 필수 입력 항목입니다.`)이며, 필드별로 바꾸려면 규칙을 명시하고
+> (`.rule(S2RuleType.REQUIRED).ko("…")`), 전역으로 바꾸려면 [전역 메시지 번들](#1-3-전역-메시지-번들-설정-선택-사항)에
+> `valid.err.required` 키를 정의합니다.
 
 ### B. 설계도 재사용 패턴 (Blueprint Mode)
 
