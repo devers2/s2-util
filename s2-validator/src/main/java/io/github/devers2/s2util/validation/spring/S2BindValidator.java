@@ -21,7 +21,6 @@
 package io.github.devers2.s2util.validation.spring;
 
 import java.util.Locale;
-import java.util.function.Supplier;
 
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.validation.BindingResult;
@@ -96,8 +95,8 @@ import io.github.devers2.s2util.validation.S2ValidatorFactory;
  * <ul>
  * <li><b>Spring Native Integration:</b> Automatically resolves the current user's
  * locale using {@link LocaleContextHolder}.</li>
- * <li><b>Contextual Binding:</b> Encapsulates validation logic into a {@link BoundContext}
- * to manage specific server-side validation and client-side rule synchronization.</li>
+ * <li><b>Contextual Binding:</b> {@link #of(S2Validator)} wraps a validator instance in a {@link BoundContext}
+ * for server-side validation and client-side rule export, without any global registry.</li>
  * <li><b>Static Analysis Friendly:</b> Designed to work with {@code s2-validator-plugin}
  * for compile-time verification of field names in DTOs.</li>
  * </ul>
@@ -115,166 +114,99 @@ public final class S2BindValidator {
     }
 
     /**
-     * Initializes a validation context with lazy registration support.
+     * Binds a validator instance to the current Spring environment.
      * <p>
-     * Use this method to obtain a {@link BoundContext} which handles both server-side
-     * execution and client-side metadata generation.
+     * The returned {@link BoundContext} validates into a {@link BindingResult} ({@code validate}) and exports the same
+     * rules to the browser ({@code getRulesJson}). Call both with validators built from the same rule definition so the
+     * GET form and the POST handler apply identical rules. Building a validator is cheap (well under a microsecond for a
+     * typical form), so it can be built per request; keep it in a field or Spring bean if the rule definition itself is
+     * expensive.
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 지연 등록(Lazy Registration) 기능을 지원하는 검증 컨텍스트를 초기화합니다.
+     * 검증기 인스턴스를 현재 Spring 환경에 바인딩합니다.
      * <p>
-     * 서버 측 검증 실행과 클라이언트 측 메타데이터 동기화를 모두 처리할 수 있는 {@link BoundContext}를
-     * 획득할 때 사용합니다.
-     * </p>
-     *
-     * @param <T>               The DTO or Domain model type | DTO 또는 도메인 모델 타입
-     * @param contextKey        Identifier for the validation logic (cached in {@link S2ValidatorFactory}) | 검증 로직 식별자 (S2ValidatorFactory에 캐싱됨)
-     * @param validatorSupplier Functional supplier that builds the validator on first call | 첫 호출 시 검증기를 생성하는 함수형 서플라이어
-     * @return A {@link BoundContext} for fluent execution | 유연한 실행을 위한 BoundContext 객체
-     * @apiNote
-     *
-     *          <pre>
-     * {@code
-     * // Example 1: Complete Spring MVC Controller Integration
-     * &#64;Controller
-     * &#64;RequestMapping("/member")
-     * public class MemberController {
-     *
-     *     // Define validation rules as a private method
-     *     private S2Validator<MemberDTO> memberRules() {
-     *         return S2Validator.builder()
-     *             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-     *                 .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
-     *             .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
-     *             .field("confirmPw", "비밀번호 확인")
-     *                 .rule(S2RuleType.REQUIRED)
-     *                 .rule((value, target) ->
-     *                     S2Util.getValue(target, "userPw", "").equals(value)
-     *                 ).ko("비밀번호가 일치하지 않습니다.")
-     *             .field("email", "이메일").rule(S2RuleType.EMAIL)
-     *             .build();
-     *     }
-     *
-     *     // GET: Display join form with client-side validation rules
-     *     &#64;GetMapping("/join")
-     *     public String joinForm(Model model) {
-     *         model.addAttribute("member", new MemberDTO());
-     *
-     *         // Generate JSON for client-side validation
-     *         String rulesJson = S2BindValidator.context("MEMBER_JOIN", this::memberRules)
-     *             .getRulesJson();
-     *
-     *         model.addAttribute("validationRules", rulesJson);
-     *         return "member/join";
-     *     }
-     *
-     *     // POST: Process form submission with server-side validation
-     *     &#64;PostMapping("/join")
-     *     public String joinSubmit(@ModelAttribute MemberDTO member,
-     *                             BindingResult result, Model model) {
-     *
-     *         // Execute server-side validation
-     *         S2BindValidator.context("MEMBER_JOIN", this::memberRules)
-     *             .validate(member, result);
-     *
-     *         if (result.hasErrors()) {
-     *             // Re-display form with error messages
-     *             model.addAttribute("validationRules",
-     *                 S2BindValidator.context("MEMBER_JOIN", this::memberRules)
-     *                     .getRulesJson()
-     *             );
-     *             return "member/join";
-     *         }
-     *
-     *         // Process successful submission
-     *         memberService.join(member);
-     *         return "redirect:/member/welcome";
-     *     }
-     * }
-     *
-     * // Example 2: Thymeleaf Template (member/join.html)
-     * <!-- HTML Form -->
-     * <form id="joinForm" th:action="@{/member/join}" method="post"
-     *       th:object="${member}" th:data-s2-rules="${validationRules}">
-     *
-     *     <input type="text" th:field="*{userId}" />
-     *     <span th:errors="*{userId}"></span>
-     *
-     *     <input type="password" th:field="*{userPw}" />
-     *     <span th:errors="*{userPw}"></span>
-     *
-     *     <input type="password" th:field="*{confirmPw}" />
-     *     <span th:errors="*{confirmPw}"></span>
-     *
-     *     <button type="button" onclick="validateAndSubmit()">가입하기</button>
-     * </form>
-     *
-     * <!-- JavaScript -->
-     * <script>
-     * function validateAndSubmit() {
-     *     // Client-side validation using s2.validator.js
-     *     const errors = S2Validator.validate('#joinForm');
-     *
-     *     if (errors.length === 0) {
-     *         document.getElementById('joinForm').submit();
-     *     } else {
-     *         errors.forEach(err => console.error(err.message));
-     *     }
-     * }
-     * </script>
-     *
-     * // Example 3: REST API with JSON response
-     * &#64;RestController
-     * public class ApiController {
-     *     &#64;PostMapping("/api/validate")
-     *     public ResponseEntity<?> validateData(@RequestBody Map<String, Object> data) {
-     *         BindingResult result = new MapBindingResult(data, "apiData");
-     *
-     *         S2BindValidator.context("API_DATA", this::apiRules)
-     *             .validate(data, result);
-     *
-     *         if (result.hasErrors()) {
-     *             Map<String, String> errorMap = result.getFieldErrors().stream()
-     *                 .collect(Collectors.toMap(
-     *                     FieldError::getField,
-     *                     FieldError::getDefaultMessage
-     *                 ));
-     *             return ResponseEntity.badRequest().body(errorMap);
-     *         }
-     *
-     *         return ResponseEntity.ok("Validation passed");
-     *     }
-     * }
-     * }
-     *           </pre>
-     */
-    public static <T> BoundContext<T> context(String contextKey, Supplier<S2Validator<T>> validatorSupplier) {
-        S2Validator<T> validator = S2ValidatorFactory.getOrRegister(contextKey, validatorSupplier);
-        return new BoundContext<>(validator);
-    }
-
-    /**
-     * Binds a validator instance directly without using the global registry.
-     * <p>
-     * Use this method when validators are managed as Spring beans, static constants,
-     * or built per-request, avoiding shared global cache risks.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 전역 캐시(등록부)를 거치지 않고 지정한 검증기 인스턴스를 직접 Spring 환경에 바인딩합니다.
-     * <p>
-     * 검증기를 Spring 빈이나 static 상수로 관리하거나 요청별로 동적 생성할 때 사용하며,
-     * 전역 캐시의 의도치 않은 규칙 공유 위험을 방지합니다.
+     * 반환된 {@link BoundContext}는 {@link BindingResult}로 검증({@code validate})하고, 같은 규칙을 브라우저용으로 내보냅니다({@code getRulesJson}).
+     * 같은 규칙 정의로 만든 검증기로 두 가지를 호출하면 GET 폼과 POST 처리기가 동일한 규칙을 적용합니다. 검증기 생성 비용은 일반적인 폼에서
+     * 1마이크로초 미만이라 요청마다 만들어도 되며, 규칙 정의 자체가 무거우면 필드나 Spring 빈에 보관하십시오.
      * </p>
      *
      * @param <T>       The DTO or Domain model type | DTO 또는 도메인 모델 타입
      * @param validator The validator instance to bind | 바인딩할 검증기 인스턴스
      * @return A {@link BoundContext} for fluent execution | 유연한 실행을 위한 BoundContext 객체
+     * @throws IllegalArgumentException If {@code validator} is null | validator 가 null 인 경우
+     * @apiNote
+     *
+     *          <pre>
+     * {@code
+     * // Example 1: Spring MVC controller (GET form + POST submit share one rule definition)
+     * &#64;Controller
+     * &#64;RequestMapping("/member")
+     * public class MemberController {
+     *
+     *     private S2Validator<MemberDTO> memberRules() {
+     *         return S2Validator.<MemberDTO>builder()
+     *             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
+     *                 .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
+     *             .field("userPw", "비밀번호").rule(S2RuleType.REQUIRED).rule(S2RuleType.PASSWORD)
+     *             .field("confirmPw", "비밀번호 확인")
+     *                 .rule(S2RuleType.REQUIRED)
+     *                 .rule(S2RuleType.EQUALS_FIELD, "userPw").ko("비밀번호가 일치하지 않습니다.")
+     *             .field("email", "이메일").rule(S2RuleType.EMAIL)
+     *             .build();
+     *     }
+     *
+     *     &#64;GetMapping("/join")
+     *     public String joinForm(Model model) {
+     *         model.addAttribute("member", new MemberDTO());
+     *         model.addAttribute("validationRules", S2BindValidator.of(memberRules()).getRulesJson());
+     *         return "member/join";
+     *     }
+     *
+     *     &#64;PostMapping("/join")
+     *     public String joinSubmit(@ModelAttribute("member") MemberDTO member, BindingResult result, Model model) {
+     *         S2BindValidator.of(memberRules()).validate(member, result);
+     *
+     *         if (result.hasErrors()) {
+     *             model.addAttribute("validationRules", S2BindValidator.of(memberRules()).getRulesJson());
+     *             return "member/join";
+     *         }
+     *         memberService.join(member);
+     *         return "redirect:/member/welcome";
+     *     }
+     * }
+     *
+     * // Example 2: Thymeleaf template (member/join.html)
+     * <form id="joinForm" th:action="@{/member/join}" method="post"
+     *       th:object="${member}" th:data-s2-rules="${validationRules}">
+     *     <input type="text" th:field="*{userId}" />
+     *     <span th:errors="*{userId}"></span>
+     *     <input type="password" th:field="*{userPw}" />
+     *     <input type="password" th:field="*{confirmPw}" />
+     *     <button type="submit">가입하기</button>
+     * </form>
+     * <script type="module" src="/s2-util/js/s2.validator.js"></script>
+     * <!-- Forms with data-s2-rules are validated automatically on submit.
+     *      Manual call: const errors = S2Validator.validate('#joinForm');
+     *      errors is an object { fieldName: [messages] }; empty when valid. -->
+     *
+     * // Example 3: REST API with a JSON error response
+     * &#64;PostMapping("/api/validate")
+     * public ResponseEntity<?> validateData(@RequestBody Map<String, Object> data) {
+     *     BindingResult result = new MapBindingResult(data, "apiData");
+     *     S2BindValidator.of(apiRules()).validate(data, result);
+     *
+     *     if (result.hasErrors()) {
+     *         Map<String, String> errorMap = result.getFieldErrors().stream()
+     *             .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage, (a, b) -> a));
+     *         return ResponseEntity.badRequest().body(errorMap);
+     *     }
+     *     return ResponseEntity.ok("Validation passed");
+     * }
+     * }
+     *           </pre>
      */
     public static <T> BoundContext<T> of(S2Validator<T> validator) {
         if (validator == null) {
@@ -355,7 +287,7 @@ public final class S2BindValidator {
          * 클라이언트(Browser)와 검증 규칙을 공유하기 위한 JSON 문자열을 반환합니다.
          *
          * @return A JSON string containing the validation rules | 서버에서 정의된 검증 규칙이 포함된 JSON 문자열
-         * @see S2ValidatorFactory#getRulesJson(String, Locale)
+         * @see S2ValidatorFactory#getRulesJson(S2Validator, Locale)
          * @apiNote
          *
          *          <pre>{@code

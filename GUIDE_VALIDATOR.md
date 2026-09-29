@@ -6,7 +6,7 @@
 
 ---
 
-## 1. The 4 Strategic Patterns
+## 1. The 3 Strategic Patterns
 
 S2Validator supports four distinct usage patterns, each optimized for different scenarios. Choose the one that best fits your needs.
 
@@ -20,7 +20,7 @@ S2Validator supports four distinct usage patterns, each optimized for different 
 // Exception Mode (Default)
 S2Validator.of(userInput)
     .field("email").rule(S2RuleType.EMAIL)
-    .validate();  // Throws S2RuntimeException on failure
+    .validate();  // Throws S2ValidationException on failure
 
 // Boolean Mode
 boolean isValid = S2Validator.of(userInput, false)
@@ -29,7 +29,7 @@ boolean isValid = S2Validator.of(userInput, false)
 ```
 
 > [!NOTE]
-> Default `of(target)` throws an `S2RuntimeException` on failure. Use `of(target, false)` to receive a `boolean` result.
+> Default `of(target)` throws an `S2ValidationException` on failure. Use `of(target, false)` to receive a `boolean` result.
 
 ---
 
@@ -62,7 +62,7 @@ schema.validate(userC);
 
 **Usage:** `S2BindValidator.of(validator)`
 
-**Purpose:** Seamless integration with Spring's `BindingResult` using direct validator instances. Bypasses the global registry, eliminating key collisions, memory leaks, and test isolation issues.
+**Purpose:** Seamless integration with Spring's `BindingResult` using direct validator instances. There is no global state, so nothing can collide or leak between tests. Building a validator costs well under a microsecond for a typical form, so a constant, a Spring bean, or a per-request build are all fine; use the same instance (or rule-definition method) for the GET form and the POST handler.
 
 ```java
 @Controller
@@ -77,7 +77,7 @@ public class MemberController {
 
     @PostMapping("/join")
     public String join(@ModelAttribute UserDTO user, BindingResult result) {
-        // Direct instance path bypassing global registry (Recommended)
+        // Bind the validator instance directly
         S2BindValidator.of(USER_VALIDATOR).validate(user, result);
 
         if (result.hasErrors()) {
@@ -85,63 +85,6 @@ public class MemberController {
         }
         return "redirect:/success";
     }
-}
-```
-
----
-
-### 1-4. Pattern D: Registry Mode (Optional Global Cache)
-
-**Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
-
-> [!WARNING]
-> A key is bound to the **first** validator built for it. If rules differ by role or state (e.g. a different `MAX_LENGTH` for admins), use a different key per rule set; otherwise the first rules are silently reused for every call. Prefer `S2BindValidator.of(validator)` when in doubt.
-
-**Purpose:** String key-based global caching for legacy compatibility or lazy-initialized singletons.
-
-```java
-// Register validator globally (logs DEBUG if key is re-registered with different supplier)
-S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
-    "USER_REGISTRATION",  // Unique key
-    () -> S2Validator.<UserDTO>builder()
-        .field("email").rule(S2RuleType.EMAIL)
-        .field("password").rule(S2RuleType.MIN_LENGTH, 8)
-        .build()
-);
-
-// S2BindValidator with string key
-S2BindValidator.context("USER_REGISTRATION", this::userRules).validate(user, result);
-```
-
-> [!TIP]
-> Validator build overhead is under 500ns per request. For modern Spring applications, we strongly recommend `S2BindValidator.of(validator)` over global string registries. For test isolation, use `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
-
-```java
-// Controller with automatic Spring integration using context()
-
-@PostMapping("/join")
-public String join(
-        @ModelAttribute UserDTO user,
-        BindingResult result) {
-
-    // Validates and maps errors to Spring's BindingResult
-
-    S2BindValidator.context("JOIN_RULES", this::joinRules)
-        .validate(user, result);
-
-    if (result.hasErrors()) {
-        return "joinForm";  // Standard Spring flow
-    }
-
-    userService.save(user);
-    return "redirect:/success";
-}
-
-private S2Validator<UserDTO> joinRules() {
-    return S2Validator.<UserDTO>builder()
-        .field("email", "Email").rule(S2RuleType.EMAIL)
-        .field("password", "Password").rule(S2RuleType.MIN_LENGTH, 8)
-        .build();
 }
 ```
 
@@ -282,7 +225,7 @@ Inject Lambda for complex business rules.
 > Aligned with Bean Validation and YAVI conventions, custom lambda rules skip evaluation when the field value is `null` or empty (`S2Util.isEmpty(value)`), treating it as valid. This prevents accidental `NullPointerException`s on optional fields.
 > - If a field is required, chain `.rule(S2RuleType.REQUIRED)`.
 > - If the lambda itself needs to inspect empty/null values, specify `.includeEmpty()`.
-> - Uncaught runtime exceptions inside lambdas are wrapped in `S2RuntimeException` with field path context and the original exception as cause.
+> - Uncaught runtime exceptions inside lambdas are wrapped in `S2RuleExecutionException` with field path context and the original exception as cause.
 
 > [!WARNING]
 > Custom Lambda rules are **not** synchronized to JavaScript automatically. Use built-in `S2RuleType` for full client-server synchronization.
@@ -513,7 +456,7 @@ public String signup(
 ```
 1. ✅ Define rules once in a dedicated method
 
-2. ✅ Use Pattern C (S2BindValidator.of) by default; use Pattern D (Registry) only when a global cache is required
+2. ✅ Use Pattern C (S2BindValidator.of) for Spring MVC forms
 
 3. ✅ Always perform server-side validation
 
@@ -568,13 +511,12 @@ if (result.hasErrors()) {
 ## 8. Performance Tips
 
 ```
-1. Validator construction is cheap, so Pattern C (S2BindValidator.of) is sufficient; keep instances in a field or bean to reuse them
+1. Building a validator is cheap (~0.5µs for a typical sign-up form), so S2BindValidator.of(rules()) per request is fine;
+   keep it in a field or bean only when the rule definition itself is expensive (e.g. loads options from a DB)
 
-2. Cache validation results when possible
+2. The most expensive step is the rules JSON for the GET form (~15µs); cache the JSON string if a page is very hot
 
 3. Avoid complex lambda rules in loops
 
-4. Reuse validators (don't recreate)
-
-5. Use PATTERN rule for string validation
+4. Prefer built-in rules or REGEX for string formats: they run on the server and are exported to the browser
 ```

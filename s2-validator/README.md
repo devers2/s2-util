@@ -164,7 +164,7 @@ S2Validator supports two primary execution patterns:
 #### 2.1. Basic Validation (Immediate Mode vs. Blueprint Mode)
 
 - **Immediate Mode (`S2Validator.of`)**: Perform one-off validation directly on a target object (DTO/VO or Map) with zero client setup. If `.rule(...)` is omitted, `S2RuleType.REQUIRED` is enforced automatically.
-  - Call `.validate()` directly to throw an `S2RuntimeException` immediately on the first error (Fail-Fast mode).
+  - Call `.validate()` directly to throw an `S2ValidationException` immediately on the first error (Fail-Fast mode).
   - Pass an error handler (`Consumer<S2ValidationError>`) to collect all errors without throwing exceptions.
 - **Blueprint / Builder Mode (`S2Validator.builder`)**: Define a reusable validation blueprint. Built `S2Validator` instances are thread-safe and can be cached and reused across requests for optimal performance in high-concurrency environments.
 
@@ -176,7 +176,7 @@ data.put("userId", "admin");
 data.put("email", "test@s2.kr");
 data.put("birthDate", "20250101");
 
-// 1) Fail-fast mode: Throws S2RuntimeException immediately on the first failure
+// 1) Fail-fast mode: Throws S2ValidationException immediately on the first failure
 // Ideal when client integration is not required (e.g., REST APIs, service layer)
 S2Validator.of(data)
     .field("userId", "User ID") // Rule omitted -> REQUIRED by default
@@ -223,7 +223,7 @@ boolean isValid = userValidator.validate(user, errors::add, Locale.ENGLISH);
 
 Quickly validate an individual value or variable without creating a DTO or Map:
 - **Boolean Mode (`check(value)`)**: Returns `true`/`false` without throwing exceptions.
-- **Exception Mode with Label (`check(value, label)`)**: Throws `S2RuntimeException` with a localized message on failure.
+- **Exception Mode with Label (`check(value, label)`)**: Throws `S2ValidationException` with a localized message on failure.
 - **Custom Predicate (Server-Only)**: Validate with custom lambda functions (executed on the server side).
 
 ```java
@@ -233,7 +233,7 @@ boolean isValidEmail = S2Validator.check("test@s2.kr")
     .rule(S2RuleType.EMAIL)
     .validate();
 
-// 2) Exception Mode with Label: throws S2RuntimeException on failure
+// 2) Exception Mode with Label: throws S2ValidationException on failure
 S2Validator.check(userInput, "Name")
     .rule(S2RuleType.REQUIRED) // Uses default message or .en() for customization
     .validate();

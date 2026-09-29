@@ -489,7 +489,7 @@ List<Product> results = S2Jpql.from(em)
 6. ✅ 사용 전에 사용자 입력 검증
 7. ❌ SQL에 사용자 입력을 연결하지 말 것
 8. ❌ 값을 bindParameter 없이 사용하지 말 것
-9. ✅ 자주 사용되는 쿼리는 Registry Pattern 사용
+9. ✅ 자주 사용되는 쿼리는 재사용 가능한 쿼리 생성 메서드로 분리
 10. ✅ 경계 값으로 페이징 테스트
 ```
 
@@ -501,7 +501,7 @@ List<Product> results = S2Jpql.from(em)
 1. 성능을 위해 오프셋 기반 페이징 사용
 2. 선택적 조건에서 불필요한 JOIN 피하기
 3. WHERE 절 필드에 적절한 인덱스 설정
-4. 자주 사용되는 검증기는 Registry 모드로 캐싱
+4. 조건을 중복 작성하지 말고 쿼리 생성 메서드를 재사용
 5. EXPLAIN으로 쿼리 성능 모니터링
 6. 페이징 시 큰 오프셋 값 피하기 (대용량 데이터셋에는 keyset pagination 사용)
 ```

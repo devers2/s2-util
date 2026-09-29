@@ -24,270 +24,38 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 
 /**
- * Central registry and factory for {@link S2Validator} instances.
+ * Exports {@link S2Validator} rules as JSON for the browser validator ({@code s2.validator.js}).
  * <p>
- * This class provides a high-performance caching mechanism for validation blueprints.
- * It ensures that expensive-to-build validators are constructed only once (Lazy Initialization)
- * and reused efficiently across the entire application lifetime.
+ * The same validator instance is used on the server ({@code validate}) and exported to the client
+ * ({@link #getRulesJson(S2Validator, Locale)}), so both sides apply one rule definition. Pass the instance directly,
+ * e.g. {@code S2BindValidator.of(validator)}; there is no global registry.
  * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * {@link S2Validator} 인스턴스의 중앙 저장소 및 팩토리 클래스입니다.
+ * {@link S2Validator} 규칙을 브라우저 검증기({@code s2.validator.js})용 JSON 으로 내보냅니다.
  * <p>
- * 검증 로직 설계도(Blueprint)인 {@link S2Validator} 객체들을 효율적으로 관리하며, 복잡한 규칙 생성
- * 비용을 최소화하기 위해 지연 초기화(Lazy Initialization) 기반의 캐싱 메커니즘을 제공합니다.
- * 애플리케이션 수명 주기 동안 한 번 생성된 검증기를 멀티스레드 환경에서 안전하게 재사용할 수 있게 합니다.
+ * 같은 검증기 인스턴스를 서버 검증({@code validate})과 클라이언트 내보내기({@link #getRulesJson(S2Validator, Locale)})에 함께 쓰므로
+ * 양쪽이 하나의 규칙 정의를 적용합니다. 인스턴스를 직접 전달하십시오(예: {@code S2BindValidator.of(validator)}). 전역 등록부는 없습니다.
  * </p>
  *
- * <h3>Key Capabilities (주요 역량)</h3>
- * <ul>
- * <li><b>Lazy Registration:</b> Use {@link #getOrRegister(String, Supplier)} to define
- * validators only when they are first requested.</li>
- * <li><b>Thread-Safe Caching:</b> Powered by {@link ConcurrentHashMap} for lock-free
- * read access in high-concurrency environments.</li>
- * <li><b>Client-Side Synchronization:</b> Generates JS-compatible JSON metadata to
- * synchronize validation rules between Server (Java) and Client (JavaScript).</li>
- * </ul>
- *
  * @author devers2
- * @version 1.5
+ * @version 1.6
  * @since 1.0
  */
 public final class S2ValidatorFactory {
 
     private static final S2Logger logger = S2LogManager.getLogger(S2ValidatorFactory.class);
 
-    private record CacheEntry(S2Validator<?> validator, Class<?> supplierClass) {}
-
-    /** 검증 컨텍스트별 빌더 저장소 */
-    private static final Map<String, CacheEntry> validatorCache = new ConcurrentHashMap<>();
-    private static final java.util.Set<String> warnedKeys = ConcurrentHashMap.newKeySet();
-
     private S2ValidatorFactory() {
         // Prevent instantiation
-    }
-
-    /**
-     * Retrieves a cached validator or registers a new one using a lazy supplier.
-     * <p>
-     * <b>Thread Safety:</b> This method is thread-safe. If multiple threads request the
-     * same key simultaneously, the supplier will be executed only once.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 캐시된 검증기를 조회하거나, 없는 경우 제공된 서플라이어(Supplier)를 통해 새 검증기를 등록합니다.
-     * <p>
-     * <b>스레드 안정성:</b> 멀티스레드 환경에서 안전하게 동작합니다. 동일한 키에 대해 여러 스레드가
-     * 동시에 요청하더라도 검증기 생성 로직은 단 한 번만 실행됨을 보장합니다.
-     * </p>
-     *
-     * @param <T>               The target type handled by the validator | 검증기가 처리하는 대상 타입
-     * @param contextKey        Unique identifier for the validation context (e.g., "MEMBER_JOIN") | 검증 컨텍스트의 고유 식별자
-     * @param validatorSupplier Lambda or method reference to build the validator | 검증기 생성을 위한 람다 또는 메서드 참조
-     * @return The cached or newly created {@link S2Validator} instance | 캐시된 또는 새로 생성된 S2Validator 인스턴스
-     * @apiNote
-     *
-     *          <pre>{@code
-     * // Example 1: Basic usage with inline lambda
-     * S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
-     *     "USER_JOIN", () -> S2Validator.builder()
-     *         .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-     *         .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
-     *         .build()
-     * );
-     *
-     * // Later, get the same validator instance from cache
-     * UserDTO newUser = new UserDTO();
-     * newUser.setUserId("admin");
-     * validator.validate(newUser);  // Reuses cached validator
-     *
-     * // Example 2: Using method reference in controller
-     *          @RestController
-     *          public class MemberController {
-     *          private S2Validator<MemberDTO> getMemberValidator() {
-     *          return S2Validator.<MemberDTO>builder()
-     *          .field("memberId", "회원ID").rule(S2RuleType.REQUIRED)
-     *          .field("email", "이메일").rule(S2RuleType.EMAIL)
-     *          .field("password", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
-     *          .field("confirmPw", "비밀번호 확인")
-     *          .rule(S2RuleType.REQUIRED)
-     *          .rule(
-     *          (value, target) -> S2Util.getValue(target, "password", "").equals(value)
-     *          ).ko("비밀번호가 일치하지 않습니다.")
-     *          .build();
-     *          }
-     *
-     *          @PostMapping("/join")
-     *          public String joinMember(MemberDTO dto, BindingResult result) {
-     *          // First call: builds and caches validator
-     *          S2Validator<MemberDTO> validator = S2ValidatorFactory.getOrRegister("MEMBER_JOIN", this::getMemberValidator);
-     *
-     *          validator.validate(
-     *          dto, error -> result.rejectValue(
-     *          error.fieldName(), error.errorCode(),
-     *          error.errorArgs(), error.defaultMessage()
-     *          )
-     *          );
-     *
-     *          if (result.hasErrors()) {
-     *          return "join/form";
-     *          }
-     *          // Process successful join...
-     *          }
-     *          }
-     *
-     *          // Example 3: Multi-threaded safety demonstration
-     *          // Even if multiple threads call simultaneously, the supplier executes only once
-     *          ExecutorService executor = Executors.newFixedThreadPool(10);
-     *          for (int i = 0; i < 100; i++) {
-     *          executor.submit(() -> {
-     *          S2Validator<?> v = S2ValidatorFactory.getOrRegister(
-     *          "SHARED_KEY",
-     *          () -> S2Validator.builder().field("test").rule(S2RuleType.REQUIRED).build()
-     *          );
-     *          // All threads receive the exact same instance
-     *          });
-     *          }
-     *
-     *          // Example 4: Retrieve cached validator without supplier
-     *          S2Validator<?> cached = S2ValidatorFactory.getValidator("USER_JOIN");
-     *          if (cached != null) {
-     *          // Use cached validator
-     *          }
-     * }</pre>
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> S2Validator<T> getOrRegister(String contextKey, Supplier<S2Validator<T>> validatorSupplier) {
-        CacheEntry entry = validatorCache.get(contextKey);
-        if (entry != null) {
-            if (validatorSupplier != null && entry.supplierClass() != null
-                    && entry.supplierClass() != validatorSupplier.getClass()) {
-                // Debug level: distinct method references at the documented GET/POST call sites are different classes even for the same rules. | 디버그 수준: 문서의 GET/POST 호출처럼 규칙이 같아도 메서드 참조 위치가 다르면 클래스가 달라 정상 사용에서도 감지됨
-                if (warnedKeys.add(contextKey)) {
-                    if (S2Util.isKorean()) {
-                        logger.debug(
-                                "검증 컨텍스트 키 충돌이 감지되었습니다 ('{}'). 기존 공급자: {}, 신규 공급자: {}. 최초 등록된 검증기가 재사용됩니다.",
-                                contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
-                    } else {
-                        logger.debug(
-                                "Validation context key collision detected for '{}'. Existing supplier: {}, New supplier: {}. Initial validator will be reused.",
-                                contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
-                    }
-                }
-            }
-            return (S2Validator<T>) entry.validator();
-        }
-
-        return (S2Validator<T>) validatorCache.computeIfAbsent(contextKey, k -> {
-            S2Validator<T> validator = validatorSupplier.get();
-            Class<?> supplierClass = validatorSupplier != null ? validatorSupplier.getClass() : null;
-            return new CacheEntry(validator, supplierClass);
-        }).validator();
-    }
-
-    /**
-     * Retrieves a validator instance from the cache.
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 캐시에서 검증기 인스턴스를 조회합니다.
-     *
-     * @param key The context key registered in the cache | 캐시에 등록된 컨텍스트 키
-     * @return The registered S2Validator instance (or null if not found) | 등록된 S2Validator 인스턴스 (없으면 null)
-     */
-    public static S2Validator<?> getValidator(String key) {
-        CacheEntry entry = validatorCache.get(key);
-        return entry != null ? entry.validator() : null;
-    }
-
-    /**
-     * Clears all cached validators and warnings.
-     * <p>
-     * Intended for testing purposes to isolate validation configurations between test cases.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 캐시된 모든 검증기 및 경고 기록을 초기화합니다.
-     * <p>
-     * 테스트 케이스 간 검증기 상태를 격리하기 위한 목적으로 사용됩니다.
-     * </p>
-     */
-    public static void clear() {
-        validatorCache.clear();
-        warnedKeys.clear();
-    }
-
-    /**
-     * Returns a JSON string for sharing validation rules with the client (JavaScript).
-     * <p>
-     * The JSON returned by this method is structured to be interpretable by the
-     * {@code s2.validator.js} library. It is typically used in HTML data attributes
-     * or assigned directly to JavaScript variables.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 클라이언트(JavaScript)와 검증 규칙을 공유하기 위한 JSON 문자열을 반환합니다.
-     * <p>
-     * 이 메서드가 반환하는 JSON은 {@code s2.validator.js} 라이브러리에서 해석 가능한 구조이며,
-     * 주로 HTML의 data 속성에 담거나 JavaScript 변수에 직접 할당하여 사용합니다.
-     * </p>
-     *
-     * @param contextKey The registered validation context key | 등록된 검증 규칙 키
-     * @param locale     The locale for error message generation | 에러 메시지 처리를 위한 로케일
-     * @return A JSON string containing the validation rules | 서버에서 정의된 검증 규칙이 포함된 JSON 문자열
-     * @apiNote
-     *          <p>
-     *          <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
-     *          </p>
-     *
-     *          <pre>{@code
-     * // Controller (Java)
-     * model.addAttribute("validationRules", validator.getRulesJson());
-     *
-     * // View (HTML/Thymeleaf)
-     * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
-     *     &lt;input type="text" name="userId" /&gt;
-     *     &lt;button type="button" onclick="doSave()"&gt;저장&lt;/button&gt;
-     * &lt;/form&gt;
-     *
-     * // Script (JS)
-     * function doSave() {
-     *     const errors = S2Validator.validate('#saveForm');
-     * }
-     * }</pre>
-     *
-     *          <p>
-     *          <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
-     *          </p>
-     *
-     *          <pre>{@code
-     * const myRules = '[[${validationRules}]]';
-     *
-     * function doSave() {
-     *     const errors = S2Validator.validate('#saveForm', myRules);
-     * }
-     * }</pre>
-     */
-    public static String getRulesJson(String contextKey, Locale locale) {
-        S2Validator<?> validator = getValidator(contextKey);
-        return getRulesJson(validator, locale);
     }
 
     /**
@@ -345,9 +113,9 @@ public final class S2ValidatorFactory {
     public static String getRulesJson(S2Validator<?> validator, Locale locale) {
         if (validator == null) {
             if (S2Util.isKorean()) {
-                logger.warn("해당 키에 등록된 규칙이 없습니다.");
+                logger.warn("규칙을 내보낼 검증기가 null 입니다. 빈 규칙([])을 반환합니다.");
             } else {
-                logger.warn("No rules registered for the given key.");
+                logger.warn("The validator to export is null; returning empty rules ([]).");
             }
             return "[]";
         }

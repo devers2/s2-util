@@ -115,7 +115,7 @@ S2Validator는 클라이언트(화면) 연동 필요 여부에 따라 두 가지
 서비스 레이어나 REST API에서 DTO, VO, Map을 즉시 검증합니다. `.field()`에 별도 규칙을 지정하지 않으면 기본값으로 필수값(`REQUIRED`)이 자동 적용됩니다.
 
 ```java
-// 1) 즉시 예외 발생 모드 (Fail-Fast) — 실패 시 S2RuntimeException 발생
+// 1) 즉시 예외 발생 모드 (Fail-Fast) — 실패 시 S2ValidationException 발생
 S2Validator.of(command)
     .field("name", "이름") // 규칙 생략 시 기본 REQUIRED 자동 적용
     .field("email", "이메일").rule(S2RuleType.EMAIL) // 규칙 지정 시 기본 REQUIRED 미적용(선택 입력), 필수 체크 필요 시 명시적 추가 필요

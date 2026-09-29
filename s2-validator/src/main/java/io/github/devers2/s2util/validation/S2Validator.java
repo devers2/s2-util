@@ -313,13 +313,12 @@ public class S2Validator<T> implements Serializable {
      *         .ko("{0|은/는} 'ADM-'로 시작해야 합니다.")
      *     .build();
      *
-     * // Example 3: Register in factory for system-wide reuse
-     * S2ValidatorFactory.getOrRegister("USER_JOIN", () ->
-     *     S2Validator.builder()
-     *         .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-     *         .field("email", "이메일").rule(S2RuleType.EMAIL)
-     *         .build()
-     * );
+     * // Example 3: Keep a validator for reuse (field or Spring bean) and bind it in a controller
+     * private final S2Validator<UserDTO> joinValidator = S2Validator.<UserDTO>builder()
+     *     .field("userId", "아이디").rule(S2RuleType.REQUIRED)
+     *     .field("email", "이메일").rule(S2RuleType.EMAIL)
+     *     .build();
+     * S2BindValidator.of(joinValidator).validate(user, bindingResult);
      * }</pre>
      */
     @CheckReturnValue
@@ -1532,18 +1531,18 @@ public class S2Validator<T> implements Serializable {
     }
 
     /**
-     * Resets all global validation configurations and caches.
+     * Resets all global validation configurations.
      * <p>
-     * Clears default locale, validation bundle, resource bundle basename, and validator cache.
+     * Clears the default locale, validation bundle, and resource bundle basename.
      * Intended primarily for test teardown (e.g. {@code @AfterEach}).
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 모든 전역 검증 설정 및 캐시를 일괄 초기화합니다.
+     * 모든 전역 검증 설정을 일괄 초기화합니다.
      * <p>
-     * 기본 로케일, 검증 번들, 리소스 번들 기본 이름 및 검증기 캐시를 한 번에 초기화합니다.
+     * 기본 로케일, 검증 번들, 리소스 번들 기본 이름을 한 번에 초기화합니다.
      * 주로 단위 테스트의 {@code @AfterEach} 정리 작업에 사용됩니다.
      * </p>
      */
@@ -1551,7 +1550,6 @@ public class S2Validator<T> implements Serializable {
         resetDefaultLocale();
         resetValidationBundle();
         S2ResourceBundle.resetDefaultBasename();
-        S2ValidatorFactory.clear();
     }
 
     public List<S2Field<T>> getFields() {

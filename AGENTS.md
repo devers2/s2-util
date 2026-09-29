@@ -43,7 +43,7 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
 2. **비밀번호 확인 등 연관 필드 검증**:
    - 확인 필드가 비었을 때 통과되는 것을 방지하기 위해 반드시 `.rule(REQUIRED)`를 선행하고 커스텀 람다를 연결하십시오.
 3. **람다 예외 전파**:
-   - 커스텀 람다 내부에서 발생한 런타임 예외는 삼키지 말고 필드명을 포함한 `S2RuntimeException`으로 감싸서 전파해야 합니다.
+   - 커스텀 람다 내부에서 발생한 런타임 예외는 삼키지 말고 필드명을 포함한 `S2RuleExecutionException`으로 감싸서 전파해야 합니다.
 4. **서버 전용 검증 원칙 (Server-Only Rule)**:
    - 커스텀 람다 규칙(`Predicate`, `BiPredicate`)은 JVM 메모리 상의 바이트코드 객체이므로 클라이언트(`s2.validator.js`)로 JSON 직렬화되지 않으며, **오직 서버 사이드 검증 시에만 동작**합니다.
    - 클라이언트와 서버 양쪽에서 동일(교차)하게 검증되어야 하는 규칙은 람다 대신 `S2RuleType.REGEX` 또는 내장 규칙을 사용해야 합니다.
@@ -52,10 +52,11 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
 
 ## 3. 전역 상태 격리 및 인스턴스 패턴 우선
 
-1. **검증기 생성 권장 경로**:
-   - 전역 레지스트리(`S2ValidatorFactory`) 캐시 충돌을 방지하기 위해 `S2BindValidator.of(validator)` 인스턴스 직접 전달 방식을 기본 권장합니다.
+1. **검증기 연결 경로**:
+   - 전역 검증기 등록부(`S2ValidatorFactory.getOrRegister`, `S2BindValidator.context`)는 1.2.0 에서 삭제되었습니다. Spring 연동은 `S2BindValidator.of(validator)` 인스턴스 직접 전달 방식만 사용합니다.
+   - 문자열 키 기반 전역 캐시를 다시 도입하지 마십시오. 키가 첫 규칙에 고정되어 역할별 규칙이 경고 없이 공유되는 문제가 있었습니다.
 2. **전역 상태 초기화**:
-   - 단위 테스트 간 상태 격리를 위해 필요 시 `S2Validator.resetAll()`을 호출하십시오.
+   - 단위 테스트 간 상태 격리를 위해 필요 시 `S2Validator.resetAll()`을 호출하십시오 (기본 로케일, 검증 번들, 리소스 번들 기본 이름).
 
 ---
 

@@ -115,7 +115,7 @@ plugins {
 Validate any DTO, VO, or Map directly in your service or controller layer. When `.rule()` is omitted, the field is automatically treated as `REQUIRED`.
 
 ```java
-// Option 1: Fail-fast mode — throws S2RuntimeException immediately on the first failure
+// Option 1: Fail-fast mode — throws S2ValidationException immediately on the first failure
 S2Validator.of(command)
     .field("name", "Name") // Rule omitted -> REQUIRED by default
     .field("email", "Email").rule(S2RuleType.EMAIL) // Specifying rules disables default REQUIRED (optional); add REQUIRED explicitly if needed
