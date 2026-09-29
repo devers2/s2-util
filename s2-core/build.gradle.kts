@@ -46,6 +46,9 @@ extra["dynamicSourceInfoMap"] = mapOf(
  */
 extra["artifactTestClassNames"] = emptyList<String>()
 
+// Test-only: slf4j-api for the isolated SLF4J bridge test | 시험 전용: 격리된 SLF4J 브리지 시험용 slf4j-api
+val slf4jBridgeTest: Configuration by configurations.creating
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
@@ -79,4 +82,15 @@ dependencies {
     // 주의: 주석 처리하더라도 compileOnly 의존성으로 인해 IDE나 기본 test 태스크에서는 Caffeine이 클래스패스에 포함될 수 있어 주의 필요
     // 빌드 시 자동 실행되는 S2Util Core 기능 검증용 테스트에서는 확인 가능
     // testImplementation(libs.caffeine)
+
+    slf4jBridgeTest(libs.slf4j.api)
+}
+
+// Pass slf4j-api to the SLF4J bridge test as a jar path, not on the test class path, so other tests keep running without SLF4J. | SLF4J 브리지 시험에 slf4j-api 를 시험 클래스패스가 아닌 jar 경로로 넘겨, 다른 시험은 계속 SLF4J 없이 실행되도록 함
+tasks.named<Test>("test") {
+    val slf4jJars: FileCollection = slf4jBridgeTest
+    inputs.files(slf4jJars).withPropertyName("slf4jBridgeTestJars")
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-Ds2.test.slf4jApiJar=" + slf4jJars.singleFile.absolutePath)
+    })
 }

@@ -75,7 +75,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   not affected.
 - **Locale**: validators no longer snapshot the default locale at creation. `S2Validator.setDefaultLocale(null)` resets to
   the JVM default (was ignored).
-- **Logging**: `System.out`/`System.err` are no longer replaced and no banner thread is started.
+- **Logging**: `System.out`/`System.err` are no longer replaced and no banner thread is started. The SLF4J bridge
+  resolves methods once on the `org.slf4j.Logger` interface and calls them through bound `MethodHandle`s instead of
+  `Method.invoke` on every log call; without SLF4J on the class path the built-in logger is used as before.
 
 ### Added
 

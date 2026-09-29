@@ -69,7 +69,9 @@
   등)을 쓰면 `getRulesJson()`이 `IllegalStateException`을 던집니다. 서버 전용 검증기는 영향이 없습니다.
 - **로케일**: 검증기가 생성 시점의 기본 로케일을 복사해 두지 않습니다. `S2Validator.setDefaultLocale(null)`은 JVM 기본값으로 되돌립니다
   (이전에는 무시).
-- **로그**: `System.out`/`System.err`를 교체하지 않고 배너 스레드도 띄우지 않습니다.
+- **로그**: `System.out`/`System.err`를 교체하지 않고 배너 스레드도 띄우지 않습니다. SLF4J 브리지는 `org.slf4j.Logger`
+  인터페이스에서 메서드를 한 번 찾아 묶은 `MethodHandle`로 호출합니다(로그 호출마다 `Method.invoke`를 쓰지 않음). SLF4J 가 클래스패스에
+  없으면 이전과 같이 내장 로거를 사용합니다.
 
 ### 추가
 
