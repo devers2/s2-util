@@ -151,7 +151,7 @@ s2-core Version: 1.2.0 (2026-09-22)
 ```groovy
 dependencies {
     // Essential runtime dependencies for optional functionalities
-    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.3.0'
 }
 ```
 
