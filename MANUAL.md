@@ -180,7 +180,18 @@ S2Validator.of(userInput)
 boolean isValid = S2Validator.of(userInput, false)
     .field("age").rule(S2RuleType.MIN_VALUE, 20)
     .validate();
+
+// 3. Simple required check: omitting rules applies REQUIRED
+S2Validator.of(userInput)
+    .field("name", "Name")
+    .field("phone", "Phone")
+    .validate();
 ```
+
+> **A `field()` without rules is a required check.** Both the server and the browser (rules JSON) treat it as
+> `REQUIRED`. This does not apply to fields that have only custom lambda rules. The message is the built-in one
+> (`{0} is required.`); to change it per field, state the rule (`.rule(S2RuleType.REQUIRED).en("…")`), or to change it
+> globally, define the `valid.err.required` key in the [global message bundle](#1-3-global-configuration-resourcebundle---optional).
 
 ### B. Pattern: Blueprint Mode
 
