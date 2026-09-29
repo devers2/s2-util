@@ -1005,11 +1005,8 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       const rawRegex = rule.regex || rule.value; // REGEX는 value, 나머지 regex
       if (!rawRegex) return false;
       try {
-        let pattern = String(rawRegex);
-        // REGEX 타입의 경우 Java의 matcher.matches()와 동일하게 전체 일치(full match)를 보장
-        if (rule.type === 'REGEX' && !pattern.startsWith('^') && !pattern.endsWith('$')) {
-          pattern = `^(?:${pattern})$`;
-        }
+        // Always wrap to mirror Java matcher.matches(): one-sided anchors (^\d+) or anchors on a single alternative (^a|b$) would otherwise allow partial matches. | Java matcher.matches()와 같도록 항상 감쌈: 한쪽 앵커(^\d+)나 대체 한 갈래에만 걸린 앵커(^a|b$)는 부분 일치를 허용하기 때문
+        const pattern = `^(?:${String(rawRegex)})$`;
         return new RegExp(pattern).test(String(value));
       } catch (e) {
         console.error(

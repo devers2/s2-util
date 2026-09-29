@@ -193,6 +193,10 @@ public class ServerClientParityTest {
                 Arguments.of("NUMBER: 문자 포함 → 실패", S2RuleType.NUMBER, null, "123a5", false),
 
                 // ── TEXT_INTACT ───────────────────────────────────────────
+                Arguments.of("REGEX: 앞 앵커만 있는 정규식(^\\d+) → 123abc 실패", S2RuleType.REGEX, "^\\d+", "123abc", false),
+                Arguments.of("REGEX: 뒤 앵커만 있는 정규식(\\d+$) → abc123 실패", S2RuleType.REGEX, "\\d+$", "abc123", false),
+                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → ax 실패", S2RuleType.REGEX, "^a|b$", "ax", false),
+                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → b 성공", S2RuleType.REGEX, "^a|b$", "b", true),
                 Arguments.of("TEXT_INTACT: 한글+영문 → 성공", S2RuleType.TEXT_INTACT, null, "홍길동abc", true),
                 Arguments.of("TEXT_INTACT: 숫자 포함 → 실패", S2RuleType.TEXT_INTACT, null, "홍길동123", false),
 

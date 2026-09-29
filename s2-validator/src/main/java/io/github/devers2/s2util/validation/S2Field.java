@@ -31,7 +31,6 @@ import java.util.function.Predicate;
 
 import io.github.devers2.s2util.core.S2StringUtil;
 import io.github.devers2.s2util.core.S2Util;
-import io.github.devers2.s2util.exception.S2RuntimeException;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 import io.github.devers2.s2util.message.S2ResourceBundle;
@@ -795,14 +794,10 @@ public class S2Field<T> implements Serializable {
                             target != null ? target.getClass().getName() : "null");
                 }
                 return false;
+            } catch (S2RuleExecutionException e) {
+                throw e;
             } catch (RuntimeException e) {
-                String fieldInfo = (fieldName != null && !fieldName.isBlank())
-                        ? " on field '" + fieldName + "'"
-                        : "";
-                String message = S2Util.isKorean()
-                        ? "커스텀 람다 검증 실행 중 예외가 발생했습니다" + (fieldInfo.isEmpty() ? "" : " (필드: '" + fieldName + "')") + ": " + e.getMessage()
-                        : "Custom validation logic threw an exception" + fieldInfo + ": " + e.getMessage();
-                throw new S2RuntimeException(message, e);
+                throw new S2RuleExecutionException(fieldName, e);
             }
         }
 

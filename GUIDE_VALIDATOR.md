@@ -97,7 +97,7 @@ public class MemberController {
 **Purpose:** String key-based global caching for legacy compatibility or lazy-initialized singletons.
 
 ```java
-// Register validator globally (logs WARN if key is re-registered with different supplier)
+// Register validator globally (logs DEBUG if key is re-registered with different supplier)
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
     "USER_REGISTRATION",  // Unique key
     () -> S2Validator.<UserDTO>builder()
@@ -510,7 +510,7 @@ public String signup(
 ```
 1. ✅ Define rules once in a dedicated method
 
-2. ✅ Use Pattern C (Registry) for high-traffic apps
+2. ✅ Use Pattern C (S2BindValidator.of) by default; use Pattern D (Registry) only when a global cache is required
 
 3. ✅ Always perform server-side validation
 
@@ -562,7 +562,7 @@ if (result.hasErrors()) {
 ## 8. Performance Tips
 
 ```
-1. Use Pattern C (Registry Mode) for validators
+1. Validator construction is cheap, so Pattern C (S2BindValidator.of) is sufficient; keep instances in a field or bean to reuse them
 
 2. Cache validation results when possible
 
