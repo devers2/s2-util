@@ -117,6 +117,64 @@ public class CustomRuleBehaviorTest {
     }
 
     @Test
+    @DisplayName("람다 실행 오류는 S2RuleExecutionException, 입력 오류는 S2ValidationException 으로 구분되고 원인 문구는 메시지에 노출되지 않는다")
+    void testLambdaErrorAndValidationFailureHaveDistinctTypes() {
+        S2RuleExecutionException ruleEx = Assertions.assertThrows(S2RuleExecutionException.class, () -> {
+            S2Validator.check("ABC", "코드")
+                    .rule((String val) -> {
+                        throw new NullPointerException("secret-internal-detail");
+                    })
+                    .validate();
+        });
+        Assertions.assertFalse(ruleEx.getMessage().contains("secret-internal-detail"), "원인 예외 문구가 메시지에 노출되면 안 됨");
+        Assertions.assertInstanceOf(NullPointerException.class, ruleEx.getCause());
+
+        S2ValidationException valEx = Assertions.assertThrows(S2ValidationException.class, () -> {
+            S2Validator.check("USR-1", "코드")
+                    .rule((String val) -> val.startsWith("ADM-"))
+                    .validate();
+        });
+        Assertions.assertNull(valEx.getCause());
+        Assertions.assertFalse(S2RuleExecutionException.class.isInstance(valEx));
+    }
+
+    @Test
+    @DisplayName("와일드카드 행의 람다 실행 오류는 선언 이름(items[].qty)이 아닌 실제 행 경로(items[1].qty)를 담는다")
+    void testWildcardLambdaErrorUsesConcreteRowPath() {
+        Map<String, Object> row0 = new HashMap<>();
+        row0.put("qty", "1");
+        Map<String, Object> row1 = new HashMap<>();
+        row1.put("qty", "boom");
+        Map<String, Object> target = new HashMap<>();
+        target.put("items", List.of(row0, row1));
+
+        S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                .field("items[].qty", "수량")
+                .rule((String val) -> Integer.parseInt(val) > 0)
+                .build();
+
+        S2RuleExecutionException ex = Assertions.assertThrows(S2RuleExecutionException.class,
+                () -> validator.validate(target, err -> {}));
+        Assertions.assertEquals("items[1].qty", ex.getFieldName());
+        Assertions.assertInstanceOf(NumberFormatException.class, ex.getCause());
+    }
+
+    @Test
+    @DisplayName("예외 모드의 검증 실패는 필드 경로를 S2ValidationException 에 담는다")
+    void testValidationExceptionCarriesFieldName() {
+        Map<String, Object> target = new HashMap<>();
+        target.put("documentId", null);
+
+        S2ValidationException ex = Assertions.assertThrows(S2ValidationException.class, () -> {
+            S2Validator.of(target)
+                    .field("documentId", "문서 ID")
+                    .validate();
+        });
+        Assertions.assertEquals("documentId", ex.getFieldName());
+        Assertions.assertEquals(S2RuleType.REQUIRED.getErrorMessageKey(), ex.getErrorCode());
+    }
+
+    @Test
     @DisplayName("Builder 모드 및 Check 모드에서도 includeEmpty()가 정상 동작한다")
     void testBuilderAndCheckModesWithIncludeEmpty() {
         // Builder 모드

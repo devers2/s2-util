@@ -229,7 +229,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 
 **Usage:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
 
-Provides global thread-safe caching. The construction logic executes only once. Supplier class collisions on the same key trigger a `WARN` log, and tests can reset state via `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
+Provides global thread-safe caching. The construction logic executes only once. Supplier class collisions on the same key are logged at `DEBUG` level (method references at different call sites are distinct classes even for identical rules), and tests can reset state via `S2Validator.resetAll()` or `S2ValidatorFactory.clear()`.
 
 ```java
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->

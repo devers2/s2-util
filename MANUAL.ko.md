@@ -229,7 +229,7 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 
 **사용법:** `S2ValidatorFactory.getOrRegister()` / `S2BindValidator.context(key, supplier)`
 
-전역 싱글톤 캐시가 필요한 경우 사용합니다. 동일 키에 대해 서로 다른 공급자 클래스가 등록을 시도하면 경고(WARN) 로그가 출력되며, 테스트 격리가 필요한 경우 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`로 초기화할 수 있습니다.
+전역 싱글톤 캐시가 필요한 경우 사용합니다. 동일 키에 대해 서로 다른 공급자 클래스가 등록을 시도하면 디버그(DEBUG) 로그가 출력되며(규칙이 같아도 호출 위치가 다른 메서드 참조는 서로 다른 클래스이므로), 테스트 격리가 필요한 경우 `S2Validator.resetAll()` 또는 `S2ValidatorFactory.clear()`로 초기화할 수 있습니다.
 
 ```java
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister("JOIN_RULES", () ->

@@ -174,13 +174,14 @@ public final class S2ValidatorFactory {
         if (entry != null) {
             if (validatorSupplier != null && entry.supplierClass() != null
                     && entry.supplierClass() != validatorSupplier.getClass()) {
+                // Debug level: distinct method references at the documented GET/POST call sites are different classes even for the same rules. | 디버그 수준: 문서의 GET/POST 호출처럼 규칙이 같아도 메서드 참조 위치가 다르면 클래스가 달라 정상 사용에서도 감지됨
                 if (warnedKeys.add(contextKey)) {
                     if (S2Util.isKorean()) {
-                        logger.warn(
+                        logger.debug(
                                 "검증 컨텍스트 키 충돌이 감지되었습니다 ('{}'). 기존 공급자: {}, 신규 공급자: {}. 최초 등록된 검증기가 재사용됩니다.",
                                 contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
                     } else {
-                        logger.warn(
+                        logger.debug(
                                 "Validation context key collision detected for '{}'. Existing supplier: {}, New supplier: {}. Initial validator will be reused.",
                                 contextKey, entry.supplierClass().getName(), validatorSupplier.getClass().getName());
                     }

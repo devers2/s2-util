@@ -99,7 +99,7 @@ public class MemberController {
 **용도:** 문자열 키 기반 전역 캐시가 필요한 레거시 연동 또는 지연 초기화 싱글톤.
 
 ```java
-// 전역 등록 (키 충돌 시 WARN 로그 발생)
+// 전역 등록 (공급자 클래스가 다르면 DEBUG 로그 발생)
 S2Validator<UserDTO> validator = S2ValidatorFactory.getOrRegister(
     "USER_REGISTRATION",  // Unique key
     () -> S2Validator.<UserDTO>builder()
@@ -496,7 +496,7 @@ public String signup(
 
 ```
 1. ✅ 규칙을 별도 메서드에 정의하여 중복 정의 방지
-2. ✅ 대규모 트래픽 환경에서는 Pattern C (Registry 모드) 권장
+2. ✅ 기본은 Pattern C (S2BindValidator.of) 사용, 전역 캐시가 꼭 필요할 때만 Pattern D (Registry 모드)
 3. ✅ 항상 서버 측 최종 검증 수행 (클라이언트 단독 신뢰 금지)
 4. ✅ 클라이언트 동기화가 필요한 경우 내장 S2RuleType 활용
 5. ✅ 서버와 클라이언트 양쪽에서 검증 로직 테스트
@@ -542,7 +542,7 @@ if (result.hasErrors()) {
 ## 8. 성능 팁
 
 ```
-1. 검증기는 Pattern C (Registry 모드)로 싱글톤 캐싱하여 사용
+1. 검증기 빌드 비용은 매우 작으므로 Pattern C (S2BindValidator.of)로 충분하며, 필요 시 필드·빈에 보관해 재사용
 2. 가능한 경우 검증 결과를 캐싱하여 중복 검증 최소화
 3. 대량 루프 내부에서 무거운 람다 규칙 생성 회피
 4. 검증기 인스턴스를 재사용하고 매 요청마다 새로 생성하지 않기

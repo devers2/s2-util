@@ -1234,7 +1234,14 @@ public class S2Validator<T> implements Serializable {
                 for (S2CustomRule<?, ?> customCheck : customRules) {
                     @SuppressWarnings("unchecked")
                     S2CustomRule<Object, Object> typedCheck = (S2CustomRule<Object, Object>) customCheck;
-                    if (typedCheck.isInvalid(fieldValue, item)) {
+                    boolean invalid;
+                    try {
+                        invalid = typedCheck.isInvalid(fieldValue, item);
+                    } catch (S2RuleExecutionException e) {
+                        // Re-throw with the concrete row path (items[0].qty) instead of the declared name (items[].qty). | 선언 이름(items[].qty) 대신 실제 행 경로(items[0].qty)로 다시 던짐
+                        throw new S2RuleExecutionException(errorPath, e.getCause());
+                    }
+                    if (invalid) {
                         isValid = false;
                         reportError(
                                 errorHandler, new S2ValidationError(
@@ -1272,7 +1279,7 @@ public class S2Validator<T> implements Serializable {
      * Executes validation on the target object using default settings.
      * <p>
      * This method uses the default locale and no custom error handler.
-     * If validation fails and {@code failFastWithException} is true, throws {@link S2RuntimeException}.
+     * If validation fails and {@code failFastWithException} is true, throws {@link S2ValidationException}.
      * </p>
      *
      * <p>
@@ -1282,7 +1289,8 @@ public class S2Validator<T> implements Serializable {
      *
      * @param target The object to validate | 검증 대상 객체
      * @return {@code true} if validation passes | 검증 성공 시 true
-     * @throws S2RuntimeException If validation fails and exception mode is enabled | 검증 실패 및 예외 모드인 경우
+     * @throws S2ValidationException    If validation fails and exception mode is enabled | 검증 실패 및 예외 모드인 경우
+     * @throws S2RuleExecutionException If a custom rule throws while being evaluated | 커스텀 규칙 실행 중 예외가 발생한 경우
      */
     public boolean validate(T target) {
         return validate(target, null, null);
@@ -1361,7 +1369,7 @@ public class S2Validator<T> implements Serializable {
             boolean throwEx) {
         if (errorHandler == null) {
             if (throwEx)
-                throw new S2RuntimeException(error.defaultMessage());
+                throw new S2ValidationException(error);
             return false;
         }
         errorHandler.accept(error);
