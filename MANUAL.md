@@ -188,10 +188,20 @@ S2Validator.of(userInput)
     .validate();
 ```
 
-> **A `field()` without rules is a required check.** Both the server and the browser (rules JSON) treat it as
-> `REQUIRED`. This does not apply to fields that have only custom lambda rules. The message is the built-in one
-> (`{0} is required.`); to change it per field, state the rule (`.rule(S2RuleType.REQUIRED).en("…")`), or to change it
-> globally, define the `valid.err.required` key in the [global message bundle](#1-3-global-configuration-resourcebundle---optional).
+#### Required-check policy (intended design)
+
+| Declaration | Empty value | Notes |
+|---|---|---|
+| `.field("name", "Name")` | **Rejected** | With no rules, `REQUIRED` is applied. Shorthand for a simple required check. |
+| `.field("email", "Email").rule(EMAIL)` | **Accepted** | Once any rule is added, only the added rules apply. Format rules skip empty values. |
+| `.field("email", "Email").rule(REQUIRED).rule(EMAIL)` | **Rejected** | State `REQUIRED` when the value must also be present. |
+
+- The server and the browser (rules JSON) behave the same.
+- Rules that do not skip empty values: `ASSERT_TRUE`/`ASSERT_FALSE`, and custom lambdas with `.includeEmpty()`.
+- A field with only custom lambda rules counts as a field with rules, so `REQUIRED` is not applied.
+- The implicit check uses the built-in message (`{0} is required.`). To change it per field, state the rule
+  (`.rule(S2RuleType.REQUIRED).en("…")`); to change it globally, define the `valid.err.required` key in the
+  [global message bundle](#1-3-global-configuration-resourcebundle---optional).
 
 ### B. Pattern: Blueprint Mode
 
