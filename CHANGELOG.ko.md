@@ -18,10 +18,11 @@
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (경고 배너와 배너 스레드 제거)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (Error Prone 의 `@CheckReturnValue`로 대체)
-- **전역 검증기 등록부를 삭제했습니다.** `S2BindValidator.context(key, supplier)`, `S2ValidatorFactory.getOrRegister(key, supplier)`,
-  `S2ValidatorFactory.getValidator(key)`, `S2ValidatorFactory.getRulesJson(key, locale)`이 없어졌습니다. 키가 처음 만든 검증기에 고정되어
-  역할별로 다른 규칙이 경고 없이 공유됐고, 캐시로 아끼는 시간은 요청당 약 0.5µs 뿐이었습니다(GET 폼의 규칙 JSON 생성 약 15µs 는 캐시되지
-  않았음). `S2BindValidator.of(validator)`를 쓰십시오. 업그레이드 안내 참고.
+- **전역 검증기 등록부와 `S2ValidatorFactory`를 삭제했습니다.** `S2BindValidator.context(key, supplier)`와 `S2ValidatorFactory` 클래스
+  전체(`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`, `getRulesJson(validator, locale)`)가 없어졌습니다. 키가 처음 만든
+  검증기에 고정되어 역할별로 다른 규칙이 경고 없이 공유됐고, 캐시로 아끼는 시간은 요청당 약 0.5µs 뿐이었습니다(GET 폼의 규칙 JSON 생성
+  약 15µs 는 캐시되지 않았음). Spring 에서는 `S2BindValidator.of(validator)`, Spring 없이 규칙을 내보낼 때는
+  `validator.getRulesJson(locale)`을 쓰십시오. 업그레이드 안내 참고.
 
 ### 변경 (동작)
 
@@ -75,6 +76,8 @@
 - 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()`.
 - `S2BindValidator.of(validator)`: 검증기 인스턴스를 연결해 `validate(target, bindingResult)`와 `getRulesJson()` 제공.
+- `S2Validator.getRulesJson()` / `getRulesJson(locale)`: 검증기 규칙을 브라우저용 JSON 으로 내보냄
+  (`S2ValidatorFactory.getRulesJson(validator, locale)` 대체).
 - 커스텀 람다 규칙용 `.includeEmpty()` 수식어.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - 브라우저: `{필드명}_error` 대리 요소가 없는 히든·비표시 필드 옆에 1px 앵커를 만들어 기본 오류 말풍선을 표시.
@@ -98,6 +101,7 @@
    S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
    ```
    규칙 생성 자체가 무거운 경우에만 필드나 Spring 빈에 보관하십시오(`S2BindValidator.of(signupValidator)`).
+   Spring 없이 쓰던 `S2ValidatorFactory.getRulesJson(validator, locale)`은 `validator.getRulesJson(locale)`로 바꾸십시오.
 3. `s2.validator.js`를 애플리케이션에 복사해 쓰고 있다면 사본을 교체하거나, jar 의 `/s2-util/js/s2.validator.js` 경로로 서빙하십시오.
    위의 브라우저 동작 변경은 이 파일에 들어 있습니다.
 4. 이전 `PASSWORD` 정책을 유지하려면 `.rule(S2RuleType.REGEX, "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$")`를 사용합니다.

@@ -18,11 +18,12 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (the warning banner and its thread were removed)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (replaced by Error Prone's `@CheckReturnValue`)
-- **The global validator registry is removed.** `S2BindValidator.context(key, supplier)`,
-  `S2ValidatorFactory.getOrRegister(key, supplier)`, `S2ValidatorFactory.getValidator(key)`, and
-  `S2ValidatorFactory.getRulesJson(key, locale)` no longer exist. A key was bound to the first validator built for it, so
-  rule sets that differed by role were silently shared, and caching saved only ~0.5µs per request (the rules JSON for
-  the GET form, ~15µs, was never cached). Use `S2BindValidator.of(validator)`; see Upgrade notes.
+- **The global validator registry and `S2ValidatorFactory` are removed.** `S2BindValidator.context(key, supplier)` and
+  the whole `S2ValidatorFactory` class (`getOrRegister`, `getValidator`, `getRulesJson(key, locale)`,
+  `getRulesJson(validator, locale)`) no longer exist. A key was bound to the first validator built for it, so rule sets
+  that differed by role were silently shared, and caching saved only ~0.5µs per request (the rules JSON for the GET
+  form, ~15µs, was never cached). Use `S2BindValidator.of(validator)` with Spring, and `validator.getRulesJson(locale)`
+  to export rules without Spring; see Upgrade notes.
 
 ### Changed (behavior)
 
@@ -81,6 +82,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()` for resetting global state (e.g. in tests).
 - `S2BindValidator.of(validator)`: bind a validator instance for `validate(target, bindingResult)` and `getRulesJson()`.
+- `S2Validator.getRulesJson()` / `getRulesJson(locale)`: export the validator's rules as JSON for the browser (replaces
+  `S2ValidatorFactory.getRulesJson(validator, locale)`).
 - `.includeEmpty()` modifier for custom lambda rules.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - Browser: a 1px anchor next to hidden/non-rendered fields without a `{field}_error` proxy, so the native message is shown.
@@ -105,7 +108,8 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
    S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
    ```
    Keep the validator in a field or Spring bean (`S2BindValidator.of(signupValidator)`) only if building the rules is
-   itself expensive.
+   itself expensive. Without Spring, replace `S2ValidatorFactory.getRulesJson(validator, locale)` with
+   `validator.getRulesJson(locale)`.
 3. If you copied `s2.validator.js` into your application, replace the copy (or serve it from the jar at
    `/s2-util/js/s2.validator.js`); the browser behavior above lives in that file.
 4. To keep the previous `PASSWORD` policy, use

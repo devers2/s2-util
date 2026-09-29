@@ -135,7 +135,7 @@ public class DefectFixParityTest {
                 "에러 메시지에 내부 영문 필드명 'startDate'가 노출되어서는 안 됨");
 
         // JSON 생성 시에도 메시지에 한글 라벨이 치환되었는지 확인
-        String json = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+        String json = validator.getRulesJson(Locale.KOREAN);
         Assertions.assertTrue(json.contains("비밀번호"), "규칙 JSON 메시지에도 한글 라벨이 반영되어야 함");
         Assertions.assertFalse(json.contains("[password]"), "규칙 JSON 메시지에 영문 필드명이 노출되면 안 됨");
     }
@@ -198,7 +198,7 @@ public class DefectFixParityTest {
         Assertions.assertTrue(errors.get(0).defaultMessage().contains("시작일"), errors.get(0).defaultMessage());
         Assertions.assertEquals("시작일", errors.get(0).errorArgs()[1]);
 
-        String json = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+        String json = validator.getRulesJson(Locale.KOREAN);
         Assertions.assertTrue(json.contains("종료일은 시작일"), json);
         Assertions.assertFalse(json.contains("start보다"), json);
     }

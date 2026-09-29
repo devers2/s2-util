@@ -116,8 +116,8 @@ import com.google.errorprone.annotations.CheckReturnValue;
  * <h3>Usage Modes (사용 모드)</h3>
  * <ul>
  * <li><b>Immediate ({@link #of(Object)}):</b> Quick validation of a specific object instance.</li>
- * <li><b>Blueprint ({@link #builder()}):</b> Define reusable validation logic to be stored
- * in {@link S2ValidatorFactory}.</li>
+ * <li><b>Blueprint ({@link #builder()}):</b> Define reusable validation logic; the same instance validates on the
+ * server and exports its rules to the browser via {@link #getRulesJson()}.</li>
  * <li><b>Single ({@link #check(Object)}):</b> Ad-hoc validation for individual variables.</li>
  * </ul>
  *
@@ -264,9 +264,8 @@ public class S2Validator<T> implements Serializable {
     /**
      * Starts a builder chain to define a reusable {@link S2Validator}.
      * <p>
-     * Use this mode to define a "Blueprint" of validation logic. The resulting
-     * validator can be registered in {@link S2ValidatorFactory} for high-performance
-     * reuse across different service layers.
+     * Use this mode to define a "Blueprint" of validation logic. The resulting validator can be reused (keep it in a
+     * field or Spring bean) and exports its rules to the browser via {@link #getRulesJson()}.
      * </p>
      *
      * <p>
@@ -274,8 +273,8 @@ public class S2Validator<T> implements Serializable {
      * </p>
      * 재사용 가능한 {@link S2Validator}를 정의하기 위한 빌더 체인을 시작합니다.
      * <p>
-     * 검증 로직의 '설계도(Blueprint)'를 정의할 때 사용하며, 생성된 인스턴스는 {@link S2ValidatorFactory}에
-     * 등록하여 시스템 전반에서 성능 효율적으로 재사용할 수 있습니다.
+     * 검증 로직의 '설계도(Blueprint)'를 정의할 때 사용하며, 생성된 인스턴스는 필드나 Spring 빈에 두고 재사용할 수 있고
+     * {@link #getRulesJson()}으로 브라우저용 규칙을 내보냅니다.
      * </p>
      *
      * @param <T> The type of the object this validator will handle | 이 검증기가 처리할 객체의 타입
@@ -1391,6 +1390,65 @@ public class S2Validator<T> implements Serializable {
      */
     public boolean validate(T target, Consumer<S2ValidationError> handler, Locale locale) {
         return new Runner<>(this).run(target, handler, locale);
+    }
+
+    /**
+     * Exports this validator's rules as JSON for the browser validator ({@code s2.validator.js}) using the default
+     * locale ({@link #setDefaultLocale(Locale)}).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 이 검증기의 규칙을 브라우저 검증기({@code s2.validator.js})용 JSON 으로 내보냅니다. 기본 로케일({@link #setDefaultLocale(Locale)})을
+     * 사용합니다.
+     *
+     * @return The rules JSON | 규칙 JSON
+     * @throws IllegalStateException If a REGEX rule uses Java-only syntax the browser cannot evaluate | REGEX 규칙이 브라우저에서
+     *                               평가할 수 없는 Java 전용 문법을 쓰는 경우
+     * @see #getRulesJson(Locale)
+     */
+    public String getRulesJson() {
+        return getRulesJson(getDefaultLocale());
+    }
+
+    /**
+     * Exports this validator's rules as JSON for the browser validator ({@code s2.validator.js}).
+     * <p>
+     * The JSON includes field names, labels, rule types, criteria, regex patterns, conditions, nested rules, and error
+     * messages rendered for {@code locale}. Custom lambda rules are server-only and are not exported. Use the same
+     * validator (or rule definition) for the form page and the submit handler so both apply identical rules.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 이 검증기의 규칙을 브라우저 검증기({@code s2.validator.js})용 JSON 으로 내보냅니다.
+     * <p>
+     * JSON 에는 필드명, 라벨, 규칙 타입, 기준값, 정규식, 조건, 중첩 규칙, {@code locale}로 만든 오류 메시지가 들어갑니다. 커스텀 람다 규칙은
+     * 서버 전용이라 내보내지 않습니다. 폼 화면과 제출 처리에 같은 검증기(또는 규칙 정의)를 쓰면 양쪽이 동일한 규칙을 적용합니다.
+     * </p>
+     *
+     * @param locale The locale for error messages (null means the default locale) | 오류 메시지 로케일 (null 이면 기본 로케일)
+     * @return The rules JSON | 규칙 JSON
+     * @throws IllegalStateException If a REGEX rule uses Java-only syntax the browser cannot evaluate | REGEX 규칙이 브라우저에서
+     *                               평가할 수 없는 Java 전용 문법을 쓰는 경우
+     * @apiNote
+     *
+     *          <pre>{@code
+     * // Controller (Java) - Spring: S2BindValidator.of(validator).getRulesJson() resolves the request locale
+     * model.addAttribute("validationRules", validator.getRulesJson(locale));
+     *
+     * // View (Thymeleaf): forms with data-s2-rules are validated automatically on submit
+     * <form id="saveForm" th:data-s2-rules="${validationRules}">
+     *     <input type="text" name="userId" />
+     * </form>
+     *
+     * // Manual call (JS): errors is an object { fieldName: [messages] }, empty when valid
+     * const errors = S2Validator.validate('#saveForm');
+     * }</pre>
+     */
+    public String getRulesJson(Locale locale) {
+        return S2RulesJsonWriter.write(this, locale != null ? locale : getDefaultLocale());
     }
 
     /**

@@ -226,7 +226,7 @@ public class FormPathParityTest {
         Set<String> serverInvalid = new TreeSet<>();
         validator.validate(toServerTarget(fields), error -> serverInvalid.add(error.fieldName()), Locale.KOREAN);
 
-        String rulesJson = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+        String rulesJson = validator.getRulesJson(Locale.KOREAN);
         Set<String> clientInvalid = clientInvalidFields(rulesJson, fields);
 
         Assertions.assertEquals(serverInvalid, clientInvalid,

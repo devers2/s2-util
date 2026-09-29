@@ -144,7 +144,7 @@ if (!isValid) {
 
 ##### [Controller]
 
-> **참고:** 이 예제는 Spring Framework 통합을 가정합니다. Spring이 없는 환경에서도 `S2Validator` 및 `S2ValidatorFactory`를 직접 사용하여 검증할 수 있으나, `BindingResult` 연동은 불가능합니다.
+> **참고:** 이 예제는 Spring Framework 통합을 가정합니다. Spring 이 없는 환경에서는 검증기를 직접 사용합니다: 서버는 `validator.validate(target, errorHandler)`, 브라우저용 규칙은 `validator.getRulesJson(locale)`. `BindingResult` 연동만 불가능합니다.
 
 ```java
 private S2Validator<UserCommand> profileValidator() {

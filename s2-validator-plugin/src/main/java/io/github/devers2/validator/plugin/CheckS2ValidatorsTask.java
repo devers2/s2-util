@@ -270,7 +270,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                         + "체이닝 완결성 검사 통과");
             }
 
-            // S2BindValidator/S2ValidatorFactory로 얻은 검증기가 validate() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
+            // S2BindValidator.of(...)로 바인딩한 검증기가 validate()/getRulesJson() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
             logBindValidatorWarnings(bindWarningsByFile, projectDir);
 
             boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty();
@@ -382,7 +382,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                 chainingErrors.addAll(analyzeChainingCompleteness(cu));
             }
 
-            if (content.contains("S2BindValidator") || content.contains("S2ValidatorFactory")) {
+            if (content.contains("S2BindValidator")) {
                 bindWarnings.addAll(analyzeBindValidatorUsage(cu));
             }
 

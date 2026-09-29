@@ -475,7 +475,7 @@ public class ServerClientParityTest {
                 .field("items", "주문항목").rule(S2RuleType.EACH, itemValidator)
                 .build();
 
-        String json = S2ValidatorFactory.getRulesJson(validator, java.util.Locale.KOREAN);
+        String json = validator.getRulesJson(java.util.Locale.KOREAN);
 
         // JS에서 JSON을 파싱하고 구조를 검증
         jsContext.eval("js", "var __testRules = " + json + ";");

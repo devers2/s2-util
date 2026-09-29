@@ -11,7 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Tests for {@link S2RegexCompatibility} and its enforcement in {@link S2ValidatorFactory#getRulesJson(S2Validator, Locale)}.
+ * Tests for {@link S2RegexCompatibility} and its enforcement in {@link S2Validator#getRulesJson(Locale)}.
  */
 public class S2RegexCompatibilityTest {
 
@@ -63,7 +63,7 @@ public class S2RegexCompatibilityTest {
         Assertions.assertTrue(validator.validate(Map.of("code", "ABC"), e -> {}));
 
         IllegalStateException ex = Assertions.assertThrows(IllegalStateException.class,
-                () -> S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN));
+                () -> validator.getRulesJson(Locale.KOREAN));
         Assertions.assertTrue(ex.getMessage().contains("code") && ex.getMessage().contains("(?i)^abc$"), ex.getMessage());
     }
 
@@ -72,6 +72,6 @@ public class S2RegexCompatibilityTest {
         S2Validator<Object> child = S2Validator.builder().field("zip", "우편번호").rule(S2RuleType.REGEX, "\\p{Digit}{5}").build();
         S2Validator<Object> parent = S2Validator.builder().field("address", "주소").rule(S2RuleType.NESTED, child).build();
 
-        Assertions.assertThrows(IllegalStateException.class, () -> S2ValidatorFactory.getRulesJson(parent, Locale.KOREAN));
+        Assertions.assertThrows(IllegalStateException.class, () -> parent.getRulesJson(Locale.KOREAN));
     }
 }
