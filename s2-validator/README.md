@@ -51,9 +51,10 @@ While standard Bean Validation (JSR-380 / Hibernate Validator) works well for st
    - **Basic**: REQUIRED, ASSERT_TRUE, ASSERT_FALSE, EQUALS_FIELD
    - **String**: LENGTH, MIN_LENGTH, MAX_LENGTH, REGEX
    - **Numeric**: MIN_VALUE, MAX_VALUE, NUMBER, MIN_BYTE, MAX_BYTE
-   - **Format**: EMAIL, URL, INTERNATIONAL_TEL_NO
+   - **Format**: EMAIL, INTERNATIONAL_TEL_NO, LOGIN_ID, PASSWORD
    - **Korea-specific Format** 🇰🇷: MPHONE_NO, TEL_NO, ZIP, BIZRNO, NWINO, JUMIN, PASSWORD_ANSWR
    - **Date**: DATE, DATE_AFTER, DATE_BEFORE
+   - **Structure**: NESTED, EACH
    - **Text**: TEXT_INTACT, TEXT_COMBINE
    - **Custom**: CustomRule for application-specific validation logic
 

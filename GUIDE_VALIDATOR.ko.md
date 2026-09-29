@@ -151,7 +151,7 @@ S2Validator는 `S2RuleType` 열거형을 통해 다양한 내장 검증 규칙�
 .field("password", "비밀번호")
     .rule(S2RuleType.REQUIRED)
     .rule(S2RuleType.MIN_LENGTH, 8)      // At least 8 characters
-    .rule(S2RuleType.PATTERN, "^[A-Za-z0-9]+$")  // Alphanumeric only
+    .rule(S2RuleType.REGEX, "^[A-Za-z0-9]+$")  // Alphanumeric only
 ```
 
 **Common Rules:**
@@ -518,10 +518,13 @@ try {
     S2Validator.of(data)
         .field("email").rule(S2RuleType.EMAIL)
         .validate();
-} catch (S2RuntimeException e) {
-    // 상세 오류 정보 획득
+} catch (S2ValidationException e) {
+    // 상세 오류 정보 획득 (최초 실패 1건)
     String message = e.getMessage();
-    List<S2ErrorDetail> errors = e.getErrors();
+    String field = e.getFieldName();     // 예: "email" 또는 "items[0].name"
+    String errorCode = e.getErrorCode(); // 실패한 규칙의 메시지 키
+} catch (S2RuleExecutionException e) {
+    // 커스텀 규칙(람다) 자체에서 예외 발생. 원인 예외는 e.getCause()
 }
 ```
 

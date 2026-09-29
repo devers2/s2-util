@@ -269,7 +269,7 @@ public final class S2ValidatorFactory {
      *
      * // Script (JS)
      * function doSave() {
-     *     const errors = S2Validator.validateForm('#saveForm');
+     *     const errors = S2Validator.validate('#saveForm');
      * }
      * }</pre>
      *
@@ -281,7 +281,7 @@ public final class S2ValidatorFactory {
      * const myRules = '[[${validationRules}]]';
      *
      * function doSave() {
-     *     const errors = S2Validator.validateForm('#saveForm', myRules);
+     *     const errors = S2Validator.validate('#saveForm', myRules);
      * }
      * }</pre>
      */
@@ -326,7 +326,7 @@ public final class S2ValidatorFactory {
      *
      * // Script (JS)
      * function doSave() {
-     *     const errors = S2Validator.validateForm('#saveForm');
+     *     const errors = S2Validator.validate('#saveForm');
      * }
      * }</pre>
      *
@@ -338,7 +338,7 @@ public final class S2ValidatorFactory {
      * const myRules = '[[${validationRules}]]';
      *
      * function doSave() {
-     *     const errors = S2Validator.validateForm('#saveForm', myRules);
+     *     const errors = S2Validator.validate('#saveForm', myRules);
      * }
      * }</pre>
      */
