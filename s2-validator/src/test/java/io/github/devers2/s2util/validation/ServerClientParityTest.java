@@ -259,6 +259,14 @@ public class ServerClientParityTest {
                 Arguments.of("BIZRNO: 하이픈 형식 → 성공", S2RuleType.BIZRNO, null, "123-45-67890", true),
                 Arguments.of("BIZRNO: 10자리 숫자 → 성공", S2RuleType.BIZRNO, null, "1234567890", true),
                 Arguments.of("BIZRNO: 잘못된 형식 → 실패", S2RuleType.BIZRNO, null, "12345", false),
+                Arguments.of("BIZRNO: 기본값은 검증번호 미검사, 임의 번호 → 성공", S2RuleType.BIZRNO, null, "123-45-67890", true),
+                Arguments.of("BIZRNO(true): 임의 번호(검증번호 불일치) → 실패", S2RuleType.BIZRNO, true, "123-45-67890", false),
+                Arguments.of("BIZRNO(true): 유효한 번호 → 성공", S2RuleType.BIZRNO, true, "220-81-62517", true),
+                Arguments.of("BIZRNO(true): 9번째 자리 가산이 필요한 유효 번호, 하이픈 없음 → 성공", S2RuleType.BIZRNO, true, "1248100998", true),
+                Arguments.of("BIZRNO(true): 마지막 자리만 틀림 → 실패", S2RuleType.BIZRNO, true, "124-81-00997", false),
+                Arguments.of("BIZRNO(\"true\"): 문자열 기준값도 검증번호 검사 → 실패", S2RuleType.BIZRNO, "true", "123-45-67890", false),
+                Arguments.of("BIZRNO(true): 형식 불일치 → 실패", S2RuleType.BIZRNO, true, "12-345-67890", false),
+                Arguments.of("BIZRNO(true): 빈값 → 성공(skip)", S2RuleType.BIZRNO, true, null, true),
 
                 // ── NWINO ────────────────────────────────────────────────
                 Arguments.of("NWINO: 하이픈 형식 → 성공", S2RuleType.NWINO, null, "123-45-67890-1", true),
