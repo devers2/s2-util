@@ -18,6 +18,10 @@
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (경고 배너와 배너 스레드 제거)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (Error Prone 의 `@CheckReturnValue`로 대체)
+- **전역 검증기 등록부를 삭제했습니다.** `S2BindValidator.context(key, supplier)`, `S2ValidatorFactory.getOrRegister(key, supplier)`,
+  `S2ValidatorFactory.getValidator(key)`, `S2ValidatorFactory.getRulesJson(key, locale)`이 없어졌습니다. 키가 처음 만든 검증기에 고정되어
+  역할별로 다른 규칙이 경고 없이 공유됐고, 캐시로 아끼는 시간은 요청당 약 0.5µs 뿐이었습니다(GET 폼의 규칙 JSON 생성 약 15µs 는 캐시되지
+  않았음). `S2BindValidator.of(validator)`를 쓰십시오. 업그레이드 안내 참고.
 
 ### 변경 (동작)
 
@@ -45,8 +49,21 @@
 - **예외 모드**: 검증 실패는 `S2ValidationException`(`getFieldName()` / `getErrorCode()` 제공), 커스텀 규칙 내부 오류는
   `S2RuleExecutionException`(원인 예외는 메시지가 아니라 `getCause()`로만 제공)을 던집니다. 둘 다 `S2RuntimeException`의 하위형이라
   기존 `catch (S2RuntimeException e)` 코드는 그대로 동작합니다.
-- **등록부**: 같은 컨텍스트 키의 공급자 클래스 충돌은 `DEBUG`로 기록합니다 (문서의 GET/POST 사용 형태에서 거짓 `WARN`이 떴습니다).
-  `S2BindValidator.of(validator)`를 권장합니다.
+- **메시지**:
+  - 받침을 판별할 수 없는 단어(영문·기호)에도 조사를 빠뜨리지 않습니다:
+    `[documentId] 필수 입력 항목입니다.` 대신 `[documentId]은(는) 필수 입력 항목입니다.`
+  - `ASSERT_TRUE`: "{0|을/를} 선택(동의)해야 합니다." / "{0} must be checked." (이전 "반드시 true여야 합니다");
+    `ASSERT_FALSE`: "{0|은/는} 선택할 수 없습니다." / "{0} must not be checked."
+  - 와일드카드 행의 상대 표기 비교 대상(`items[].end` → `"start"`)도 `start`가 아니라 라벨(`시작일`)로 보여 줍니다.
+  - 순환 참조 오류는 번들 키 `valid.err.circular`(이전 `ERR_CIRCULAR_REFERENCE`)를 쓰고 로케일에 맞춰 표시합니다
+    ("{0}에서 순환 참조가 감지되었습니다."). 이전에는 항상 한국어였습니다.
+- **중첩 깊이**: `NESTED`/`EACH`는 64단계에서 멈추고 `valid.err.maxdepth`를 보고합니다 (`StackOverflowError` 방지).
+- **`check(value, label)`**: 예외의 필드 이름이 내부 키 `"value"` 대신 라벨입니다.
+- **`EMAIL`**: 최상위 도메인 2~63자를 허용합니다 (이전 2~6자라 `.technology` 등을 거부). 빈 레이블(`b..com`)과 `-`로 시작·끝나는 레이블은
+  거부합니다.
+- **브라우저 히든 필드**: 1px 앵커가 와일드카드 행에도 적용되고, `display:none` 컨테이너(닫힌 탭·아코디언) 안의 필드는 가장 바깥 숨은
+  컨테이너 뒤에 앵커를 둡니다. 라디오·체크박스 그룹은 앵커 하나, 메시지는 `aria-hidden` 대신 `aria-label`로 제공하며, 렌더링된
+  `position:fixed` 필드를 숨은 것으로 오판하지 않습니다.
 - **클라이언트 내보내기**: `REGEX` 규칙이 Java 전용 문법(`(?i)`, 소유 한정자, 원자 그룹, `\p{…}`, `\A`/`\z`, `\Q…\E`, 문자 클래스 교집합
   등)을 쓰면 `getRulesJson()`이 `IllegalStateException`을 던집니다. 서버 전용 검증기는 영향이 없습니다.
 - **로케일**: 검증기가 생성 시점의 기본 로케일을 복사해 두지 않습니다. `S2Validator.setDefaultLocale(null)`은 JVM 기본값으로 되돌립니다
@@ -55,9 +72,9 @@
 
 ### 추가
 
-- 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`, `S2ValidatorFactory.clear()`,
+- 전역 상태 초기화(예: 시험): `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()`.
-- `S2BindValidator.of(validator)`: 전역 등록부 없이 검증기 인스턴스를 직접 연결.
+- `S2BindValidator.of(validator)`: 검증기 인스턴스를 연결해 `validate(target, bindingResult)`와 `getRulesJson()` 제공.
 - 커스텀 람다 규칙용 `.includeEmpty()` 수식어.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - 브라우저: `{필드명}_error` 대리 요소가 없는 히든·비표시 필드 옆에 1px 앵커를 만들어 기본 오류 말풍선을 표시.
@@ -71,15 +88,27 @@
 ### 업그레이드 안내
 
 1. `s2-support`를 `s2-core`와 함께 올리십시오 (호환성 참고).
-2. `s2.validator.js`를 애플리케이션에 복사해 쓰고 있다면 사본을 교체하거나, jar 의 `/s2-util/js/s2.validator.js` 경로로 서빙하십시오.
+2. 등록부를 `S2BindValidator.of(...)`로 바꾸십시오. GET 폼과 POST 처리가 계속 같은 규칙 정의를 쓰므로 동일한 규칙이 적용됩니다:
+   ```java
+   // 이전
+   S2BindValidator.context("signup", this::signupRules).getRulesJson();    // GET
+   S2BindValidator.context("signup", this::signupRules).validate(cmd, r);  // POST
+   // 이후
+   S2BindValidator.of(signupRules()).getRulesJson();    // GET
+   S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
+   ```
+   규칙 생성 자체가 무거운 경우에만 필드나 Spring 빈에 보관하십시오(`S2BindValidator.of(signupValidator)`).
+3. `s2.validator.js`를 애플리케이션에 복사해 쓰고 있다면 사본을 교체하거나, jar 의 `/s2-util/js/s2.validator.js` 경로로 서빙하십시오.
    위의 브라우저 동작 변경은 이 파일에 들어 있습니다.
-3. 이전 `PASSWORD` 정책을 유지하려면 `.rule(S2RuleType.REGEX, "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$")`를 사용합니다.
-4. 이전 `JUMIN` 검증번호 검사를 유지하려면 `.rule(S2RuleType.JUMIN, true)`를 사용합니다.
-5. 빈 값에서도 실행해야 하는 커스텀 람다(예: "두 필드 중 하나 필수")는 `.includeEmpty()`가 필요합니다.
-6. 예외 모드 실패를 `S2RuntimeException`으로 처리하고 있다면, `S2ValidationException`(입력 오류 → 400)과
+4. 이전 `PASSWORD` 정책을 유지하려면 `.rule(S2RuleType.REGEX, "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$")`를 사용합니다.
+5. 이전 `JUMIN` 검증번호 검사를 유지하려면 `.rule(S2RuleType.JUMIN, true)`를 사용합니다.
+6. 빈 값에서도 실행해야 하는 커스텀 람다(예: "두 필드 중 하나 필수")는 `.includeEmpty()`가 필요합니다.
+7. 예외 모드 실패를 `S2RuntimeException`으로 처리하고 있다면, `S2ValidationException`(입력 오류 → 400)과
    `S2RuleExecutionException`(버그 → 500)을 나눠 처리하는 것을 검토하십시오.
 
 ## s2-validator-plugin [1.2.0] - 미배포
 
 - **Configuration cache**: `checkS2Validators`가 실행 시점에 `getProject()`를 호출하지 않아 `--configuration-cache`에서 동작합니다.
+- **바인딩 검사**: `S2BindValidator.of(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된
+  `context`/`getOrRegister`/`getValidator` 검사는 없앴습니다.
 - **record DTO**: record 컴포넌트를 필드로 인식하며, 소스를 Java 17 언어 수준으로 파싱합니다.
