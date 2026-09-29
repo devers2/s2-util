@@ -146,7 +146,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.1.3'
+    id 'io.github.devers2.validator' version '1.2.0'
 }
 ```
 
