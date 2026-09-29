@@ -67,11 +67,36 @@ public interface S2FieldStep<T> {
     interface BaseStep<T> {
         /**
          * Starts a new field validation configuration.
+         * <p>
+         * <b>Required-check policy (intended design):</b>
+         * </p>
+         * <ul>
+         * <li><b>No rules</b> ({@code field("name", "Name")} alone): {@link S2RuleType#REQUIRED} is applied, on the
+         * server and in the browser (rules JSON). This is the shorthand for a simple required check.</li>
+         * <li><b>Any rule added</b>: only the rules you add apply; {@code REQUIRED} is <b>not</b> implied. Other rules
+         * skip empty values (except {@code ASSERT_TRUE}/{@code ASSERT_FALSE} and custom rules with
+         * {@code includeEmpty()}), so {@code field("email").rule(EMAIL)} accepts an empty email. Add
+         * {@code .rule(REQUIRED)} explicitly when the field must also be filled.</li>
+         * <li>The implicit check uses the built-in message or the bundle key {@code valid.err.required}; to set a
+         * per-field message, state {@code .rule(REQUIRED)} and add {@code .ko(...)}/{@code .message(...)}.</li>
+         * </ul>
          *
          * <p>
          * <b>[한국어 설명]</b>
          * </p>
          * 새로운 필드에 대한 검증 설정을 시작합니다.
+         * <p>
+         * <b>필수 검증 정책 (의도된 설계):</b>
+         * </p>
+         * <ul>
+         * <li><b>규칙 없음</b>({@code field("name", "이름")}만 선언): 서버와 브라우저(규칙 JSON) 모두 {@link S2RuleType#REQUIRED}를
+         * 적용합니다. 간단한 필수 검증을 위한 축약형입니다.</li>
+         * <li><b>규칙을 하나라도 추가</b>: 추가한 규칙만 적용되며 {@code REQUIRED}는 <b>포함되지 않습니다</b>. 다른 규칙은 빈 값을
+         * 건너뛰므로({@code ASSERT_TRUE}/{@code ASSERT_FALSE}, {@code includeEmpty()}를 붙인 커스텀 규칙 제외)
+         * {@code field("email").rule(EMAIL)}은 빈 이메일을 통과시킵니다. 값이 반드시 있어야 하면 {@code .rule(REQUIRED)}를 명시하십시오.</li>
+         * <li>암묵적 필수 검증은 내장 메시지 또는 번들 키 {@code valid.err.required}를 씁니다. 필드별 메시지가 필요하면
+         * {@code .rule(REQUIRED)}를 명시하고 {@code .ko(...)}/{@code .message(...)}를 붙이십시오.</li>
+         * </ul>
          *
          * @param name  Unique identifier for the data (field name, map key, etc.) | 데이터의 식별자 (필드명, 맵 키 등)
          * @param label Logical name shown to users in error messages | 사용자에게 노출될 논리적 명칭 (라벨)
@@ -81,11 +106,19 @@ public interface S2FieldStep<T> {
 
         /**
          * Starts a new field validation configuration where the label defaults to the name.
+         * <p>
+         * A field without rules is a required check; once any rule is added, {@code REQUIRED} must be stated
+         * explicitly. See {@link #field(Object, String)}.
+         * </p>
          *
          * <p>
          * <b>[한국어 설명]</b>
          * </p>
          * 새로운 필드 검증 설정을 시작합니다. 별도 라벨이 지정되지 않을 경우 이름과 동일하게 설정됩니다.
+         * <p>
+         * 규칙이 없는 필드는 필수 검증이며, 규칙을 하나라도 추가하면 {@code REQUIRED}를 명시해야 합니다.
+         * {@link #field(Object, String)} 참고.
+         * </p>
          *
          * @param name Unique identifier for the data | 데이터의 식별자
          * @return The next step interface for field configuration | 필드 설정을 위한 다음 단계 인터페이스
