@@ -11,7 +11,7 @@
 
 1. [설치 및 인프라 설정](#1-설치-및-인프라-설정)
    - [1-1. 의존성 및 모듈 구성](#1-1-의존성-및-모듈-구성)
-   - [1-2. S2Validator 정적 분석 플러그인 & Dead Code 감지](#1-2-s2validator-정적-분석-플러그인--dead-code-감지)
+   - [1-2. S2Validator 정적 분석 플러그인 & Dead Code 감지](#1-2-s2validator-정적-분석-플러그인--dead-code-감지-)
    - [1-3. 전역 메시지 번들 설정 (선택 사항)](#1-3-전역-메시지-번들-설정-선택-사항)
 2. [S2Validator 4대 전략적 검증 패턴](#2-s2validator-4대-전략적-검증-패턴)
    - [A. 즉시 검증 패턴 (Immediate Mode)](#a-즉시-검증-패턴-immediate-mode)
@@ -487,7 +487,8 @@ deleteButton.addEventListener('click', () => {
 > ⚠️ **서버 전용(Server-Only) 검증 주의사항**:
 > Java 람다식(`Predicate`, `BiPredicate`)은 JVM 런타임 메모리 객체이므로 `getRulesJson()` 호출 시 **클라이언트(JavaScript)로 JSON 직렬화되지 않습니다**.
 > 따라서 람다 커스텀 규칙은 **오직 서버 사이드 검증 시에만 동작**합니다.
-> 클라이언트와 서버 양쪽에서 동일하게 교차 검증되어야 하는 규칙은 람다 대신 [`S2RuleType.REGEX`](#3-내장-규칙-카탈로그-rules-catalog) 또는 내장 규칙을 사용하십시오.
+> 클라이언트와 서버 양쪽에서 동일하게 교차 검증되어야 하는 규칙은 람다 대신 [`S2RuleType.REGEX`](#3-1-30가지-이상의-내장-규칙-s2ruletype) 또는 내장 규칙을 사용하십시오.
+> `getRulesJson()`이 이런 규칙을 만나면 개발 중에 알 수 있도록 정의 위치마다 한 번(요청마다가 아님) `INFO` 로그로 안내합니다.
 
 ---
 

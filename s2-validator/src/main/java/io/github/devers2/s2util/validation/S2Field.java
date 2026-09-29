@@ -196,11 +196,14 @@ public class S2Field<T> implements Serializable {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public <V> S2Field<T> rule(Predicate<V> logic, String errorMessageKey) {
-        return rule((v, t) -> {
+        rule((v, t) -> {
             @SuppressWarnings("unchecked")
             V castValue = (V) v;
             return logic.test(castValue);
         }, errorMessageKey);
+        // Record the user's lambda, not the internal wrapper, as the rule's origin | 내부 감싸기 람다가 아닌 사용자 람다를 규칙의 정의 위치로 기록
+        ((S2CustomRule<?, ?>) this.currentRule).origin = logic.getClass();
+        return this;
     }
 
     /**
@@ -828,7 +831,15 @@ public class S2Field<T> implements Serializable {
             this.logic = logic;
             this.errorMessageKey = errorMessageKey;
             this.fieldName = fieldName;
+            this.origin = logic != null ? logic.getClass() : null;
         }
+
+        /**
+         * Class of the lambda that defined this rule; one class per definition site, stable across rebuilt validators.
+         * Used to log the "server-only" notice once per definition site. | 이 규칙을 정의한 람다의 클래스. 정의 위치마다 하나이며
+         * 검증기를 다시 만들어도 같음. "서버 전용" 안내를 정의 위치당 한 번만 기록하는 데 사용
+         */
+        transient Class<?> origin;
 
         /**
          * Implementation of {@link S2RuleMessageStep} to record templates.
