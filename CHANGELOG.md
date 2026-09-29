@@ -18,6 +18,11 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (the warning banner and its thread were removed)
   - `io.github.devers2.s2util.validation.annotation.CheckReturnValue` (replaced by Error Prone's `@CheckReturnValue`)
+- **The global validator registry is removed.** `S2BindValidator.context(key, supplier)`,
+  `S2ValidatorFactory.getOrRegister(key, supplier)`, `S2ValidatorFactory.getValidator(key)`, and
+  `S2ValidatorFactory.getRulesJson(key, locale)` no longer exist. A key was bound to the first validator built for it, so
+  rule sets that differed by role were silently shared, and caching saved only ~0.5µs per request (the rules JSON for
+  the GET form, ~15µs, was never cached). Use `S2BindValidator.of(validator)`; see Upgrade notes.
 
 ### Changed (behavior)
 
@@ -47,8 +52,23 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 - **Exception mode**: validation failures throw `S2ValidationException` (with `getFieldName()` / `getErrorCode()`), and
   errors inside custom rules throw `S2RuleExecutionException` (the original exception only via `getCause()`, not in the
   message). Both extend `S2RuntimeException`, so existing `catch (S2RuntimeException e)` code keeps working.
-- **Registry**: a supplier-class collision on the same context key is logged at `DEBUG` (was a false-positive `WARN` for the
-  documented GET/POST usage). `S2BindValidator.of(validator)` is the recommended path.
+- **Messages**:
+  - Korean particles are no longer dropped for words whose final consonant cannot be determined (Latin letters, symbols):
+    `[documentId]은(는) 필수 입력 항목입니다.` instead of `[documentId] 필수 입력 항목입니다.`
+  - `ASSERT_TRUE`: "{0|을/를} 선택(동의)해야 합니다." / "{0} must be checked." (was "must be true");
+    `ASSERT_FALSE`: "{0|은/는} 선택할 수 없습니다." / "{0} must not be checked."
+  - A relative cross-field target in wildcard rows (`items[].end` → `"start"`) shows the label (`시작일`), not `start`.
+  - The circular reference error uses the bundle key `valid.err.circular` (was `ERR_CIRCULAR_REFERENCE`) and is
+    localized ("Circular reference detected at {0}."); it was Korean-only.
+- **Nesting depth**: `NESTED`/`EACH` stop at depth 64 and report `valid.err.maxdepth` instead of risking a
+  `StackOverflowError`.
+- **`check(value, label)`**: exceptions report the label as the field name (was the internal key `"value"`).
+- **`EMAIL`**: top-level domains of 2–63 letters are accepted (was 2–6, rejecting e.g. `.technology`); empty labels
+  (`b..com`) and labels starting/ending with `-` are rejected.
+- **Browser, hidden fields**: the 1px anchor also works for wildcard rows, for fields inside `display:none` containers
+  (closed tabs/accordions; the anchor is placed after the outermost hidden container), uses one anchor per radio/checkbox
+  group, exposes the message via `aria-label` instead of `aria-hidden`, and no longer treats rendered `position:fixed`
+  fields as hidden.
 - **Client export**: `getRulesJson()` throws `IllegalStateException` if a `REGEX` rule uses Java-only syntax (`(?i)`,
   possessive quantifiers, atomic groups, `\p{…}`, `\A`/`\z`, `\Q…\E`, class intersection, …). Server-only validators are
   not affected.
@@ -58,9 +78,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 ### Added
 
-- `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`, `S2ValidatorFactory.clear()`,
+- `S2Validator.resetAll()`, `resetDefaultLocale()`, `resetValidationBundle()`,
   `S2ResourceBundle.resetDefaultBasename()` for resetting global state (e.g. in tests).
-- `S2BindValidator.of(validator)`: bind a validator instance directly without the global registry.
+- `S2BindValidator.of(validator)`: bind a validator instance for `validate(target, bindingResult)` and `getRulesJson()`.
 - `.includeEmpty()` modifier for custom lambda rules.
 - `S2ValidationException`, `S2RuleExecutionException`.
 - Browser: a 1px anchor next to hidden/non-rendered fields without a `{field}_error` proxy, so the native message is shown.
@@ -74,17 +94,31 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 ### Upgrade notes
 
 1. Upgrade `s2-support` together with `s2-core` (see Compatibility).
-2. If you copied `s2.validator.js` into your application, replace the copy (or serve it from the jar at
+2. Replace the registry with `S2BindValidator.of(...)`. Both the GET form and the POST handler keep using the same rule
+   definition, so they still apply identical rules:
+   ```java
+   // Before
+   S2BindValidator.context("signup", this::signupRules).getRulesJson();    // GET
+   S2BindValidator.context("signup", this::signupRules).validate(cmd, r);  // POST
+   // After
+   S2BindValidator.of(signupRules()).getRulesJson();    // GET
+   S2BindValidator.of(signupRules()).validate(cmd, r);  // POST
+   ```
+   Keep the validator in a field or Spring bean (`S2BindValidator.of(signupValidator)`) only if building the rules is
+   itself expensive.
+3. If you copied `s2.validator.js` into your application, replace the copy (or serve it from the jar at
    `/s2-util/js/s2.validator.js`); the browser behavior above lives in that file.
-3. To keep the previous `PASSWORD` policy, use
+4. To keep the previous `PASSWORD` policy, use
    `.rule(S2RuleType.REGEX, "^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.*[a-zA-Z]).{9,32}$")`.
-4. To keep the previous `JUMIN` check digit verification, use `.rule(S2RuleType.JUMIN, true)`.
-5. Custom lambdas that must run on empty values (e.g. "one of two fields is required") need `.includeEmpty()`.
-6. If exception-mode failures are handled as `S2RuntimeException`, consider handling `S2ValidationException`
+5. To keep the previous `JUMIN` check digit verification, use `.rule(S2RuleType.JUMIN, true)`.
+6. Custom lambdas that must run on empty values (e.g. "one of two fields is required") need `.includeEmpty()`.
+7. If exception-mode failures are handled as `S2RuntimeException`, consider handling `S2ValidationException`
    (input error → 400) and `S2RuleExecutionException` (bug → 500) separately.
 
 ## s2-validator-plugin [1.2.0] - Unreleased
 
 - **Configuration cache**: `checkS2Validators` no longer calls `getProject()` at execution time and works with
   `--configuration-cache`.
+- **Binding check**: warns when `S2BindValidator.of(...)` is neither validated nor exported (`validate`/`getRulesJson`);
+  the checks for the removed `context`/`getOrRegister`/`getValidator` are gone.
 - **Record DTOs**: record components are recognized as fields; sources are parsed at the Java 17 language level.
