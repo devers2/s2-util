@@ -103,10 +103,10 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     private static final String ANSI_BOLD = "\u001B[1m";
 
     /**
-     * 검증기 바인딩 호출({@code S2BindValidator.of(...)}) 뒤에 이어져도 정상으로 취급하는 메서드 이름들.
+     * 검증기 바인딩 호출({@code S2BindValidator.bind(...)}) 뒤에 이어져도 정상으로 취급하는 메서드 이름들.
      * {@code validate}뿐 아니라 {@code getRulesJson}(클라이언트 공유용 JSON 규칙 조회)도 문서화된 정상
      * 사용 패턴이라 포함한다 — 이걸 빠뜨리면 GET 폼 렌더링에서 흔히 쓰는
-     * {@code S2BindValidator.of(...).getRulesJson()} 패턴이 오탐 처리된다.
+     * {@code S2BindValidator.bind(...).getRulesJson()} 패턴이 오탐 처리된다.
      */
     private static final Set<String> TERMINAL_CALL_NAMES = Set.of("validate", "getRulesJson");
 
@@ -270,7 +270,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                         + "체이닝 완결성 검사 통과");
             }
 
-            // S2BindValidator.of(...)로 바인딩한 검증기가 validate()/getRulesJson() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
+            // S2BindValidator.bind(...)로 바인딩한 검증기가 validate()/getRulesJson() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
             logBindValidatorWarnings(bindWarningsByFile, projectDir);
 
             boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty();
@@ -312,7 +312,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         getLogger().warn(ANSI_YELLOW + ANSI_BOLD + "[S2BindValidator Usage Warning]" + ANSI_RESET);
         getLogger().warn(
                 ANSI_YELLOW
-                        + "⚠️  {}개 파일에서 validate()/getRulesJson() 호출이 확인되지 않는 S2BindValidator.of(...) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
+                        + "⚠️  {}개 파일에서 validate()/getRulesJson() 호출이 확인되지 않는 S2BindValidator.bind(...) 사용이 {}건 발견되었습니다 (빌드는 계속 진행됩니다)."
                         + ANSI_RESET,
                 warningsByFile.size(), totalWarnings);
 
@@ -322,7 +322,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             getLogger().warn("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
             warnings.forEach(
                     w -> getLogger().warn(
-                            "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " of({}) - {}",
+                            "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " bind({}) - {}",
                             w.lineNumber, w.target, w.reason));
         });
         getLogger().warn("");
@@ -523,13 +523,13 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 검증기 바인딩 호출 지점({@code S2BindValidator.of(...)})을 찾아, 그 결과에서 {@code validate()}나
+     * 검증기 바인딩 호출 지점({@code S2BindValidator.bind(...)})을 찾아, 그 결과에서 {@code validate()}나
      * {@code getRulesJson()}이 호출되는지 확인합니다.
      * <p>
      * 다음 세 가지 경우를 구분합니다:
      * </p>
      * <ol>
-     * <li>{@code .of(...).validate(...)}처럼 바로 체이닝됨 → 정상.</li>
+     * <li>{@code .bind(...).validate(...)}처럼 바로 체이닝됨 → 정상.</li>
      * <li>변수에 담긴 뒤 같은 메서드/생성자/람다 안에서 {@code 변수.validate(...)}가 호출됨 → 정상.</li>
      * <li>그 외(반환값을 그냥 버림, 변수에 담고 다시는 참조하지 않음, 변수에 담았지만 validate() 호출을 못 찾음)
      * → 경고 대상.</li>
@@ -554,7 +554,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             if (parent instanceof MethodCallExpr outerCall
                     && outerCall.getScope().isPresent()
                     && outerCall.getScope().get() == acquisitionCall) {
-                // 직접 체이닝: .of(...) 뒤에 뭔가 더 호출됨
+                // 직접 체이닝: .bind(...) 뒤에 뭔가 더 호출됨
                 if (!TERMINAL_CALL_NAMES.contains(outerCall.getNameAsString())) {
                     warnings.add(
                             new BindValidatorWarning(
@@ -592,7 +592,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 검증기를 Spring 환경에 바인딩하는 지점({@code S2BindValidator.of(...)})인지 확인합니다.
+     * 검증기를 Spring 환경에 바인딩하는 지점({@code S2BindValidator.bind(...)})인지 확인합니다.
      *
      * @param call 검사할 메서드 호출 표현식
      * @return 검증기 바인딩 호출이면 true
@@ -601,7 +601,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         if (call.getScope().isEmpty()) {
             return false;
         }
-        return "of".equals(call.getNameAsString()) && call.getScope().get().toString().endsWith("S2BindValidator");
+        return "bind".equals(call.getNameAsString()) && call.getScope().get().toString().endsWith("S2BindValidator");
     }
 
     /**
@@ -612,7 +612,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      * @param variableName    검증기 획득 호출 결과가 담긴 변수 이름
      * @param acquisitionCall 원본 검증기 획득 호출 (탐색 범위 결정용)
      * @param target          바인딩한 검증기 표현식(표시용)
-     * @param calledAs        원본 호출의 표시용 문자열 (예: {@code "of(...)"})
+     * @param calledAs        원본 호출의 표시용 문자열 (예: {@code "bind(...)"})
      * @param line            원본 호출의 소스 라인 번호
      * @param warnings        경고를 누적할 리스트
      */
@@ -651,12 +651,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         }
     }
 
-    /** {@code of(...)} 호출의 첫 번째 인자(바인딩한 검증기 표현식)를 표시용 문자열로 반환합니다. 없으면 "?"를 반환합니다. */
-    private String describeBoundValidator(MethodCallExpr ofCall) {
-        if (ofCall.getArguments().isEmpty()) {
+    /** {@code bind(...)} 호출의 첫 번째 인자(바인딩한 검증기 표현식)를 표시용 문자열로 반환합니다. 없으면 "?"를 반환합니다. */
+    private String describeBoundValidator(MethodCallExpr bindCall) {
+        if (bindCall.getArguments().isEmpty()) {
             return "?";
         }
-        String text = ofCall.getArguments().get(0).toString();
+        String text = bindCall.getArguments().get(0).toString();
         return text.length() > 60 ? text.substring(0, 57) + "..." : text;
     }
 
@@ -868,7 +868,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         }
     }
 
-    /** 검증기 바인딩 호출({@code S2BindValidator.of(...)})이 validate() 없이 버려진 것으로 의심되는 지점의 경고 정보 */
+    /** 검증기 바인딩 호출({@code S2BindValidator.bind(...)})이 validate() 없이 버려진 것으로 의심되는 지점의 경고 정보 */
     static class BindValidatorWarning {
         final String target;
         final int lineNumber;

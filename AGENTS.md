@@ -53,7 +53,7 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
 ## 3. 전역 상태 격리 및 인스턴스 패턴 우선
 
 1. **검증기 연결 경로**:
-   - 전역 검증기 등록부(`S2ValidatorFactory`, `S2BindValidator.context`)는 1.2.0 에서 삭제되었습니다. Spring 연동은 `S2BindValidator.of(validator)` 인스턴스 직접 전달 방식만 사용하고, Spring 이 없으면 `validator.getRulesJson(locale)`으로 규칙 JSON 을 만듭니다.
+   - 전역 검증기 등록부(`S2ValidatorFactory`, `S2BindValidator.context`)는 1.2.0 에서 삭제되었습니다. Spring 연동은 `S2BindValidator.bind(validator)` 인스턴스 직접 전달 방식만 사용하고, Spring 이 없으면 `validator.getRulesJson(locale)`으로 규칙 JSON 을 만듭니다.
    - 문자열 키 기반 전역 캐시를 다시 도입하지 마십시오. 키가 첫 규칙에 고정되어 역할별 규칙이 경고 없이 공유되는 문제가 있었습니다.
 2. **전역 상태 초기화**:
    - 단위 테스트 간 상태 격리를 위해 필요 시 `S2Validator.resetAll()`을 호출하십시오 (기본 로케일, 검증 번들, 리소스 번들 기본 이름).

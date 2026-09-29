@@ -317,7 +317,7 @@ public class S2Validator<T> implements Serializable {
      *     .field("userId", "아이디").rule(S2RuleType.REQUIRED)
      *     .field("email", "이메일").rule(S2RuleType.EMAIL)
      *     .build();
-     * S2BindValidator.of(joinValidator).validate(user, bindingResult);
+     * S2BindValidator.bind(joinValidator).validate(user, bindingResult);
      * }</pre>
      */
     @CheckReturnValue
@@ -1435,7 +1435,7 @@ public class S2Validator<T> implements Serializable {
      * @apiNote
      *
      *          <pre>{@code
-     * // Controller (Java) - Spring: S2BindValidator.of(validator).getRulesJson() resolves the request locale
+     * // Controller (Java) - Spring: S2BindValidator.bind(validator).getRulesJson() resolves the request locale
      * model.addAttribute("validationRules", validator.getRulesJson(locale));
      *
      * // View (Thymeleaf): forms with data-s2-rules are validated automatically on submit

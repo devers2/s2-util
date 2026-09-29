@@ -62,7 +62,7 @@ schema.validate(userC);
 
 ### 1-3. 스프링 표준 통합 패턴 (권장)
 
-**사용법:** `S2BindValidator.of(validator)`
+**사용법:** `S2BindValidator.bind(validator)` — `S2Validator.builder()`로 만든 검증기를 Spring 에 연결합니다 (객체 하나를 즉시 검증하는 `S2Validator.of(target)`과 다름)
 
 **용도:** 검증기 인스턴스를 직접 전달하여 스프링 표준 `BindingResult`와 통합합니다. 전역 상태가 없어 충돌하거나 시험 사이에 남는 것이 없습니다. 검증기 생성 비용은 일반적인 폼에서 1마이크로초 미만이라 상수, Spring 빈, 요청마다 생성 모두 괜찮으며, GET 폼과 POST 처리에 같은 인스턴스(또는 규칙 정의 메서드)를 쓰십시오.
 
@@ -80,7 +80,7 @@ public class MemberController {
     @PostMapping("/join")
     public String join(@ModelAttribute UserDTO user, BindingResult result) {
         // 검증기 인스턴스를 직접 바인딩
-        S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+        S2BindValidator.bind(USER_VALIDATOR).validate(user, result);
 
         if (result.hasErrors()) {
             return "member/join";
@@ -242,13 +242,15 @@ S2Validator<OrderDTO> orderValidator = S2Validator.<OrderDTO>builder()
 필드별로 사용자 정의 오류 메시지나 메시지 번들 키를 지정합니다.
 
 ```java
+// 옵션 1: S2Validator.setValidationBundle("messages/validation")로 설정한 번들에서 메시지 키로 조회
+.field("email", "이메일")
+    .rule(S2RuleType.EMAIL, null, "validation.email.invalid")
+
+// 옵션 2: 언어별 직접 메시지
 .field("email", "이메일")
     .rule(S2RuleType.EMAIL)
-    // 옵션 1: 메시지 키 (번들 설정 필요)
-    .message("validation.email.invalid")
-
-    // 옵션 2: 직접 메시지
-    .message("Please enter a valid email address.")
+    .ko("올바른 이메일 주소를 입력하십시오.")
+    .en("Please enter a valid email address.")
 ```
 
 ### 3-2. 언어별 메시지
@@ -329,6 +331,9 @@ public class AuthController {
 
             .build();
     }
+
+    // 한 번 바인딩해 GET 폼과 POST 처리에서 함께 사용
+    private final S2BindValidator.BoundContext<SignupCommand> signup = S2BindValidator.bind(signupRules());
 }
 ```
 
@@ -343,8 +348,7 @@ public String signupPage(
         Model model) {
 
     // 규칙을 JSON으로 추출
-    String rules = S2BindValidator.of(signupRules())
-        .getRulesJson();
+    String rules = signup.getRulesJson();
 
     model.addAttribute("rules", rules);
     return "signup";  // Thymeleaf template
@@ -401,8 +405,7 @@ public String signup(
         Model model) {
 
     // GET에서 정의한 규칙을 그대로 재사용
-    S2BindValidator.of(signupRules())
-        .validate(command, result);
+    signup.validate(command, result);
 
     if (result.hasErrors()) {
         // 검증 오류와 함께 폼으로 돌아가기
@@ -435,7 +438,7 @@ public String signup(
 ┌─────────────────────────────────────────────────────────────┐
 │              Spring MVC Controller                          │
 ├─────────────────────────────────────────────────────────────┤
-│  S2BindValidator.of(v).validate(data, result)              │
+│  S2BindValidator.bind(v).validate(data, result)              │
 │  ├─ Same rule definitions                                   │
 │  ├─ Error mapping to BindingResult                          │
 │  └─ Server-side enforcement                                │
@@ -457,7 +460,7 @@ public String signup(
 
 ```
 1. ✅ 규칙을 별도 메서드에 정의하여 중복 정의 방지
-2. ✅ 스프링 MVC 폼은 Pattern C (S2BindValidator.of) 사용
+2. ✅ 스프링 MVC 폼은 Pattern C (S2BindValidator.bind) 사용
 3. ✅ 항상 서버 측 최종 검증 수행 (클라이언트 단독 신뢰 금지)
 4. ✅ 클라이언트 동기화가 필요한 경우 내장 S2RuleType 활용
 5. ✅ 서버와 클라이언트 양쪽에서 검증 로직 테스트
@@ -506,7 +509,7 @@ if (result.hasErrors()) {
 ## 8. 성능 팁
 
 ```
-1. 검증기 생성 비용은 작아서(일반적인 가입 폼 약 0.5µs) 요청마다 S2BindValidator.of(rules())로 만들어도 됩니다.
+1. 검증기 생성 비용은 작아서(일반적인 가입 폼 약 0.5µs) 요청마다 S2BindValidator.bind(rules())로 만들어도 됩니다.
    규칙 정의 자체가 무거울 때(예: DB 에서 선택지를 불러옴)만 필드·빈에 보관하십시오
 2. 가장 비싼 단계는 GET 폼용 규칙 JSON 생성(약 15µs)입니다. 매우 자주 열리는 화면이면 JSON 문자열을 캐시하십시오
 3. 대량 루프 내부에서 무거운 람다 규칙 생성 회피

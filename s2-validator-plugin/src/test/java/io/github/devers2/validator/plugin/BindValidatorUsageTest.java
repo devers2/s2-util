@@ -15,13 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Tests the {@code S2BindValidator.of(...)} usage check: a bound validator whose result is never validated
+ * Tests the {@code S2BindValidator.bind(...)} usage check: a bound validator whose result is never validated
  * ({@code validate}/{@code getRulesJson}) is reported as a warning.
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * {@code S2BindValidator.of(...)} 사용 검사를 확인합니다. 바인딩한 결과에서 {@code validate}/{@code getRulesJson}을 호출하지 않으면
+ * {@code S2BindValidator.bind(...)} 사용 검사를 확인합니다. 바인딩한 결과에서 {@code validate}/{@code getRulesJson}을 호출하지 않으면
  * 경고로 보고합니다.
  */
 public class BindValidatorUsageTest {
@@ -52,18 +52,18 @@ public class BindValidatorUsageTest {
 
     @Test
     void chainedValidateOrGetRulesJsonIsNotReported() throws Exception {
-        assertEquals(0, warningsFor("S2BindValidator.of(rules()).validate(cmd, result);").size());
-        assertEquals(0, warningsFor("String json = S2BindValidator.of(rules()).getRulesJson();").size());
+        assertEquals(0, warningsFor("S2BindValidator.bind(rules()).validate(cmd, result);").size());
+        assertEquals(0, warningsFor("String json = S2BindValidator.bind(rules()).getRulesJson();").size());
     }
 
     @Test
     void variableThatIsValidatedIsNotReported() throws Exception {
-        assertEquals(0, warningsFor("var bound = S2BindValidator.of(rules());\nbound.validate(cmd, result);").size());
+        assertEquals(0, warningsFor("var bound = S2BindValidator.bind(rules());\nbound.validate(cmd, result);").size());
     }
 
     @Test
     void discardedBindingIsReported() throws Exception {
-        List<?> warnings = warningsFor("S2BindValidator.of(rules());");
+        List<?> warnings = warningsFor("S2BindValidator.bind(rules());");
         assertEquals(1, warnings.size());
         Field target = warnings.get(0).getClass().getDeclaredField("target");
         target.setAccessible(true);
@@ -72,7 +72,7 @@ public class BindValidatorUsageTest {
 
     @Test
     void variableNeverValidatedIsReported() throws Exception {
-        assertEquals(1, warningsFor("var bound = S2BindValidator.of(rules());").size());
+        assertEquals(1, warningsFor("var bound = S2BindValidator.bind(rules());").size());
     }
 
     @Test

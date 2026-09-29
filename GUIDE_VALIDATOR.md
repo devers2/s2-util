@@ -60,7 +60,7 @@ schema.validate(userC);
 
 ### 1-3. Pattern C: Spring Standard Alignment (Recommended)
 
-**Usage:** `S2BindValidator.of(validator)`
+**Usage:** `S2BindValidator.bind(validator)` — binds a validator built with `S2Validator.builder()` to Spring (unlike `S2Validator.of(target)`, which validates one object immediately)
 
 **Purpose:** Seamless integration with Spring's `BindingResult` using direct validator instances. There is no global state, so nothing can collide or leak between tests. Building a validator costs well under a microsecond for a typical form, so a constant, a Spring bean, or a per-request build are all fine; use the same instance (or rule-definition method) for the GET form and the POST handler.
 
@@ -78,7 +78,7 @@ public class MemberController {
     @PostMapping("/join")
     public String join(@ModelAttribute UserDTO user, BindingResult result) {
         // Bind the validator instance directly
-        S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+        S2BindValidator.bind(USER_VALIDATOR).validate(user, result);
 
         if (result.hasErrors()) {
             return "member/join";
@@ -188,7 +188,7 @@ Inject Lambda for complex business rules.
 
 .field("age", "Age")
     .rule(val -> (Integer) val >= 18)
-    .message("Only adults can sign up.")
+    .en("Only adults can sign up.")
 
 // Multi-field validation (BiPredicate)
 // Note: Custom lambdas skip execution on null/empty values by default.
@@ -200,7 +200,7 @@ Inject Lambda for complex business rules.
         String password = S2Util.getValue(target, "password");
         return password.equals(val);
     })
-    .message("Passwords do not match.")
+    .en("Passwords do not match.")
 
 // Complex business logic
 
@@ -209,7 +209,7 @@ Inject Lambda for complex business rules.
         String startDate = S2Util.getValue(target, "startDate");
         return startDate.compareTo((String)val) <= 0;
     })
-    .message("End date must be after start date.")
+    .en("End date must be after start date.")
 
 // If the custom lambda MUST evaluate even when value is null/empty (.includeEmpty())
 // e.g., "Either primary or secondary contact is required"
@@ -217,7 +217,7 @@ Inject Lambda for complex business rules.
     .rule((val, target) -> {
         return val != null || S2Util.isNotEmpty(S2Util.getValue(target, "primaryContact"));
     }).includeEmpty()
-    .message("Either primary or secondary contact is required.")
+    .en("Either primary or secondary contact is required.")
 ```
 
 > [!NOTE]
@@ -239,13 +239,15 @@ Inject Lambda for complex business rules.
 Specify error messages at the field level.
 
 ```java
+// Option 1: Message key resolved from the bundle set by S2Validator.setValidationBundle("messages/validation")
+.field("email", "Email")
+    .rule(S2RuleType.EMAIL, null, "validation.email.invalid")
+
+// Option 2: Direct message per language
 .field("email", "Email")
     .rule(S2RuleType.EMAIL)
-    // Option 1: Message key (requires bundle setup)
-    .message("validation.email.invalid")
-
-    // Option 2: Direct message
-    .message("Please enter a valid email address.")
+    .en("Please enter a valid email address.")
+    .ko("올바른 이메일 주소를 입력하십시오.")
 ```
 
 ### 3-2. Language-Specific Messages
@@ -266,22 +268,22 @@ Set messages for different locales.
 Automatically selects appropriate particles based on field label.
 
 ```java
-// Automatic particle selection
+// {0|은/는}, {0|이/가}, {0|을/를} pick the particle from the label's final consonant
 
-.field("id", "ID")
+.field("id", "아이디")
     .rule(S2RuleType.REQUIRED)
-    .message("{0} is required.")
-    // Result: "아이디는 필수입니다." (auto particle)
+    .ko("{0|은/는} 필수입니다.")
+    // Result: "아이디는 필수입니다."
 
-.field("name", "Name")
+.field("name", "이름")
     .rule(S2RuleType.REQUIRED)
-    .message("{0} is required.")
-    // Result: "이름은 필수입니다." (auto particle)
+    .ko("{0|은/는} 필수입니다.")
+    // Result: "이름은 필수입니다."
 
-.field("email", "Email")
+.field("email", "이메일")
     .rule(S2RuleType.EMAIL)
-    .message("{0} is invalid.")
-    // Result: "이메일이 올바르지 않습니다." (auto particle)
+    .ko("{0|이/가} 올바르지 않습니다.")
+    // Result: "이메일이 올바르지 않습니다."
 ```
 
 **Supported Particles:**
@@ -318,15 +320,18 @@ public class AuthController {
             .field("password", "Password")
                 .rule(S2RuleType.REQUIRED)
                 .rule(S2RuleType.MIN_LENGTH, 8)
-                .message("Must be at least 8 characters.")
+                .en("Must be at least 8 characters.")
 
             .field("confirmPassword", "Confirm Password")
                 .rule(S2RuleType.REQUIRED)
                 .rule(S2RuleType.EQUALS_FIELD, "password")
-                .message("Passwords do not match.")
+                .en("Passwords do not match.")
 
             .build();
     }
+
+    // Bind once; the GET form and the POST handler share it
+    private final S2BindValidator.BoundContext<SignupCommand> signup = S2BindValidator.bind(signupRules());
 }
 ```
 
@@ -341,8 +346,7 @@ public String signupPage(
         Model model) {
 
     // Extract rules as JSON
-    String rules = S2BindValidator.of(signupRules())
-        .getRulesJson();
+    String rules = signup.getRulesJson();
 
     model.addAttribute("rules", rules);
     return "signup";  // Thymeleaf template
@@ -399,8 +403,7 @@ public String signup(
         Model model) {
 
     // Reuse identical rules from GET
-    S2BindValidator.of(signupRules())
-        .validate(command, result);
+    signup.validate(command, result);
 
     if (result.hasErrors()) {
         // Return to form with validation errors
@@ -433,7 +436,7 @@ public String signup(
 ┌─────────────────────────────────────────────────────────────┐
 │              Spring MVC Controller                          │
 ├─────────────────────────────────────────────────────────────┤
-│  S2BindValidator.of(v).validate(data, result)              │
+│  S2BindValidator.bind(v).validate(data, result)              │
 │  ├─ Same rule definitions                                   │
 │  ├─ Error mapping to BindingResult                          │
 │  └─ Server-side enforcement                                │
@@ -456,7 +459,7 @@ public String signup(
 ```
 1. ✅ Define rules once in a dedicated method
 
-2. ✅ Use Pattern C (S2BindValidator.of) for Spring MVC forms
+2. ✅ Use Pattern C (S2BindValidator.bind) for Spring MVC forms
 
 3. ✅ Always perform server-side validation
 
@@ -511,7 +514,7 @@ if (result.hasErrors()) {
 ## 8. Performance Tips
 
 ```
-1. Building a validator is cheap (~0.5µs for a typical sign-up form), so S2BindValidator.of(rules()) per request is fine;
+1. Building a validator is cheap (~0.5µs for a typical sign-up form), so S2BindValidator.bind(rules()) per request is fine;
    keep it in a field or bean only when the rule definition itself is expensive (e.g. loads options from a DB)
 
 2. The most expensive step is the rules JSON for the GET form (~15µs); cache the JSON string if a page is very hot

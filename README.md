@@ -174,17 +174,20 @@ private S2Validator<UserCommand> profileValidator() {
             .build();
 }
 
+// Bind once and share it between the GET form and the POST handler (the request locale is applied on each call)
+private final S2BindValidator.BoundContext<UserCommand> profile = S2BindValidator.bind(profileValidator());
+
 @GetMapping("/sign-up")
 public String signUpPage(@ModelAttribute("command") UserCommand command, Model model) {
     // Convert validator to JSON and pass to client for validation
-    model.addAttribute("rules", S2BindValidator.of(profileValidator()).getRulesJson());
+    model.addAttribute("rules", profile.getRulesJson());
     return "sign-up";
 }
 
 @PostMapping("/sign-up")
 public String signUp(@ModelAttribute("command") UserCommand command, BindingResult result, Model model) {
     // Perform server-side validation using the same validator configuration
-    S2BindValidator.of(profileValidator()).validate(command, result);
+    profile.validate(command, result);
 
     if (result.hasErrors()) {
         return signUpPage(command, model);

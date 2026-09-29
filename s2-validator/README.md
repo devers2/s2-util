@@ -373,7 +373,7 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
             .en("{0} must be at least {1} characters for security.")
             .ko("{0|은/는} 보안을 위해 최소 {1}자 이상이어야 합니다.")
 
-    // 3) Support for other languages via .message(Locale, String)
+    // Support for other languages via .message(Locale, String)
     .field("email", "Email")
         .rule(S2RuleType.EMAIL)
             .message(Locale.JAPANESE, "{0}の形式が正しくありません。")
@@ -395,7 +395,7 @@ Seamlessly bridges `s2-validator` validation with Spring MVC's `BindingResult`, 
 @RequestMapping("/member")
 public class MemberController {
 
-    // 1) Validation rules (building a validator is cheap, so it can be built per request)
+    // Validation rules (one definition shared by GET and POST)
     private S2Validator<MemberDTO> memberRules() {
         return S2Validator.<MemberDTO>builder()
             .field("userId", "User ID").rule(S2RuleType.REQUIRED)
@@ -408,25 +408,27 @@ public class MemberController {
             .build();
     }
 
-    // 2) GET: Pass rules JSON to the view for client-side validation
+    // Bind once and share it between GET and POST (the request locale is applied on each call)
+    private final S2BindValidator.BoundContext<MemberDTO> joinValidator = S2BindValidator.bind(memberRules());
+
+    // GET: Pass rules JSON to the view for client-side validation
     @GetMapping("/join")
     public String joinForm(Model model) {
         model.addAttribute("member", new MemberDTO());
         // Generate JSON metadata for client-side s2.validator.js
-        String rulesJson = S2BindValidator.of(memberRules()).getRulesJson();
+        String rulesJson = joinValidator.getRulesJson();
         model.addAttribute("validationRules", rulesJson);
         return "member/join";
     }
 
-    // 3) POST: Execute server-side validation and automatically bind to BindingResult
+    // POST: Execute server-side validation and automatically bind to BindingResult
     @PostMapping("/join")
     public String joinSubmit(@ModelAttribute MemberDTO member, BindingResult result, Model model) {
         // Execute server validation: automatically registers field errors to BindingResult
-        S2BindValidator.of(memberRules()).validate(member, result);
+        joinValidator.validate(member, result);
 
         if (result.hasErrors()) {
-            model.addAttribute("validationRules",
-                S2BindValidator.of(memberRules()).getRulesJson());
+            model.addAttribute("validationRules", joinValidator.getRulesJson());
             return "member/join";
         }
 

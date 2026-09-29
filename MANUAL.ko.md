@@ -160,7 +160,7 @@ flowchart TD
     Req["검증 요청 데이터"] --> Choice{"상황별 패턴 선택"}
     Choice -->|"메서드 내부 1회성 검증"| A["즉시 검증 모드<br>S2Validator.of()"]
     Choice -->|"재사용 가능한 검증 규칙"| B["설계도 모드<br>S2Validator.builder()"]
-    Choice -->|"스프링 MVC 폼 검증"| C["스프링 표준 연동<br>S2BindValidator.of()"]
+    Choice -->|"스프링 MVC 폼 검증"| C["스프링 표준 연동<br>S2BindValidator.bind()"]
     Choice -->|"단일 값/조건 검증"| D["단일 값 검증 모드<br>S2Validator.check()"]
 ```
 
@@ -202,7 +202,7 @@ schema.validate(userB);
 
 ### C. 스프링 표준 통합 패턴 (권장)
 
-**사용법:** `S2BindValidator.of(validator)`
+**사용법:** `S2BindValidator.bind(validator)` — `S2Validator.builder()`로 만든 검증기를 Spring 에 연결합니다 (객체 하나를 즉시 검증하는 `S2Validator.of(target)`과 다름)
 
 스프링 MVC 컨트롤러에서 검증 결과를 스프링 표준 `BindingResult`에 자동으로 주입합니다. 검증기 인스턴스를 직접 전달하므로 충돌하거나 시험 사이에 초기화해야 할 전역 상태가 없습니다. 검증기 생성 비용은 일반적인 폼에서 1마이크로초 미만이라 요청마다 만들어도 되며, 규칙 정의 자체가 무거우면 상수나 Spring 빈으로 보관하십시오. GET 폼(`getRulesJson()`)과 POST 처리(`validate()`)에 같은 인스턴스(또는 같은 규칙 정의 메서드)를 쓰면 양쪽이 동일한 규칙을 적용합니다.
 
@@ -214,7 +214,7 @@ private static final S2Validator<UserDTO> USER_VALIDATOR = S2Validator.<UserDTO>
 
 @PostMapping("/join")
 public String join(@ModelAttribute UserDTO user, BindingResult result) {
-    S2BindValidator.of(USER_VALIDATOR).validate(user, result);
+    S2BindValidator.bind(USER_VALIDATOR).validate(user, result);
 
     if (result.hasErrors()) {
         return "joinForm"; // 스프링 표준 폼 오류 처리 흐름
@@ -450,6 +450,9 @@ private S2Validator<UserCommand> signupRules() {
             .ko("비밀번호 확인이 일치하지 않습니다.")
         .build();
 }
+
+// 한 번 바인딩해 GET 폼과 POST 처리에서 함께 사용
+private final S2BindValidator.BoundContext<UserCommand> signup = S2BindValidator.bind(signupRules());
 ```
 
 #### 2. 컨트롤러: 화면 렌더링 시 JSON 규칙 전달 (GET)
@@ -457,7 +460,7 @@ private S2Validator<UserCommand> signupRules() {
 ```java
 @GetMapping("/signup")
 public String signupPage(Model model) {
-    String rules = S2BindValidator.of(signupRules()).getRulesJson();
+    String rules = signup.getRulesJson();
     model.addAttribute("rules", rules);
     return "signup";
 }
@@ -483,7 +486,7 @@ public String signupPage(Model model) {
 ```java
 @PostMapping("/signup")
 public String signup(@ModelAttribute("command") UserCommand command, BindingResult result) {
-    S2BindValidator.of(signupRules()).validate(command, result);
+    signup.validate(command, result);
     if (result.hasErrors()) {
         return "signup";
     }
