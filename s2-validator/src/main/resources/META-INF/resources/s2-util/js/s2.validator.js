@@ -196,7 +196,7 @@ export const S2Validator = {
    * <li><b>PASSWORD:</b> Password | 비밀번호</li>
    * <li><b>PASSWORD_ANSWR:</b> Password answer | 비밀번호 답변</li>
    * <li><b>BIZRNO:</b> Business registration number | 사업자 번호</li>
-   * <li><b>NWINO:</b> Foreigner number | 외국인 번호</li>
+   * <li><b>NWINO:</b> Workplace management number | 사업장관리번호</li>
    * <li><b>JUMIN:</b> Resident registration number | 주민번호</li>
    * <li><b>DATE:</b> Date format | 날짜 형식</li>
    * <li><b>DATE_AFTER:</b> Date after (value: target field name) | 날짜 이후 (value: targetField 이름)</li>
