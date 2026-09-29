@@ -541,6 +541,27 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
 - **히든 필드 자동 Fallback**:
   `{fieldName}_error` 프록시가 없고 필드의 어떤 요소도 렌더링되지 않는 경우(`type="hidden"`, 또는 닫힌 탭·아코디언 같은 `display:none` 컨테이너 안), S2Validator가 1px 투명 앵커 하나를 임시로 만들어 브라우저 네이티브 툴팁이 표시되도록 합니다 (폼 먹통 방지). 앵커는 히든 필드 바로 뒤, 또는 앵커 자신이 그려지도록 렌더링되지 않는 가장 바깥 컨테이너 바로 뒤에 둡니다. 라디오·체크박스 그룹은 필드당 앵커 하나입니다. 앵커는 메시지를 `aria-label`로 제공하고 `name`이 없어 전송되지 않으며, 다음 검증 시 또는 사용자 입력 시 자동으로 제거됩니다. 와일드카드 행 필드(`items[].x`)에도 적용됩니다.
 
+- **사용자 오류 표시 (`setRenderer`)**:
+  브라우저 기본 말풍선 대신 애플리케이션 방식(입력칸 아래 문구, 토스트, 탭 표시 등)으로 오류를 그릴 수 있습니다. 렌더러가 설정되어 있으면 브라우저 말풍선, `{fieldName}_error` 대리 요소, 히든 필드 앵커를 쓰지 않으므로, 숨은 필드의 메시지도 렌더러가 정한 위치에 표시됩니다. 렌더러의 예외는 기록만 하고 결과를 바꾸지 않아 오류가 있는 폼은 여전히 제출되지 않습니다. 렌더러는 전역이며 `setRenderer(null)`로 기본 UI 로 돌아갑니다.
+  ```html
+  <input name="email" class="form-control" />
+  <div class="invalid-feedback" data-s2-error-for="email"></div>
+
+  <script type="module">
+    import { S2Validator } from '/s2-util/js/s2.validator.js';
+
+    // 기본 제공: 오류 필드에 `is-invalid` 추가, [data-s2-error-for]에 첫 메시지 표시, 첫 오류 필드로 초점 이동
+    S2Validator.setRenderer(S2Validator.classRenderer()); // 옵션: { invalidClass, messageAttribute, focus }
+
+    // 또는 직접 구현 (모든 메서드 선택)
+    S2Validator.setRenderer({
+      clear(form) { /* 검증 전마다 */ },
+      show(form, errors) { showToast(Object.values(errors)[0][0]); }, // errors: { 필드명: [메시지] }
+      clearField(form, fieldName) { /* 사용자가 이 필드를 수정함 */ }
+    });
+  </script>
+  ```
+
 ---
 
 ## 7. S2Jpql: 안전한 동적 쿼리 빌더
