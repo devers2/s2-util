@@ -377,7 +377,7 @@ export const S2Validator = {
     if (rulesSource) {
       // rulesSource가 명시적으로 전달된 경우 처리
       try {
-        rules = typeof rulesSource === 'string' ? JSON.parse(rulesSource) : rulesSource;
+        rules = toFieldRules(typeof rulesSource === 'string' ? JSON.parse(rulesSource) : rulesSource);
       } catch {
         rules = [];
       }
@@ -386,7 +386,7 @@ export const S2Validator = {
     if (rules.length === 0) {
       if (form.dataset.s2Rules) {
         try {
-          rules = JSON.parse(form.dataset.s2Rules);
+          rules = toFieldRules(JSON.parse(form.dataset.s2Rules));
         } catch {
           rules = [];
         }
@@ -394,7 +394,7 @@ export const S2Validator = {
         const elementsWithRules = form.querySelector('[data-s2-rules]');
         if (elementsWithRules) {
           try {
-            rules = JSON.parse(elementsWithRules.dataset.s2Rules);
+            rules = toFieldRules(JSON.parse(elementsWithRules.dataset.s2Rules));
           } catch {
             rules = [];
           }
@@ -1545,6 +1545,53 @@ const toStrictNumber = (value) => {
   if (value === null || value === undefined) return NaN;
   const str = String(value).trim();
   return NUMERIC_PATTERN.test(str) ? Number(str) : NaN;
+};
+
+/**
+ * Rules JSON format version this script reads (S2RulesJsonWriter.SCHEMA_VERSION on the server).
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 이 스크립트가 읽는 규칙 JSON 형식 버전 (서버의 S2RulesJsonWriter.SCHEMA_VERSION).
+ */
+const SCHEMA_VERSION = 1;
+
+// Versions already warned about, so a mismatch is logged once per version. | 이미 경고한 버전 (버전당 한 번만 기록)
+const warnedSchemaVersions = new Set();
+
+/**
+ * Returns the field rules array from parsed rules JSON: {@code {schemaVersion, fields}} or the pre-1.2.0 bare array.
+ * <p>
+ * A newer {@code schemaVersion} means the server and this script come from different releases; it is logged once and
+ * the rules are still applied as far as they are understood (the server validates on submit regardless).
+ * </p>
+ *
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 파싱한 규칙 JSON 에서 필드 규칙 배열을 꺼냅니다. {@code {schemaVersion, fields}} 형식과 1.2.0 이전의 배열 형식을 모두 받습니다.
+ * <p>
+ * 더 높은 {@code schemaVersion}은 서버와 이 스크립트의 릴리스가 다르다는 뜻이며, 한 번 기록하고 이해하는 범위에서 규칙을 적용합니다
+ * (제출 시 서버 검증은 그대로 수행됨).
+ * </p>
+ *
+ * @function toFieldRules
+ * @param {*} parsed - Parsed rules JSON | 파싱한 규칙 JSON
+ * @returns {Array} The field rules, or an empty array when the shape is unknown | 필드 규칙 배열, 형식을 모르면 빈 배열
+ */
+const toFieldRules = (parsed) => {
+  if (Array.isArray(parsed)) return parsed;
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.fields)) return [];
+  const version = parsed.schemaVersion;
+  if (typeof version === 'number' && version > SCHEMA_VERSION && !warnedSchemaVersions.has(version)) {
+    warnedSchemaVersions.add(version);
+    console.warn(
+      `[S2Validator] Rules schemaVersion ${version} is newer than this script supports (${SCHEMA_VERSION}); ` +
+        'update s2.validator.js to the server release. | 규칙 schemaVersion 이 이 스크립트보다 높습니다. ' +
+        's2.validator.js 를 서버 릴리스와 맞추십시오.'
+    );
+  }
+  return parsed.fields;
 };
 
 // 초기화 상태 관리용 (중복 리스너 등록 방지)

@@ -75,6 +75,9 @@
 - **브라우저 히든 필드**: 1px 앵커가 와일드카드 행에도 적용되고, `display:none` 컨테이너(닫힌 탭·아코디언) 안의 필드는 가장 바깥 숨은
   컨테이너 뒤에 앵커를 둡니다. 라디오·체크박스 그룹은 앵커 하나, 메시지는 `aria-hidden` 대신 `aria-label`로 제공하며, 렌더링된
   `position:fixed` 필드를 숨은 것으로 오판하지 않습니다.
+- **규칙 JSON 형식**: `getRulesJson()`이 배열 대신 `{"schemaVersion":1,"fields":[…]}`를 반환합니다. `s2.validator.js`는 두 형식을 모두
+  받으며, 스크립트보다 높은 `schemaVersion`(서버와 브라우저 스크립트의 릴리스 불일치)이면 콘솔에 한 번 경고합니다. JSON 을 직접
+  파싱한다면 `fields`를 읽으십시오.
 - **클라이언트 내보내기**: `REGEX` 규칙이 Java 전용 문법(`(?i)`, 소유 한정자, 원자 그룹, `\p{…}`, `\A`/`\z`, `\Q…\E`, 문자 클래스 교집합
   등)을 쓰면 `getRulesJson()`이 `IllegalStateException`을 던집니다. 서버 전용 검증기는 영향이 없습니다.
 - **로케일**: 검증기가 생성 시점의 기본 로케일을 복사해 두지 않습니다. `S2Validator.setDefaultLocale(null)`은 JVM 기본값으로 되돌립니다
@@ -128,6 +131,7 @@
 7. 예외 모드 실패를 `S2RuntimeException`으로 처리하고 있다면, `S2ValidationException`(입력 오류 → 400)과
    `S2RuleExecutionException`(버그 → 500)을 나눠 처리하는 것을 검토하십시오.
 8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
+9. 규칙 JSON 을 서버나 자체 스크립트에서 직접 파싱한다면 최상위 배열 대신 `fields` 배열을 읽으십시오.
 
 ## s2-validator-plugin [1.2.0] - 미배포
 

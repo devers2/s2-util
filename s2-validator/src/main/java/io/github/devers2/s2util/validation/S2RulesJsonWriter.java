@@ -49,6 +49,18 @@ final class S2RulesJsonWriter {
 
     private static final S2Logger logger = S2LogManager.getLogger(S2RulesJsonWriter.class);
 
+    /**
+     * Version of the rules JSON format; raise it when s2.validator.js must change to read the output. Keep it equal to
+     * {@code SCHEMA_VERSION} in s2.validator.js.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 규칙 JSON 형식의 버전입니다. s2.validator.js 가 바뀌어야 출력을 읽을 수 있는 변경이면 올립니다. s2.validator.js 의
+     * {@code SCHEMA_VERSION}과 같게 유지하십시오.
+     */
+    static final int SCHEMA_VERSION = 1;
+
     /** Definition sites already reported as server-only (bounded by the number of lambdas in the code) | 이미 서버 전용으로 안내한 정의 위치 (코드의 람다 수로 한정) */
     private static final Set<String> reportedServerOnly = ConcurrentHashMap.newKeySet();
 
@@ -69,9 +81,9 @@ final class S2RulesJsonWriter {
      * @return The rules JSON | 규칙 JSON
      */
     static String write(S2Validator<?> validator, Locale locale) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder("{\"schemaVersion\":").append(SCHEMA_VERSION).append(",\"fields\":");
         appendRulesJson(sb, validator, locale, List.of());
-        return sb.toString();
+        return sb.append('}').toString();
     }
 
     /**
