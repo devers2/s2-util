@@ -63,6 +63,24 @@ public class S2ValidationException extends S2RuntimeException {
     }
 
     /**
+     * Creates an exception with an explicit field name, error code, and message.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 이름, 오류 코드, 메시지를 직접 지정해 예외를 생성합니다.
+     *
+     * @param fieldName The field path or label | 필드 경로 또는 라벨
+     * @param errorCode The error code | 오류 코드
+     * @param message   The error message | 오류 메시지
+     */
+    public S2ValidationException(String fieldName, String errorCode, String message) {
+        super(message);
+        this.fieldName = fieldName;
+        this.errorCode = errorCode;
+    }
+
+    /**
      * Returns the logical path of the failed field (e.g. {@code items[0].name}).
      *
      * <p>
