@@ -34,4 +34,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build and Test
-        run: ./gradlew build --stacktrace 2>&1 | tail -150
+        run: |
+          # Propagate the Gradle exit code through the pipe; otherwise tail's success hides build failures.
+          # 파이프를 거쳐도 Gradle 종료코드를 전달한다. 없으면 tail 의 성공이 빌드 실패를 가린다.
+          set -o pipefail
+          ./gradlew build --stacktrace 2>&1 | tail -150
