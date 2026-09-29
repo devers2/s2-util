@@ -1168,8 +1168,8 @@ const validateJumin = (jumin, checksumEnabled = false) => {
 /**
  * DATE validation (string yyyyMMdd or yyyy-MM-dd, or Date object).
  * <p>
- * Validates date format and ensures the year is within acceptable range
- * (not more than 100 years in the past). Supports both string and Date object inputs.
+ * Validates the date format and that the date exists on the calendar (leap years included).
+ * There is no year lower bound, same as the server. Supports both string and Date object inputs.
  * </p>
  *
  * <p>
@@ -1177,8 +1177,8 @@ const validateJumin = (jumin, checksumEnabled = false) => {
  * </p>
  * DATE 검증 (문자열 yyyyMMdd or yyyy-MM-dd, or Date 객체).
  * <p>
- * 날짜 형식을 검증하고 연도가 허용 가능한 범위 내에 있는지 확인합니다
- * (과거 100년 이내). 문자열과 Date 객체 입력을 모두 지원합니다.
+ * 날짜 형식과 달력상 존재하는 날짜인지(윤년 포함)를 검증합니다.
+ * 서버와 같이 연도 하한은 없습니다. 문자열과 Date 객체 입력을 모두 지원합니다.
  * </p>
  *
  * @function validateDate
@@ -1193,18 +1193,19 @@ const validateDate = (value) => {
     const month = parseInt(value.substring(4, 6));
     const day = parseInt(value.substring(6, 8));
     if (isNaN(year) || isNaN(month) || isNaN(day)) return false;
-    if (year < new Date().getFullYear() - 100) return false;
+    // No year lower bound, same as the server (a fixed "current year - 100" limit rejected valid birth dates). | 서버와 같이 연도 하한 없음 ("현재 연도 - 100" 고정 하한은 정상 생년월일을 거부했음)
     // JS Date는 존재하지 않는 날짜(2월 30일 등)를 예외 없이 다음 날짜로 굴려버리므로, 만든 Date를
     // 되짚어 입력값과 일치하는지 확인해야 서버(LocalDate.of)와 동일하게 걸러낼 수 있다 | JS Date silently
     // rolls invalid dates over (e.g. Feb 30 -> Mar 2) instead of throwing, so the constructed Date must
     // be checked back against the input to reject them the same way the server's LocalDate.of() does.
-    const parsed = new Date(year, month - 1, day);
+    // setFullYear keeps years 0-99 as-is; new Date(50, 0, 1) would map to 1950. | setFullYear 는 0~99년을 그대로 둠 (new Date(50, 0, 1)은 1950년이 됨)
+    const parsed = new Date(2000, 0, 1);
+    parsed.setFullYear(year, month - 1, day);
     return (
       parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day
     );
   } else if (value instanceof Date) {
-    const year = value.getFullYear();
-    return year >= new Date().getFullYear() - 100;
+    return !isNaN(value.getTime());
   }
   return false;
 };

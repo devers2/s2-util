@@ -7,12 +7,12 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
- * Creation-time validation of numeric rule criteria and platform-independent byte counting.
+ * Creation-time validation of numeric rule criteria, platform-independent byte counting, and DATE value handling.
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 숫자 규칙 기준값의 생성 시점 검증과 플랫폼 문자셋에 무관한 바이트 계산을 확인합니다.
+ * 숫자 규칙 기준값의 생성 시점 검증, 플랫폼 문자셋에 무관한 바이트 계산, DATE 값 처리를 확인합니다.
  */
 public class RuleCriterionTest {
 
@@ -50,6 +50,14 @@ public class RuleCriterionTest {
         String json = S2ValidatorFactory.getRulesJson(
                 S2Validator.<Map<String, Object>>builder().field("x", "x").rule(S2RuleType.MAX_VALUE, 100).build(), Locale.KOREAN);
         Assertions.assertFalse(json.contains("NaN") || json.contains("Infinity"), json);
+    }
+
+    @Test
+    void dateAcceptsOldDatesAndDateObjects() {
+        Assertions.assertTrue(S2Validator.check(java.time.LocalDate.of(1925, 1, 1)).rule(S2RuleType.DATE).validate());
+        Assertions.assertTrue(S2Validator.check(new java.util.Date()).rule(S2RuleType.DATE).validate());
+        Assertions.assertTrue(S2Validator.check(java.sql.Date.valueOf("1900-01-01")).rule(S2RuleType.DATE).validate());
+        Assertions.assertFalse(S2Validator.check(java.time.LocalTime.NOON).rule(S2RuleType.DATE).validate());
     }
 
     @Test

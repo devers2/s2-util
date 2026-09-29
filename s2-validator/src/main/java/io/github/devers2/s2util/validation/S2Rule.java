@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
-import java.time.Year;
 import java.time.temporal.Temporal;
 import java.util.Collection;
 import java.util.HashMap;
@@ -321,17 +320,14 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             }
             case DATE -> {
                 // 타입에 따라 다르게 처리: 문자열 파싱 or Temporal 객체 valid 체크
+                // No year lower bound: a fixed "current year - 100" limit rejected valid dates such as birth dates of people over 100. | 연도 하한 없음: "현재 연도 - 100" 고정 하한은 100세 이상 생년월일 같은 정상 날짜를 거부했음
                 if (value instanceof Temporal temporal) {
-                    // Temporal 객체 (LocalDate, LocalDateTime 등): 년도 범위만 체크 (포맷 검증 불필요)
-                    try {
-                        int year = temporal.get(java.time.temporal.ChronoField.YEAR);
-                        if (year < (Year.now().getValue() - 100)) {
-                            yield false;
-                        }
-                        yield true;
-                    } catch (DateTimeException e) {
-                        yield false;
-                    }
+                    // Temporal 객체 (LocalDate, LocalDateTime 등): 날짜(연도)를 가진 타입이면 유효 (LocalTime 등은 무효)
+                    yield temporal.isSupported(java.time.temporal.ChronoField.YEAR);
+                }
+                if (value instanceof java.util.Date) {
+                    // java.util.Date / java.sql.Date: 이미 유효한 날짜 객체
+                    yield true;
                 }
 
                 if (value instanceof String dateString) {
@@ -344,9 +340,6 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                         var year = Integer.parseInt(dateString.substring(0, 4));
                         var month = Integer.parseInt(dateString.substring(4, 6));
                         var day = Integer.parseInt(dateString.substring(6, 8));
-                        if (year < (Year.now().getValue() - 100)) {
-                            yield false;
-                        }
                         LocalDate.of(year, month, day);
                         yield true;
                     } catch (DateTimeException | NumberFormatException e) {
