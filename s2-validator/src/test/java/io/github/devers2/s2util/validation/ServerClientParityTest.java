@@ -151,11 +151,13 @@ public class ServerClientParityTest {
                 // ── MIN_LENGTH ───────────────────────────────────────────
                 Arguments.of("MIN_LENGTH: 5자 이상 → 성공", S2RuleType.MIN_LENGTH, 3, "hello", true),
                 Arguments.of("MIN_LENGTH: 2자 → 실패", S2RuleType.MIN_LENGTH, 3, "hi", false),
+                Arguments.of("MIN_LENGTH: 끝 공백은 길이에서 제외('ab  ' 최소 4) → 실패", S2RuleType.MIN_LENGTH, 4, "ab  ", false),
                 Arguments.of("MIN_LENGTH: 빈값 → 성공(skip)", S2RuleType.MIN_LENGTH, 3, null, true),
 
                 // ── MAX_LENGTH ───────────────────────────────────────────
                 Arguments.of("MAX_LENGTH: 3자 이하 → 성공", S2RuleType.MAX_LENGTH, 5, "hi", true),
                 Arguments.of("MAX_LENGTH: 6자 → 실패", S2RuleType.MAX_LENGTH, 5, "toolong", false),
+                Arguments.of("MAX_LENGTH: 끝 공백은 길이에서 제외('abc ' 최대 3) → 성공", S2RuleType.MAX_LENGTH, 3, "abc ", true),
                 Arguments.of("MAX_LENGTH: 빈값 → 성공(skip)", S2RuleType.MAX_LENGTH, 5, null, true),
 
                 // ── MIN_BYTE ─────────────────────────────────────────────
@@ -173,12 +175,17 @@ public class ServerClientParityTest {
                 Arguments.of("MIN_VALUE: 3 < 5 → 실패", S2RuleType.MIN_VALUE, 5, 3, false),
                 Arguments.of("MIN_VALUE: 폼 문자열 숫자 '25' >= 19 → 성공", S2RuleType.MIN_VALUE, 19, "25", true),
                 Arguments.of("MIN_VALUE: 문자열 기준값 '19' vs 25 → 성공", S2RuleType.MIN_VALUE, "19", 25, true),
+                Arguments.of("MIN_VALUE: 숫자 뒤 문자 '25abc' → 실패", S2RuleType.MIN_VALUE, 19, "25abc", false),
+                Arguments.of("MIN_VALUE: 소수·지수 표기 '2.5e1' >= 19 → 성공", S2RuleType.MIN_VALUE, 19, "2.5e1", true),
+                Arguments.of("MIN_VALUE: Java 전용 접미사 '25d' → 실패", S2RuleType.MIN_VALUE, 19, "25d", false),
                 Arguments.of("MIN_VALUE: 빈값 → 성공(skip)", S2RuleType.MIN_VALUE, 5, null, true),
 
                 // ── MAX_VALUE ────────────────────────────────────────────
                 Arguments.of("MAX_VALUE: 3 <= 5 → 성공", S2RuleType.MAX_VALUE, 5, 3, true),
                 Arguments.of("MAX_VALUE: 10 > 5 → 실패", S2RuleType.MAX_VALUE, 5, 10, false),
                 Arguments.of("MAX_VALUE: 폼 문자열 숫자 '15' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, "15", true),
+                Arguments.of("MAX_VALUE: 천 단위 쉼표 '1,000' → 실패", S2RuleType.MAX_VALUE, 100, "1,000", false),
+                Arguments.of("MAX_VALUE: 앞뒤 공백 ' 15 ' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, " 15 ", true),
                 Arguments.of("MAX_VALUE: 빈값 → 성공(skip)", S2RuleType.MAX_VALUE, 5, null, true),
 
                 // ── REGEX ────────────────────────────────────────────────
@@ -186,6 +193,10 @@ public class ServerClientParityTest {
                 Arguments.of("REGEX: 문자 포함 → 실패", S2RuleType.REGEX, "^[0-9]+$", "12a45", false),
                 Arguments.of("REGEX: 앵커 없는 정규식 전체일치 parity(\\d+) → abc123 실패", S2RuleType.REGEX, "\\d+", "abc123", false),
                 Arguments.of("REGEX: 앵커 없는 정규식 전체일치 parity(\\d+) → 12345 성공", S2RuleType.REGEX, "\\d+", "12345", true),
+                Arguments.of("REGEX: 앞 앵커만 있는 정규식(^\\d+) → 123abc 실패", S2RuleType.REGEX, "^\\d+", "123abc", false),
+                Arguments.of("REGEX: 뒤 앵커만 있는 정규식(\\d+$) → abc123 실패", S2RuleType.REGEX, "\\d+$", "abc123", false),
+                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → ax 실패", S2RuleType.REGEX, "^a|b$", "ax", false),
+                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → b 성공", S2RuleType.REGEX, "^a|b$", "b", true),
                 Arguments.of("REGEX: 빈값 → 성공(skip)", S2RuleType.REGEX, "^[0-9]+$", null, true),
 
                 // ── NUMBER ───────────────────────────────────────────────
@@ -193,10 +204,6 @@ public class ServerClientParityTest {
                 Arguments.of("NUMBER: 문자 포함 → 실패", S2RuleType.NUMBER, null, "123a5", false),
 
                 // ── TEXT_INTACT ───────────────────────────────────────────
-                Arguments.of("REGEX: 앞 앵커만 있는 정규식(^\\d+) → 123abc 실패", S2RuleType.REGEX, "^\\d+", "123abc", false),
-                Arguments.of("REGEX: 뒤 앵커만 있는 정규식(\\d+$) → abc123 실패", S2RuleType.REGEX, "\\d+$", "abc123", false),
-                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → ax 실패", S2RuleType.REGEX, "^a|b$", "ax", false),
-                Arguments.of("REGEX: 대체와 양끝 앵커(^a|b$) → b 성공", S2RuleType.REGEX, "^a|b$", "b", true),
                 Arguments.of("TEXT_INTACT: 한글+영문 → 성공", S2RuleType.TEXT_INTACT, null, "홍길동abc", true),
                 Arguments.of("TEXT_INTACT: 숫자 포함 → 실패", S2RuleType.TEXT_INTACT, null, "홍길동123", false),
 
@@ -355,6 +362,9 @@ public class ServerClientParityTest {
         assertCrossFieldParity(S2RuleType.EQUALS_FIELD, "password", "Secret123!", data, true);
         // EQUALS_FIELD 불일치 → 실패
         assertCrossFieldParity(S2RuleType.EQUALS_FIELD, "wrongPassword", "Secret123!", data, false);
+        // EQUALS_FIELD 앞뒤 공백만 다름 → 성공 (양쪽 모두 공백 제거 후 비교)
+        data.put("paddedPassword", " Secret123! ");
+        assertCrossFieldParity(S2RuleType.EQUALS_FIELD, "paddedPassword", "Secret123!", data, true);
 
         // DATE_AFTER: 2024-01-05 >= startDate(2024-01-01) → 성공
         assertCrossFieldParity(S2RuleType.DATE_AFTER, "startDate", "2024-01-05", data, true);

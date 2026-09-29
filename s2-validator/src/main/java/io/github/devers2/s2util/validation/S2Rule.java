@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import io.github.devers2.s2util.core.S2Cache;
 import io.github.devers2.s2util.core.S2DateUtil;
@@ -70,6 +71,11 @@ import io.github.devers2.s2util.message.S2ResourceBundle;
  * @see S2Field
  */
 public class S2Rule implements S2RuleMessageStep, Serializable {
+
+    /** Plain decimal number notation shared with the client validator | 클라이언트 검증기와 공유하는 일반 십진 숫자 표기 */
+    private static final Pattern NUMERIC_PATTERN = Pattern
+            .compile("[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?");
+
 
     private static final long serialVersionUID = 5429183746201827364L;
 
@@ -240,8 +246,13 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @param rootTarget The top-level root target object (or {@code null}) | 최상위 루트 대상 객체 (또는 null)
      * @return {@code true} if valid | 유효한 경우 true
      */
-    @SuppressWarnings("unchecked")
     public boolean isValid(Object value, Object target, Object rootTarget) {
+        // Trim string values before judging, matching the client which trims form values on extraction. | 클라이언트가 폼 값 추출 시 공백을 제거하므로 판정 전 문자열 값의 앞뒤 공백 제거
+        return evaluate(trimIfString(value), target, rootTarget);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean evaluate(Object value, Object target, Object rootTarget) {
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
@@ -499,6 +510,10 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return The resolved target value, or {@code null} | 해석된 기준 값 (없으면 null)
      */
     private Object resolveTargetValue(Object target, Object checkValue, Object rootTarget) {
+        return trimIfString(lookupTargetValue(target, checkValue, rootTarget));
+    }
+
+    private Object lookupTargetValue(Object target, Object checkValue, Object rootTarget) {
         if (checkValue == null) {
             return null;
         }
@@ -739,11 +754,26 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         if (obj instanceof Number n) {
             return n.doubleValue();
         }
+        String str = obj.toString().trim();
+        // Accept only plain decimal notation so the result matches the client (rejects "1,000", "25abc", "25d", "NaN"). | 클라이언트와 판정이 같도록 일반 십진 표기만 허용 ("1,000", "25abc", "25d", "NaN" 거부)
+        if (!NUMERIC_PATTERN.matcher(str).matches()) {
+            return null;
+        }
         try {
-            return Double.parseDouble(obj.toString().trim());
+            return Double.parseDouble(str);
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * Returns the trimmed string if the value is a {@link String}; otherwise returns it unchanged.
+     *
+     * @param value Value to normalize | 정규화할 값
+     * @return Trimmed string or the original value | 공백 제거된 문자열 또는 원래 값
+     */
+    private static Object trimIfString(Object value) {
+        return value instanceof String str ? str.trim() : value;
     }
 
 }

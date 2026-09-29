@@ -845,6 +845,12 @@ const getFieldValue = (elements) => {
  * @returns {any} Target field value, or undefined if not found | 기준 필드 값 (없으면 undefined)
  */
 const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName = '') => {
+  // Trim the looked-up string, matching the server (S2Rule.resolveTargetValue). | 서버(S2Rule.resolveTargetValue)와 같도록 조회한 문자열 값의 앞뒤 공백 제거
+  const found = lookupTargetFieldValue(targetKey, formData, prefix, currentFieldName);
+  return typeof found === 'string' ? found.trim() : found;
+};
+
+const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName = '') => {
   if (!targetKey || !formData) return undefined;
 
   const keyStr = String(targetKey);
@@ -927,6 +933,11 @@ const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName 
  * @returns {boolean} Validity status | 유효 여부
  */
 const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
+  // Trim string values before judging, matching the server (S2Rule.trimIfString). | 서버(S2Rule.trimIfString)와 같도록 판정 전 문자열 값의 앞뒤 공백 제거
+  if (typeof value === 'string') {
+    value = value.trim();
+  }
+
   // ASSERT_TRUE, ASSERT_FALSE는 null이나 빈 값이어도 검증을 수행해야 함 (체크 안 된 상태를 잡아야 하므로)
   if (
     (value === null || value === '' || value === undefined) &&
@@ -985,9 +996,9 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     case 'MAX_BYTE':
       return new Blob([String(value)]).size <= parseInt(rule.value);
     case 'MIN_VALUE':
-      return parseFloat(value) >= parseFloat(rule.value);
+      return toStrictNumber(value) >= toStrictNumber(rule.value); // NaN 비교는 항상 false
     case 'MAX_VALUE':
-      return parseFloat(value) <= parseFloat(rule.value);
+      return toStrictNumber(value) <= toStrictNumber(rule.value);
     case 'REGEX':
     case 'NUMBER':
     case 'TEXT_INTACT':
@@ -1248,6 +1259,28 @@ const parseDate = (value) => {
  */
 const escapeRegExp = (string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+};
+
+/**
+ * Plain decimal number notation shared with the server validator (S2Rule.NUMERIC_PATTERN).
+ */
+const NUMERIC_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+/**
+ * Converts a value to a number only when the whole string is a plain decimal number.
+ * <p>
+ * Mirrors the server's full-string parsing: unlike parseFloat, "25abc" and "1,000" become NaN.
+ * </p>
+ *
+ * @function toStrictNumber
+ * @param {*} value - The value to convert
+ * @returns {number} The parsed number, or NaN if the value is not a plain decimal number
+ */
+const toStrictNumber = (value) => {
+  if (typeof value === 'number') return value;
+  if (value === null || value === undefined) return NaN;
+  const str = String(value).trim();
+  return NUMERIC_PATTERN.test(str) ? Number(str) : NaN;
 };
 
 // 초기화 상태 관리용 (중복 리스너 등록 방지)
