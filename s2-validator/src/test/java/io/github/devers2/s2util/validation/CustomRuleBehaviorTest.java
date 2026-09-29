@@ -200,4 +200,22 @@ public class CustomRuleBehaviorTest {
                     .validate();
         });
     }
+
+    @Test
+    @DisplayName("check(value, label) 예외는 내부 키 \"value\" 대신 라벨을 필드 이름으로 담는다")
+    void testCheckWithLabelReportsLabelAsFieldName() {
+        S2ValidationException valEx = Assertions.assertThrows(S2ValidationException.class,
+                () -> S2Validator.check("", "이름").rule(S2RuleType.REQUIRED).validate());
+        Assertions.assertEquals("이름", valEx.getFieldName());
+        Assertions.assertEquals(S2RuleType.REQUIRED.getErrorMessageKey(), valEx.getErrorCode());
+        Assertions.assertTrue(valEx.getMessage().contains("이름"), valEx.getMessage());
+
+        S2RuleExecutionException ruleEx = Assertions.assertThrows(S2RuleExecutionException.class,
+                () -> S2Validator.check("x", "코드").rule((String v) -> {
+                    throw new IllegalStateException("boom");
+                }).validate());
+        Assertions.assertEquals("코드", ruleEx.getFieldName());
+        Assertions.assertTrue(ruleEx.getMessage().contains("코드"), ruleEx.getMessage());
+        Assertions.assertInstanceOf(IllegalStateException.class, ruleEx.getCause());
+    }
 }

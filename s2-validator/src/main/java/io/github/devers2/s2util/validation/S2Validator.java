@@ -437,11 +437,13 @@ public class S2Validator<T> implements Serializable {
             implements S2RuleStep.LabeledCheckRuleStep<T> {
 
         private final java.util.Map<String, Object> targetWithWrapper;
+        private final String label;
 
         private S2ValueChain(S2Validator<java.util.Map<String, Object>> validator,
                 java.util.Map<String, Object> targetWithWrapper, String valueKey, String label) {
             super(validator);
             this.targetWithWrapper = targetWithWrapper;
+            this.label = label;
             // 생성 즉시 필드(값 자체)를 선택한 상태로 만듦
             doField(valueKey, label);
         }
@@ -516,7 +518,17 @@ public class S2Validator<T> implements Serializable {
 
         @Override
         public boolean validate(Locale locale) {
-            return new Runner<>(validator).run(targetWithWrapper, null, locale);
+            if (label == null || label.isBlank()) {
+                return new Runner<>(validator).run(targetWithWrapper, null, locale);
+            }
+            // Report the label instead of the internal wrapper key "value" | 내부 감싸기 키 "value" 대신 라벨로 보고
+            try {
+                return new Runner<>(validator).run(targetWithWrapper, null, locale);
+            } catch (S2ValidationException e) {
+                throw new S2ValidationException(label, e.getErrorCode(), e.getMessage());
+            } catch (S2RuleExecutionException e) {
+                throw new S2RuleExecutionException(label, e.getCause());
+            }
         }
     }
 
