@@ -1511,6 +1511,10 @@ public class S2Validator<T> implements Serializable {
      * messages rendered for {@code locale}. Custom lambda rules are server-only and are not exported. Use the same
      * validator (or rule definition) for the form page and the submit handler so both apply identical rules.
      * </p>
+     * <p>
+     * Format: {@code {"schemaVersion":1,"fields":[...]}}. {@code s2.validator.js} warns when the version is newer than
+     * it supports (a server and browser script from different releases) and also accepts the pre-1.2.0 bare array.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
@@ -1519,6 +1523,10 @@ public class S2Validator<T> implements Serializable {
      * <p>
      * JSON 에는 필드명, 라벨, 규칙 타입, 기준값, 정규식, 조건, 중첩 규칙, {@code locale}로 만든 오류 메시지가 들어갑니다. 커스텀 람다 규칙은
      * 서버 전용이라 내보내지 않습니다. 폼 화면과 제출 처리에 같은 검증기(또는 규칙 정의)를 쓰면 양쪽이 동일한 규칙을 적용합니다.
+     * </p>
+     * <p>
+     * 형식: {@code {"schemaVersion":1,"fields":[...]}}. {@code s2.validator.js}는 지원하는 것보다 높은 버전(서버와 브라우저 스크립트의
+     * 릴리스가 다름)이면 경고하며, 1.2.0 이전의 배열 형식도 받습니다.
      * </p>
      *
      * @param locale The locale for error messages (null means the default locale) | 오류 메시지 로케일 (null 이면 기본 로케일)

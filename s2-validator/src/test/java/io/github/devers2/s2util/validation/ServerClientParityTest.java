@@ -481,9 +481,11 @@ public class ServerClientParityTest {
 
         // JS에서 JSON을 파싱하고 구조를 검증
         jsContext.eval("js", "var __testRules = " + json + ";");
-        Value rules = jsContext.eval("js", "__testRules");
+        Value root = jsContext.eval("js", "__testRules");
+        Assertions.assertEquals(S2RulesJsonWriter.SCHEMA_VERSION, root.getMember("schemaVersion").asInt(), "schemaVersion 필요");
+        Value rules = root.getMember("fields");
 
-        Assertions.assertTrue(rules.hasArrayElements(), "JSON은 배열이어야 함");
+        Assertions.assertTrue(rules.hasArrayElements(), "fields 는 배열이어야 함");
         Assertions.assertEquals(5, rules.getArraySize(), "필드 5개");
 
         // 첫 번째 필드(email)의 구조 확인

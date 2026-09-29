@@ -83,6 +83,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   (closed tabs/accordions; the anchor is placed after the outermost hidden container), uses one anchor per radio/checkbox
   group, exposes the message via `aria-label` instead of `aria-hidden`, and no longer treats rendered `position:fixed`
   fields as hidden.
+- **Rules JSON format**: `getRulesJson()` returns `{"schemaVersion":1,"fields":[…]}` instead of a bare array.
+  `s2.validator.js` accepts both, and warns once in the console when `schemaVersion` is newer than the script (server and
+  browser script from different releases). If you parse the JSON yourself, read `fields`.
 - **Client export**: `getRulesJson()` throws `IllegalStateException` if a `REGEX` rule uses Java-only syntax (`(?i)`,
   possessive quantifiers, atomic groups, `\p{…}`, `\A`/`\z`, `\Q…\E`, class intersection, …). Server-only validators are
   not affected.
@@ -143,6 +146,7 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 7. If exception-mode failures are handled as `S2RuntimeException`, consider handling `S2ValidationException`
    (input error → 400) and `S2RuleExecutionException` (bug → 500) separately.
 8. Swap the arguments of `.message(Locale, "…")` to `.message("…", Locale)`.
+9. If your server code or scripts parse the rules JSON directly, read the `fields` array instead of a top-level array.
 
 ## s2-validator-plugin [1.2.0] - Unreleased
 
