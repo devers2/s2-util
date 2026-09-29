@@ -443,19 +443,19 @@ S2Validator.<OrderDTO>builder()
 // → "배송일은 주문일보다 이전일 수 없습니다." (행과 최상위에 같은 이름이 있으면 행이 우선)
 ```
 
-**동적 행: 인덱스를 연속으로 유지하십시오.** 사용자가 행을 삭제하면 남은 입력칸 이름이 `items[0]`, `items[2]`처럼 될 수 있습니다. 브라우저는 실제로 있는 행만 검증하고, 서버도 `Map`/`List` 대상의 `null` 요소는 건너뜁니다. 그러나 Spring 이 DTO 목록에 바인딩할 때는 목록을 자동 확장하며 빈칸을 **빈 객체**(`new ItemDTO()`)로 채우므로, 서버는 이것을 실제로 비워 둔 행과 구분할 수 없어 화면에 없는 행의 `items[1].*` 오류를 냅니다. 행을 삭제한 뒤 인덱스가 `0..n-1`이 되도록 다시 매기십시오:
+**동적 행: 인덱스를 연속으로 유지하십시오.** 사용자가 행을 삭제하면 남은 입력칸 이름이 `items[0]`, `items[2]`처럼 될 수 있습니다. 브라우저는 실제로 있는 행만 검증하고, 서버도 `Map`/`List` 대상의 `null` 요소는 건너뜁니다. 그러나 Spring 이 DTO 목록에 바인딩할 때는 목록을 자동 확장하며 빈칸을 **빈 객체**(`new ItemDTO()`)로 채우므로, 서버는 이것을 실제로 비워 둔 행과 구분할 수 없어 화면에 없는 행의 `items[1].*` 오류를 냅니다. 행을 삭제한 뒤 `S2Validator.reindex(form, collection)`으로 인덱스가 `0..n-1`이 되도록 다시 매기십시오:
 
 ```javascript
-// 행 삭제 후 호출: items[2].name -> items[1].name ... (_error 대리 요소나 data-s2-error-for 를 쓰면 함께 변경)
-function reindexRows(container, collection) {
-  const pattern = new RegExp(`^${collection}\\[\\d+\\]`);
-  container.querySelectorAll('[data-row]').forEach((row, index) => {
-    row.querySelectorAll('[name]').forEach((el) => {
-      el.name = el.name.replace(pattern, `${collection}[${index}]`);
-    });
-  });
-}
+import { S2Validator } from '/s2-util/js/s2.validator.js';
+
+deleteButton.addEventListener('click', () => {
+  row.remove();
+  S2Validator.reindex(form, 'items'); // items[0], items[2], items[5] -> items[0], items[1], items[2]
+});
+// 중첩 컬렉션은 전체 경로를 넘깁니다. 예: S2Validator.reindex(form, 'items[0].options')
 ```
+
+문서 순서대로 입력칸의 `name`(`items[2].addr.zip` 같은 하위 경로와 `{필드명}_error` 대리 요소 포함)과 `data-s2-error-for` 속성을 바꾸며, 다른 컬렉션과 `id` 속성은 그대로 둡니다. 인덱스가 의미를 가질 수 있으므로(예: Map 키나 `items[1234]` 같은 ID) 자동으로 적용하지 않습니다. 다른 스크립트가 `name`으로 입력칸을 찾는다면 재번호 이후에 찾게 하십시오.
 
 ### 5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)
 

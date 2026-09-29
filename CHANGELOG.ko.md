@@ -93,6 +93,7 @@
 - `S2ValidationException`, `S2RuleExecutionException`.
 - 브라우저: 기본 말풍선 대신 애플리케이션 방식으로 오류를 그리는 `S2Validator.setRenderer({ show, clear, clearField })`와
   `S2Validator.classRenderer()`(`is-invalid` 추가, `[data-s2-error-for]`에 메시지 표시, 첫 오류로 초점 이동).
+- 브라우저: 행 삭제 후 행 인덱스를 `0..n-1`로 다시 매기는 `S2Validator.reindex(form, collection)` (명시적 호출 전용, 자동 적용 없음).
 - 브라우저: `{필드명}_error` 대리 요소가 없는 히든·비표시 필드 옆에 1px 앵커를 만들어 기본 오류 말풍선을 표시.
 
 ### 수정
