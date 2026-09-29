@@ -16,11 +16,17 @@ Gradle 빌드와는 분리되어 있으며 Node.js 18+ 가 필요합니다.
 ## 실행
 
 ```bash
-cd s2-validator/browser-test
-npm ci
-npx playwright install --with-deps chromium   # 최초 1회 (Linux/WSL 은 sudo 필요)
-npm test
+s2-validator/browser-test/run.sh
 ```
+
+`run.sh` 는 없는 것만 준비한 뒤 시험을 실행합니다.
+
+1. `node_modules` 가 없거나 `package-lock.json` 이 바뀌었으면 `npm ci`
+2. 이 Playwright 버전용 Chromium 이 없으면 다운로드
+3. (Linux/WSL) Chromium 이 찾지 못하는 시스템 라이브러리가 있을 때만 최초 1회 `sudo apt-get install -y libnss3 libnspr4 libasound2t64` (비밀번호 입력)
+
+Playwright 옵션은 그대로 전달됩니다: `./run.sh --headed`, `./run.sh -g "hidden"`.
+macOS 는 3단계를 건너뜁니다. Windows 는 WSL 또는 Git Bash 에서 실행하거나 `npm ci && npx playwright install chromium && npm test` 를 직접 실행하십시오.
 
 ## 언제 실행하나
 
