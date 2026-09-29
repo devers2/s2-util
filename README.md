@@ -344,7 +344,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 ```groovy
 dependencies {
     // Essential runtime dependencies for optional functionalities
-    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.4'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.3.0'
     implementation 'org.springframework:spring-context:6.2.19'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
