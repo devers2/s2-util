@@ -403,6 +403,9 @@ public final class S2ValidatorFactory {
                 firstRule = false;
 
                 S2RuleType ruleType = rule.getRuleType();
+                if (ruleType == S2RuleType.REGEX) {
+                    rejectClientIncompatibleRegex(field, String.valueOf(rule.getCheckValue()));
+                }
                 sb.append("{");
                 sb.append("\"type\":\"").append(ruleType.name()).append("\",");
                 sb.append("\"regex\":").append(toJsonString(ruleType.getRegex())).append(",");
@@ -468,6 +471,40 @@ public final class S2ValidatorFactory {
      * @param obj The object to convert | 변환할 객체
      * @return JSON string representation | JSON 문자열 표현
      */
+    /**
+     * Fails fast when a REGEX rule uses Java-only syntax that the browser cannot evaluate the same way.
+     * <p>
+     * Checked only when rules are exported to the client, so server-only validators may keep using Java syntax.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * REGEX 규칙이 브라우저에서 같은 의미로 평가될 수 없는 Java 전용 문법을 쓰면 즉시 실패시킵니다.
+     * <p>
+     * 규칙을 클라이언트로 내보낼 때만 검사하므로, 서버 전용 검증기는 Java 문법을 계속 쓸 수 있습니다.
+     * </p>
+     *
+     * @param field   The field that owns the rule | 규칙을 가진 필드
+     * @param pattern The regex pattern | 정규식 패턴
+     * @throws IllegalStateException If the pattern is not client compatible | 클라이언트 호환이 아닌 경우
+     */
+    private static void rejectClientIncompatibleRegex(S2Field<?> field, String pattern) {
+        String problem = S2RegexCompatibility.findIncompatibility(pattern);
+        if (problem == null) {
+            return;
+        }
+        String fieldName = String.valueOf(field.getName());
+        if (S2Util.isKorean()) {
+            throw new IllegalStateException("필드 '" + fieldName + "'의 REGEX 규칙 \"" + pattern
+                    + "\"은(는) 브라우저(JavaScript)에서 같은 의미로 평가할 수 없는 Java 전용 문법을 사용합니다: " + problem
+                    + ". 클라이언트 검증에 쓰려면 ECMAScript 호환 문법으로 바꾸십시오(예: (?i) 대신 [Aa] 문자 클래스).");
+        }
+        throw new IllegalStateException("REGEX rule \"" + pattern + "\" on field '" + fieldName
+                + "' uses Java-only syntax that the browser (JavaScript) cannot evaluate the same way: " + problem
+                + ". Use ECMAScript-compatible syntax for client-side validation (e.g. [Aa] instead of (?i)).");
+    }
+
     private static String toJsonString(Object obj) {
         if (obj == null) {
             return "null";
