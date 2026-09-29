@@ -409,6 +409,11 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                     yield false;
                 }
 
+                // Checksum is opt-in (checkValue true): numbers issued or changed from Oct 2020 carry random digits regardless of birth date. | 검증번호 검사는 선택(checkValue true): 2020-10 이후 부여·변경된 번호는 출생일과 무관하게 임의번호이므로
+                if (!isJuminChecksumEnabled(checkValue)) {
+                    yield true;
+                }
+
                 // 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)으로 체크섬 생략
                 if (year > 2020 || (year == 2020 && mm >= 10)) {
                     yield true;
@@ -774,6 +779,16 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      */
     private static Object trimIfString(Object value) {
         return value instanceof String str ? str.trim() : value;
+    }
+
+    /**
+     * Returns whether the legacy JUMIN checksum is requested ({@code Boolean.TRUE} or {@code "true"}).
+     *
+     * @param checkValue The rule criterion | 규칙 기준값
+     * @return {@code true} if checksum verification is enabled | 검증번호 검사 사용 여부
+     */
+    private static boolean isJuminChecksumEnabled(Object checkValue) {
+        return Boolean.TRUE.equals(checkValue) || "true".equalsIgnoreCase(String.valueOf(checkValue).trim());
     }
 
 }

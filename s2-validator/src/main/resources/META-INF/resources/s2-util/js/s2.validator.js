@@ -1028,7 +1028,8 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       }
     }
     case 'JUMIN':
-      return validateJumin(String(value)); // 서버 로직 복제
+      // Check digit only when the rule criterion is true, same as server S2Rule.isJuminChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isJuminChecksumEnabled 와 동일)
+      return validateJumin(String(value), rule.value === true || String(rule.value).trim().toLowerCase() === 'true');
     case 'DATE':
       return validateDate(value); // 문자열/날짜 객체 지원
     case 'DATE_AFTER': {
@@ -1086,20 +1087,19 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
  * </p>
  * JUMIN 검증 (서버 로직 복제).
  * <p>
- * 스마트 하이브리드 알고리즘을 사용하여 주민등록번호의 유효성을 검증합니다:
- * - 생년월일 달력 유효성(윤년 포함) 및 성별 코드(0~9) 검증.
- * - 2020년 10월 이전 출생자: 기존 Modulo 11 가중치 체크섬 알고리즘 적용.
- * - 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)에 따라 체크섬 생략.
+ * 주민등록번호의 유효성을 검증합니다:
+ * - 기본: 13자리 숫자(하이픈 허용), 생년월일 달력 유효성(윤년 포함), 성별 코드(0~9)만 검증.
+ * - checksumEnabled=true(규칙 기준값 true): 2020년 10월 이전 출생자에 한해 기존 Modulo 11 검증번호도 검사.
  * </p>
  * <p>
- * <b>주의:</b> 2020년 10월 이후 주민번호를 새로 재부여/변경받은 성인은 기존 체크섬 검증에 실패할 수 있습니다.
+ * <b>참고:</b> 2020년 10월 이후 번호를 새로 부여·변경받은 사람은 출생일과 무관하게 임의번호라 검증번호 검사에 실패할 수 있어 기본값은 끔입니다.
  * </p>
  *
  * @function validateJumin
  * @param {string} jumin - Resident registration number string | 주민번호 문자열
  * @returns {boolean} Validity status | 유효 여부
  */
-const validateJumin = (jumin) => {
+const validateJumin = (jumin, checksumEnabled = false) => {
   if (typeof jumin !== 'string') jumin = String(jumin);
   jumin = jumin.replace(/-/g, '');
   if (!/^\d{13}$/.test(jumin)) return false;
@@ -1125,6 +1125,11 @@ const validateJumin = (jumin) => {
   const date = new Date(year, mm - 1, dd);
   if (date.getFullYear() !== year || date.getMonth() !== mm - 1 || date.getDate() !== dd) {
     return false;
+  }
+
+  // Checksum is opt-in: numbers issued or changed from Oct 2020 carry random digits regardless of birth date. | 검증번호 검사는 선택: 2020-10 이후 부여·변경된 번호는 출생일과 무관하게 임의번호
+  if (!checksumEnabled) {
+    return true;
   }
 
   // 2020년 10월 이후 출생자: 행정안전부 개정(뒷자리 6자리 임의번호 부여)으로 체크섬 생략
