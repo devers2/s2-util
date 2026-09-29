@@ -43,6 +43,19 @@ public class RuleCriterionTest {
     }
 
     @Test
+    void integerCriterionWithSurroundingWhitespaceIsAcceptedAtCreationAndValidation() {
+        // Creation and validation parse the same way, so " 5" never passes creation and then fails at validation. | 생성과 판정이 같은 방식으로 파싱하므로 " 5"가 생성은 통과하고 판정에서 실패하는 일이 없음
+        for (S2RuleType type : new S2RuleType[] { S2RuleType.LENGTH, S2RuleType.MIN_LENGTH, S2RuleType.MAX_LENGTH,
+                S2RuleType.MIN_BYTE, S2RuleType.MAX_BYTE }) {
+            Assertions.assertDoesNotThrow(() -> new S2Rule(type, " 5 "), type.name());
+        }
+        Assertions.assertTrue(S2Validator.check("abcde").rule(S2RuleType.MAX_LENGTH, " 5 ").validate());
+        Assertions.assertFalse(S2Validator.check("abcdef").rule(S2RuleType.MAX_LENGTH, " 5 ").validate());
+        Assertions.assertTrue(S2Validator.check("abcde").rule(S2RuleType.LENGTH, "5 ").validate());
+        Assertions.assertFalse(S2Validator.check("가나").rule(S2RuleType.MAX_BYTE, " 5").validate());
+    }
+
+    @Test
     void rulesJsonNeverContainsNonFiniteNumbers() {
         // Previously MAX_VALUE NaN produced "value":NaN, invalid JSON that disabled client validation for the whole form. | 이전에는 "value":NaN 이 나가 폼 전체의 클라이언트 검증이 꺼졌음
         Assertions.assertThrows(IllegalArgumentException.class,

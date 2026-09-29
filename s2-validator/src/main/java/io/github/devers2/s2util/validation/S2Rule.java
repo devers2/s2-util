@@ -275,28 +275,28 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             case ASSERT_FALSE -> isFalse(value);
             case LENGTH -> {
                 var targetValue = String.valueOf(value);
-                var length = Integer.parseInt(String.valueOf(checkValue));
+                var length = toIntCriterion(checkValue);
                 yield targetValue.length() == length;
             }
             case MIN_LENGTH -> {
                 var targetValue = String.valueOf(value);
-                var minLength = Integer.parseInt(String.valueOf(checkValue));
+                var minLength = toIntCriterion(checkValue);
                 yield targetValue.length() >= minLength;
             }
             case MAX_LENGTH -> {
                 var targetValue = String.valueOf(value);
-                var maxLength = Integer.parseInt(String.valueOf(checkValue));
+                var maxLength = toIntCriterion(checkValue);
                 yield targetValue.length() <= maxLength;
             }
             case MIN_BYTE -> {
                 // Count UTF-8 bytes regardless of the platform charset, same as the client (Blob size). | 플랫폼 문자셋과 무관하게 클라이언트(Blob size)와 같은 UTF-8 바이트 수로 계산
                 var targetValue = String.valueOf(value);
-                var minByte = Integer.parseInt(String.valueOf(checkValue));
+                var minByte = toIntCriterion(checkValue);
                 yield targetValue.getBytes(StandardCharsets.UTF_8).length >= minByte;
             }
             case MAX_BYTE -> {
                 var targetValue = String.valueOf(value);
-                var maxByte = Integer.parseInt(String.valueOf(checkValue));
+                var maxByte = toIntCriterion(checkValue);
                 yield targetValue.getBytes(StandardCharsets.UTF_8).length <= maxByte;
             }
             case MIN_VALUE -> {
@@ -813,7 +813,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             }
             case LENGTH, MIN_LENGTH, MAX_LENGTH, MIN_BYTE, MAX_BYTE -> {
                 try {
-                    Integer.parseInt(String.valueOf(checkValue));
+                    toIntCriterion(checkValue);
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException(
                             "[S2Rule] " + ruleType + " requires an integer criterion, but was: " + checkValue, e);
@@ -823,6 +823,28 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 // Other rule types have no numeric criterion | 그 밖의 규칙은 숫자 기준값이 없음
             }
         }
+    }
+
+    /**
+     * Parses an integer criterion (length/byte rules), ignoring surrounding whitespace like the client's {@code parseInt}.
+     * <p>
+     * Used both at rule creation and at validation so both accept exactly the same criteria.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 정수 기준값(길이·바이트 규칙)을 클라이언트의 {@code parseInt}처럼 앞뒤 공백을 무시하고 파싱합니다.
+     * <p>
+     * 규칙 생성 시점과 판정 시점에 함께 써서 두 곳이 정확히 같은 기준값을 받아들이게 합니다.
+     * </p>
+     *
+     * @param checkValue The criterion | 기준값
+     * @return The integer criterion | 정수 기준값
+     * @throws NumberFormatException If the criterion is not an integer | 정수가 아닌 경우
+     */
+    private static int toIntCriterion(Object checkValue) {
+        return Integer.parseInt(String.valueOf(checkValue).trim());
     }
 
     private static Object trimIfString(Object value) {
