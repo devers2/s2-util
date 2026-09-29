@@ -132,7 +132,8 @@ plugins {
 ```
 
 > [!IMPORTANT]
-> 필드명 정적 분석은 제네릭 타입 정보가 명시된 경우(예: `S2Validator.<UserDTO>builder()`)에 동작합니다.
+> 필드명 정적 분석 대상 DTO 는 `S2Validator.<UserDTO>builder()`처럼 명시한 타입 인자, 또는 `S2Validator.of(dto)` 인자의 선언 타입으로 찾습니다.
+> 바뀐 소스가 없으면 태스크는 `UP-TO-DATE`로 건너뛰며 빌드 캐시도 지원합니다.
 
 ---
 

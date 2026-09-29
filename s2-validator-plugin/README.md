@@ -39,15 +39,18 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Integrates with `check` task for CI/CD pipelines
    - Supports `bootRun` and other JavaExec tasks
 
-5. **Field Caching for Performance**
-   - Caches analyzed DTO field information in memory
-   - Reuses cached data for repeated validation checks
-   - Minimizes repeated file I/O and parsing operations
+5. **Incremental Build & Build Cache**
+   - The `src/main/java` trees of all projects are task inputs: skipped as `UP-TO-DATE` when no source changed
+   - `@CacheableTask`: restores the previous result as `FROM-CACHE` with `--build-cache`
+   - Within one run, analyzed DTO field information is cached in memory
+   - `bind(...)` usage warnings are also kept in `build/s2-validator/checkS2Validators.txt` (not logged again when `UP-TO-DATE`)
 
-6. **Smart Validation Skipping**
-   - Skips validation for generic types with `?` or `Object`
-   - Gracefully handles cases where complete type information is unavailable
-   - Prevents false positives from incomplete generic type parameters
+6. **Target DTO Inference**
+   - Explicit type argument: `S2Validator.<UserDTO>builder()`, `S2Validator.<UserDTO>of(dto)`
+   - Inference: `S2Validator.of(dto)` finds the DTO from the argument's declared type (method/lambda parameter, local
+     variable, field, `var x = new UserDTO()`, `new UserDTO()`, cast)
+   - `builder()` needs the type argument because Java does not infer it from the assignment target
+   - Skips `?`, `Object`, JDK types (`Map`, ...) and unknown types (a class without source is reported once)
 
 7. **Detailed Error Reporting**
    - Clear error messages with color-coded output

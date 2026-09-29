@@ -39,23 +39,43 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.RecordDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.CastExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.UnknownType;
+import com.github.javaparser.ast.type.VarType;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
+import org.gradle.api.tasks.CacheableTask;
+import org.gradle.api.tasks.IgnoreEmptyDirectories;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.work.DisableCachingByDefault;
 
 /**
  * Gradle Task that performs static analysis on source code to validate {@code S2Validator} field names
@@ -80,7 +100,8 @@ import org.gradle.work.DisableCachingByDefault;
  *
  * <b>Key Features (주요 특징)</b>
  * <ul>
- * <li><b>Smart Validation Skip:</b> Skips validation if the generic type is {@code ?}, {@code Object}, or omitted. | 제네릭이 {@code ?}, {@code Object}, 또는 생략된 경우 검증 생략</li>
+ * <li><b>Target Type Inference:</b> Uses the explicit type argument ({@code S2Validator.<Dto>builder()}) or the declared type of the {@code of(dto)} argument; skips {@code ?}, {@code Object}, JDK types ({@code Map}) and unknown types. | 명시적 타입 인자 또는 {@code of(dto)} 인자의 선언 타입으로 대상 추론. {@code ?}, {@code Object}, JDK 타입({@code Map}), 알 수 없는 타입은 생략</li>
+ * <li><b>Incremental &amp; Cacheable:</b> Inputs are the {@code src/main/java} trees of all projects; the task is UP-TO-DATE or restored from the build cache when they are unchanged. | 모든 프로젝트의 {@code src/main/java}가 입력이며, 바뀌지 않으면 UP-TO-DATE 또는 빌드 캐시에서 복원</li>
  * <li><b>Inheritance Support:</b> Includes fields from parent classes in the validation. | 상속받은 부모 클래스의 필드까지 포함하여 검증</li>
  * <li><b>Multi-Project Support:</b> Searches for DTOs across all subprojects within the root project. | 멀티 프로젝트 환경 지원</li>
  * <li><b>Performance Optimization:</b> Caches analyzed DTO field information for faster subsequent checks. | DTO 필드 정보 캐싱을 통한 성능 최적화</li>
@@ -91,7 +112,7 @@ import org.gradle.work.DisableCachingByDefault;
  * @version 1.5
  * @since 1.0
  */
-@DisableCachingByDefault(because = "입출력 파일이 선언되지 않은 채 멀티 프로젝트 소스 전체를 직접 스캔하므로 캐시할 수 없다.")
+@CacheableTask
 public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
     // ANSI 제어 문자를 사용한 로그 색상 정의
@@ -116,6 +137,14 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     /** List of DTOs for which analysis results have already been logged to prevent log overflow | 로그 오버플로우 방지를 위해 이미 분석 결과를 출력한 DTO 목록 */
     private final Set<String> loggedDTOs = new HashSet<>();
 
+    /** Target classes whose source was not found, logged once each | 소스를 찾지 못해 한 번씩만 기록한 대상 클래스 */
+    private final Set<String> skippedDTOs = new HashSet<>();
+
+    /** java.lang types usable without an import; never DTOs in the scanned sources | import 없이 쓰는 java.lang 타입. 스캔 소스의 DTO 가 아님 */
+    private static final Set<String> JAVA_LANG_TYPES = Set.of(
+            "Object", "String", "CharSequence", "Number", "Integer", "Long", "Short", "Byte", "Double", "Float",
+            "Boolean", "Character");
+
     /**
      * Constructs a new {@code CheckS2ValidatorsTask} and sets the Gradle task group and description.
      *
@@ -134,7 +163,38 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         getSourceRoots().convention(project.provider(() -> project.getRootProject().getAllprojects().stream()
                 .map(p -> p.file("src/main/java"))
                 .collect(Collectors.toList())));
+        // Every scanned tree is an input: checked files and DTO lookups across projects. | 스캔하는 모든 트리가 입력: 검사 대상 파일과 프로젝트 간 DTO 조회
+        getSourceFiles().from(getSourceRoots());
+        getResultFile().convention(project.getLayout().getBuildDirectory().file("s2-validator/checkS2Validators.txt"));
     }
+
+    /**
+     * The source trees read by the check, declared as inputs so the task is skipped when nothing changed.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검사가 읽는 소스 트리입니다. 입력으로 선언되어 바뀐 것이 없으면 태스크를 건너뜁니다.
+     *
+     * @return The input source files | 입력 소스 파일
+     */
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    @IgnoreEmptyDirectories
+    public abstract ConfigurableFileCollection getSourceFiles();
+
+    /**
+     * Summary of the last successful check; the task output that enables up-to-date checks and the build cache.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 마지막으로 성공한 검사의 요약입니다. 최신 상태 판정과 빌드 캐시를 가능하게 하는 태스크 출력입니다.
+     *
+     * @return The result file property | 결과 파일 속성
+     */
+    @OutputFile
+    public abstract RegularFileProperty getResultFile();
 
     /**
      * The directory of the project being checked; its {@code src/main/java} is scanned.
@@ -189,6 +249,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             File srcDir = new File(projectDir, "src/main/java");
             if (!srcDir.exists()) {
                 getLogger().info("ℹ️  src/main/java 디렉토리가 없습니다. 검증 생략.");
+                writeResult(0, Map.of(), projectDir);
                 return;
             }
 
@@ -286,12 +347,39 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                         String.format("S2Validator 정적 분석 실패: %s 발견되었습니다.", String.join(", ", messages)));
             }
 
+            writeResult(totalFiles, bindWarningsByFile, projectDir);
+
         } catch (IllegalStateException e) {
             throw e;
         } catch (Exception e) {
             getLogger().error("검증 중 오류 발생: {}", e.getMessage(), e);
             throw new RuntimeException("S2Validator 필드명 검증 실패", e);
         }
+    }
+
+    /**
+     * Writes the result file (task output). Warnings are kept here because an UP-TO-DATE run does not log them again.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 결과 파일(태스크 출력)을 씁니다. UP-TO-DATE 실행에서는 경고가 다시 출력되지 않으므로 여기에 남깁니다.
+     *
+     * @param totalFiles     Number of scanned files | 스캔한 파일 수
+     * @param warningsByFile Bind usage warnings by file | 파일별 bind 사용 경고
+     * @param projectDir     Project directory for relative paths | 상대 경로 기준 프로젝트 디렉터리
+     * @throws java.io.IOException If writing fails | 쓰기 실패 시
+     */
+    private void writeResult(int totalFiles, Map<String, List<BindValidatorWarning>> warningsByFile, File projectDir)
+            throws java.io.IOException {
+        StringBuilder sb = new StringBuilder("S2Validator check passed: ").append(totalFiles).append(" files\n");
+        warningsByFile.forEach((file, warnings) -> warnings.forEach(w -> sb.append("WARN ")
+                .append(projectDir.toPath().relativize(Path.of(file)).toString().replace('\\', '/'))
+                .append(':').append(w.lineNumber).append(" bind(").append(w.target).append(") - ").append(w.reason)
+                .append('\n')));
+        Path out = getResultFile().get().getAsFile().toPath();
+        Files.createDirectories(out.getParent());
+        Files.writeString(out, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
     }
 
     /**
@@ -360,8 +448,11 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
                     Set<String> validFieldNames = getAllFieldNames(targetClassName);
                     if (validFieldNames == null) {
-                        getLogger().lifecycle("⚠️ DTO 소스를 찾을 수 없어 검증을 건너뜁니다: {} (파일: {})", targetClassName,
-                                javaFile.getFileName());
+                        // Log once per class; inferred of(dto) targets make repeats common. | of(dto) 추론으로 반복이 잦으므로 클래스당 한 번만 기록
+                        if (skippedDTOs.add(targetClassName)) {
+                            getLogger().lifecycle("⚠️ DTO 소스를 찾을 수 없어 검증을 건너뜁니다: {} (파일: {})", targetClassName,
+                                    javaFile.getFileName());
+                        }
                         continue;
                     }
 
@@ -675,7 +766,13 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
     /**
      * {@code .field()} 호출이 속한 체인을 거슬러 올라가 대상 DTO 클래스명을 추론합니다.
-     * 명시적으로 지정된 제네릭 타입 파라미터가 있는 경우에만 유효한 클래스명을 반환합니다.
+     * <ul>
+     * <li>명시적 타입 인자: {@code S2Validator.<Dto>builder()}, {@code S2Validator.<Dto>of(x)}</li>
+     * <li>타입 추론: {@code S2Validator.of(dto)}는 인자의 선언 타입(메서드·람다 파라미터, 지역 변수, 필드,
+     * {@code var x = new Dto()}, {@code new Dto()}, 캐스트)에서 DTO 를 찾습니다. {@code builder()}는 Java 가 체인 앞쪽의
+     * 타입을 대입 대상에서 추론하지 않으므로 타입 인자가 필수입니다.</li>
+     * <li>{@code ?}, {@code Object}, JDK 타입({@code Map} 등), 판별할 수 없는 타입은 검사하지 않습니다.</li>
+     * </ul>
      * <p>
      * {@code S2Validator.builder()}가 변수에 담겨 여러 문장으로 나뉘어 사용된 경우
      * (예: {@code var b = S2Validator.<Dto>builder(); b.field(...)}), 체이닝이 변수에서
@@ -694,19 +791,16 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             String name = current.getNameAsString();
             if ("builder".equals(name) || "of".equals(name)) {
                 if (current.getScope().isPresent() && current.getScope().get().toString().endsWith("S2Validator")) {
+                    CompilationUnit cu = getCU(fieldCall);
                     Optional<NodeList<Type>> typeArgs = current.getTypeArguments();
                     if (typeArgs.isPresent() && !typeArgs.get().isEmpty()) {
-                        Type typeArg = typeArgs.get().get(0);
-                        String typeString = typeArg.toString().trim();
-
-                        // ?, Object 또는 와일드카드 타입은 검증 스킵
-                        if (typeString.equals("?") || typeString.equals("Object") ||
-                                typeString.startsWith("? extends") || typeString.startsWith("? super")) {
-                            return null;
-                        }
-
-                        return resolveFullClassName(getCU(fieldCall), typeArg.toString());
+                        return toCheckableClassName(cu, typeArgs.get().get(0));
                     }
+                    // No type argument: of(dto) infers T from its argument. | 타입 인자 없음: of(dto)는 인자에서 T 를 추론
+                    if ("of".equals(name) && !current.getArguments().isEmpty()) {
+                        return toCheckableClassName(cu, inferExpressionType(current.getArguments().get(0), 0));
+                    }
+                    return null;
                 }
             }
 
@@ -725,6 +819,132 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         }
 
         return null;
+    }
+
+    /**
+     * Converts a type to the class name to check, or {@code null} when it cannot be a DTO in the scanned sources
+     * (wildcards, primitives, arrays, {@code Object}, JDK types). Type arguments are erased ({@code Box<Item>} → Box).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 타입을 검사할 클래스명으로 바꿉니다. 스캔 소스의 DTO 일 수 없는 타입(와일드카드, 기본형, 배열, {@code Object}, JDK 타입)은
+     * {@code null}을 반환하며, 타입 인자는 지웁니다({@code Box<Item>} → Box).
+     *
+     * @param cu   The file that uses the type | 타입을 사용하는 파일
+     * @param type The type, or null | 타입 (없으면 null)
+     * @return The fully qualified class name, or null | 전체 클래스명, 검사 불가 시 null
+     */
+    private String toCheckableClassName(CompilationUnit cu, Type type) {
+        if (!(type instanceof ClassOrInterfaceType classType)) {
+            return null;
+        }
+        String simpleName = classType.getNameWithScope();
+        boolean imported = cu != null && cu.getImports().stream()
+                .anyMatch(importDecl -> importDecl.getNameAsString().endsWith("." + simpleName));
+        if (!imported && JAVA_LANG_TYPES.contains(simpleName)) {
+            return null;
+        }
+        String fullName = resolveFullClassName(cu, simpleName);
+        if (fullName == null || fullName.startsWith("java.") || fullName.startsWith("javax.")) {
+            return null;
+        }
+        return fullName;
+    }
+
+    /**
+     * Returns the declared type of an expression passed to {@code S2Validator.of(...)}, when it can be read from the
+     * source alone.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code S2Validator.of(...)}에 전달된 식의 선언 타입을 소스만으로 알 수 있으면 반환합니다.
+     *
+     * @param expr  The argument expression | 인자 식
+     * @param depth Recursion depth for {@code var} initializers | {@code var} 초기화식 추적 깊이
+     * @return The type, or null when unknown | 타입, 알 수 없으면 null
+     */
+    private Type inferExpressionType(Expression expr, int depth) {
+        if (depth > 4 || expr == null) {
+            return null;
+        }
+        if (expr instanceof EnclosedExpr enclosed) {
+            return inferExpressionType(enclosed.getInner(), depth + 1);
+        }
+        if (expr instanceof ObjectCreationExpr creation) {
+            return creation.getType();
+        }
+        if (expr instanceof CastExpr cast) {
+            return cast.getType();
+        }
+        if (expr instanceof NameExpr nameExpr) {
+            return findDeclaredType(nameExpr.getNameAsString(), expr, depth);
+        }
+        if (expr instanceof FieldAccessExpr fieldAccess && fieldAccess.getScope() instanceof ThisExpr) {
+            return findDeclaredType(fieldAccess.getNameAsString(), expr, depth);
+        }
+        return null;
+    }
+
+    /**
+     * Finds the declared type of a variable visible at {@code from}: parameters and local variables of the enclosing
+     * lambdas, methods and constructors (nearest first), then fields of the enclosing types.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code from} 위치에서 보이는 변수의 선언 타입을 찾습니다. 감싸는 람다·메서드·생성자의 파라미터와 지역 변수(가까운 순)를 먼저,
+     * 그다음 감싸는 타입의 필드를 봅니다.
+     *
+     * @param name  The variable name | 변수 이름
+     * @param from  The node that uses the variable | 변수를 사용하는 노드
+     * @param depth Recursion depth for {@code var} initializers | {@code var} 초기화식 추적 깊이
+     * @return The declared type, or null when not found or not explicit | 선언 타입, 없거나 명시되지 않았으면 null
+     */
+    private Type findDeclaredType(String name, Node from, int depth) {
+        for (Node node = from.getParentNode().orElse(null); node != null; node = node.getParentNode().orElse(null)) {
+            if (node instanceof LambdaExpr || node instanceof MethodDeclaration
+                    || node instanceof ConstructorDeclaration) {
+                NodeList<Parameter> params = node instanceof LambdaExpr lambda ? lambda.getParameters()
+                        : node instanceof MethodDeclaration method ? method.getParameters()
+                                : ((ConstructorDeclaration) node).getParameters();
+                for (Parameter param : params) {
+                    if (name.equals(param.getNameAsString())) {
+                        return param.getType() instanceof UnknownType ? null : param.getType();
+                    }
+                }
+                for (VariableDeclarator declarator : node.findAll(VariableDeclarator.class)) {
+                    if (name.equals(declarator.getNameAsString())) {
+                        return declaredOrInitializerType(declarator, depth);
+                    }
+                }
+            } else if (node instanceof TypeDeclaration<?> typeDecl) {
+                for (FieldDeclaration field : typeDecl.getFields()) {
+                    for (VariableDeclarator declarator : field.getVariables()) {
+                        if (name.equals(declarator.getNameAsString())) {
+                            return declaredOrInitializerType(declarator, depth);
+                        }
+                    }
+                }
+                if (typeDecl instanceof RecordDeclaration recordDecl) {
+                    for (Parameter component : recordDecl.getParameters()) {
+                        if (name.equals(component.getNameAsString())) {
+                            return component.getType();
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Returns the declared type, or for {@code var} the type of its initializer. | 선언 타입, {@code var}면 초기화식의 타입 */
+    private Type declaredOrInitializerType(VariableDeclarator declarator, int depth) {
+        if (declarator.getType() instanceof VarType) {
+            return declarator.getInitializer().map(init -> inferExpressionType(init, depth + 1)).orElse(null);
+        }
+        return declarator.getType();
     }
 
     /**

@@ -132,7 +132,8 @@ plugins {
 ```
 
 > [!IMPORTANT]
-> Field name static analysis is active when using Generic types (e.g., `S2Validator.<UserDTO>builder()`).
+> Field name static analysis finds the target DTO from an explicit type argument (e.g., `S2Validator.<UserDTO>builder()`) or from the declared type of the `S2Validator.of(dto)` argument.
+> The task is skipped as `UP-TO-DATE` when no source changed, and supports the build cache.
 
 ---
 
