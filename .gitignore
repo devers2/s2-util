@@ -52,6 +52,9 @@ node_modules/
 package.json
 package-lock.json
 eslint.config.mjs
+# Browser tests need their manifest and lock file for npm ci. | 브라우저 시험은 npm ci 를 위해 매니페스트와 잠금 파일이 필요
+!s2-validator/browser-test/package.json
+!s2-validator/browser-test/package-lock.json
 
 #---------------------------------------------------
 # Temp / Logs / Backups
