@@ -430,6 +430,33 @@ S2Validator.<OrderDTO>builder()
     .build();
 ```
 
+**바깥 필드 참조.** NESTED/EACH 하위 검증기(와 와일드카드 행) 안의 필드 간 비교 대상(`EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`)과 `when` 조건은 현재 객체에서 먼저 찾고, 없으면 바깥 객체들을 거쳐 루트까지 찾습니다. 브라우저도 같은 순서이며, 메시지에는 그 필드를 가진 검증기에 선언된 라벨이 표시됩니다.
+
+```java
+S2Validator.<OrderDTO>builder()
+    .field("orderDate", "주문일")
+    .field("items", "주문 품목").rule(S2RuleType.EACH, S2Validator.<ItemDTO>builder()
+        .field("deliveryDate", "배송일").rule(S2RuleType.DATE_AFTER, "orderDate")   // 최상위 필드
+        .field("giftMessage", "선물 메시지").when("giftWrap", true).rule(S2RuleType.REQUIRED) // 행 필드
+        .build())
+    .build();
+// → "배송일은 주문일보다 이전일 수 없습니다." (행과 최상위에 같은 이름이 있으면 행이 우선)
+```
+
+**동적 행: 인덱스를 연속으로 유지하십시오.** 사용자가 행을 삭제하면 남은 입력칸 이름이 `items[0]`, `items[2]`처럼 될 수 있습니다. 브라우저는 실제로 있는 행만 검증하고, 서버도 `Map`/`List` 대상의 `null` 요소는 건너뜁니다. 그러나 Spring 이 DTO 목록에 바인딩할 때는 목록을 자동 확장하며 빈칸을 **빈 객체**(`new ItemDTO()`)로 채우므로, 서버는 이것을 실제로 비워 둔 행과 구분할 수 없어 화면에 없는 행의 `items[1].*` 오류를 냅니다. 행을 삭제한 뒤 인덱스가 `0..n-1`이 되도록 다시 매기십시오:
+
+```javascript
+// 행 삭제 후 호출: items[2].name -> items[1].name ... (_error 대리 요소나 data-s2-error-for 를 쓰면 함께 변경)
+function reindexRows(container, collection) {
+  const pattern = new RegExp(`^${collection}\\[\\d+\\]`);
+  container.querySelectorAll('[data-row]').forEach((row, index) => {
+    row.querySelectorAll('[name]').forEach((el) => {
+      el.name = el.name.replace(pattern, `${collection}[${index}]`);
+    });
+  });
+}
+```
+
 ### 5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)
 
 내장 검증 규칙만으로 표현하기 어려운 복잡한 비즈니스 로직을 자바 람다식으로 자유롭게 작성할 수 있습니다:
