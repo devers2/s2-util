@@ -45,7 +45,9 @@ plugins {
     `java-gradle-plugin`
     `maven-publish`
     signing
-    id("io.github.devers2.buildsupport")
+    // Declare with the catalog version so that a fresh clone without ../../s2-build-support can resolve it from Maven Central.
+    // 버전 카탈로그의 버전으로 선언하여 ../../s2-build-support 가 없는 새 클론에서도 Maven Central 에서 받을 수 있도록 한다.
+    alias(libs.plugins.s2.build.support)
 }
 
 // 2. 중앙 저장소 배포 플러그인 메타데이터 설정
