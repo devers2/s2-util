@@ -278,6 +278,11 @@ public class ServerClientParityTest {
                 Arguments.of("DATE: yyyyMMdd → 성공", S2RuleType.DATE, null, "20240101", true),
                 Arguments.of("DATE: yyyy-MM-dd → 성공", S2RuleType.DATE, null, "2024-01-01", true),
                 Arguments.of("DATE: 존재하지 않는 날짜 → 실패", S2RuleType.DATE, null, "20240230", false),
+                Arguments.of("DATE: 100년 넘은 날짜(1925-01-01) → 성공", S2RuleType.DATE, null, "1925-01-01", true),
+                Arguments.of("DATE: 두 자리 연도가 아닌 서기 50년(0050-01-01) → 성공", S2RuleType.DATE, null, "0050-01-01", true),
+                Arguments.of("DATE: 서기 50년 존재하지 않는 날짜(0050-02-30) → 실패", S2RuleType.DATE, null, "0050-02-30", false),
+                Arguments.of("DATE: 윤년 2월 29일(2024) → 성공", S2RuleType.DATE, null, "2024-02-29", true),
+                Arguments.of("DATE: 평년 2월 29일(2023) → 실패", S2RuleType.DATE, null, "2023-02-29", false),
                 Arguments.of("DATE: 빈값 → 성공(skip)", S2RuleType.DATE, null, null, true),
 
                 // ── TEXT_COMBINE ──────────────────────────────────────────
