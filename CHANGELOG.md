@@ -88,6 +88,9 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
   `S2ValidatorFactory.getRulesJson(validator, locale)`).
 - `.includeEmpty()` modifier for custom lambda rules.
 - `S2ValidationException`, `S2RuleExecutionException`.
+- Browser: `S2Validator.setRenderer({ show, clear, clearField })` to draw errors the application's way instead of native
+  bubbles, and `S2Validator.classRenderer()` (adds `is-invalid`, writes messages into `[data-s2-error-for]`, focuses the
+  first error).
 - Browser: a 1px anchor next to hidden/non-rendered fields without a `{field}_error` proxy, so the native message is shown.
 
 ### Fixed

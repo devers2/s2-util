@@ -541,6 +541,27 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
 - **Auto-Fallback for Hidden Fields**:
   If no `{fieldName}_error` proxy is found and no element of the field is rendered (`type="hidden"`, or inside a `display:none` container such as a closed tab or accordion), S2Validator creates one temporary 1px transparent anchor so the browser can display a native tooltip instead of failing silently. The anchor is placed right after the hidden field, or after the outermost non-rendered container so that it is itself rendered. Radio/checkbox groups get one anchor per field. The anchor carries the message as `aria-label`, has no `name` (never submitted), and is removed on the next validation or user interaction. This applies to wildcard row fields (`items[].x`) as well.
 
+- **Custom Error Rendering (`setRenderer`)**:
+  Instead of the browser's native bubbles, errors can be drawn the application's way (inline messages, toasts, a tab badge). While a renderer is set, native bubbles, `{fieldName}_error` proxies, and hidden-field anchors are not used, so messages for hidden fields appear wherever the renderer puts them. Renderer exceptions are logged and do not change the result: a form with errors is still not submitted. The renderer is global; `setRenderer(null)` restores the native UI.
+  ```html
+  <input name="email" class="form-control" />
+  <div class="invalid-feedback" data-s2-error-for="email"></div>
+
+  <script type="module">
+    import { S2Validator } from '/s2-util/js/s2.validator.js';
+
+    // Built-in: adds `is-invalid` to invalid fields, writes the first message into [data-s2-error-for], focuses the first error
+    S2Validator.setRenderer(S2Validator.classRenderer()); // options: { invalidClass, messageAttribute, focus }
+
+    // Or a custom renderer (all methods optional)
+    S2Validator.setRenderer({
+      clear(form) { /* before each validation */ },
+      show(form, errors) { showToast(Object.values(errors)[0][0]); }, // errors: { fieldName: [messages] }
+      clearField(form, fieldName) { /* the user edited this field */ }
+    });
+  </script>
+  ```
+
 ---
 
 ## 7. S2Jpql: Secure Dynamic Query Builder
