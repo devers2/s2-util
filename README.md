@@ -26,7 +26,7 @@
 - **🌐 Write Once, Validate Anywhere** — Define rules once in Java and export them via JSON (`getRulesJson()`). The browser executes native tooltip validation with **zero frontend JavaScript code** (`s2.validator.js`).
 - **⚡ Fluent & Conditional Without Annotation Hell** — Eliminate verbose `@GroupSequenceProvider` and custom annotations. Express complex dynamic constraints cleanly with `.when(...).and(...)`.
 - **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection bottlenecks; JIT-optimized execution; Caffeine (W-TinyLFU) intelligent caching; full Java 21+ Virtual Thread scalability.
-- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, URL, Phone, Business ID, and more; full i18n with automatic Korean particle grammar (`{0|은/는}`, `{0|이/가}`).
+- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, Phone, Business ID, Resident Registration Number, and more; full i18n with automatic Korean particle grammar (`{0|은/는}`, `{0|이/가}`).
 - **🛡️ Compile-Time Field & Chaining Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos and missing terminal methods (dead code) at build time (`compileJava`), preventing runtime errors.
 - **🍃 Seamless Spring MVC Integration** — `S2BindValidator` directly binds validation errors into Spring's standard `BindingResult`.
 

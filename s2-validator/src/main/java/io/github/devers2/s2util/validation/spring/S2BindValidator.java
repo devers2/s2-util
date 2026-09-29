@@ -67,7 +67,7 @@ import io.github.devers2.s2util.validation.S2ValidatorFactory;
  *  {
  *    "configurations": [{
  *      "name": "www",
- *      "mainClass": "biz.placelink.redwit.lp.ApplicationBootstrap",
+ *      "mainClass": "com.example.Application",
  *      "preLaunchTask": "classes" // 핵심 설정
  *    }]
  *  }
@@ -216,7 +216,7 @@ public final class S2BindValidator {
      * <script>
      * function validateAndSubmit() {
      *     // Client-side validation using s2.validator.js
-     *     const errors = S2Validator.validateForm('#joinForm');
+     *     const errors = S2Validator.validate('#joinForm');
      *
      *     if (errors.length === 0) {
      *         document.getElementById('joinForm').submit();

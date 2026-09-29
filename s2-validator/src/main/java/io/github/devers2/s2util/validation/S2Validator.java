@@ -76,7 +76,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
  *  {
  *    "configurations": [{
  *      "name": "www",
- *      "mainClass": "biz.placelink.redwit.lp.ApplicationBootstrap",
+ *      "mainClass": "com.example.Application",
  *      "preLaunchTask": "classes" // 핵심 설정
  *    }]
  *  }
@@ -364,7 +364,7 @@ public class S2Validator<T> implements Serializable {
      * String password = "pass123";
      * boolean isValidPassword = S2Validator.check(password)
      *     .rule(S2RuleType.MIN_LENGTH, 8)
-     *     .rule(S2RuleType.PATTERN, "^[a-zA-Z0-9]+$")
+     *     .rule(S2RuleType.REGEX, "^[a-zA-Z0-9]+$")
      *     .validate();
      *
      * // Example 3: Custom predicate rule

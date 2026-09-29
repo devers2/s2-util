@@ -164,7 +164,7 @@ S2Validator provides extensive built-in rules via `S2RuleType` enum.
 .field("password", "Password")
     .rule(S2RuleType.REQUIRED)
     .rule(S2RuleType.MIN_LENGTH, 8)      // At least 8 characters
-    .rule(S2RuleType.PATTERN, "^[A-Za-z0-9]+$")  // Alphanumeric only
+    .rule(S2RuleType.REGEX, "^[A-Za-z0-9]+$")  // Alphanumeric only
 ```
 
 **Common Rules:**
@@ -538,10 +538,13 @@ try {
     S2Validator.of(data)
         .field("email").rule(S2RuleType.EMAIL)
         .validate();
-} catch (S2RuntimeException e) {
-    // Get detailed error information
+} catch (S2ValidationException e) {
+    // Get detailed error information (first failure)
     String message = e.getMessage();
-    List<S2ErrorDetail> errors = e.getErrors();
+    String field = e.getFieldName();     // e.g. "email" or "items[0].name"
+    String errorCode = e.getErrorCode(); // message key of the failed rule
+} catch (S2RuleExecutionException e) {
+    // A custom rule (lambda) itself threw; the original exception is e.getCause()
 }
 ```
 
