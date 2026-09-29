@@ -1111,7 +1111,7 @@ public class S2Validator<T> implements Serializable {
 
                         if (rule.isInvalid(fieldValue, target)) {
                             isAllValid = false;
-                            Object criterion = resolveTargetLabel(rule.getCheckValue(), rule.getRuleType());
+                            Object criterion = field.resolveMessageCriterion(rule);
                             var args = S2Util.isNotEmpty(criterion)
                                     ? new Object[] { fieldLabel, criterion }
                                     : new Object[] { fieldLabel };
@@ -1216,7 +1216,7 @@ public class S2Validator<T> implements Serializable {
 
                     if (rule.isInvalid(fieldValue, item, target)) {
                         isValid = false;
-                        Object criterion = resolveTargetLabel(rule.getCheckValue(), rule.getRuleType());
+                        Object criterion = field.resolveMessageCriterion(rule);
                         var args = S2Util.isNotEmpty(criterion)
                                 ? new Object[] { fieldLabel, criterion }
                                 : new Object[] { fieldLabel };
@@ -1257,22 +1257,6 @@ public class S2Validator<T> implements Serializable {
             return isValid;
         }
 
-        private Object resolveTargetLabel(Object checkValue, S2RuleType ruleType) {
-            if (checkValue == null) {
-                return null;
-            }
-            if (ruleType == S2RuleType.EQUALS_FIELD
-                    || ruleType == S2RuleType.DATE_AFTER
-                    || ruleType == S2RuleType.DATE_BEFORE) {
-                String keyStr = String.valueOf(checkValue);
-                for (var f : config.fields) {
-                    if (f != null && keyStr.equals(String.valueOf(f.getName()))) {
-                        return f.getLabel();
-                    }
-                }
-            }
-            return checkValue;
-        }
     }
 
     /**
