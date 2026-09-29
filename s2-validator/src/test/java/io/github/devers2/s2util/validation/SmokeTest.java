@@ -1404,7 +1404,7 @@ public class SmokeTest {
             record(nestOk, "S2Validator 재귀 (NESTED) 테스트");
 
             // 8. JSON 생성 (재귀)
-            String json = S2ValidatorFactory.getRulesJson(parentValidator, Locale.KOREA);
+            String json = parentValidator.getRulesJson(Locale.KOREA);
             boolean jsonOk = json != null && json.contains("items") && json.contains("nestedRules")
                     && json.contains("아이디");
 
@@ -1522,7 +1522,7 @@ public class SmokeTest {
                     .field("testField", "테스트필드")
                     .build();
 
-            String json = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+            String json = validator.getRulesJson(Locale.KOREAN);
             logger.info("  [Action] 생성된 JSON: {}", json);
 
             // JSON에 REQUIRED 규칙이 포함되어 있는지 확인
@@ -1957,7 +1957,7 @@ public class SmokeTest {
                     .build();
 
             // JSON 직렬화 테스트: validator가 nested 규칙과 조건을 포함하여 직렬화되는지 확인
-            String validatorJson = S2ValidatorFactory.getRulesJson(validator, Locale.KOREAN);
+            String validatorJson = validator.getRulesJson(Locale.KOREAN);
             logger.info("   [Action] Nested-Conditional validator JSON: {}", validatorJson);
 
             boolean jsonOk = validatorJson.contains("\"name\":\"field1\"")

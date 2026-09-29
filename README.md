@@ -144,7 +144,7 @@ Define validation once in Java and enforce it across both backend Spring `Bindin
 
 ##### [Controller]
 
-> **Note:** This example assumes Spring Framework integration. If Spring is not available, you can use `S2Validator` and `S2ValidatorFactory` directly, but `BindingResult` integration will not be available.
+> **Note:** This example assumes Spring Framework integration. Without Spring, use the validator directly: `validator.validate(target, errorHandler)` on the server and `validator.getRulesJson(locale)` for the browser; only `BindingResult` integration is unavailable.
 
 ```java
 private S2Validator<UserCommand> profileValidator() {

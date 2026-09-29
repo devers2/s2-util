@@ -23,7 +23,7 @@ package io.github.devers2.s2util.validation;
 /**
  * Detects Java regex syntax that the browser (ECMAScript {@code RegExp} without flags) cannot evaluate the same way.
  * <p>
- * Rules exported to the client via {@link S2ValidatorFactory#getRulesJson(S2Validator, java.util.Locale)} are evaluated
+ * Rules exported to the client via {@link S2Validator#getRulesJson(java.util.Locale)} are evaluated
  * by {@code new RegExp(pattern)} in {@code s2.validator.js}. Java-only syntax either throws a {@code SyntaxError}
  * there (the field can never pass, so the form cannot be submitted) or silently means something else. This scanner
  * is a conservative heuristic for the common cases; it does not fully parse regular expressions.

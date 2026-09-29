@@ -26,100 +26,40 @@ import java.util.Locale;
 import java.util.Map;
 
 import io.github.devers2.s2util.core.S2Util;
-import io.github.devers2.s2util.log.S2LogManager;
-import io.github.devers2.s2util.log.S2Logger;
 
 /**
- * Exports {@link S2Validator} rules as JSON for the browser validator ({@code s2.validator.js}).
+ * Internal writer that serializes {@link S2Validator} rules into the JSON consumed by {@code s2.validator.js}.
  * <p>
- * The same validator instance is used on the server ({@code validate}) and exported to the client
- * ({@link #getRulesJson(S2Validator, Locale)}), so both sides apply one rule definition. Pass the instance directly,
- * e.g. {@code S2BindValidator.of(validator)}; there is no global registry.
+ * Public entry points are {@link S2Validator#getRulesJson()} and {@link S2Validator#getRulesJson(Locale)}.
  * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * {@link S2Validator} 규칙을 브라우저 검증기({@code s2.validator.js})용 JSON 으로 내보냅니다.
+ * {@link S2Validator} 규칙을 {@code s2.validator.js}가 읽는 JSON 으로 직렬화하는 내부 클래스입니다.
  * <p>
- * 같은 검증기 인스턴스를 서버 검증({@code validate})과 클라이언트 내보내기({@link #getRulesJson(S2Validator, Locale)})에 함께 쓰므로
- * 양쪽이 하나의 규칙 정의를 적용합니다. 인스턴스를 직접 전달하십시오(예: {@code S2BindValidator.of(validator)}). 전역 등록부는 없습니다.
+ * 공개 진입점은 {@link S2Validator#getRulesJson()}과 {@link S2Validator#getRulesJson(Locale)}입니다.
  * </p>
- *
- * @author devers2
- * @version 1.6
- * @since 1.0
  */
-public final class S2ValidatorFactory {
+final class S2RulesJsonWriter {
 
-    private static final S2Logger logger = S2LogManager.getLogger(S2ValidatorFactory.class);
-
-    private S2ValidatorFactory() {
+    private S2RulesJsonWriter() {
         // Prevent instantiation
     }
 
     /**
-     * Generates a structural JSON representation of validation rules for client-side use.
-     * <p>
-     * The resulting JSON is designed to be consumed by the {@code s2.validator.js} library.
-     * It includes field names, labels, rule types, regex patterns, and localized messages.
-     * </p>
+     * Serializes the validator's rules to JSON.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 클라이언트(JavaScript) 측에서 사용할 수 있는 검증 규칙의 구조적 JSON 표현을 생성합니다.
-     * <p>
-     * 생성된 JSON은 {@code s2.validator.js} 라이브러리에서 해석되어 브라우저 측 실시간 검증에 사용됩니다.
-     * 필드명, 라벨, 규칙 타입, 정규식 패턴 및 로케일별 에러 메시지를 모두 포함합니다.
-     * </p>
+     * 검증기의 규칙을 JSON 으로 직렬화합니다.
      *
-     * @param validator The validator to export | 내보낼 검증기 인스턴스
-     * @param locale    The locale for error message generation | 에러 메시지 생성을 위한 로케일
-     * @return A JSON string representing the validation rules | 검증 규칙을 나타내는 JSON 문자열
-     * @apiNote
-     *          <p>
-     *          <b>■ 사용 사례 1: Thymeleaf 데이터 속성에 설정 (추천)</b>
-     *          </p>
-     *
-     *          <pre>{@code
-     * // Controller (Java)
-     * model.addAttribute("validationRules", validator.getRulesJson());
-     *
-     * // View (HTML/Thymeleaf)
-     * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
-     *     &lt;input type="text" name="userId" /&gt;
-     *     &lt;button type="button" onclick="doSave()"&gt;저장&lt;/button&gt;
-     * &lt;/form&gt;
-     *
-     * // Script (JS)
-     * function doSave() {
-     *     const errors = S2Validator.validate('#saveForm');
-     * }
-     * }</pre>
-     *
-     *          <p>
-     *          <b>■ 사용 사례 2: JavaScript 변수에 직접 할당</b>
-     *          </p>
-     *
-     *          <pre>{@code
-     * const myRules = '[[${validationRules}]]';
-     *
-     * function doSave() {
-     *     const errors = S2Validator.validate('#saveForm', myRules);
-     * }
-     * }</pre>
+     * @param validator The validator to export | 내보낼 검증기
+     * @param locale    The locale for error messages | 오류 메시지 로케일
+     * @return The rules JSON | 규칙 JSON
      */
-    public static String getRulesJson(S2Validator<?> validator, Locale locale) {
-        if (validator == null) {
-            if (S2Util.isKorean()) {
-                logger.warn("규칙을 내보낼 검증기가 null 입니다. 빈 규칙([])을 반환합니다.");
-            } else {
-                logger.warn("The validator to export is null; returning empty rules ([]).");
-            }
-            return "[]";
-        }
-
+    static String write(S2Validator<?> validator, Locale locale) {
         StringBuilder sb = new StringBuilder();
         appendRulesJson(sb, validator, locale);
         return sb.toString();

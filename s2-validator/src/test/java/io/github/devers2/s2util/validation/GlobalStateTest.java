@@ -63,19 +63,27 @@ public class GlobalStateTest {
     }
 
     @Test
-    @DisplayName("전역 등록부 API 는 1.2.0 에서 삭제되었다 (S2BindValidator.of 만 제공)")
-    void testRegistryApiIsRemoved() {
-        java.util.Set<String> factoryApi = java.util.Arrays.stream(S2ValidatorFactory.class.getDeclaredMethods())
-                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers()))
-                .map(java.lang.reflect.Method::getName)
-                .collect(java.util.stream.Collectors.toSet());
-        Assertions.assertEquals(java.util.Set.of("getRulesJson"), factoryApi);
-        Assertions.assertEquals(1, java.util.Arrays.stream(S2ValidatorFactory.class.getDeclaredMethods())
-                .filter(m -> java.lang.reflect.Modifier.isPublic(m.getModifiers())).count(),
-                "only getRulesJson(S2Validator, Locale) remains");
+    @DisplayName("getRulesJson()·getRulesJson(null)은 기본 로케일로, getRulesJson(locale)은 지정 로케일로 메시지를 만든다")
+    void testGetRulesJsonLocale() {
+        S2Validator<Map<String, Object>> validator = S2Validator.<Map<String, Object>>builder()
+                .field("userId", "아이디").rule(S2RuleType.REQUIRED)
+                .build();
 
+        S2Validator.setDefaultLocale(Locale.ENGLISH);
+        Assertions.assertTrue(validator.getRulesJson().contains("is required"), validator.getRulesJson());
+        Assertions.assertEquals(validator.getRulesJson(), validator.getRulesJson(null));
+        Assertions.assertTrue(validator.getRulesJson(Locale.KOREAN).contains("필수 입력"), validator.getRulesJson(Locale.KOREAN));
+    }
+
+    @Test
+    @DisplayName("전역 등록부와 S2ValidatorFactory 는 1.2.0 에서 삭제되었다 (S2BindValidator.of, S2Validator.getRulesJson 만 제공)")
+    void testRegistryApiIsRemoved() {
+        Assertions.assertThrows(ClassNotFoundException.class,
+                () -> Class.forName("io.github.devers2.s2util.validation.S2ValidatorFactory"));
         Assertions.assertTrue(java.util.Arrays.stream(S2BindValidator.class.getDeclaredMethods())
                 .noneMatch(m -> m.getName().equals("context")));
+        Assertions.assertFalse(java.lang.reflect.Modifier.isPublic(S2RulesJsonWriter.class.getModifiers()),
+                "JSON writer must stay internal");
     }
 
     @Test

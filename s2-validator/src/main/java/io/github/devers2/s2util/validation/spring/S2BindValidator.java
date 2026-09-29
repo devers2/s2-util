@@ -26,7 +26,6 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.validation.BindingResult;
 
 import io.github.devers2.s2util.validation.S2Validator;
-import io.github.devers2.s2util.validation.S2ValidatorFactory;
 
 /**
  * Bridge between S2Util Validation and Spring Framework.
@@ -105,7 +104,7 @@ import io.github.devers2.s2util.validation.S2ValidatorFactory;
  * @version 1.5
  * @since 1.0
  * @see S2Validator
- * @see S2ValidatorFactory
+ * @see S2Validator#getRulesJson(Locale)
  */
 public final class S2BindValidator {
 
@@ -287,12 +286,12 @@ public final class S2BindValidator {
          * 클라이언트(Browser)와 검증 규칙을 공유하기 위한 JSON 문자열을 반환합니다.
          *
          * @return A JSON string containing the validation rules | 서버에서 정의된 검증 규칙이 포함된 JSON 문자열
-         * @see S2ValidatorFactory#getRulesJson(S2Validator, Locale)
+         * @see S2Validator#getRulesJson(Locale)
          * @apiNote
          *
          *          <pre>{@code
-         * // Controller (Java)
-         * model.addAttribute("validationRules", validator.getRulesJson());
+         * // Controller (Java): uses the current request locale (LocaleContextHolder)
+         * model.addAttribute("validationRules", S2BindValidator.of(validator).getRulesJson());
          *
          * // View (HTML/Thymeleaf)
          * &lt;form id="saveForm" th:data-s2-rules="${validationRules}"&gt;
@@ -311,7 +310,7 @@ public final class S2BindValidator {
          *  }</pre>
          */
         public String getRulesJson() {
-            return S2ValidatorFactory.getRulesJson(validator, LocaleContextHolder.getLocale());
+            return validator.getRulesJson(LocaleContextHolder.getLocale());
         }
     }
 

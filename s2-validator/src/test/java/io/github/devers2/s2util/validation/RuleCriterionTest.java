@@ -47,8 +47,8 @@ public class RuleCriterionTest {
         // Previously MAX_VALUE NaN produced "value":NaN, invalid JSON that disabled client validation for the whole form. | 이전에는 "value":NaN 이 나가 폼 전체의 클라이언트 검증이 꺼졌음
         Assertions.assertThrows(IllegalArgumentException.class,
                 () -> S2Validator.<Map<String, Object>>builder().field("x", "x").rule(S2RuleType.MAX_VALUE, Double.NaN).build());
-        String json = S2ValidatorFactory.getRulesJson(
-                S2Validator.<Map<String, Object>>builder().field("x", "x").rule(S2RuleType.MAX_VALUE, 100).build(), Locale.KOREAN);
+        String json = S2Validator.<Map<String, Object>>builder().field("x", "x").rule(S2RuleType.MAX_VALUE, 100).build()
+                .getRulesJson(Locale.KOREAN);
         Assertions.assertFalse(json.contains("NaN") || json.contains("Infinity"), json);
     }
 
