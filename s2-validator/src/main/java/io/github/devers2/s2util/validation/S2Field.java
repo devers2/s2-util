@@ -735,6 +735,23 @@ public class S2Field<T> implements Serializable {
      * <b>Notice:</b> Custom rules execute exclusively on the server side (Java JVM) and are
      * NOT serialized to client-side JavaScript (s2.validator.js).
      * </p>
+     * <p>
+     * <b>Why server-only (intended design):</b> custom rules typically need server state (e.g. duplicate-ID or
+     * stock checks against a database). There is deliberately no remote/async client rule that calls the server from
+     * the browser:
+     * </p>
+     * <ul>
+     * <li>Correctness gains nothing: the server validates on submit anyway and is the final authority; its errors
+     * return to the form through {@code BindingResult}.</li>
+     * <li>The only gain is showing the error before submit, which an application can add with its own {@code fetch}
+     * where it matters.</li>
+     * <li>A built-in remote rule would have to own an endpoint contract, debouncing, out-of-order responses and
+     * information exposure (e.g. revealing which accounts exist).</li>
+     * </ul>
+     * <p>
+     * Rules that the browser can evaluate on its own belong in built-in rules or {@link S2RuleType#REGEX}, which run on
+     * both sides.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
@@ -748,6 +765,19 @@ public class S2Field<T> implements Serializable {
      * <b>⚠️ 클라이언트 직렬화 제외 안내:</b><br>
      * 이 클래스로 정의된 람다 검증 규칙은 클라이언트(JavaScript)로 전송되지 않으며,
      * 오직 서버 사이드 검증 시에만 동작합니다.
+     * </p>
+     * <p>
+     * <b>서버 전용인 이유 (의도된 설계):</b> 커스텀 규칙은 보통 서버 상태가 필요합니다(예: DB 로 아이디 중복·재고 확인). 브라우저에서
+     * 서버를 호출하는 원격·비동기 클라이언트 규칙은 의도적으로 두지 않습니다.
+     * </p>
+     * <ul>
+     * <li>정확성 면에서 얻는 것이 없습니다. 제출 시 서버가 어차피 검증하는 최종 판정자이며, 그 오류는 {@code BindingResult}로 폼에
+     * 돌아옵니다.</li>
+     * <li>얻는 것은 제출 전에 오류를 미리 보여 주는 것뿐이며, 필요한 곳에서 애플리케이션이 직접 {@code fetch}로 추가할 수 있습니다.</li>
+     * <li>내장 원격 규칙은 엔드포인트 규약, 디바운스, 응답 순서 뒤바뀜, 정보 노출(어떤 계정이 있는지 드러남)까지 떠안아야 합니다.</li>
+     * </ul>
+     * <p>
+     * 브라우저가 스스로 판정할 수 있는 규칙은 양쪽에서 실행되는 내장 규칙이나 {@link S2RuleType#REGEX}로 정의하십시오.
      * </p>
      */
     public static class S2CustomRule<V, T> implements S2RuleMessageStep, Serializable {

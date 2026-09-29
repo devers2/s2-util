@@ -191,6 +191,8 @@ public interface S2FieldStep<T> {
          * Adds a custom Predicate validation rule (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>   Field value type | 필드 값의 타입
@@ -203,6 +205,8 @@ public interface S2FieldStep<T> {
          * Adds a custom Predicate validation rule with a message key (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>             Field value type | 필드 값의 타입
@@ -216,6 +220,8 @@ public interface S2FieldStep<T> {
          * Adds a custom cross-field BiPredicate validation rule (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>   Field value type | 필드 값의 타입
@@ -228,6 +234,8 @@ public interface S2FieldStep<T> {
          * Adds a custom cross-field BiPredicate validation rule with a message key (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * For rules that require parity across client and server, use {@link S2RuleType#REGEX} or built-in rules.
          * </p>
          *
@@ -336,6 +344,8 @@ public interface S2FieldStep<T> {
          * Adds a custom Predicate validation rule (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>   Field value type | 필드 값의 타입
@@ -348,6 +358,8 @@ public interface S2FieldStep<T> {
          * Adds a custom Predicate validation rule with a message key (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>             Field value type | 필드 값의 타입
@@ -361,6 +373,8 @@ public interface S2FieldStep<T> {
          * Adds a custom cross-field BiPredicate validation rule (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * </p>
          *
          * @param <V>   Field value type | 필드 값의 타입
@@ -373,6 +387,8 @@ public interface S2FieldStep<T> {
          * Adds a custom cross-field BiPredicate validation rule with a message key (Server-Only).
          * <p>
          * <b>Notice:</b> Executes exclusively on the server side (Java JVM) and is NOT serialized to client JavaScript.
+         * Server-only by design (no remote/async browser rule); see {@link S2Field.S2CustomRule} for why. | 의도적으로
+         * 서버 전용이며(브라우저 원격·비동기 규칙 없음), 이유는 {@link S2Field.S2CustomRule} 참고.
          * For rules that require parity across client and server, use {@link S2RuleType#REGEX} or built-in rules.
          * </p>
          *
