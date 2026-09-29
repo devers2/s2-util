@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
@@ -50,6 +51,9 @@ import com.github.javaparser.ast.type.Type;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
@@ -88,7 +92,7 @@ import org.gradle.work.DisableCachingByDefault;
  * @since 1.0
  */
 @DisableCachingByDefault(because = "입출력 파일이 선언되지 않은 채 멀티 프로젝트 소스 전체를 직접 스캔하므로 캐시할 수 없다.")
-public class CheckS2ValidatorsTask extends DefaultTask {
+public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
     // ANSI 제어 문자를 사용한 로그 색상 정의
     private static final String ANSI_RESET = "\u001B[0m";
@@ -123,7 +127,40 @@ public class CheckS2ValidatorsTask extends DefaultTask {
     public CheckS2ValidatorsTask() {
         setGroup("verification");
         setDescription("소스 코드를 정적 분석하여 S2Validator 필드명 유효성을 검증합니다.");
+
+        // Capture project paths at configuration time; Project must not be accessed in @TaskAction under the configuration cache. | configuration cache 에서는 @TaskAction 안에서 Project 에 접근할 수 없으므로 프로젝트 경로를 설정 시점에 수집
+        Project project = getProject();
+        getProjectDirectory().convention(project.getLayout().getProjectDirectory());
+        getSourceRoots().convention(project.provider(() -> project.getRootProject().getAllprojects().stream()
+                .map(p -> p.file("src/main/java"))
+                .collect(Collectors.toList())));
     }
+
+    /**
+     * The directory of the project being checked; its {@code src/main/java} is scanned.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검사 대상 프로젝트 디렉터리이며, 그 아래 {@code src/main/java}를 스캔합니다.
+     *
+     * @return The project directory property | 프로젝트 디렉터리 속성
+     */
+    @Internal
+    public abstract DirectoryProperty getProjectDirectory();
+
+    /**
+     * The {@code src/main/java} directories of all projects in the build, searched to resolve DTO classes.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * DTO 클래스를 찾기 위해 탐색하는 빌드 내 모든 프로젝트의 {@code src/main/java} 디렉터리 목록입니다.
+     *
+     * @return The source roots property | 소스 루트 목록 속성
+     */
+    @Internal
+    public abstract ListProperty<File> getSourceRoots();
 
     /**
      * Entry point for the Gradle Task execution.
@@ -142,12 +179,14 @@ public class CheckS2ValidatorsTask extends DefaultTask {
     @TaskAction
     public void checkValidators() {
         getLogger().lifecycle("🔍 소스 코드 정적 분석 시작 (JavaParser)...");
+        // Parse with the Java 17 baseline so records and other modern syntax are understood. | record 등 최신 문법을 해석하도록 Java 17 기준으로 파싱
+        StaticJavaParser.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
 
         try {
-            Project project = getProject();
+            File projectDir = getProjectDirectory().get().getAsFile();
 
             // src/main/java 경로
-            File srcDir = project.file("src/main/java");
+            File srcDir = new File(projectDir, "src/main/java");
             if (!srcDir.exists()) {
                 getLogger().info("ℹ️  src/main/java 디렉토리가 없습니다. 검증 생략.");
                 return;
@@ -193,7 +232,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 getLogger().error(ANSI_RED + "❌ {}개 파일에서 잘못된 필드명이 발견되었습니다." + ANSI_RESET, validatorFiles);
 
                 errorsByFile.forEach((file, errors) -> {
-                    Path relativePath = project.getProjectDir().toPath().relativize(Path.of(file));
+                    Path relativePath = projectDir.toPath().relativize(Path.of(file));
                     getLogger().error("");
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     errors.forEach(
@@ -216,7 +255,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 getLogger().error(ANSI_RED + "   체이닝이 완결되지 않으면 검증 로직이 실제로 실행되지 않습니다!" + ANSI_RESET);
 
                 chainingErrorsByFile.forEach((file, chainingErrors) -> {
-                    Path relativePath = project.getProjectDir().toPath().relativize(Path.of(file));
+                    Path relativePath = projectDir.toPath().relativize(Path.of(file));
                     getLogger().error("");
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
                     chainingErrors.forEach(
@@ -232,7 +271,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             }
 
             // S2BindValidator/S2ValidatorFactory로 얻은 검증기가 validate() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
-            logBindValidatorWarnings(bindWarningsByFile, project);
+            logBindValidatorWarnings(bindWarningsByFile, projectDir);
 
             boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty();
             if (hasFatalErrors) {
@@ -261,9 +300,9 @@ public class CheckS2ValidatorsTask extends DefaultTask {
      * 빌드를 실패시키지 않고 경고만 남깁니다.
      *
      * @param warningsByFile 파일 경로별 경고 목록
-     * @param project        경로 상대화를 위한 프로젝트 인스턴스
+     * @param projectDir     경로 상대화를 위한 프로젝트 디렉터리
      */
-    private void logBindValidatorWarnings(Map<String, List<BindValidatorWarning>> warningsByFile, Project project) {
+    private void logBindValidatorWarnings(Map<String, List<BindValidatorWarning>> warningsByFile, File projectDir) {
         if (warningsByFile.isEmpty()) {
             return;
         }
@@ -278,7 +317,7 @@ public class CheckS2ValidatorsTask extends DefaultTask {
                 warningsByFile.size(), totalWarnings);
 
         warningsByFile.forEach((file, warnings) -> {
-            Path relativePath = project.getProjectDir().toPath().relativize(Path.of(file));
+            Path relativePath = projectDir.toPath().relativize(Path.of(file));
             getLogger().warn("");
             getLogger().warn("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
             warnings.forEach(
@@ -741,12 +780,10 @@ public class CheckS2ValidatorsTask extends DefaultTask {
         Set<String> names = new HashSet<>();
         String relativePath = fullClassName.replace('.', File.separatorChar) + ".java";
 
-        // 모든 서브프로젝트 순회
-        Set<Project> allProjects = getProject().getRootProject().getAllprojects();
-
+        // 모든 서브프로젝트의 소스 루트 순회
         File sourceFile = null;
-        for (Project p : allProjects) {
-            File potential = p.file("src/main/java/" + relativePath);
+        for (File sourceRoot : getSourceRoots().get()) {
+            File potential = new File(sourceRoot, relativePath);
             if (potential.exists()) {
                 sourceFile = potential;
                 break;
@@ -764,6 +801,11 @@ public class CheckS2ValidatorsTask extends DefaultTask {
             // 모든 필드 추출
             cu.findAll(com.github.javaparser.ast.body.FieldDeclaration.class).forEach(field -> {
                 field.getVariables().forEach(v -> names.add(v.getNameAsString()));
+            });
+
+            // Record components are not FieldDeclarations but are accessible fields of the DTO. | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 DTO 의 필드로 접근 가능
+            cu.findAll(com.github.javaparser.ast.body.RecordDeclaration.class).forEach(recordDecl -> {
+                recordDecl.getParameters().forEach(param -> names.add(param.getNameAsString()));
             });
 
             // 상속 처리

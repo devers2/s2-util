@@ -58,6 +58,40 @@ public class CheckS2ValidatorsTaskTest {
     }
 
     @Test
+    void when_recordComponentExists_noException() throws Exception {
+        File projectDir = Files.createTempDirectory("project-dir-record").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            // Record DTO: components are not FieldDeclarations but must count as fields | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 필드로 인정되어야 함
+            writeJavaFile(projectDir.toPath(), "com/example", "PersonRecord.java",
+                    "package com.example;\npublic record PersonRecord(String name, int age) {}\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    void sample(){\n" +
+                    "        S2Validator.<PersonRecord>builder().field(\"name\").rule(null).field(\"age\").rule(null).build();\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertDoesNotThrow(() -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
     void when_fieldMissing_throwsException() throws Exception {
         File projectDir = Files.createTempDirectory("project-dir-fail").toFile();
         try {
