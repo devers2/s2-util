@@ -88,6 +88,9 @@
 
 ### 추가
 
+- 브라우저: 폼 없는 검증 `S2Validator.check(rules, data)`(중첩·펼친 데이터, 서버와 같은 판정)와 실시간 검증(`data-s2-live="blur"|"input"`,
+  `S2Validator.setLiveMode`). 실시간 검증은 초점을 옮기지 않으며 렌더러 훅 `showField`(`classRenderer` 구현 포함)를 씁니다. 폼 검증도 같은
+  판정 엔진을 사용합니다.
 - Spring Boot 자동 설정: s2-validator 를 추가하면 메시지 키를 Spring `MessageSource`에서 먼저 찾고(`messages.properties`로
   검증 메시지 변경), `s2.validator.bundle`, `s2.validator.default-locale`, `s2.validator.use-message-source`,
   `s2.validator.enabled`를 지원합니다. Spring Boot 는 컴파일 전용 의존성이라 Spring 이 없는 환경에는 영향이 없습니다.

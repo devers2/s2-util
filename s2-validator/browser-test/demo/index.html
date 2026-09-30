@@ -59,7 +59,18 @@
     </form>
   </section>
 
-  <p><a href="/renderer.html">Custom renderer demo →</a></p>
+  <section>
+    <h2>5. Live validation on blur (native UI: validity only, bubbles on submit)</h2>
+    <form id="liveNative" data-rules-key="basic" data-s2-live="blur">
+      <label>이름 <input name="name" /></label>
+      <label>이메일 <input name="email" /></label>
+      <label>수량 <input name="qty" /></label>
+      <label>코드 <input name="code" /></label>
+      <button>제출</button>
+    </form>
+  </section>
+
+  <p><a href="/renderer.html">Custom renderer demo →</a> · <a href="/live.html">Live validation with a renderer →</a></p>
   <script type="module" src="/demo.js"></script>
 </body>
 </html>

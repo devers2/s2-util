@@ -97,6 +97,9 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 
 ### Added
 
+- Browser: form-free validation `S2Validator.check(rules, data)` (nested or flat data, judged like the server) and live
+  validation (`data-s2-live="blur"|"input"`, `S2Validator.setLiveMode`). Live validation never moves focus and uses the
+  renderer hook `showField` (implemented by `classRenderer`). Form validation shares the same judgment engine.
 - Spring Boot auto-configuration: with s2-validator on the classpath, message keys are looked up in Spring's
   `MessageSource` first (override validation messages in `messages.properties`), and `s2.validator.bundle`,
   `s2.validator.default-locale`, `s2.validator.use-message-source` and `s2.validator.enabled` are supported. Spring Boot

@@ -729,9 +729,23 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
     S2Validator.setRenderer({
       clear(form) { /* 검증 전마다 */ },
       show(form, errors) { showToast(Object.values(errors)[0][0]); }, // errors: { 필드명: [메시지] }
-      clearField(form, fieldName) { /* 사용자가 이 필드를 수정함 */ }
+      clearField(form, fieldName) { /* 사용자가 이 필드를 수정함 */ },
+      showField(form, fieldName, messages) { /* 실시간 검증: 필드 하나 표시 (초점 이동 금지) */ }
     });
   </script>
+  ```
+
+- **실시간 검증 (`data-s2-live`, `setLiveMode`)**:
+  기본은 제출 시에만 검증합니다. 폼에 `data-s2-live="blur"`(칸을 벗어날 때, 오류가 난 칸은 고치는 즉시 해제) 또는 `"input"`(입력할 때마다)을 붙이거나 `S2Validator.setLiveMode('blur')`로 전역 기본값을 정합니다. 실시간 검증은 초점을 옮기거나 말풍선을 띄우지 않습니다. 렌더러가 있으면 `showField`/`clearField`로 그 필드만 갱신하고, 기본 UI 에서는 필드의 유효성 상태(`:invalid`/`:user-invalid` CSS)만 설정하며 말풍선은 제출 시 나타납니다. 입력칸 옆 메시지를 바로 보여 주려면 `classRenderer()`와 함께 쓰십시오. 제출 시에는 지금처럼 모든 필드를 검증합니다.
+  ```html
+  <form th:data-s2-rules="${rules}" data-s2-live="blur"> ... </form>
+  ```
+
+- **폼 없는 검증 (`S2Validator.check(rules, data)`)**:
+  `<form>` 없이 일반 데이터를 검증합니다. React·Vue 처럼 상태로 화면을 그리거나 JSON 을 보내기 전에 씁니다. 폼 검증과 같은 판정 엔진을 쓰며, 중첩 데이터(`{ items: [{ qty: 0 }] }`)와 펼친 키(`{ 'items[0].qty': 0 }`)를 모두 받습니다. 데이터에 없는 필드는 서버처럼 빈 값으로 판정하고, 없는 객체·행 아래는 검증하지 않습니다. 화면에는 아무것도 표시하지 않습니다.
+  ```js
+  const errors = S2Validator.check(rulesJson, { name: '', items: [{ qty: 0 }] });
+  // { name: ['이름은 필수 입력 항목입니다.'], 'items[0].qty': ['수량은 최소 1 이상 입력해야 합니다.'] }
   ```
 
 ---
