@@ -29,6 +29,7 @@
    - [5-1. 객체 그래프 탐색 (점, 인덱스, 와일드카드)](#5-1-객체-그래프-탐색-점-인덱스-와일드카드)
    - [5-2. 재귀 및 합성 검증 (EACH, NESTED)](#5-2-재귀-및-합성-검증-each-nested)
    - [5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)](#5-3-사용자-정의-비즈니스-람다-predicate--bipredicate-서버-전용)
+   - [5-4. 규칙 JSON 으로 검증기 만들기 (fromJson)](#5-4-규칙-json-으로-검증기-만들기-fromjson)
 6. [서버-클라이언트 통합 동기화 (Server-Client Sync)](#6-서버-클라이언트-통합-동기화-server-client-sync)
    - [6-1. 전 과정 구현 예제 (End-to-End)](#6-1-전-과정-구현-예제-end-to-end)
    - [6-2. 기술 아키텍처 (s2.validator.js)](#6-2-기술-아키텍처-s2validatorjs)
@@ -44,6 +45,7 @@
    - [9-2. 지능형 듀얼 모드 캐시 (S2Cache)](#9-2-지능형-듀얼-모드-캐시-s2cache)
    - [9-3. 버전 적응형 스레드 풀 (S2ThreadUtil)](#9-3-버전-적응형-스레드-풀-s2threadutil)
    - [9-4. 최적화된 문자열 유틸리티 (S2StringUtil)](#9-4-최적화된-문자열-유틸리티-s2stringutil)
+   - [9-5. 경량 JSON (S2JsonUtil)](#9-5-경량-json-s2jsonutil)
 
 ---
 
@@ -59,7 +61,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.2.0'
+    implementation 'io.github.devers2:s2-util:2.0.0'
 }
 ```
 
@@ -69,7 +71,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -90,13 +92,13 @@ dependencies {
 ```groovy
 dependencies {
     // 1. 검증 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-validator:1.2.0'
+    implementation 'io.github.devers2:s2-validator:2.0.0'
 
     // 2. 동적 JPQL 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-jpa:1.2.0'
+    implementation 'io.github.devers2:s2-jpa:2.0.0'
 
     // 3. 코어 유틸리티 및 객체 복사 기능만 필요한 경우 (가장 경량)
-    implementation 'io.github.devers2:s2-core:1.2.0'
+    implementation 'io.github.devers2:s2-core:2.0.0'
 }
 ```
 
@@ -127,7 +129,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.2.0'
+    id 'io.github.devers2.validator' version '2.0.0'
 }
 ```
 
@@ -537,6 +539,36 @@ deleteButton.addEventListener('click', () => {
 > 클라이언트와 서버 양쪽에서 동일하게 교차 검증되어야 하는 규칙은 람다 대신 [`S2RuleType.REGEX`](#3-1-30가지-이상의-내장-규칙-s2ruletype) 또는 내장 규칙을 사용하십시오.
 > `getRulesJson()`이 이런 규칙을 만나면 개발 중에 알 수 있도록 정의 위치마다 한 번(요청마다가 아님) `INFO` 로그로 안내합니다.
 
+### 5-4. 규칙 JSON 으로 검증기 만들기 (`fromJson`)
+
+규칙을 DB 나 설정 파일에 두고 재배포 없이 바꿀 때 사용합니다. `getRulesJson()`이 내보내는 형식을 그대로 읽으며, 정의용 키(`messages`, `key`)를 더 받습니다.
+
+```java
+String json = ruleRepository.findJson("signup");   // 예: DB 에 저장한 규칙
+S2Validator<SignupCommand> validator = S2Validator.fromJson(json);
+S2BindValidator.bind(validator).validate(command, bindingResult);   // 이후는 코드로 만든 검증기와 같음
+```
+
+```json
+{"schemaVersion": 1, "fields": [
+  {"name": "memo", "label": "메모",
+   "rules": [{"type": "MAX_LENGTH", "value": 500,
+              "messages": {"ko": "{0|은/는} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
+   "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
+  {"name": "items", "label": "품목",
+   "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "label": "수량", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
+]}
+```
+
+| 위치 | 키 |
+|---|---|
+| 필드 | `name`(필수), `label`, `rules`, `conditions`. 규칙이 없으면 필수 검증 |
+| 규칙 | `type`(필수, `S2RuleType` 이름), `value`(기준값, `REGEX`는 패턴), `message`(모든 언어), `messages`(언어 태그 → 템플릿), `key`(번들 키), `nestedRules`(`NESTED`/`EACH`) |
+| 조건 | `field`, `op`(`S2Operator` 이름, 생략 시 `EQ`), `value`. 바깥 배열은 OR, 안쪽 배열은 AND |
+
+- **엄격하게 검사합니다.** 모르는 키(예: `mesage` 오타), 모르는 규칙 타입·연산자, 맞지 않는 기준값, 지원하지 않는 `schemaVersion`은 `IllegalArgumentException`으로 거부하며 메시지에 경로(`$.fields[2].rules[0].type`)가 들어갑니다. JSON 문법 오류는 `S2JsonException`입니다.
+- 커스텀 람다 규칙은 코드이므로 JSON 으로 정의할 수 없습니다.
+
 ---
 
 ## 6. 서버-클라이언트 통합 동기화 (Server-Client Sync)
@@ -784,6 +816,23 @@ S2Util.setValue(user, "address.city", "대전");
 - **입력 정제**: `S2StringUtil.sanitizeInput()`으로 제어문자 및 유해 입력을 정제합니다.
 - **조사 연산**: `S2StringUtil.appendJosa()`로 프로그램 코드에서 한국어 조사를 문맥에 맞게 덧붙입니다.
 
+### 9-5. 경량 JSON (`S2JsonUtil`)
+
+외부 의존성 없이 JSON 을 쓰고 읽고, 일반 Java 타입과 서로 매핑합니다. 의도적으로 작게 유지하는 유틸이며, 어노테이션·다형성·커스텀 직렬화기가 필요하면 Jackson 을 사용하십시오.
+
+```java
+String json = S2JsonUtil.toJson(order);                          // record, POJO, Map, List, java.time ...
+Order order = S2JsonUtil.fromJson(json, Order.class);            // record 는 정식 생성자, POJO 는 인자 없는 생성자
+List<Item> items = S2JsonUtil.fromJsonList(arrayJson, Item.class);
+Map<String, Object> tree = S2JsonUtil.parseObject(json);         // Map / List / String / Long / Double / Boolean
+Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALLOW_TRAILING_COMMA);
+```
+
+- **기본은 엄격한 표준 JSON**입니다. 주석, 작은따옴표, 끝 쉼표 등은 `Feature`로 켭니다.
+- **실패하면 항상 `S2JsonException`**입니다. `null`이나 깨진 JSON 을 돌려주지 않으며, 파싱 오류는 문자 위치를, 매핑 오류는 경로(`$.items[1].qty`)를 담습니다.
+- 뒤따르는 문자, 512단계보다 깊은 중첩, 순환 참조, NaN/Infinity(`ALLOW_NON_NUMERIC_NUMBERS` 없이), 손실되는 숫자 변환(3.7 → `int`), 지원하지 않는 JDK 타입은 거부합니다.
+- 지원 타입(문자열, 숫자, 불리언, 열거형, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, 배열, 컬렉션, Map, record, POJO)은 클래스 Javadoc 에 정리되어 있습니다. 매핑할 때 모르는 JSON 속성은 무시합니다.
+
 ---
 
 [//]: # 'S2_DEPS_INFO_START'
@@ -805,4 +854,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 1.2.0 (2026-09-22)
+s2-util Version: 2.0.0 (2026-09-30)

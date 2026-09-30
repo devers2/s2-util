@@ -62,7 +62,7 @@ configure<GradlePluginDevelopmentExtension> {
 }
 
 group = "io.github.devers2"
-version = "1.2.0"
+version = "2.0.0"
 
 // 빌드 시 루트 gradle/libs.versions.toml의 s2-validator-plugin 버전 자동 동기화
 S2BuildUtils.syncVersionToCatalog(project, "s2-validator-plugin", version.toString())

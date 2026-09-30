@@ -4,16 +4,16 @@
 
 `s2-util`(`s2-core`, `s2-validator`, `s2-jpa`)과 `s2-validator-plugin`의 주요 변경 사항을 기록합니다.
 
-## [1.2.0] - 미배포
+## [2.0.0] - 미배포
 
-1.1.8 대비 변경입니다. 이번 버전에는 **동작 변경**이 있으므로 올리기 전에 [업그레이드 안내](#업그레이드-안내)를 확인하십시오.
+1.1.8 대비 변경입니다. 하위 호환을 유지하지 않는 **메이저 버전**이며 동작 변경이 있으므로 올리기 전에 [업그레이드 안내](#업그레이드-안내)를 확인하십시오.
 
 ### ⚠️ 호환성
 
-- **`s2-support` 1.1.x 는 `s2-core` 1.2.0 과 호환되지 않습니다.** `s2-support` 1.1.3 의 `S2AutoConfiguration`이 삭제된
+- **`s2-support` 1.x 는 `s2-core` 2.0.0 과 호환되지 않습니다.** `s2-support` 1.1.3 의 `S2AutoConfiguration`이 삭제된
   `S2LogManager.touch()`를 호출하므로, Spring Boot 애플리케이션이 시작 시
-  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`로 실패합니다. `s2-core` 1.2.0 과 함께 배포되는
-  `s2-support` 버전으로 올리십시오.
+  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`로 실패합니다. `s2-support` 2.0.0 으로
+  올리십시오. `s2-support`의 `S2JsonUtil`은 삭제되었으며 `s2-core`의 `io.github.devers2.s2util.json.S2JsonUtil`을 사용합니다.
 - **삭제된 공개 API** (1.1.8 배포본 대비):
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (경고 배너와 배너 스레드 제거)
@@ -88,6 +88,14 @@
 
 ### 추가
 
+- `s2-core`: 의존성 없는 경량 JSON 유틸 `io.github.devers2.s2util.json.S2JsonUtil`(`toJson`, `parse`, `parseObject`,
+  `parseArray`, `fromJson`, `fromJsonList`, `convert`)과 `S2JsonException`. 기본은 엄격한 표준 JSON 이며 느슨한 문법은 `Feature`로
+  켭니다. 뒤따르는 문자·깊은 중첩(512)·잘못된 숫자를 위치와 함께 거부하고, 지원하지 않는 타입·순환 참조·NaN·손실되는 숫자 변환은
+  예외입니다(`null`이나 깨진 JSON 을 돌려주지 않음). 지원 타입은 클래스 Javadoc 에 명시되어 있으며, 그 밖의 기능은 Jackson 을
+  사용하십시오. `s2-support`의 같은 이름 클래스를 대체합니다.
+- `S2Validator.fromJson(json)`: 규칙 JSON(`getRulesJson()` 형식 + `messages`, `key` 정의용 키)으로 검증기를 만듭니다. 규칙을 DB·설정에
+  두고 재배포 없이 바꿀 수 있습니다. 모르는 키·규칙 타입·연산자, 잘못된 기준값, 지원하지 않는 `schemaVersion`은 JSON 경로와 함께
+  `IllegalArgumentException`으로 거부합니다.
 - 조건 비교 연산자 `S2Operator`: `when(field, 연산자, 값)` / `and(...)`로 `NE`, `GT`/`GTE`/`LT`/`LTE`(숫자), `IN`/`NOT_IN`,
   `EMPTY`/`NOT_EMPTY` 조건을 씁니다(서버·브라우저 동일). 기존 `when(field, 값)`은 그대로 "같음"(`EQ`)입니다. 규칙 JSON 의 조건에는
   `EQ`가 아닐 때만 `"op"`가 들어갑니다.
@@ -140,7 +148,7 @@
 8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
 9. 규칙 JSON 을 서버나 자체 스크립트에서 직접 파싱한다면 최상위 배열 대신 `fields` 배열을 읽으십시오.
 
-## s2-validator-plugin [1.2.0] - 미배포
+## s2-validator-plugin [2.0.0] - 미배포
 
 - **Configuration cache**: `checkS2Validators`가 실행 시점에 `getProject()`를 호출하지 않아 `--configuration-cache`에서 동작합니다.
 - **바인딩 검사**: `S2BindValidator.bind(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된

@@ -69,7 +69,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.2.0'
+    implementation 'io.github.devers2:s2-util:2.0.0'
 }
 ```
 
@@ -79,7 +79,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -97,7 +97,7 @@ pluginManagement {
 
 // build.gradle
 plugins {
-    id 'io.github.devers2.validator' version '1.2.0'
+    id 'io.github.devers2.validator' version '2.0.0'
 }
 ```
 
