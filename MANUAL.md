@@ -157,7 +157,11 @@ S2BindValidator.setValidationBundle("messages");
 
 ### 1-4. Spring Boot Auto-Configuration - [Optional]
 
-In a Spring Boot application, adding s2-validator as a dependency is enough; there is no separate starter. Without Spring this configuration is never loaded and the validator works as before (Spring Boot is a compile-only dependency and does not appear in the published POM).
+In a Spring Boot application, adding s2-validator as a dependency is enough; there is no separate starter.
+
+> **Not required.** If you only use built-in messages or messages set in code (`.message()`, `.ko()`, `.en()`), nothing needs to be configured, and without validation keys in `messages.properties` the auto-configuration changes nothing. Use it to translate or reword validation messages outside the code (`messages.properties`), or to set the bundle and fallback language in `application.yml`.
+
+ Without Spring this configuration is never loaded and the validator works as before (Spring Boot is a compile-only dependency and does not appear in the published POM).
 
 ```yaml
 s2:
