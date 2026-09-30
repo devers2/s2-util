@@ -58,12 +58,13 @@ final class S2RulesJsonReader {
     /**
      * Reads rules JSON into a validator.
      *
-     * @param <T>  Target type | 대상 타입
-     * @param json Rules JSON | 규칙 JSON
+     * @param <T>      Target type | 대상 타입
+     * @param json     Rules JSON | 규칙 JSON
+     * @param features JSON syntax options, e.g. {@link S2JsonUtil.Feature#JSON5} | JSON 문법 선택 기능
      * @return The validator | 검증기
      */
-    static <T> S2Validator<T> read(String json) {
-        Map<String, Object> root = S2JsonUtil.parseObject(json);
+    static <T> S2Validator<T> read(String json, S2JsonUtil.Feature... features) {
+        Map<String, Object> root = S2JsonUtil.parseObject(json, features);
         checkKeys(root, ROOT_KEYS, "$");
         Object version = root.get("schemaVersion");
         if (!(version instanceof Long v)) {

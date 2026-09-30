@@ -568,6 +568,14 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // same as a
 
 - **Strict:** unknown keys (a `mesage` typo), unknown rule types or operators, criteria that do not fit and an unsupported `schemaVersion` fail with `IllegalArgumentException`; the message names the path (`$.fields[2].rules[0].type`). JSON syntax errors are `S2JsonException`.
 - Custom lambda rules are code and cannot be defined in JSON.
+- For rules written by hand in a configuration file, pass `Feature.JSON5` to write them in JSON5 (single quotes, unquoted keys, comments, trailing commas).
+
+  ```java
+  S2Validator<Map<String, Object>> v = S2Validator.fromJson("""
+      { schemaVersion: 1, fields: [
+        { name: 'memo', label: 'Memo', rules: [{ type: 'MAX_LENGTH', value: 500 }] },  // memo length limit
+      ]}""", S2JsonUtil.Feature.JSON5);
+  ```
 
 ---
 

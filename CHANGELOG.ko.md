@@ -96,7 +96,7 @@
   Hibernate·Spring AOP 프록시는 실제 객체로 씁니다(빈 프록시 필드를 쓰지 않음).
 - `S2Validator.fromJson(json)`: 규칙 JSON(`getRulesJson()` 형식 + `messages`, `key` 정의용 키)으로 검증기를 만듭니다. 규칙을 DB·설정에
   두고 재배포 없이 바꿀 수 있습니다. 모르는 키·규칙 타입·연산자, 잘못된 기준값, 지원하지 않는 `schemaVersion`은 JSON 경로와 함께
-  `IllegalArgumentException`으로 거부합니다.
+  `IllegalArgumentException`으로 거부합니다. 사람이 쓰는 규칙 파일은 `fromJson(json, Feature.JSON5)`로 JSON5 를 받습니다.
 - 조건 비교 연산자 `S2Operator`: `when(field, 연산자, 값)` / `and(...)`로 `NE`, `GT`/`GTE`/`LT`/`LTE`(숫자), `IN`/`NOT_IN`,
   `EMPTY`/`NOT_EMPTY` 조건을 씁니다(서버·브라우저 동일). 기존 `when(field, 값)`은 그대로 "같음"(`EQ`)입니다. 규칙 JSON 의 조건에는
   `EQ`가 아닐 때만 `"op"`가 들어갑니다.

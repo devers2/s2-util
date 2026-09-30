@@ -568,6 +568,14 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // 이후는
 
 - **엄격하게 검사합니다.** 모르는 키(예: `mesage` 오타), 모르는 규칙 타입·연산자, 맞지 않는 기준값, 지원하지 않는 `schemaVersion`은 `IllegalArgumentException`으로 거부하며 메시지에 경로(`$.fields[2].rules[0].type`)가 들어갑니다. JSON 문법 오류는 `S2JsonException`입니다.
 - 커스텀 람다 규칙은 코드이므로 JSON 으로 정의할 수 없습니다.
+- 설정 파일에 사람이 직접 쓰는 규칙은 `Feature.JSON5`를 넘기면 JSON5(작은따옴표, 따옴표 없는 키, 주석, 끝 쉼표)로 쓸 수 있습니다.
+
+  ```java
+  S2Validator<Map<String, Object>> v = S2Validator.fromJson("""
+      { schemaVersion: 1, fields: [
+        { name: 'memo', label: '메모', rules: [{ type: 'MAX_LENGTH', value: 500 }] },  // 메모 길이 제한
+      ]}""", S2JsonUtil.Feature.JSON5);
+  ```
 
 ---
 

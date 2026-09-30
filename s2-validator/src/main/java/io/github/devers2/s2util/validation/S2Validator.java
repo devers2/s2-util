@@ -34,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import io.github.devers2.s2util.core.S2Util;
+import io.github.devers2.s2util.json.S2JsonUtil;
 import io.github.devers2.s2util.exception.S2RuntimeException;
 import io.github.devers2.s2util.message.S2ResourceBundle;
 import io.github.devers2.s2util.validation.S2Field.S2CustomRule;
@@ -1575,6 +1576,8 @@ public class S2Validator<T> implements Serializable {
      * <li><b>Condition:</b> {@code field}, {@code op} ({@link S2Operator} name, default {@code EQ}), {@code value}. The
      * outer array is OR, each inner array is AND.</li>
      * <li>Custom lambda rules cannot be defined in JSON (they are code).</li>
+     * <li>For rules written by hand in a configuration file, pass {@link S2JsonUtil.Feature#JSON5} to accept JSON5
+     * (single quotes, unquoted keys, comments, trailing commas).</li>
      * </ul>
      *
      * <p>
@@ -1591,10 +1594,14 @@ public class S2Validator<T> implements Serializable {
      * <li><b>조건:</b> {@code field}, {@code op}({@link S2Operator} 이름, 기본 {@code EQ}), {@code value}. 바깥 배열은 OR, 안쪽 배열은
      * AND 입니다.</li>
      * <li>커스텀 람다 규칙은 코드이므로 JSON 으로 정의할 수 없습니다.</li>
+     * <li>설정 파일에 사람이 직접 쓰는 규칙은 {@link S2JsonUtil.Feature#JSON5}를 넘겨 JSON5(작은따옴표, 따옴표 없는 키, 주석, 끝 쉼표)로
+     * 받을 수 있습니다.</li>
      * </ul>
      *
-     * @param <T>  The target type | 대상 타입
-     * @param json Rules JSON | 규칙 JSON
+     * @param <T>      The target type | 대상 타입
+     * @param json     Rules JSON | 규칙 JSON
+     * @param features JSON syntax options, e.g. {@link S2JsonUtil.Feature#JSON5}; none means standard JSON | JSON 문법 선택
+     *                 기능 (예: JSON5). 없으면 표준 JSON
      * @return A new validator | 새 검증기
      * @throws io.github.devers2.s2util.json.S2JsonException If the text is not valid JSON | 올바른 JSON 이 아닌 경우
      * @throws IllegalArgumentException                      If the rules are invalid (unknown key, rule type or operator,
@@ -1604,8 +1611,8 @@ public class S2Validator<T> implements Serializable {
      *                                                       메시지에 JSON 경로 포함
      * @since 2.0.0
      */
-    public static <T> S2Validator<T> fromJson(String json) {
-        return S2RulesJsonReader.read(json);
+    public static <T> S2Validator<T> fromJson(String json, S2JsonUtil.Feature... features) {
+        return S2RulesJsonReader.read(json, features);
     }
 
     /**
