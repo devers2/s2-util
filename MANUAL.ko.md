@@ -115,6 +115,7 @@ dependencies {
    - `S2Validator.builder()` 체인은 반드시 `.build()`로 끝나야 합니다.
    - `S2Validator.check()` 체인은 반드시 `.validate()`로 끝나야 합니다.
    - 종단 메서드가 누락된 체인은 검증이 전혀 실행되지 않는 **죽은 코드(Dead Code)**이므로, 플러그인이 즉시 빌드를 실패시켜 운영 배포를 차단합니다.
+3. **규칙 기준값·조건 값 검사**: `.rule(MAX_LENGTH, "abc")`, `.rule(MIN_VALUE, "19살")`, 문법이 틀린 `REGEX`, `.rule(EMAIL, "...")`처럼 기준값을 받지 않는 규칙에 준 값, `when(field, GT, "abc")` 등 리터럴로 적힌 잘못된 값을 빌드에서 막습니다. 규칙마다 전용 메서드(`.maxLength(10)` 등)를 두지 않고도 컴파일 시점에 잡기 위한 기능입니다. 비교 대상 필드(`EQUALS_FIELD` 등)가 DTO 에 없으면 경고합니다.
 
 **[settings.gradle]**
 

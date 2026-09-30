@@ -193,3 +193,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 - **Incremental build & build cache**: `checkS2Validators` is a `@CacheableTask` with the `src/main/java` trees of all
   projects as inputs and `build/s2-validator/checkS2Validators.txt` as output, so unchanged sources are not re-parsed on
   every compile.
+- **Rule criterion and condition value check**: literal criteria that do not fit the rule (`.rule(MAX_LENGTH, "abc")`, a
+  missing criterion, a string for `NESTED`, `when(f, GT, "abc")`, ...) fail the build, as do mistakes the runtime gets
+  silently wrong: an invalid `REGEX`, a value for a rule that takes none, and a bad `JUMIN`/`BIZRNO` switch. A comparison
+  field missing from the DTO is a warning. This provides compile-time safety instead of per-rule methods.

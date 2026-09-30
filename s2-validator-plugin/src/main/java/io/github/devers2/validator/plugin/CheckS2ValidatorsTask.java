@@ -46,6 +46,15 @@ import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.CharLiteralExpr;
+import com.github.javaparser.ast.expr.DoubleLiteralExpr;
+import com.github.javaparser.ast.expr.IntegerLiteralExpr;
+import com.github.javaparser.ast.expr.LiteralExpr;
+import com.github.javaparser.ast.expr.LongLiteralExpr;
+import com.github.javaparser.ast.expr.NullLiteralExpr;
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr;
+import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
@@ -249,13 +258,15 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             File srcDir = new File(projectDir, "src/main/java");
             if (!srcDir.exists()) {
                 getLogger().info("ℹ️  src/main/java 디렉토리가 없습니다. 검증 생략.");
-                writeResult(0, Map.of(), projectDir);
+                writeResult(0, Map.of(), Map.of(), projectDir);
                 return;
             }
 
             Map<String, List<ValidationError>> errorsByFile = new LinkedHashMap<>();
             Map<String, List<ChainingError>> chainingErrorsByFile = new LinkedHashMap<>();
             Map<String, List<BindValidatorWarning>> bindWarningsByFile = new LinkedHashMap<>();
+            Map<String, List<CriterionIssue>> criterionErrorsByFile = new LinkedHashMap<>();
+            Map<String, List<CriterionIssue>> criterionWarningsByFile = new LinkedHashMap<>();
             int totalFiles = 0;
             int validatorFiles = 0;
 
@@ -278,6 +289,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                     }
                     if (!result.bindValidatorWarnings.isEmpty()) {
                         bindWarningsByFile.put(javaFile.toString(), result.bindValidatorWarnings);
+                    }
+                    if (!result.criterionErrors.isEmpty()) {
+                        criterionErrorsByFile.put(javaFile.toString(), result.criterionErrors);
+                    }
+                    if (!result.criterionWarnings.isEmpty()) {
+                        criterionWarningsByFile.put(javaFile.toString(), result.criterionWarnings);
                     }
                 }
             }
@@ -331,23 +348,31 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                         + "체이닝 완결성 검사 통과");
             }
 
+            // 규칙 기준값·조건 값 검사 결과 출력 (오류는 빌드 실패, 경고는 계속) | Criterion check results (errors fail the build, warnings do not)
+            logCriterionIssues(criterionErrorsByFile, projectDir, true);
+            logCriterionIssues(criterionWarningsByFile, projectDir, false);
+
             // S2BindValidator.bind(...)로 바인딩한 검증기가 validate()/getRulesJson() 없이 버려지는 것으로 의심되는 지점 경고 (빌드는 막지 않음)
             logBindValidatorWarnings(bindWarningsByFile, projectDir);
 
-            boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty();
+            boolean hasFatalErrors = !errorsByFile.isEmpty() || !chainingErrorsByFile.isEmpty()
+                    || !criterionErrorsByFile.isEmpty();
             if (hasFatalErrors) {
                 int fieldErrorCount = errorsByFile.values().stream().mapToInt(List::size).sum();
                 int chainingErrorCount = chainingErrorsByFile.values().stream().mapToInt(List::size).sum();
+                int criterionErrorCount = criterionErrorsByFile.values().stream().mapToInt(List::size).sum();
                 List<String> messages = new ArrayList<>();
                 if (fieldErrorCount > 0)
                     messages.add(String.format("%d개의 잘못된 필드명", fieldErrorCount));
                 if (chainingErrorCount > 0)
                     messages.add(String.format("%d개의 불완전한 체이닝(Dead Code)", chainingErrorCount));
+                if (criterionErrorCount > 0)
+                    messages.add(String.format("%d개의 잘못된 규칙 기준값", criterionErrorCount));
                 throw new IllegalStateException(
                         String.format("S2Validator 정적 분석 실패: %s 발견되었습니다.", String.join(", ", messages)));
             }
 
-            writeResult(totalFiles, bindWarningsByFile, projectDir);
+            writeResult(totalFiles, bindWarningsByFile, criterionWarningsByFile, projectDir);
 
         } catch (IllegalStateException e) {
             throw e;
@@ -365,18 +390,22 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      * </p>
      * 결과 파일(태스크 출력)을 씁니다. UP-TO-DATE 실행에서는 경고가 다시 출력되지 않으므로 여기에 남깁니다.
      *
-     * @param totalFiles     Number of scanned files | 스캔한 파일 수
-     * @param warningsByFile Bind usage warnings by file | 파일별 bind 사용 경고
+     * @param totalFiles              Number of scanned files | 스캔한 파일 수
+     * @param warningsByFile          Bind usage warnings by file | 파일별 bind 사용 경고
+     * @param criterionWarningsByFile Criterion warnings by file | 파일별 기준값 경고
      * @param projectDir     Project directory for relative paths | 상대 경로 기준 프로젝트 디렉터리
      * @throws java.io.IOException If writing fails | 쓰기 실패 시
      */
-    private void writeResult(int totalFiles, Map<String, List<BindValidatorWarning>> warningsByFile, File projectDir)
-            throws java.io.IOException {
+    private void writeResult(int totalFiles, Map<String, List<BindValidatorWarning>> warningsByFile,
+            Map<String, List<CriterionIssue>> criterionWarningsByFile, File projectDir) throws java.io.IOException {
         StringBuilder sb = new StringBuilder("S2Validator check passed: ").append(totalFiles).append(" files\n");
         warningsByFile.forEach((file, warnings) -> warnings.forEach(w -> sb.append("WARN ")
                 .append(projectDir.toPath().relativize(Path.of(file)).toString().replace('\\', '/'))
                 .append(':').append(w.lineNumber).append(" bind(").append(w.target).append(") - ").append(w.reason)
                 .append('\n')));
+        criterionWarningsByFile.forEach((file, warnings) -> warnings.forEach(w -> sb.append("WARN ")
+                .append(projectDir.toPath().relativize(Path.of(file)).toString().replace('\\', '/'))
+                .append(':').append(w.lineNumber).append(' ').append(w.message).append('\n')));
         Path out = getResultFile().get().getAsFile().toPath();
         Files.createDirectories(out.getParent());
         Files.writeString(out, sb.toString(), java.nio.charset.StandardCharsets.UTF_8);
@@ -426,6 +455,8 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         List<ValidationError> errors = new ArrayList<>();
         List<ChainingError> chainingErrors = new ArrayList<>();
         List<BindValidatorWarning> bindWarnings = new ArrayList<>();
+        List<CriterionIssue> criterionErrors = new ArrayList<>();
+        List<CriterionIssue> criterionWarnings = new ArrayList<>();
 
         try {
             CompilationUnit cu = StaticJavaParser.parse(javaFile);
@@ -471,6 +502,9 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
                 // 체이닝 완결성 검사
                 chainingErrors.addAll(analyzeChainingCompleteness(cu));
+
+                // 규칙 기준값·조건 값 검사 | Rule criteria and condition values
+                analyzeCriteria(cu, criterionErrors, criterionWarnings);
             }
 
             if (content.contains("S2BindValidator")) {
@@ -481,7 +515,305 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             getLogger().debug("파일 파싱 실패: {}", javaFile.getFileName(), e);
         }
 
-        return new FileAnalysisResult(errors, chainingErrors, bindWarnings);
+        return new FileAnalysisResult(errors, chainingErrors, bindWarnings, criterionErrors, criterionWarnings);
+    }
+
+    /** 기준값 종류: 규칙이 받는 기준값의 형태 | Kind of criterion a rule takes */
+    private enum CriterionKind {
+        /** 기준값 없음 ({@code null}만 허용, 메시지 키 지정용) | None; only null (to pass a message key) */
+        NONE,
+        /** 정수 또는 정수 문자열 | Integer or integer string */
+        INTEGER,
+        /** 일반 십진수 또는 숫자 문자열 | Plain decimal number or numeric string */
+        NUMBER,
+        /** 정규식 문자열 | Regular expression string */
+        REGEX,
+        /** 비교 대상 필드 이름 | Name of the field to compare with */
+        FIELD,
+        /** 하위 검증기 | Sub-validator */
+        VALIDATOR,
+        /** 선택적 검증번호 스위치 (true/false, "true"/"false") | Optional check-digit switch */
+        SWITCH
+    }
+
+    /**
+     * {@code S2RuleType}별 기준값 종류. s2-validator 의 {@code S2Rule} 생성·판정 규칙과 같게 유지합니다.
+     * | Criterion kind per {@code S2RuleType}; keep in line with how {@code S2Rule} creates and judges rules.
+     */
+    private static final Map<String, CriterionKind> RULE_CRITERIA = new LinkedHashMap<>();
+
+    static {
+        for (String name : List.of("REQUIRED", "ASSERT_TRUE", "ASSERT_FALSE", "NUMBER", "TEXT_INTACT", "TEXT_COMBINE",
+                "MPHONE_NO", "TEL_NO", "INTERNATIONAL_TEL_NO", "EMAIL", "ZIP", "LOGIN_ID", "PASSWORD", "PASSWORD_ANSWR",
+                "NWINO", "DATE")) {
+            RULE_CRITERIA.put(name, CriterionKind.NONE);
+        }
+        for (String name : List.of("LENGTH", "MIN_LENGTH", "MAX_LENGTH", "MIN_BYTE", "MAX_BYTE")) {
+            RULE_CRITERIA.put(name, CriterionKind.INTEGER);
+        }
+        RULE_CRITERIA.put("MIN_VALUE", CriterionKind.NUMBER);
+        RULE_CRITERIA.put("MAX_VALUE", CriterionKind.NUMBER);
+        RULE_CRITERIA.put("REGEX", CriterionKind.REGEX);
+        for (String name : List.of("EQUALS_FIELD", "DATE_AFTER", "DATE_BEFORE")) {
+            RULE_CRITERIA.put(name, CriterionKind.FIELD);
+        }
+        RULE_CRITERIA.put("NESTED", CriterionKind.VALIDATOR);
+        RULE_CRITERIA.put("EACH", CriterionKind.VALIDATOR);
+        RULE_CRITERIA.put("JUMIN", CriterionKind.SWITCH);
+        RULE_CRITERIA.put("BIZRNO", CriterionKind.SWITCH);
+    }
+
+    /** 숫자 연산자와 목록 연산자 (S2Operator) | Numeric and list operators of S2Operator */
+    private static final Set<String> NUMERIC_OPERATORS = Set.of("GT", "GTE", "LT", "LTE");
+    private static final Set<String> LIST_OPERATORS = Set.of("IN", "NOT_IN");
+    private static final Set<String> UNARY_OPERATORS = Set.of("EMPTY", "NOT_EMPTY");
+    private static final Set<String> ALL_OPERATORS = Set.of("EQ", "NE", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "EMPTY",
+            "NOT_EMPTY");
+
+    /** 런타임(S2Rule.toDouble)과 같은 일반 십진수 표기 | Plain decimal notation, as S2Rule.toDouble accepts */
+    private static final java.util.regex.Pattern PLAIN_NUMBER = java.util.regex.Pattern
+            .compile("[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?");
+
+    /**
+     * 규칙 기준값과 조건 값을 검사합니다. 값이 소스에 리터럴로 적힌 경우만 판단하며, 변수·상수·메서드 호출은 런타임 검사에 맡깁니다.
+     * <ul>
+     * <li>오류(빌드 실패): 기준값 타입 불일치, 필요한 기준값 누락, 기준값을 받지 않는 규칙에 준 값(런타임은 조용히 무시), 문법이 틀린 정규식(런타임은
+     * 항상 형식 오류로 판정), 검증번호 스위치의 잘못된 값(런타임은 조용히 끔), 조건 연산자에 맞지 않는 값</li>
+     * <li>경고: 비교 대상 필드가 대상 DTO 에 없음. NESTED/EACH 하위 검증기는 바깥 객체 필드를 참조할 수 있어 오류로 단정하지 않습니다.</li>
+     * </ul>
+     * | Checks rule criteria and condition values written as literals; variables, constants and method calls are left
+     * to the runtime check. Mismatches fail the build; a comparison field missing from the target DTO is a warning,
+     * because a NESTED/EACH sub-validator may refer to a field of an outer object.
+     *
+     * @param cu       분석 대상 파일 | File to analyze
+     * @param errors   빌드를 실패시킬 문제 | Issues that fail the build
+     * @param warnings 경고 | Warnings
+     */
+    private void analyzeCriteria(CompilationUnit cu, List<CriterionIssue> errors, List<CriterionIssue> warnings) {
+        for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
+            String name = call.getNameAsString();
+            int line = call.getBegin().map(pos -> pos.line).orElse(0);
+            if ("rule".equals(name) && !call.getArguments().isEmpty()) {
+                String ruleType = s2Constant(call.getArguments().get(0), "S2RuleType", RULE_CRITERIA.keySet());
+                if (ruleType != null) {
+                    checkRuleCriterion(call, ruleType, line, errors, warnings);
+                }
+            } else if (("when".equals(name) || "and".equals(name)) && call.getArguments().size() >= 2) {
+                String operator = s2Constant(call.getArguments().get(1), "S2Operator", ALL_OPERATORS);
+                if (operator != null) {
+                    checkConditionValue(call, operator, line, errors);
+                }
+            }
+        }
+    }
+
+    /**
+     * {@code S2RuleType.X}(또는 정적 import 한 {@code X}) 형태의 상수 이름을 반환합니다. 아니면 null.
+     * | Returns the constant name of {@code Type.X} or a statically imported {@code X}; null otherwise.
+     */
+    private String s2Constant(Expression expr, String typeName, Set<String> known) {
+        if (expr instanceof FieldAccessExpr access && access.getScope().toString().endsWith(typeName)
+                && known.contains(access.getNameAsString())) {
+            return access.getNameAsString();
+        }
+        if (expr instanceof NameExpr nameExpr && known.contains(nameExpr.getNameAsString())) {
+            CompilationUnit cu = getCU(expr);
+            boolean imported = cu != null && cu.getImports().stream().anyMatch(i -> i.isStatic()
+                    && i.getNameAsString().contains(typeName)
+                    && (i.isAsterisk() || i.getNameAsString().endsWith("." + nameExpr.getNameAsString())));
+            return imported ? nameExpr.getNameAsString() : null;
+        }
+        return null;
+    }
+
+    private void checkRuleCriterion(MethodCallExpr call, String ruleType, int line, List<CriterionIssue> errors,
+            List<CriterionIssue> warnings) {
+        CriterionKind kind = RULE_CRITERIA.get(ruleType);
+        Expression value = call.getArguments().size() >= 2 ? call.getArguments().get(1) : null;
+        boolean missing = value == null || value instanceof NullLiteralExpr;
+        String rule = "rule(" + ruleType + (value != null ? ", " + value : "") + ")";
+
+        switch (kind) {
+            case NONE -> {
+                if (!missing && isLiteral(value)) {
+                    errors.add(new CriterionIssue(line, rule + ": " + ruleType
+                            + " 규칙은 기준값을 받지 않습니다(런타임은 조용히 무시). 메시지 키만 지정하려면 null 을 넘기십시오."));
+                }
+            }
+            case SWITCH -> {
+                if (!missing && isLiteral(value) && !(value instanceof BooleanLiteralExpr)
+                        && !(value instanceof StringLiteralExpr str && Set.of("true", "false")
+                                .contains(str.getValue().trim().toLowerCase(java.util.Locale.ROOT)))) {
+                    errors.add(new CriterionIssue(line, rule + ": 검증번호 검사 여부는 true/false 여야 합니다"
+                            + "(다른 값은 런타임이 조용히 '끔'으로 처리)."));
+                }
+            }
+            case INTEGER, NUMBER, REGEX, FIELD, VALIDATOR -> {
+                if (missing) {
+                    errors.add(new CriterionIssue(line, rule + ": " + ruleType + " 규칙에는 기준값이 필요합니다."));
+                    return;
+                }
+                String problem = literalProblem(kind, value);
+                if (problem != null) {
+                    errors.add(new CriterionIssue(line, rule + ": " + problem));
+                } else if (kind == CriterionKind.FIELD && value instanceof StringLiteralExpr str) {
+                    checkComparisonField(call, str.getValue(), line, warnings);
+                }
+            }
+        }
+    }
+
+    /** 리터럴 기준값이 규칙에 맞지 않으면 이유를, 맞거나 리터럴이 아니면 null 을 반환 | Why a literal criterion does not fit, or null */
+    private String literalProblem(CriterionKind kind, Expression value) {
+        if (!isLiteral(value)) {
+            return null;
+        }
+        String text = literalText(value);
+        return switch (kind) {
+            case INTEGER -> {
+                try {
+                    Integer.parseInt(text.trim());
+                    yield value instanceof CharLiteralExpr ? "정수 기준값이 필요합니다." : null;
+                } catch (NumberFormatException e) {
+                    yield "정수 기준값이 필요합니다(예: 10 또는 \"10\"). 받은 값: " + value;
+                }
+            }
+            case NUMBER -> isNumericLiteral(value)
+                    || ((value instanceof StringLiteralExpr || value instanceof TextBlockLiteralExpr)
+                            && PLAIN_NUMBER.matcher(text.trim()).matches())
+                                    ? null
+                                    : "숫자 기준값이 필요합니다(예: 19 또는 \"19\"). 받은 값: " + value;
+            case REGEX -> {
+                if (!(value instanceof StringLiteralExpr || value instanceof TextBlockLiteralExpr)) {
+                    yield "정규식 문자열이 필요합니다. 받은 값: " + value;
+                }
+                try {
+                    java.util.regex.Pattern.compile(text);
+                    yield null;
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    yield "정규식 문법 오류(런타임은 항상 형식 오류로 판정): " + e.getDescription();
+                }
+            }
+            case FIELD -> value instanceof StringLiteralExpr str && !str.getValue().isBlank() ? null
+                    : "비교 대상 필드 이름(문자열)이 필요합니다. 받은 값: " + value;
+            case VALIDATOR -> "하위 검증기(S2Validator)가 필요합니다. 받은 값: " + value;
+            default -> null;
+        };
+    }
+
+    /** 정수·실수 리터럴(부호 포함) | Integer or decimal literal, optionally signed */
+    private static boolean isNumericLiteral(Expression value) {
+        Expression inner = value instanceof UnaryExpr unary ? unary.getExpression() : value;
+        return inner instanceof IntegerLiteralExpr || inner instanceof LongLiteralExpr || inner instanceof DoubleLiteralExpr;
+    }
+
+    private void checkConditionValue(MethodCallExpr call, String operator, int line, List<CriterionIssue> errors) {
+        Expression value = call.getArguments().size() >= 3 ? call.getArguments().get(2) : null;
+        String condition = call.getNameAsString() + "("
+                + call.getArguments().stream().map(Node::toString).collect(Collectors.joining(", ")) + ")";
+        if (UNARY_OPERATORS.contains(operator)) {
+            if (value != null && !(value instanceof NullLiteralExpr) && isLiteral(value)) {
+                errors.add(new CriterionIssue(line, condition + ": " + operator + " 연산자는 비교 값을 받지 않습니다."));
+            }
+            return;
+        }
+        if (value == null || !isLiteral(value)) {
+            return;
+        }
+        if (NUMERIC_OPERATORS.contains(operator)) {
+            boolean numeric = isNumericLiteral(value) || (value instanceof StringLiteralExpr str
+                    && PLAIN_NUMBER.matcher(str.asString().trim()).matches());
+            String problem = numeric ? null : "숫자 비교 값이 필요합니다(예: 19). 받은 값: " + value;
+            if (problem != null) {
+                errors.add(new CriterionIssue(line, condition + ": " + operator + " " + problem));
+            }
+        } else if (LIST_OPERATORS.contains(operator)) {
+            errors.add(new CriterionIssue(line, condition + ": " + operator
+                    + " 연산자는 목록(List.of(...), 배열)이 필요합니다. 받은 값: " + value));
+        }
+    }
+
+    /**
+     * 비교 대상 필드가 대상 DTO 에 있는지 확인합니다(경고). 행 규칙({@code items[].end})의 상대 이름과 경로가 있는 이름은 건너뜁니다.
+     * | Warns when the comparison field is not in the target DTO; skips row rules and dotted paths.
+     */
+    private void checkComparisonField(MethodCallExpr ruleCall, String target, int line, List<CriterionIssue> warnings) {
+        String ownField = owningFieldName(ruleCall);
+        if (ownField == null || ownField.contains("[") || ownField.contains(".") || target.contains(".")
+                || target.contains("[")) {
+            return;
+        }
+        String targetClass = findTargetClassForCall(ruleCall);
+        if (targetClass == null) {
+            return;
+        }
+        Set<String> fields = getAllFieldNames(targetClass);
+        if (fields != null && !fields.contains(target)) {
+            warnings.add(new CriterionIssue(line, "'" + ownField + "'의 비교 대상 필드 '" + target + "'가 " + targetClass
+                    + "에 없습니다 (바깥 객체 필드를 참조하는 NESTED/EACH 하위 검증기라면 무시해도 됩니다)"));
+        }
+    }
+
+    /** 규칙 호출 앞의 가장 가까운 {@code .field("이름")}의 이름 | Name of the nearest preceding .field("name") */
+    private String owningFieldName(MethodCallExpr ruleCall) {
+        Expression scope = ruleCall.getScope().orElse(null);
+        while (scope instanceof MethodCallExpr call) {
+            if ("field".equals(call.getNameAsString()) && !call.getArguments().isEmpty()
+                    && call.getArguments().get(0) instanceof StringLiteralExpr str) {
+                return str.getValue();
+            }
+            scope = call.getScope().orElse(null);
+        }
+        return null;
+    }
+
+    private static boolean isLiteral(Expression expr) {
+        return expr instanceof LiteralExpr
+                || (expr instanceof UnaryExpr unary && unary.getExpression() instanceof LiteralExpr);
+    }
+
+    /** 리터럴의 값 텍스트 (문자열은 내용, 숫자는 접미사 L 제외) | The literal's value text */
+    private static String literalText(Expression expr) {
+        if (expr instanceof StringLiteralExpr str) {
+            return str.asString();
+        }
+        if (expr instanceof TextBlockLiteralExpr block) {
+            return block.asString();
+        }
+        if (expr instanceof UnaryExpr unary) {
+            String sign = unary.getOperator() == UnaryExpr.Operator.MINUS ? "-" : "";
+            return sign + literalText(unary.getExpression());
+        }
+        if (expr instanceof LongLiteralExpr longLiteral) {
+            return longLiteral.getValue().replaceAll("[lL]$", "").replace("_", "");
+        }
+        if (expr instanceof IntegerLiteralExpr intLiteral) {
+            return intLiteral.getValue().replace("_", "");
+        }
+        if (expr instanceof DoubleLiteralExpr doubleLiteral) {
+            return doubleLiteral.getValue().replaceAll("[dDfF]$", "").replace("_", "");
+        }
+        return expr.toString();
+    }
+
+    /** 기준값 검사 결과를 파일별로 출력합니다 | Logs criterion issues by file */
+    private void logCriterionIssues(Map<String, List<CriterionIssue>> issuesByFile, File projectDir, boolean fatal) {
+        if (issuesByFile.isEmpty()) {
+            return;
+        }
+        int total = issuesByFile.values().stream().mapToInt(List::size).sum();
+        java.util.function.Consumer<String> log = fatal ? getLogger()::error : getLogger()::warn;
+        String color = fatal ? ANSI_RED : ANSI_YELLOW;
+        log.accept("");
+        log.accept(color + ANSI_BOLD + (fatal ? "[S2Validator Criterion Error]" : "[S2Validator Criterion Warning]") + ANSI_RESET);
+        log.accept(color + (fatal ? "❌ " : "⚠️  ") + issuesByFile.size() + "개 파일에서 규칙 기준값·조건 값 문제가 " + total + "건 발견되었습니다"
+                + (fatal ? "." : " (빌드는 계속 진행됩니다).") + ANSI_RESET);
+        issuesByFile.forEach((file, issues) -> {
+            log.accept("");
+            log.accept("  📄 " + ANSI_BOLD + projectDir.toPath().relativize(Path.of(file)) + ANSI_RESET);
+            issues.forEach(issue -> log.accept("    " + color + "Line " + issue.lineNumber + ":" + ANSI_RESET + " " + issue.message));
+        });
+        log.accept("");
     }
 
     /**
@@ -1128,12 +1460,28 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         final List<ValidationError> fieldErrors;
         final List<ChainingError> chainingErrors;
         final List<BindValidatorWarning> bindValidatorWarnings;
+        final List<CriterionIssue> criterionErrors;
+        final List<CriterionIssue> criterionWarnings;
 
         FileAnalysisResult(List<ValidationError> fieldErrors, List<ChainingError> chainingErrors,
-                List<BindValidatorWarning> bindValidatorWarnings) {
+                List<BindValidatorWarning> bindValidatorWarnings, List<CriterionIssue> criterionErrors,
+                List<CriterionIssue> criterionWarnings) {
             this.fieldErrors = fieldErrors;
             this.chainingErrors = chainingErrors;
             this.bindValidatorWarnings = bindValidatorWarnings;
+            this.criterionErrors = criterionErrors;
+            this.criterionWarnings = criterionWarnings;
+        }
+    }
+
+    /** 규칙 기준값·조건 값 검사에서 발견한 오류 또는 경고 | An error or warning from the criterion check */
+    static final class CriterionIssue {
+        final int lineNumber;
+        final String message;
+
+        CriterionIssue(int lineNumber, String message) {
+            this.lineNumber = lineNumber;
+            this.message = message;
         }
     }
 }

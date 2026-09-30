@@ -71,6 +71,17 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Reports offending file, line number, starter method, and expected terminal method
    - Build fails immediately: Prevents dead code from reaching production
 
+10. **Rule Criterion and Condition Value Check**
+   - Checks that criteria written as literals fit the rule, catching them at compile time without per-rule methods
+   - Fails the build: `.rule(MAX_LENGTH, "abc")`/`10.5`, `.rule(MIN_VALUE, "19살")`, a missing criterion
+     (`.rule(MAX_LENGTH)`), a string for `NESTED`/`EACH`, `when(field, GT, "abc")`, a non-list for `IN`, a value for `EMPTY`
+   - Also fails what the runtime gets **silently wrong**: an invalid `REGEX` (always judged as a format error), a value for a
+     rule that takes none (`.rule(EMAIL, "...")` is ignored; `null` for a message key is fine), and a `JUMIN`/`BIZRNO`
+     value other than true/false (treated as off)
+   - Warning: the comparison field of `EQUALS_FIELD`/`DATE_AFTER`/`DATE_BEFORE` is not in the DTO (a NESTED/EACH
+     sub-validator may refer to an outer field, so this is only a warning)
+   - Values passed as variables, constants or method calls are skipped and checked by the runtime when the validator is built
+
 ---
 
 ## 🔧 Installation
