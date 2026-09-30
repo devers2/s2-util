@@ -36,6 +36,18 @@ import io.github.devers2.s2util.validation.S2Validator;
 
 /**
  * Spring Boot auto-configuration for s2-validator: adding s2-validator to a Spring Boot application is enough.
+ * <p>
+ * <b>Optional.</b> Nothing needs to be configured to use the validator: built-in messages and messages set in code
+ * ({@code .message()}, {@code .ko()}, {@code .en()}) work as they are. When {@code messages.properties} defines none of
+ * the validation keys and no {@code s2.validator.*} property is set, this configuration changes nothing, because
+ * missing keys fall back to those messages.
+ * </p>
+ * <p>
+ * <b>Purpose:</b> manage validation messages outside the code. Use it when messages should be translated or reworded in
+ * {@code messages.properties} (the files the application already uses for its other messages) without touching the
+ * rule definitions, or when the bundle and fallback language should come from {@code application.yml} instead of
+ * {@code S2Validator.setValidationBundle(...)}/{@code setDefaultLocale(...)} calls at startup.
+ * </p>
  * <ul>
  * <li>Message keys ({@code valid.err.required}, rule keys) are looked up in Spring's {@code MessageSource} first, so
  * {@code messages.properties} (and {@code spring.messages.*}) can override validation messages. Disable with
@@ -56,6 +68,16 @@ import io.github.devers2.s2util.validation.S2Validator;
  * <b>[한국어 설명]</b>
  * </p>
  * s2-validator 의 Spring Boot 자동 설정입니다. Spring Boot 애플리케이션에 s2-validator 를 추가하기만 하면 됩니다.
+ * <p>
+ * <b>선택 사항입니다.</b> 검증기를 쓰는 데 설정할 것은 없습니다. 내장 메시지와 코드에서 지정한 메시지({@code .message()}, {@code .ko()},
+ * {@code .en()})는 그대로 동작합니다. {@code messages.properties}에 검증 키가 없고 {@code s2.validator.*} 설정도 없으면, 없는 키는 그 메시지로
+ * 넘어가므로 이 설정은 아무것도 바꾸지 않습니다.
+ * </p>
+ * <p>
+ * <b>목적:</b> 검증 메시지를 코드 밖에서 관리하는 것입니다. 규칙 정의를 건드리지 않고 애플리케이션이 이미 쓰는 {@code messages.properties}에서
+ * 메시지를 번역하거나 문구를 바꾸고 싶을 때, 또는 검증 번들과 대체 언어를 시작 코드의
+ * {@code S2Validator.setValidationBundle(...)}/{@code setDefaultLocale(...)} 호출 대신 {@code application.yml}로 정하고 싶을 때 씁니다.
+ * </p>
  * <ul>
  * <li>메시지 키({@code valid.err.required}, 규칙 키)를 Spring {@code MessageSource}에서 먼저 찾으므로 {@code messages.properties}
  * ({@code spring.messages.*})로 검증 메시지를 바꿀 수 있습니다. {@code s2.validator.use-message-source=false}로 끕니다.</li>

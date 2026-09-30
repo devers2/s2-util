@@ -157,7 +157,11 @@ S2BindValidator.setValidationBundle("messages");
 
 ### 1-4. Spring Boot 자동 설정 (선택 사항)
 
-Spring Boot 애플리케이션이라면 s2-validator 를 의존성에 추가하는 것만으로 자동 설정됩니다. 별도 스타터는 없습니다. Spring 이 없는 환경에서는 이 설정이 로드되지 않으며 검증기는 그대로 동작합니다(Spring Boot 는 컴파일 전용 의존성이라 배포 POM 에 포함되지 않음).
+Spring Boot 애플리케이션이라면 s2-validator 를 의존성에 추가하는 것만으로 자동 설정됩니다. 별도 스타터는 없습니다.
+
+> **필수가 아닙니다.** 내장 메시지나 코드에서 지정한 메시지(`.message()`, `.ko()`, `.en()`)만 쓴다면 아무것도 설정할 필요가 없고, `messages.properties`에 검증 키가 없으면 자동 설정도 결과를 바꾸지 않습니다. 검증 메시지를 코드 밖(`messages.properties`)에서 번역·수정하거나, 번들과 대체 언어를 `application.yml`로 정하고 싶을 때 씁니다.
+
+ Spring 이 없는 환경에서는 이 설정이 로드되지 않으며 검증기는 그대로 동작합니다(Spring Boot 는 컴파일 전용 의존성이라 배포 POM 에 포함되지 않음).
 
 ```yaml
 s2:
