@@ -115,6 +115,7 @@ dependencies {
    - `S2Validator.builder()` chains **must** end with `.build()`
    - `S2Validator.check()` chains **must** end with `.validate()`
    - Incomplete chains are flagged as build failures because incomplete validation is silent **dead code**.
+3. **Rule Criterion and Condition Value Check**: literal mistakes such as `.rule(MAX_LENGTH, "abc")`, `.rule(MIN_VALUE, "19살")`, an invalid `REGEX`, a value for a rule that takes none (`.rule(EMAIL, "...")`) or `when(field, GT, "abc")` fail the build. This catches criterion mistakes at compile time without per-rule methods such as `.maxLength(10)`. A comparison field (`EQUALS_FIELD` etc.) missing from the DTO is a warning.
 
 **[settings.gradle]**
 
