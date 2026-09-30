@@ -829,6 +829,11 @@ Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALL
 ```
 
 - **기본은 엄격한 표준 JSON**입니다. 주석, 작은따옴표, 끝 쉼표 등은 `Feature`로 켭니다.
+- **사람이 쓰는 설정 파일**에는 `Feature.JSON5`를 쓰십시오. 공개 규격인 [JSON5](https://spec.json5.org/)(작은따옴표, 따옴표 없는 키, 주석, 끝 쉼표, 16진수, `.5`·`5.`·`+1`, `Infinity`/`NaN`, 줄 이어 쓰기)를 받습니다. 쓰기(`toJson`)는 항상 표준 JSON(큰따옴표)입니다.
+
+  ```java
+  Map<String, Object> config = S2JsonUtil.parseObject("{ name: '홍길동', // 이름\n retry: 0x3, }", Feature.JSON5);
+  ```
 - **실패하면 항상 `S2JsonException`**입니다. `null`이나 깨진 JSON 을 돌려주지 않으며, 파싱 오류는 문자 위치를, 매핑 오류는 경로(`$.items[1].qty`)를 담습니다.
 - 뒤따르는 문자, 512단계보다 깊은 중첩, 1,000자를 넘는 숫자, 순환 참조, NaN/Infinity(`ALLOW_NON_NUMERIC_NUMBERS` 없이), 손실되는 숫자 변환(3.7 → `int`), 지원하지 않는 JDK 타입은 거부합니다.
 - 지원 타입(문자열, 숫자, 불리언, 열거형, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, 배열, 컬렉션, Map, record, POJO/DTO/VO)은 클래스 Javadoc 에 정리되어 있습니다. 매핑할 때 모르는 JSON 속성은 무시합니다.

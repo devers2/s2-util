@@ -829,6 +829,11 @@ Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALL
 ```
 
 - **Strict standard JSON by default.** Comments, single quotes, trailing commas and so on are enabled through `Feature`.
+- **For hand-written configuration** use `Feature.JSON5`, which accepts the published [JSON5](https://spec.json5.org/) standard (single quotes, unquoted keys, comments, trailing commas, hexadecimal, `.5`/`5.`/`+1`, `Infinity`/`NaN`, line continuations). Writing (`toJson`) always produces standard JSON (double quotes).
+
+  ```java
+  Map<String, Object> config = S2JsonUtil.parseObject("{ name: 'Hong', // name\n retry: 0x3, }", Feature.JSON5);
+  ```
 - **Failures are always `S2JsonException`**, never `null` or broken JSON; parse errors carry the character position and mapping errors the path (`$.items[1].qty`).
 - Trailing content, nesting deeper than 512, numbers longer than 1,000 characters, circular references, NaN/Infinity (without `ALLOW_NON_NUMERIC_NUMBERS`), lossy number conversions (3.7 → `int`) and unsupported JDK types are rejected.
 - The supported types (strings, numbers, booleans, enums, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, arrays, collections, maps, records, POJOs/DTOs/VOs) are listed in the class Javadoc. Unknown JSON properties are ignored when mapping.

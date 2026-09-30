@@ -80,7 +80,8 @@ import java.util.regex.Pattern;
  * being guessed or skipped; for annotations, polymorphism, custom serializers or streaming, use Jackson.
  * </p>
  * <ul>
- * <li><b>Strict by default:</b> standard JSON (RFC 8259) only; relaxed syntax is opt-in through {@link Feature}. Trailing
+ * <li><b>Strict by default:</b> standard JSON (RFC 8259) only; relaxed syntax is opt-in through {@link Feature}, and
+ * {@link Feature#JSON5} accepts the JSON5 standard for hand-written files. Trailing
  * content, nesting deeper than {@link #MAX_DEPTH}, invalid escapes and malformed or overlong ({@link #MAX_NUMBER_LENGTH})
  * numbers are rejected with the character position. Failures inside collections or proxies being written are wrapped in
  * {@link S2JsonException} with the path.</li>
@@ -112,7 +113,8 @@ import java.util.regex.Pattern;
  * 다형성, 커스텀 직렬화기, 스트리밍이 필요하면 Jackson 을 사용하십시오.
  * </p>
  * <ul>
- * <li><b>기본은 엄격:</b> 표준 JSON(RFC 8259)만 받으며, 느슨한 문법은 {@link Feature}로 켭니다. 뒤따르는 문자, {@link #MAX_DEPTH}보다 깊은
+ * <li><b>기본은 엄격:</b> 표준 JSON(RFC 8259)만 받으며, 느슨한 문법은 {@link Feature}로 켭니다. 사람이 쓰는 파일은
+ * {@link Feature#JSON5}로 JSON5 규격을 받습니다. 뒤따르는 문자, {@link #MAX_DEPTH}보다 깊은
  * 중첩, 잘못된 이스케이프, 잘못되거나 너무 긴({@link #MAX_NUMBER_LENGTH}) 숫자는 문자 위치와 함께 거부합니다. 쓰는 중 컬렉션·프록시에서 난
  * 오류는 경로를 담은 {@link S2JsonException}으로 감쌉니다.</li>
  * <li><b>파싱 결과:</b> 객체 → {@code LinkedHashMap<String, Object>}(중복 키는 마지막 값), 배열 → {@code ArrayList<Object>}, 문자열 →
@@ -189,7 +191,29 @@ public final class S2JsonUtil {
         /** Allow a trailing decimal point ({@code 1.}) | 소수점으로 끝나는 숫자 허용 */
         ALLOW_TRAILING_DECIMAL_POINT_FOR_NUMBERS,
         /** Parse decimals as {@code BigDecimal} instead of {@code Double} (no rounding) | 소수를 {@code Double} 대신 {@code BigDecimal}로 파싱 (반올림 없음) */
-        USE_BIG_DECIMAL_FOR_FLOATS;
+        USE_BIG_DECIMAL_FOR_FLOATS,
+        /**
+         * Accept <a href="https://spec.json5.org/">JSON5</a>, the standard superset of JSON for hand-written files:
+         * single-quoted strings, identifier keys, {@code //} and {@code /* *}{@code /} comments, trailing commas,
+         * hexadecimal numbers, leading/trailing decimal points, a leading {@code +}, {@code Infinity}/{@code NaN},
+         * line continuations and the extra escapes ({@code \v}, {@code \0}, {@code \xHH}) and whitespace of the spec.
+         * Not included, because JSON5 does not allow them: {@code #} comments, missing array values, leading zeros.
+         * Unicode escapes inside unquoted keys are not supported. Writing still produces standard JSON (plus
+         * {@code NaN}/{@code Infinity} when present).
+         * <p>
+         * <b>[한국어 설명]</b> 사람이 쓰는 파일용 JSON 확장 규격인 JSON5 를 받습니다: 작은따옴표 문자열, 식별자 키, {@code //}·{@code /* *}{@code /}
+         * 주석, 끝 쉼표, 16진수, 소수점으로 시작·끝나는 숫자, 앞의 {@code +}, {@code Infinity}/{@code NaN}, 줄 이어 쓰기와 규격의 추가
+         * 이스케이프({@code \v}, {@code \0}, {@code \xHH})·공백. JSON5 가 허용하지 않는 {@code #} 주석, 배열의 빈 값, 앞자리 0 은 포함하지
+         * 않습니다. 따옴표 없는 키 안의 유니코드 이스케이프는 지원하지 않습니다. 쓰기는 여전히 표준 JSON 입니다(값이 있으면
+         * {@code NaN}/{@code Infinity} 포함).
+         * </p>
+         */
+        JSON5;
+
+        /** Features that JSON5 implies | JSON5 가 포함하는 기능 */
+        private static final Feature[] JSON5_FEATURES = { ALLOW_SINGLE_QUOTES, ALLOW_UNQUOTED_FIELD_NAMES,
+                ALLOW_JAVA_COMMENTS, ALLOW_TRAILING_COMMA, ALLOW_NON_NUMERIC_NUMBERS, ALLOW_LEADING_PLUS_SIGN_FOR_NUMBERS,
+                ALLOW_LEADING_DECIMAL_POINT_FOR_NUMBERS, ALLOW_TRAILING_DECIMAL_POINT_FOR_NUMBERS };
 
         private static int flags(Feature[] features) {
             int flags = 0;
@@ -197,6 +221,11 @@ public final class S2JsonUtil {
                 for (Feature feature : features) {
                     if (feature != null) {
                         flags |= 1 << feature.ordinal();
+                        if (feature == JSON5) {
+                            for (Feature implied : JSON5_FEATURES) {
+                                flags |= 1 << implied.ordinal();
+                            }
+                        }
                     }
                 }
             }
@@ -748,6 +777,13 @@ public final class S2JsonUtil {
                     if (c == '-' && json.startsWith("-Infinity", pos)) {
                         return nonNumeric("-Infinity", Double.NEGATIVE_INFINITY);
                     }
+                    if (Feature.JSON5.in(flags) && (c == '+' || c == '-')
+                            && (json.startsWith("Infinity", pos + 1) || json.startsWith("NaN", pos + 1))) {
+                        boolean infinity = json.startsWith("Infinity", pos + 1);
+                        pos++; // sign
+                        double value = !infinity ? Double.NaN : c == '-' ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
+                        return nonNumeric(infinity ? "Infinity" : "NaN", value);
+                    }
                     if (c == '-' || c == '+' || c == '.' || (c >= '0' && c <= '9')) {
                         return parseNumber();
                     }
@@ -823,10 +859,10 @@ public final class S2JsonUtil {
             if (c == '\'' && Feature.ALLOW_SINGLE_QUOTES.in(flags)) {
                 return parseString('\'');
             }
-            if (Feature.ALLOW_UNQUOTED_FIELD_NAMES.in(flags) && (Character.isLetter(c) || c == '_' || c == '$')) {
+            if (Feature.ALLOW_UNQUOTED_FIELD_NAMES.in(flags) && (Character.isUnicodeIdentifierStart(c) || c == '_' || c == '$')) {
                 int start = pos;
-                while (pos < json.length()
-                        && (Character.isLetterOrDigit(json.charAt(pos)) || json.charAt(pos) == '_' || json.charAt(pos) == '$')) {
+                while (pos < json.length() && (Character.isUnicodeIdentifierPart(json.charAt(pos)) || json.charAt(pos) == '$')
+                        && !Character.isIdentifierIgnorable(json.charAt(pos))) {
                     pos++;
                 }
                 return json.substring(start, pos);
@@ -907,7 +943,9 @@ public final class S2JsonUtil {
                             pos += 4;
                         }
                         default -> {
-                            if ((e == '\'' && Feature.ALLOW_SINGLE_QUOTES.in(flags))
+                            if (Feature.JSON5.in(flags) && json5Escape(sb, e)) {
+                                // handled | 처리됨
+                            } else if ((e == '\'' && Feature.ALLOW_SINGLE_QUOTES.in(flags))
                                     || Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER.in(flags)) {
                                 sb.append(e);
                             } else {
@@ -917,7 +955,9 @@ public final class S2JsonUtil {
                     }
                     pos++;
                 } else {
-                    if (c < 0x20 && !Feature.ALLOW_UNESCAPED_CONTROL_CHARS.in(flags)) {
+                    // JSON5 strings may hold raw control characters except line terminators | JSON5 문자열은 줄바꿈 외의 제어 문자를 그대로 허용
+                    boolean json5Allowed = Feature.JSON5.in(flags) && c != '\n' && c != '\r';
+                    if (c < 0x20 && !json5Allowed && !Feature.ALLOW_UNESCAPED_CONTROL_CHARS.in(flags)) {
                         throw error("Unescaped control character");
                     }
                     sb.append(c);
@@ -925,6 +965,50 @@ public final class S2JsonUtil {
                 }
             }
             throw error("Unterminated string");
+        }
+
+        /**
+         * JSON5 escapes beyond JSON: {@code \v}, {@code \0}, {@code \xHH}, line continuations, and any other
+         * non-digit character standing for itself. Returns false for {@code \1}-{@code \9}, which JSON5 forbids.
+         */
+        private boolean json5Escape(StringBuilder sb, char e) {
+            switch (e) {
+                case 'v' -> sb.append('\u000B');
+                case '0' -> {
+                    if (pos + 1 < json.length() && Character.isDigit(json.charAt(pos + 1))) {
+                        throw error("Invalid escape sequence \\0 followed by a digit");
+                    }
+                    sb.append('\0');
+                }
+                case 'x' -> {
+                    int code = 0;
+                    for (int i = 1; i <= 2; i++) {
+                        int digit = pos + i < json.length() ? Character.digit(json.charAt(pos + i), 16) : -1;
+                        if (digit < 0) {
+                            throw error("Invalid hex escape");
+                        }
+                        code = code * 16 + digit;
+                    }
+                    sb.append((char) code);
+                    pos += 2;
+                }
+                case '\r' -> {
+                    // Line continuation; CRLF counts as one line terminator | 줄 이어 쓰기. CRLF 는 한 줄바꿈
+                    if (pos + 1 < json.length() && json.charAt(pos + 1) == '\n') {
+                        pos++;
+                    }
+                }
+                case '\n', '\u2028', '\u2029' -> {
+                    // Line continuation: the escaped line terminator is removed | 줄 이어 쓰기: 이스케이프한 줄바꿈은 제거
+                }
+                default -> {
+                    if (e >= '1' && e <= '9') {
+                        return false;
+                    }
+                    sb.append(e);
+                }
+            }
+            return true;
         }
 
         private Number parseNumber() {
@@ -936,6 +1020,10 @@ public final class S2JsonUtil {
                 pos++;
             } else if (peek() == '-') {
                 pos++;
+            }
+            if (Feature.JSON5.in(flags) && peek() == '0' && pos + 1 < json.length()
+                    && (json.charAt(pos + 1) == 'x' || json.charAt(pos + 1) == 'X')) {
+                return parseHex(start);
             }
             int intStart = pos;
             int intDigits = digits();
@@ -995,6 +1083,26 @@ public final class S2JsonUtil {
             }
         }
 
+        /** JSON5 hexadecimal integer ({@code 0x1F}, {@code -0x10}) | JSON5 16진수 정수 */
+        private Number parseHex(int start) {
+            pos += 2; // 0x
+            int hexStart = pos;
+            while (pos < json.length() && Character.digit(json.charAt(pos), 16) >= 0) {
+                pos++;
+            }
+            if (pos == hexStart) {
+                throw error("Invalid hexadecimal number");
+            }
+            if (pos - start > MAX_NUMBER_LENGTH) {
+                throw new S2JsonException("Number longer than " + MAX_NUMBER_LENGTH + " characters", start, null);
+            }
+            BigInteger value = new BigInteger(json.substring(hexStart, pos), 16);
+            if (json.charAt(start) == '-') {
+                value = value.negate();
+            }
+            return value.bitLength() < 64 ? (Number) value.longValue() : value;
+        }
+
         private int digits() {
             int start = pos;
             while (pos < json.length() && json.charAt(pos) >= '0' && json.charAt(pos) <= '9') {
@@ -1010,7 +1118,7 @@ public final class S2JsonUtil {
         private void skipWhitespace() {
             while (pos < json.length()) {
                 char c = json.charAt(pos);
-                if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || (Feature.JSON5.in(flags) && isJson5Space(c))) {
                     pos++;
                 } else if (c == '/' && Feature.ALLOW_JAVA_COMMENTS.in(flags) && pos + 1 < json.length()
                         && json.charAt(pos + 1) == '/') {
@@ -1028,6 +1136,12 @@ public final class S2JsonUtil {
                     return;
                 }
             }
+        }
+
+        /** Extra JSON5 whitespace: VT, FF, NBSP, BOM, line/paragraph separators and Unicode space separators | JSON5 추가 공백 */
+        private boolean isJson5Space(char c) {
+            return c == '\u000B' || c == '\f' || c == '\u00A0' || c == '\uFEFF' || c == '\u2028' || c == '\u2029'
+                    || Character.getType(c) == Character.SPACE_SEPARATOR;
         }
 
         private void skipLine() {
