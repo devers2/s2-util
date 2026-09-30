@@ -831,7 +831,9 @@ Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALL
 - **기본은 엄격한 표준 JSON**입니다. 주석, 작은따옴표, 끝 쉼표 등은 `Feature`로 켭니다.
 - **실패하면 항상 `S2JsonException`**입니다. `null`이나 깨진 JSON 을 돌려주지 않으며, 파싱 오류는 문자 위치를, 매핑 오류는 경로(`$.items[1].qty`)를 담습니다.
 - 뒤따르는 문자, 512단계보다 깊은 중첩, 순환 참조, NaN/Infinity(`ALLOW_NON_NUMERIC_NUMBERS` 없이), 손실되는 숫자 변환(3.7 → `int`), 지원하지 않는 JDK 타입은 거부합니다.
-- 지원 타입(문자열, 숫자, 불리언, 열거형, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, 배열, 컬렉션, Map, record, POJO)은 클래스 Javadoc 에 정리되어 있습니다. 매핑할 때 모르는 JSON 속성은 무시합니다.
+- 지원 타입(문자열, 숫자, 불리언, 열거형, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, 배열, 컬렉션, Map, record, POJO/DTO/VO)은 클래스 Javadoc 에 정리되어 있습니다. 매핑할 때 모르는 JSON 속성은 무시합니다.
+- **DTO/VO 생성:** 인자 없는 생성자가 있으면 그것으로(private 도 가능), 없으면 불변 VO 로 보고 생성자 파라미터 이름과 JSON 키를 맞춰 만듭니다(`-parameters` 컴파일 필요. Spring Boot 와 s2-build-support 기본값). 생성자가 여럿이면 필드와 정확히 같은 파라미터를 가진 생성자를 씁니다.
+- **프록시:** Hibernate 지연 로딩 프록시와 Spring AOP 프록시는 실제 객체로 씁니다. 지연 로딩 엔티티는 이때 초기화되므로 세션(트랜잭션) 안에서 호출하십시오. 세션이 닫혔으면 예외입니다. Hibernate 바이트코드 강화 필드(`$$_hibernate_*`)는 제외합니다.
 
 ---
 

@@ -298,7 +298,8 @@ class S2JsonUtilTest {
 
         @Test
         void unsupportedTargetsFail() {
-            assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson("{\"value\":\"a\"}", NoDefaultConstructor.class));
+            // A class without a no-arg constructor is created through its constructor (see ProxiesAndValueObjects) | 인자 없는 생성자가 없으면 생성자로 생성
+            assertEquals("a", S2JsonUtil.fromJson("{\"value\":\"a\"}", NoDefaultConstructor.class).value);
             assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson("{}", Runnable.class));
             assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson("\"a\"", java.io.File.class));
             assertThrows(IllegalArgumentException.class, () -> S2JsonUtil.convert("a", null));
@@ -314,6 +315,190 @@ class S2JsonUtilTest {
         private void assertPathError(String json, Class<?> type, String path) {
             S2JsonException e = assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson(json, type), json);
             assertTrue(e.getMessage().contains(path + " ") || e.getMessage().endsWith(path), e.getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Proxies and immutable value objects | 프록시와 불변 VO
+    // ---------------------------------------------------------------------
+
+    static class Member {
+        private String name;
+        private int age;
+
+        Member() {
+        }
+
+        Member(String name, int age) {
+            this.name = name;
+            this.age = age;
+        }
+
+        public String getName() {
+            return name;
+        }
+    }
+
+    /** Stand-in for Hibernate's lazy initializer | Hibernate 지연 로딩 초기화기 대역 */
+    public static class LazyInitializer {
+        private final Member target;
+
+        LazyInitializer(Member target) {
+            this.target = target;
+        }
+
+        public Object getImplementation() {
+            if (target == null) {
+                throw new IllegalStateException("could not initialize proxy - no Session");
+            }
+            return target;
+        }
+    }
+
+    /** Hibernate-style proxy: its own fields stay empty, the state lives in the target | Hibernate 방식 프록시: 자기 필드는 비어 있고 상태는 대상에 있음 */
+    public static class Member$HibernateProxy$Abc extends Member {
+        private final LazyInitializer $$_hibernate_interceptor;
+
+        Member$HibernateProxy$Abc(Member target) {
+            this.$$_hibernate_interceptor = new LazyInitializer(target);
+        }
+
+        public LazyInitializer getHibernateLazyInitializer() {
+            return $$_hibernate_interceptor;
+        }
+    }
+
+    public static class TargetSource {
+        private final Object target;
+
+        TargetSource(Object target) {
+            this.target = target;
+        }
+
+        public Object getTarget() {
+            return target;
+        }
+    }
+
+    /** Spring AOP (CGLIB) style proxy | Spring AOP(CGLIB) 방식 프록시 */
+    public static class Member$$SpringCGLIB$$0 extends Member {
+        private final TargetSource source;
+
+        Member$$SpringCGLIB$$0(Member target) {
+            this.source = new TargetSource(target);
+        }
+
+        public TargetSource getTargetSource() {
+            return source;
+        }
+    }
+
+    public static class Member$$UnknownProxy extends Member {
+    }
+
+    /** Entity after Hibernate bytecode enhancement | Hibernate 바이트코드 강화 후 엔티티 */
+    static class EnhancedEntity {
+        private Long id = 1L;
+        private Object $$_hibernate_entityEntryHolder = new Object();
+    }
+
+    /** Immutable value object without a no-arg constructor | 인자 없는 생성자가 없는 불변 VO */
+    static final class Money {
+        private final BigDecimal amount;
+        private final String currency;
+
+        Money(BigDecimal amount, String currency) {
+            this.amount = amount;
+            this.currency = currency;
+        }
+    }
+
+    static final class Point {
+        private final int x;
+        private final int y;
+        private String label;
+
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        Point(int x) {
+            this(x, 0);
+        }
+
+        Point(int x, int y, String label) {
+            this(x, y);
+            this.label = label;
+        }
+    }
+
+    static final class Ambiguous {
+        private final int a;
+
+        Ambiguous(int a, int b) {
+            this.a = a + b;
+        }
+
+        Ambiguous(String s) {
+            this.a = s.length();
+        }
+    }
+
+    @Nested
+    class ProxiesAndValueObjects {
+
+        @Test
+        void hibernateProxyIsWrittenFromItsTarget() {
+            Member proxy = new Member$HibernateProxy$Abc(new Member("홍길동", 30));
+            assertEquals("{\"name\":\"홍길동\",\"age\":30}", S2JsonUtil.toJson(proxy));
+            assertEquals("[{\"name\":\"홍길동\",\"age\":30}]", S2JsonUtil.toJson(List.of(proxy)));
+        }
+
+        @Test
+        void springAopProxyIsWrittenFromItsTarget() {
+            assertEquals("{\"name\":\"a\",\"age\":1}", S2JsonUtil.toJson(new Member$$SpringCGLIB$$0(new Member("a", 1))));
+        }
+
+        @Test
+        void uninitializableOrUnknownProxiesFailInsteadOfWritingEmptyFields() {
+            S2JsonException closed = assertThrows(S2JsonException.class,
+                    () -> S2JsonUtil.toJson(Map.of("m", new Member$HibernateProxy$Abc(null))));
+            assertTrue(closed.getMessage().contains("open session") && closed.getMessage().contains("$.m"), closed.getMessage());
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.toJson(new Member$$UnknownProxy()));
+        }
+
+        @Test
+        void hibernateEnhancementFieldsAndLambdasAreHandled() {
+            assertEquals("{\"id\":1}", S2JsonUtil.toJson(new EnhancedEntity()));
+            Runnable lambda = () -> {
+            };
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.toJson(lambda));
+        }
+
+        @Test
+        void immutableValueObjectsAreCreatedThroughTheirConstructor() {
+            Money money = S2JsonUtil.fromJson("{\"amount\":1.50,\"currency\":\"KRW\"}", Money.class,
+                    S2JsonUtil.Feature.USE_BIG_DECIMAL_FOR_FLOATS);
+            assertEquals(new BigDecimal("1.50"), money.amount);
+            assertEquals("KRW", money.currency);
+            assertEquals("{\"amount\":1.50,\"currency\":\"KRW\"}", S2JsonUtil.toJson(money));
+        }
+
+        @Test
+        void withSeveralConstructorsTheOneMatchingAllFieldsIsUsed() {
+            Point p = S2JsonUtil.fromJson("{\"x\":1,\"y\":2,\"label\":\"A\"}", Point.class);
+            assertEquals(1, p.x);
+            assertEquals(2, p.y);
+            assertEquals("A", p.label);
+            Point missing = S2JsonUtil.fromJson("{\"x\":1}", Point.class);
+            assertEquals(0, missing.y, "missing primitives get their default");
+        }
+
+        @Test
+        void ambiguousConstructorsFailWithAClearMessage() {
+            S2JsonException e = assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson("{\"a\":1}", Ambiguous.class));
+            assertTrue(e.getMessage().contains("several constructors"), e.getMessage());
         }
     }
 
