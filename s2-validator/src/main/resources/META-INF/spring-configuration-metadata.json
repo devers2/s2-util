@@ -1,0 +1,38 @@
+{
+  "groups": [
+    {
+      "name": "s2.validator",
+      "type": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "sourceType": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "description": "s2-validator settings."
+    }
+  ],
+  "properties": [
+    {
+      "name": "s2.validator.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "description": "Whether the s2-validator auto-configuration applies.",
+      "defaultValue": true
+    },
+    {
+      "name": "s2.validator.bundle",
+      "type": "java.lang.String",
+      "sourceType": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "description": "Validation message bundle base name, such as messages/validation."
+    },
+    {
+      "name": "s2.validator.default-locale",
+      "type": "java.util.Locale",
+      "sourceType": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "description": "Fallback language for validation messages. Defaults to the JVM default locale."
+    },
+    {
+      "name": "s2.validator.use-message-source",
+      "type": "java.lang.Boolean",
+      "sourceType": "io.github.devers2.s2util.validation.spring.S2ValidatorProperties",
+      "description": "Look validation message keys up in Spring's MessageSource before the validation bundle.",
+      "defaultValue": true
+    }
+  ]
+}

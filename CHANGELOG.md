@@ -97,6 +97,12 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 
 ### Added
 
+- Spring Boot auto-configuration: with s2-validator on the classpath, message keys are looked up in Spring's
+  `MessageSource` first (override validation messages in `messages.properties`), and `s2.validator.bundle`,
+  `s2.validator.default-locale`, `s2.validator.use-message-source` and `s2.validator.enabled` are supported. Spring Boot
+  is a compile-only dependency, so applications without Spring are unaffected.
+- `S2Validator.setMessageResolver(S2MessageResolver)`: plug in a message source (a database, for example) consulted
+  before the validation bundle.
 - `s2-core`: dependency-free lightweight JSON utility `io.github.devers2.s2util.json.S2JsonUtil` (`toJson`, `parse`,
   `parseObject`, `parseArray`, `fromJson`, `fromJsonList`, `convert`) and `S2JsonException`. Strict standard JSON by default,
   with relaxed syntax through `Feature`. Trailing content, deep nesting (512) and malformed or overlong (1,000 characters) numbers are rejected with the

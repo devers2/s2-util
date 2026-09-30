@@ -23,6 +23,7 @@ errorprone = "2.50.0"
 
 # Spring Framework
 spring-framework-6 = "6.2.19"
+spring-boot-3 = "3.5.16"
 
 # Servlet / JSP
 jakarta-servlet-api = "6.1.0"
@@ -42,6 +43,7 @@ errorprone-annotations = { group = "com.google.errorprone", name = "error_prone_
 
 # Spring
 spring6-context = { group = "org.springframework", name = "spring-context", version.ref = "spring-framework-6" }
+spring-boot3-autoconfigure = { group = "org.springframework.boot", name = "spring-boot-autoconfigure", version.ref = "spring-boot-3" }
 
 # Servlet (Legacy vs Modern)
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta-servlet-api" }

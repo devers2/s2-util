@@ -37,7 +37,6 @@ import io.github.devers2.s2util.core.S2Cache;
 import io.github.devers2.s2util.core.S2DateUtil;
 import io.github.devers2.s2util.core.S2StringUtil;
 import io.github.devers2.s2util.core.S2Util;
-import io.github.devers2.s2util.message.S2ResourceBundle;
 
 /**
  * Represents a single evaluation rule for field validation.
@@ -639,7 +638,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return The resolved message template | 결정된 메시지 템플릿
      */
     public String getErrorMessageTemplate(Locale locale) {
-        return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale).orElseGet(() -> {
+        return S2Validator.findMessage(errorMessageKey, locale).orElseGet(() -> {
             String template = messageTemplates.get(locale.getLanguage());
             if (template == null || template.isBlank()) {
                 template = messageTemplates.get(ANY_LANGUAGE);

@@ -13,6 +13,7 @@
    - [1-1. 의존성 및 모듈 구성](#1-1-의존성-및-모듈-구성)
    - [1-2. S2Validator 정적 분석 플러그인 & Dead Code 감지](#1-2-s2validator-정적-분석-플러그인--dead-code-감지-)
    - [1-3. 전역 메시지 번들 설정 (선택 사항)](#1-3-전역-메시지-번들-설정-선택-사항)
+   - [1-4. Spring Boot 자동 설정 (선택 사항)](#1-4-spring-boot-자동-설정-선택-사항)
 2. [S2Validator 4대 전략적 검증 패턴](#2-s2validator-4대-전략적-검증-패턴)
    - [A. 즉시 검증 패턴 (Immediate Mode)](#a-즉시-검증-패턴-immediate-mode)
    - [B. 설계도 재사용 패턴 (Blueprint Mode)](#b-설계도-재사용-패턴-blueprint-mode)
@@ -151,6 +152,31 @@ S2BindValidator.setValidationBundle("messages");
 // messages.properties -> err.required={0|은/는} 필수 입력 항목입니다.
 .field("id", "아이디").rule(S2RuleType.REQUIRED, null, "err.required")
 ```
+
+---
+
+### 1-4. Spring Boot 자동 설정 (선택 사항)
+
+Spring Boot 애플리케이션이라면 s2-validator 를 의존성에 추가하는 것만으로 자동 설정됩니다. 별도 스타터는 없습니다. Spring 이 없는 환경에서는 이 설정이 로드되지 않으며 검증기는 그대로 동작합니다(Spring Boot 는 컴파일 전용 의존성이라 배포 POM 에 포함되지 않음).
+
+```yaml
+s2:
+  validator:
+    bundle: messages/validation   # 검증 메시지 번들 (선택)
+    default-locale: ko            # 메시지 대체 언어 (선택, 기본은 JVM 로케일)
+    use-message-source: true      # Spring MessageSource 에서 메시지 키를 먼저 찾음 (기본 true)
+    enabled: true                 # false 면 자동 설정을 끔
+```
+
+- **메시지:** 메시지 키(`valid.err.required` 등 내장 키, `.rule(type, value, key)`의 키)를 Spring `MessageSource`에서 먼저 찾습니다. 그래서 `messages.properties`(`spring.messages.basename`)에 키를 정의하면 검증 메시지를 바꿀 수 있습니다. 템플릿은 `{0|은/는}` 같은 조사 토큰을 그대로 쓸 수 있습니다.
+  ```properties
+  # messages_ko.properties
+  valid.err.required={0|을/를} 꼭 입력하세요.
+  ```
+- **요청 언어:** `S2BindValidator`가 `LocaleContextHolder`를 읽으므로 Spring MVC 의 `LocaleResolver`(Accept-Language, 쿠키, 세션)를 그대로 따릅니다.
+- 조회 순서: `MessageSource` → `bundle` → 규칙에 지정한 메시지 → 내장 메시지.
+- 설정은 검증기의 전역 설정이며, 컨텍스트가 시작될 때 적용되고 닫힐 때 초기화됩니다.
+- Spring Boot 없이 다른 출처(DB 등)를 쓰려면 `S2Validator.setMessageResolver((key, locale) -> …)`로 직접 연결합니다.
 
 ---
 
@@ -863,6 +889,7 @@ dependencies {
     // 선택적 기능을 위한 필수 런타임 의존성
     implementation 'com.github.ben-manes.caffeine:caffeine:3.3.0'
     implementation 'org.springframework:spring-context:6.2.19'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```

@@ -88,6 +88,10 @@
 
 ### 추가
 
+- Spring Boot 자동 설정: s2-validator 를 추가하면 메시지 키를 Spring `MessageSource`에서 먼저 찾고(`messages.properties`로
+  검증 메시지 변경), `s2.validator.bundle`, `s2.validator.default-locale`, `s2.validator.use-message-source`,
+  `s2.validator.enabled`를 지원합니다. Spring Boot 는 컴파일 전용 의존성이라 Spring 이 없는 환경에는 영향이 없습니다.
+- `S2Validator.setMessageResolver(S2MessageResolver)`: 검증 번들보다 먼저 조회할 메시지 출처(예: DB)를 연결합니다.
 - `s2-core`: 의존성 없는 경량 JSON 유틸 `io.github.devers2.s2util.json.S2JsonUtil`(`toJson`, `parse`, `parseObject`,
   `parseArray`, `fromJson`, `fromJsonList`, `convert`)과 `S2JsonException`. 기본은 엄격한 표준 JSON 이며 느슨한 문법은 `Feature`로
   켭니다. 뒤따르는 문자·깊은 중첩(512)·잘못되거나 너무 긴 숫자(1,000자)를 위치와 함께 거부하고, 지원하지 않는 타입·순환 참조·NaN·손실되는 숫자 변환은

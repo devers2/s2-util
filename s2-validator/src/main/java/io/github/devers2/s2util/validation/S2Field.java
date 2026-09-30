@@ -33,7 +33,6 @@ import io.github.devers2.s2util.core.S2StringUtil;
 import io.github.devers2.s2util.core.S2Util;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
-import io.github.devers2.s2util.message.S2ResourceBundle;
 
 /**
  * Metadata and rule container for an individual field.
@@ -1010,7 +1009,7 @@ public class S2Field<T> implements Serializable {
          * @return Resolved message template | 해석된 메시지 템플릿
          */
         public String getErrorMessageTemplate(Locale locale) {
-            return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), errorMessageKey, locale)
+            return S2Validator.findMessage(errorMessageKey, locale)
                     .orElseGet(() -> {
                         String template = messageTemplates.get(locale.getLanguage());
                         if (template == null || template.isBlank()) {

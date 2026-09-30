@@ -236,6 +236,7 @@ dependencies {
     compileOnly(libs.caffeine) // Caffeine: 고성능 로컬 캐시 라이브러리 (선택적)
     // s2-validator 의존성
     compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
+    compileOnly(libs.spring.boot3.autoconfigure) // Spring Boot auto-configuration (compile-only, not in the POM) | Spring Boot 자동 설정 (컴파일 전용, POM 미포함)
     // s2-jpa 의존성
     compileOnly(libs.jakarta.persistence.api) // JPQL
 

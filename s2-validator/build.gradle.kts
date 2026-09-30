@@ -72,6 +72,8 @@ dependencies {
      * - Shadow JAR 생성 시 포함되지 않음
      */
     compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
+    // Spring Boot auto-configuration; compileOnly keeps it out of the published POM, so non-Boot users get no Spring dependency. | Spring Boot 자동 설정. compileOnly 라 배포 POM 에 나타나지 않아 Boot 를 쓰지 않는 사용자에게 Spring 의존성이 생기지 않음
+    compileOnly(libs.spring.boot3.autoconfigure)
 
     /**
      * compileOnlyInternal: s2-build-support 플러그인에서 제공하는 커스텀 Configuration
@@ -85,6 +87,7 @@ dependencies {
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
      */
     testImplementation(libs.spring6.context)
+    testImplementation(libs.spring.boot3.autoconfigure)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.graaljs.polyglot)
     testImplementation(libs.graaljs.js)
