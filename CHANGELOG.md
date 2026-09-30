@@ -130,6 +130,9 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 
 ### Fixed
 
+- The rules JSON exports enum condition values and criteria by `name()` instead of `toString()`. The server compares by
+  `name()`, so an enum overriding `toString()` was judged differently in the browser. Rules JSON is now written with
+  `S2JsonUtil`.
 - Browser: a condition such as `when("hobbies", "a")` was not satisfied when several boxes of a checkbox group were
   checked (the values were joined into `"a,b"`); it now means "contains", as on the server. The server treats an empty
   collection as empty, like an unchecked group in the browser.
