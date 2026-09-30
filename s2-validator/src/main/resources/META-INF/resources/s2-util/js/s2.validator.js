@@ -133,6 +133,11 @@ export const initS2Validator = () => {
     }
   });
 
+  // Live validation (opt-in: data-s2-live or setLiveMode) | 실시간 검증 (선택: data-s2-live 또는 setLiveMode)
+  document.addEventListener('focusout', onLiveEvent);
+  document.addEventListener('change', onLiveEvent);
+  document.addEventListener('input', onLiveEvent);
+
   isS2ValidatorInitialized = true;
 };
 
@@ -372,195 +377,27 @@ export const S2Validator = {
       }
     });
 
-    let rules = [];
-
-    if (rulesSource) {
-      // rulesSource가 명시적으로 전달된 경우 처리
-      try {
-        rules = toFieldRules(typeof rulesSource === 'string' ? JSON.parse(rulesSource) : rulesSource);
-      } catch {
-        rules = [];
-      }
-    }
-
-    if (rules.length === 0) {
-      if (form.dataset.s2Rules) {
-        try {
-          rules = toFieldRules(JSON.parse(form.dataset.s2Rules));
-        } catch {
-          rules = [];
-        }
-      } else {
-        const elementsWithRules = form.querySelector('[data-s2-rules]');
-        if (elementsWithRules) {
-          try {
-            rules = toFieldRules(JSON.parse(elementsWithRules.dataset.s2Rules));
-          } catch {
-            rules = [];
-          }
-        }
-      }
-    }
-
+    const rules = readRules(form, rulesSource);
     if (rules.length === 0) {
       return {
         __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
       };
     }
 
-    const errors = {};
     const formData = getFormData(form); // 전체 필드 값 맵 (cross-field용)
     if (additionalData && typeof additionalData === 'object') {
       Object.assign(formData, additionalData);
     }
-    const allFieldNames = Object.keys(formData); // 모든 등록된 필드명 리스트
-    const processedFields = new Set(); // 이미 처리한 와일드카드 필드
+    const errors = collectErrors(rules, formData, formFieldReader(form, additionalData));
 
-    /**
-     * 규칙들을 재귀적으로 검증한다.
-     * @param {Array} currentRules - 현재 레벨의 규칙 리스트
-     * @param {string} prefix - 필드명 접두사 (중첩 경로용)
-     */
-    const validateRules = (currentRules, prefix = '') => {
-      // 1단계: [] 와일드카드 필드 그룹화
-      const wildcardGroups = {};
-
-      currentRules.forEach((rule) => {
-        const fullPath = prefix + rule.name;
-        if (fullPath.includes('[]')) {
-          // prefix 추출 (예: "products[].name" -> "products")
-          const bracketIndex = fullPath.indexOf('[]');
-          const collectionPrefix = fullPath.substring(0, bracketIndex);
-
-          if (!wildcardGroups[collectionPrefix]) {
-            wildcardGroups[collectionPrefix] = [];
-          }
-          wildcardGroups[collectionPrefix].push(rule);
-        }
+    // Native UI: attach the first message of each field, in validation order (anchors keep field order) | 기본 UI: 필드마다 첫 메시지를 검증 순서대로 설정 (앵커가 필드 순서를 유지)
+    if (!activeRenderer) {
+      Object.entries(errors).forEach(([name, messages]) => {
+        applyFieldError(form, name, form.querySelectorAll(`[name="${name}"]`), messages[0]);
       });
-
-      // 2단계: 그룹화된 와일드카드 필드들 처리
-      Object.entries(wildcardGroups).forEach(([collectionPrefix, groupRules]) => {
-        // 해당 컬렉션의 인덱스들 추출
-        const indices = new Set();
-        const pattern = new RegExp(`^${escapeRegExp(collectionPrefix)}\\[(\\d+)\\]`);
-        allFieldNames.forEach((name) => {
-          const match = name.match(pattern);
-          if (match) indices.add(match[1]);
-        });
-
-        // 각 인덱스별로 그룹 내 모든 필드 검증
-        indices.forEach((idx) => {
-          groupRules.forEach((rule) => {
-            // 조건 체크 (조건 필드명에 '[]'가 있으면 현재 아이템 인덱스로 치환하여 평가)
-            if (!isConditionSatisfied(rule, formData, prefix, idx)) return;
-
-            const fullPath = prefix + rule.name;
-            // "products[].name" -> ".name" 추출
-            const bracketIndex = fullPath.indexOf('[]');
-            const suffix = fullPath.substring(bracketIndex + 2);
-
-            // 실제 필드명: products[0].name
-            const actualFieldName = collectionPrefix + '[' + idx + ']' + suffix;
-            const fieldElements = form.querySelectorAll(`[name="${actualFieldName}"]`);
-
-            let value;
-            if (
-              additionalData &&
-              Object.prototype.hasOwnProperty.call(additionalData, actualFieldName)
-            ) {
-              value = additionalData[actualFieldName];
-            } else {
-              if (fieldElements.length === 0) return;
-              value = getFieldValue(fieldElements);
-            }
-
-            const fieldErrors = [];
-
-            rule.rules.forEach((check) => {
-              // 와일드카드에서는 NESTED/EACH 지원 안 함 (이미 서브 validator로 처리 가능)
-              if (check.type === 'NESTED' || check.type === 'EACH') return;
-
-              if (!validateCheck(value, check, formData, prefix, actualFieldName)) {
-                fieldErrors.push(check.message);
-              }
-            });
-
-            if (fieldErrors.length > 0) {
-              errors[actualFieldName] = fieldErrors;
-              // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
-              const firstMessage = fieldErrors[0];
-
-              if (!activeRenderer) applyFieldError(form, actualFieldName, fieldElements, firstMessage);
-            }
-
-            processedFields.add(fullPath);
-          });
-        });
-      });
-
-      // 3단계: 일반 필드 처리 (와일드카드가 아닌 필드)
-      currentRules.forEach((rule) => {
-        // 1. 조건부 검증 로직 가동
-        if (!isConditionSatisfied(rule, formData, prefix)) return;
-
-        const fullPath = prefix + rule.name;
-
-        // 이미 와일드카드로 처리된 필드는 스킵
-        if (processedFields.has(fullPath)) return;
-
-        const fieldErrors = [];
-
-        rule.rules.forEach((check) => {
-          if (check.type === 'NESTED') {
-            // 단일 객체 중첩 검증
-            validateRules(check.nestedRules || [], fullPath + '.');
-          } else if (check.type === 'EACH') {
-            // 리스트/배열 요소 반복 검증
-            // form에 존재하는 해당 prefix 기반의 인덱스들을 추출
-            const indices = new Set();
-            const pattern = new RegExp(`^${escapeRegExp(fullPath)}\\[(\\d+)\\]`);
-            allFieldNames.forEach((name) => {
-              const match = name.match(pattern);
-              if (match) indices.add(match[1]);
-            });
-
-            // 추출된 각 인덱스별로 하위 규칙 검증 실행
-            indices.forEach((idx) => {
-              validateRules(check.nestedRules || [], `${fullPath}[${idx}].`);
-            });
-          } else {
-            // 일반 규칙 검증
-            const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-
-            let value;
-            if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, fullPath)) {
-              value = additionalData[fullPath];
-            } else {
-              if (fieldElements.length === 0) return;
-              value = getFieldValue(fieldElements);
-            }
-
-            if (!validateCheck(value, check, formData, prefix, fullPath)) {
-              fieldErrors.push(check.message);
-            }
-          }
-        });
-
-        if (fieldErrors.length > 0) {
-          errors[fullPath] = fieldErrors;
-          // 브라우저 네이티브 검증 UI 연동을 위해 첫 번째 에러 메시지 설정
-          const firstMessage = fieldErrors[0];
-
-          if (!activeRenderer) {
-            const fieldElements = form.querySelectorAll(`[name="${fullPath}"]`);
-            applyFieldError(form, fullPath, fieldElements, firstMessage);
-          }
-        }
-      });
-    };
-
-    validateRules(rules);
+    }
+    // Fields with errors are re-checked while typing in live "blur" mode | 오류가 난 필드는 실시간 "blur" 모드에서 입력 중에도 다시 검사
+    form.__s2_live_invalid__ = new Set(Object.keys(errors));
 
     // 에러 발생 시 표시: 사용자 렌더러가 있으면 위임, 없으면 브라우저 에러 메시지 즉시 표시 (HTML5 Validation 연동)
     if (Object.keys(errors).length > 0) {
@@ -582,11 +419,112 @@ export const S2Validator = {
   },
 
   /**
+   * Validates plain data against rules without a form: the pure judgment used by <code>validate</code>, for
+   * applications that render from state (React, Vue) or validate before sending JSON.
+   * <p>
+   * <code>data</code> may be nested (<code>{ name, items: [{ qty }] }</code>) or flat
+   * (<code>{ 'items[0].qty': 1 }</code>); arrays of objects are rows (<code>items[0].qty</code>), other arrays are values
+   * (a checkbox group). A field missing from <code>data</code> is judged as empty, like the server treats a missing key
+   * (the form-based <code>validate</code> instead skips fields that are not on the page). Nothing is displayed.
+   * </p>
+   *
+   * <p>
+   * <b>[한국어 설명]</b>
+   * </p>
+   * 폼 없이 일반 데이터를 규칙으로 검증합니다. <code>validate</code>가 쓰는 판정 그 자체이며, 상태로 화면을 그리는 애플리케이션(React, Vue)이나
+   * JSON 을 보내기 전 검증에 씁니다.
+   * <p>
+   * <code>data</code>는 중첩(<code>{ name, items: [{ qty }] }</code>)이거나 펼친 형태(<code>{ 'items[0].qty': 1 }</code>)일 수 있습니다. 객체 배열은
+   * 행(<code>items[0].qty</code>), 그 밖의 배열은 값(체크박스 그룹)입니다. <code>data</code>에 없는 필드는 서버가 없는 키를 다루듯 빈 값으로 판정합니다
+   * (폼 기반 <code>validate</code>는 화면에 없는 필드를 건너뜀). 화면에는 아무것도 표시하지 않습니다.
+   * </p>
+   *
+   * @param {string|Object|Array} rulesSource - Rules JSON (as from the server's getRulesJson) or parsed rules | 규칙 JSON 또는 파싱한 규칙
+   * @param {Object} data - Data to validate | 검증할 데이터
+   * @returns {Object} Error object {fieldName: [messages]}, empty if valid | 에러 객체, 유효하면 빈 객체
+   * @example
+   * const errors = S2Validator.check(rules, { name: '', email: 'a@b', items: [{ qty: 0 }] });
+   * // { name: ['이름은 필수 입력 항목입니다.'], email: [...], 'items[0].qty': [...] }
+   */
+  check(rulesSource, data) {
+    const rules = parseRules(rulesSource);
+    if (rules.length === 0) {
+      return {
+        __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
+      };
+    }
+    const flat = flattenData(data && typeof data === 'object' ? data : {});
+    // Objects and rows that exist, including those only implied by flat keys such as 'items[0].qty' | 존재하는 객체·행 ('items[0].qty' 같은 펼친 키로만 드러나는 것 포함)
+    const existing = new Set();
+    Object.keys(flat).forEach((key) => {
+      for (let p = parentPath(key); p; p = parentPath(p)) existing.add(p);
+    });
+    return collectErrors(rules, flat, (name) => {
+      // Like the server: a missing field is empty, but nothing under a missing (or null) object or row is validated | 서버처럼 없는 필드는 빈 값이지만, 없거나 null 인 객체·행 아래는 검증하지 않음
+      const parent = parentPath(name);
+      if (parent && (flat[parent] === null || (flat[parent] === undefined && !existing.has(parent)))) {
+        return { present: false };
+      }
+      return { present: true, value: Object.prototype.hasOwnProperty.call(flat, name) ? flat[name] : null };
+    });
+  },
+
+  /**
+   * Sets the default live validation mode for forms with <code>data-s2-rules</code> (global); a form's
+   * <code>data-s2-live</code> attribute overrides it.
+   * <ul>
+   * <li><code>'blur'</code>: validate a field when it loses focus (and on <code>change</code> for checkboxes, radios and
+   * selects); a field that shows an error is re-checked while typing, so the error disappears as soon as it is fixed.</li>
+   * <li><code>'input'</code>: validate a field on every input.</li>
+   * <li><code>null</code> or <code>'submit'</code>: only on submit (default).</li>
+   * </ul>
+   * <p>
+   * Live validation never moves focus or pops up bubbles: with a renderer it calls <code>showField</code> (or
+   * <code>show</code>) and <code>clearField</code>; with the native UI it only sets the field's validity (for
+   * <code>:invalid</code>/<code>:user-invalid</code> styles) and the bubble appears on submit. Use
+   * <code>classRenderer()</code> for inline messages. Other fields that refer to the edited one (e.g. a password
+   * confirmation) are checked on their own events and on submit.
+   * </p>
+   *
+   * <p>
+   * <b>[한국어 설명]</b>
+   * </p>
+   * <code>data-s2-rules</code> 폼의 기본 실시간 검증 모드를 설정합니다(전역). 폼의 <code>data-s2-live</code> 속성이 우선합니다.
+   * <ul>
+   * <li><code>'blur'</code>: 필드가 초점을 잃을 때 검증합니다(체크박스·라디오·셀렉트는 <code>change</code> 시). 오류가 표시된 필드는 입력하는 동안
+   * 다시 검사하므로 고치는 즉시 오류가 사라집니다.</li>
+   * <li><code>'input'</code>: 입력할 때마다 검증합니다.</li>
+   * <li><code>null</code> 또는 <code>'submit'</code>: 제출 시에만 검증합니다(기본값).</li>
+   * </ul>
+   * <p>
+   * 실시간 검증은 초점을 옮기거나 말풍선을 띄우지 않습니다. 렌더러가 있으면 <code>showField</code>(없으면 <code>show</code>)와
+   * <code>clearField</code>를 호출하고, 기본 UI 에서는 필드의 유효성 상태만 설정하며(<code>:invalid</code>/<code>:user-invalid</code> 스타일용)
+   * 말풍선은 제출 시 나타납니다. 입력칸 옆 메시지에는 <code>classRenderer()</code>를 쓰십시오. 고친 필드를 참조하는 다른 필드(예: 비밀번호
+   * 확인)는 자신의 이벤트와 제출 시 검사됩니다.
+   * </p>
+   *
+   * @param {'blur'|'input'|'submit'|null} mode - Live validation mode | 실시간 검증 모드
+   * @example
+   * S2Validator.setLiveMode('blur');
+   * // or per form: <form data-s2-rules="..." data-s2-live="input">
+   */
+  setLiveMode(mode) {
+    if (mode === null || mode === undefined || mode === 'submit') {
+      liveMode = null;
+    } else if (mode === 'blur' || mode === 'input') {
+      liveMode = mode;
+    } else {
+      console.warn(`[S2Validator] Unknown live mode "${mode}" (use 'blur', 'input' or null).`);
+    }
+  },
+
+  /**
    * Replaces the browser's native error UI with an application renderer (global).
    * <p>
    * The renderer is an object with optional methods: <code>clear(form)</code> before each validation,
    * <code>show(form, errors)</code> when there are errors (<code>{ fieldName: [messages] }</code>), and
-   * <code>clearField(form, fieldName)</code> when the user edits a field. While a renderer is set, native bubbles,
+   * <code>clearField(form, fieldName)</code> when the user edits a field, and <code>showField(form, fieldName, messages)</code>
+   * for live validation (without it, <code>show</code> is called with that one field). While a renderer is set, native bubbles,
    * <code>{fieldName}_error</code> proxies and hidden-field anchors are not used. Exceptions thrown by the renderer
    * are logged and do not change the result, so a form with errors still is not submitted. Pass <code>null</code> to
    * restore the native UI.
@@ -598,12 +536,13 @@ export const S2Validator = {
    * 브라우저 기본 오류 UI 를 애플리케이션 렌더러로 바꿉니다 (전역).
    * <p>
    * 렌더러는 선택 메서드를 가진 객체입니다: 검증 전 <code>clear(form)</code>, 오류가 있을 때 <code>show(form, errors)</code>
-   * (<code>{ 필드명: [메시지] }</code>), 사용자가 필드를 고칠 때 <code>clearField(form, fieldName)</code>. 렌더러가 설정되어 있으면 브라우저
+   * (<code>{ 필드명: [메시지] }</code>), 사용자가 필드를 고칠 때 <code>clearField(form, fieldName)</code>, 실시간 검증 시
+   * <code>showField(form, fieldName, messages)</code>(없으면 해당 필드만 담아 <code>show</code> 호출). 렌더러가 설정되어 있으면 브라우저
    * 말풍선, <code>{필드명}_error</code> 대리 요소, 히든 필드 앵커를 쓰지 않습니다. 렌더러가 던진 예외는 기록만 하고 결과를 바꾸지 않으므로
    * 오류가 있는 폼은 여전히 제출되지 않습니다. <code>null</code>을 넘기면 기본 UI 로 돌아갑니다.
    * </p>
    *
-   * @param {{show?: Function, clear?: Function, clearField?: Function}|null} renderer - Renderer or null | 렌더러 또는 null
+   * @param {{show?: Function, clear?: Function, clearField?: Function, showField?: Function}|null} renderer - Renderer or null | 렌더러 또는 null
    * @example
    * S2Validator.setRenderer(S2Validator.classRenderer()); // is-invalid + [data-s2-error-for]
    * S2Validator.setRenderer({
@@ -620,8 +559,9 @@ export const S2Validator = {
    * Creates a renderer that marks invalid fields with a CSS class and writes the first message into
    * <code>[data-s2-error-for="fieldName"]</code> elements (Bootstrap-style <code>is-invalid</code> by default).
    * <p>
-   * On <code>show</code> it also focuses the first invalid field. <code>clear</code> removes the class and empties the
-   * message elements; <code>clearField</code> does the same for one field.
+   * On <code>show</code> it also focuses the first invalid field; <code>showField</code> (live validation) marks one field
+   * without moving focus. <code>clear</code> removes the class and empties the message elements; <code>clearField</code>
+   * does the same for one field.
    * </p>
    *
    * <p>
@@ -630,12 +570,13 @@ export const S2Validator = {
    * 오류 필드에 CSS 클래스를 붙이고 <code>[data-s2-error-for="필드명"]</code> 요소에 첫 메시지를 넣는 렌더러를 만듭니다
    * (기본값은 Bootstrap 방식의 <code>is-invalid</code>).
    * <p>
-   * <code>show</code> 시 첫 오류 필드로 초점을 옮깁니다. <code>clear</code>는 클래스를 제거하고 메시지 요소를 비우며,
+   * <code>show</code> 시 첫 오류 필드로 초점을 옮기고, <code>showField</code>(실시간 검증)는 초점을 옮기지 않고 필드 하나를 표시합니다.
+   * <code>clear</code>는 클래스를 제거하고 메시지 요소를 비우며,
    * <code>clearField</code>는 필드 하나에 대해 같은 일을 합니다.
    * </p>
    *
    * @param {{invalidClass?: string, messageAttribute?: string, focus?: boolean}} [options] - Options | 옵션
-   * @returns {{show: Function, clear: Function, clearField: Function}} Renderer | 렌더러
+   * @returns {{show: Function, clear: Function, clearField: Function, showField: Function}} Renderer | 렌더러
    * @example
    * <input name="email" /> <div class="invalid-feedback" data-s2-error-for="email"></div>
    * S2Validator.setRenderer(S2Validator.classRenderer({ invalidClass: 'is-invalid' }));
@@ -648,6 +589,14 @@ export const S2Validator = {
         el.textContent = '';
       });
     };
+    const showField = (form, name, messages) => {
+      const fields = form.querySelectorAll(`[name="${name}"]`);
+      fields.forEach((el) => el.classList?.add(invalidClass));
+      messageElements(form, name).forEach((el) => {
+        el.textContent = messages[0];
+      });
+      return fields;
+    };
     return {
       clear(form) {
         form.querySelectorAll(`.${invalidClass}`).forEach((el) => el.classList?.remove(invalidClass));
@@ -656,14 +605,11 @@ export const S2Validator = {
         });
       },
       clearField,
+      showField,
       show(form, errors) {
         let first = null;
         Object.entries(errors).forEach(([name, messages]) => {
-          const fields = form.querySelectorAll(`[name="${name}"]`);
-          fields.forEach((el) => el.classList?.add(invalidClass));
-          messageElements(form, name).forEach((el) => {
-            el.textContent = messages[0];
-          });
+          const fields = showField(form, name, messages);
           if (!first && fields.length > 0) first = fields[0];
         });
         if (focus && first && typeof first.focus === 'function') first.focus();
@@ -751,6 +697,335 @@ const callRenderer = (hook, ...args) => {
     fn.apply(activeRenderer, args);
   } catch (e) {
     console.error(`[S2Validator] renderer.${hook}() 실행 중 오류가 발생했습니다.`, e);
+  }
+};
+
+/**
+ * Default live validation mode (see <code>S2Validator.setLiveMode</code>); null means submit only.
+ */
+let liveMode = null;
+
+/**
+ * Parses rules given as JSON text, a parsed object or an array; an empty array when they cannot be read.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * JSON 문자열, 파싱한 객체, 배열로 받은 규칙을 읽습니다. 읽을 수 없으면 빈 배열입니다.
+ *
+ * @function parseRules
+ * @param {string|Object|Array} rulesSource - Rules | 규칙
+ * @returns {Array} Field rules | 필드 규칙
+ */
+const parseRules = (rulesSource) => {
+  if (!rulesSource) return [];
+  try {
+    return toFieldRules(typeof rulesSource === 'string' ? JSON.parse(rulesSource) : rulesSource);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Reads a form's rules: the explicit source, else the form's <code>data-s2-rules</code>, else a descendant's.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 폼의 규칙을 읽습니다: 명시한 규칙, 없으면 폼의 <code>data-s2-rules</code>, 없으면 하위 요소의 것.
+ *
+ * @function readRules
+ * @param {HTMLFormElement} form - Form | 폼
+ * @param {string|Object|Array} [rulesSource] - Explicit rules | 명시한 규칙
+ * @returns {Array} Field rules | 필드 규칙
+ */
+const readRules = (form, rulesSource) => {
+  const explicit = parseRules(rulesSource);
+  if (explicit.length > 0) return explicit;
+  if (form.dataset.s2Rules) return parseRules(form.dataset.s2Rules);
+  const holder = form.querySelector('[data-s2-rules]');
+  return holder ? parseRules(holder.dataset.s2Rules) : [];
+};
+
+/**
+ * Field reader for forms: additional data first, else the elements' value; fields without elements are absent.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 폼용 필드 읽기: 추가 데이터를 먼저, 없으면 요소의 값. 요소가 없는 필드는 없는 것으로 봅니다.
+ *
+ * @function formFieldReader
+ * @param {HTMLFormElement} form - Form | 폼
+ * @param {Object} [additionalData] - Additional data | 추가 데이터
+ * @returns {Function} name → {present, value} | 이름 → {present, value}
+ */
+const formFieldReader = (form, additionalData) => (name) => {
+  if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, name)) {
+    return { present: true, value: additionalData[name] };
+  }
+  const elements = form.querySelectorAll(`[name="${name}"]`);
+  return elements.length === 0 ? { present: false } : { present: true, value: getFieldValue(Array.from(elements)) };
+};
+
+const isPlainObject = (value) =>
+  value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
+
+/**
+ * Path of the object or row that contains a field: <code>items[0].qty</code> → <code>items[0]</code>,
+ * <code>tags[1]</code> → <code>tags</code>, <code>name</code> → <code>''</code>.
+ *
+ * @function parentPath
+ * @param {string} name - Field path | 필드 경로
+ * @returns {string} Parent path, or '' for a top-level field | 부모 경로, 최상위 필드면 ''
+ */
+const parentPath = (name) => {
+  const cut = Math.max(name.lastIndexOf('.'), name.lastIndexOf('['));
+  return cut > 0 ? name.substring(0, cut) : '';
+};
+
+/**
+ * Flattens nested data into form-style paths: <code>{ a: { b: 1 }, items: [{ qty: 2 }], tags: ['x'] }</code> →
+ * <code>{ a, 'a.b': 1, items, 'items[0]', 'items[0].qty': 2, tags, 'tags[0]': 'x' }</code>. Arrays of objects are
+ * rows (null rows are skipped, like the server); arrays of other values stay a value (a checkbox group) and are also
+ * indexed for <code>tags[]</code> rules. Flat keys pass through.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 중첩 데이터를 폼 방식 경로로 펼칩니다. 객체 배열은 행이며(null 행은 서버처럼 건너뜀), 그 밖의 배열은 값(체크박스 그룹)으로 두면서
+ * <code>tags[]</code> 규칙을 위해 요소별로도 펼칩니다. 이미 펼친 키는 그대로 둡니다.
+ *
+ * @function flattenData
+ * @param {Object} data - Data | 데이터
+ * @param {string} [prefix] - Path prefix | 경로 접두사
+ * @param {Object} [out] - Output map | 결과 맵
+ * @returns {Object} Flat map | 펼친 맵
+ */
+const flattenData = (data, prefix = '', out = {}) => {
+  Object.entries(data).forEach(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    out[path] = value;
+    if (isPlainObject(value)) {
+      flattenData(value, path, out);
+    } else if (
+      Array.isArray(value) &&
+      value.some(isPlainObject) &&
+      value.every((item) => item === null || item === undefined || isPlainObject(item))
+    ) {
+      value.forEach((item, i) => {
+        if (isPlainObject(item)) {
+          out[`${path}[${i}]`] = item;
+          flattenData(item, `${path}[${i}]`, out);
+        }
+      });
+    } else if (Array.isArray(value)) {
+      value.forEach((item, i) => {
+        out[`${path}[${i}]`] = item;
+      });
+    }
+  });
+  return out;
+};
+
+/**
+ * Judges rules against a field-value map without touching the page: the shared engine of <code>validate</code>,
+ * <code>check</code> and live validation.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 화면을 건드리지 않고 필드-값 맵에 대해 규칙을 판정합니다. <code>validate</code>, <code>check</code>, 실시간 검증이 함께 쓰는 판정 엔진입니다.
+ *
+ * @function collectErrors
+ * @param {Array} rules - Field rules | 필드 규칙
+ * @param {Object} formData - Field name → value (for cross-field rules, conditions and row discovery) | 필드 이름 → 값
+ * @param {Function} readField - name → {present, value}; absent fields are skipped | 이름 → {present, value}, 없는 필드는 건너뜀
+ * @returns {Object} Error object {fieldName: [messages]} | 에러 객체
+ */
+const collectErrors = (rules, formData, readField) => {
+  const errors = {};
+  const allFieldNames = Object.keys(formData); // 모든 등록된 필드명 리스트
+
+  /**
+   * 규칙들을 재귀적으로 검증한다.
+   * @param {Array} currentRules - 현재 레벨의 규칙 리스트
+   * @param {string} prefix - 필드명 접두사 (중첩 경로용)
+   */
+  const validateRules = (currentRules, prefix = '') => {
+    // 1단계: [] 와일드카드 필드 그룹화
+    const wildcardGroups = {};
+
+    currentRules.forEach((rule) => {
+      const fullPath = prefix + rule.name;
+      if (fullPath.includes('[]')) {
+        // prefix 추출 (예: "products[].name" -> "products")
+        const bracketIndex = fullPath.indexOf('[]');
+        const collectionPrefix = fullPath.substring(0, bracketIndex);
+
+        if (!wildcardGroups[collectionPrefix]) {
+          wildcardGroups[collectionPrefix] = [];
+        }
+        wildcardGroups[collectionPrefix].push(rule);
+      }
+    });
+
+    // 2단계: 그룹화된 와일드카드 필드들 처리
+    Object.entries(wildcardGroups).forEach(([collectionPrefix, groupRules]) => {
+      // 해당 컬렉션의 인덱스들 추출
+      const indices = new Set();
+      const pattern = new RegExp(`^${escapeRegExp(collectionPrefix)}\\[(\\d+)\\]`);
+      allFieldNames.forEach((name) => {
+        const match = name.match(pattern);
+        if (match) indices.add(match[1]);
+      });
+
+      // 각 인덱스별로 그룹 내 모든 필드 검증
+      indices.forEach((idx) => {
+        groupRules.forEach((rule) => {
+          // 조건 체크 (조건 필드명에 '[]'가 있으면 현재 아이템 인덱스로 치환하여 평가)
+          if (!isConditionSatisfied(rule, formData, prefix, idx)) return;
+
+          const fullPath = prefix + rule.name;
+          // "products[].name" -> ".name" 추출
+          const bracketIndex = fullPath.indexOf('[]');
+          const suffix = fullPath.substring(bracketIndex + 2);
+
+          // 실제 필드명: products[0].name
+          const actualFieldName = collectionPrefix + '[' + idx + ']' + suffix;
+          const field = readField(actualFieldName);
+          if (!field.present) return;
+
+          const fieldErrors = [];
+          rule.rules.forEach((check) => {
+            // 와일드카드에서는 NESTED/EACH 지원 안 함 (이미 서브 validator로 처리 가능)
+            if (check.type === 'NESTED' || check.type === 'EACH') return;
+
+            if (!validateCheck(field.value, check, formData, prefix, actualFieldName)) {
+              fieldErrors.push(check.message);
+            }
+          });
+
+          if (fieldErrors.length > 0) {
+            errors[actualFieldName] = fieldErrors;
+          }
+        });
+      });
+    });
+
+    // 3단계: 일반 필드 처리 (와일드카드가 아닌 필드)
+    currentRules.forEach((rule) => {
+      const fullPath = prefix + rule.name;
+
+      // Wildcard rules are handled per row above | 와일드카드 규칙은 위에서 행별로 처리함
+      if (fullPath.includes('[]')) return;
+
+      // 1. 조건부 검증 로직 가동
+      if (!isConditionSatisfied(rule, formData, prefix)) return;
+
+      const fieldErrors = [];
+
+      rule.rules.forEach((check) => {
+        if (check.type === 'NESTED') {
+          // 단일 객체 중첩 검증
+          validateRules(check.nestedRules || [], fullPath + '.');
+        } else if (check.type === 'EACH') {
+          // 리스트/배열 요소 반복 검증
+          // form에 존재하는 해당 prefix 기반의 인덱스들을 추출
+          const indices = new Set();
+          const pattern = new RegExp(`^${escapeRegExp(fullPath)}\\[(\\d+)\\]`);
+          allFieldNames.forEach((name) => {
+            const match = name.match(pattern);
+            if (match) indices.add(match[1]);
+          });
+
+          // 추출된 각 인덱스별로 하위 규칙 검증 실행
+          indices.forEach((idx) => {
+            validateRules(check.nestedRules || [], `${fullPath}[${idx}].`);
+          });
+        } else {
+          // 일반 규칙 검증
+          const field = readField(fullPath);
+          if (!field.present) return;
+
+          if (!validateCheck(field.value, check, formData, prefix, fullPath)) {
+            fieldErrors.push(check.message);
+          }
+        }
+      });
+
+      if (fieldErrors.length > 0) {
+        errors[fullPath] = fieldErrors;
+      }
+    });
+  };
+
+  validateRules(rules);
+  return errors;
+};
+
+/** Field names with a displayed error in a form | 폼에서 오류가 표시된 필드 이름 */
+const liveInvalid = (form) => {
+  if (!form.__s2_live_invalid__) form.__s2_live_invalid__ = new Set();
+  return form.__s2_live_invalid__;
+};
+
+/**
+ * Validates one field of a form and updates only that field's display, without moving focus (live validation).
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 폼의 필드 하나를 검증하고 그 필드의 표시만 초점 이동 없이 갱신합니다(실시간 검증).
+ *
+ * @function validateLiveField
+ * @param {HTMLFormElement} form - Form | 폼
+ * @param {string} name - Field name | 필드 이름
+ */
+const validateLiveField = (form, name) => {
+  const rules = readRules(form);
+  if (rules.length === 0) return;
+  const messages = collectErrors(rules, getFormData(form), formFieldReader(form))[name];
+
+  if (activeRenderer) {
+    callRenderer('clearField', form, name);
+    if (messages) {
+      if (typeof activeRenderer.showField === 'function') {
+        callRenderer('showField', form, name, messages);
+      } else {
+        callRenderer('show', form, { [name]: messages });
+      }
+    }
+  } else {
+    const message = messages ? messages[0] : '';
+    form.querySelectorAll(`[name="${name}"]`).forEach((el) => {
+      if (typeof el.setCustomValidity === 'function') el.setCustomValidity(message);
+    });
+    const proxy = form.querySelector(`[name="${name}_error"]`);
+    if (proxy) {
+      if (typeof proxy.setCustomValidity === 'function') proxy.setCustomValidity(message);
+      else proxy.textContent = message;
+    }
+  }
+
+  if (messages) liveInvalid(form).add(name);
+  else liveInvalid(form).delete(name);
+};
+
+/**
+ * Handles focusout/change/input for live validation (see <code>S2Validator.setLiveMode</code>).
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 실시간 검증용 focusout/change/input 처리기입니다.
+ *
+ * @function onLiveEvent
+ * @param {Event} e - Event | 이벤트
+ */
+const onLiveEvent = (e) => {
+  const el = e.target;
+  const form = el && el.form;
+  if (!(form instanceof HTMLFormElement) || !form.matches('form[data-s2-rules]')) return;
+  if (!el.name || el.name.endsWith('_error')) return;
+  const mode = form.dataset.s2Live || liveMode;
+  if (mode !== 'blur' && mode !== 'input') return;
+  const committed = e.type === 'focusout' || e.type === 'change';
+  if (mode === 'input' || committed || liveInvalid(form).has(el.name)) {
+    validateLiveField(form, el.name);
   }
 };
 

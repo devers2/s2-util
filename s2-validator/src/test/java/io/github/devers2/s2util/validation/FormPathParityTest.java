@@ -461,6 +461,29 @@ public class FormPathParityTest {
                 "[폼 경로 판정 불일치] " + description + " — 규칙 JSON: " + rulesJson);
     }
 
+    /**
+     * The form-free {@code S2Validator.check(rules, data)} judges the same data the server validates (nested maps and
+     * lists, as Spring binds them) exactly like the server.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    void serverAndFormFreeCheckReportTheSameInvalidFields(String description,
+            Supplier<S2Validator<Map<String, Object>>> validatorFactory, List<F> fields) {
+        S2Validator<Map<String, Object>> validator = validatorFactory.get();
+        Map<String, Object> target = toServerTarget(fields);
+
+        Set<String> serverInvalid = new TreeSet<>();
+        validator.validate(target, error -> serverInvalid.add(error.fieldName()), Locale.KOREAN);
+
+        String rulesJson = validator.getRulesJson(Locale.KOREAN);
+        String dataJson = io.github.devers2.s2util.json.S2JsonUtil.toJson(target);
+        Value errors = jsContext.eval("js", "(r, d) => __S2Validator.check(r, JSON.parse(d))").execute(rulesJson, dataJson);
+        Assertions.assertFalse(errors.hasMember("__system_error__"), "JS 시스템 오류: " + errors);
+
+        Assertions.assertEquals(serverInvalid, new TreeSet<>(errors.getMemberKeys()),
+                "[check() 판정 불일치] " + description + " — 데이터: " + dataJson);
+    }
+
     private static Set<String> clientInvalidFields(String rulesJson, List<F> fields) {
         Value form = jsContext.getBindings("js").getMember("__makeForm").execute(toFieldsJson(fields));
         Value errors = jsContext.getBindings("js").getMember("__S2Validator").invokeMember("validate", form, rulesJson);

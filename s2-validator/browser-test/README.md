@@ -10,6 +10,8 @@ Gradle 빌드와는 분리되어 있으며 Node.js 18+ 가 필요합니다.
 | 체크박스 | 동의(ASSERT_TRUE)·그룹(REQUIRED) 차단 및 통과 |
 | 동적 행 | 행 삭제 후 `reindex` 로 인덱스 재정렬, 새 인덱스로 오류 표시 |
 | 렌더러 | `classRenderer` 의 `is-invalid`·메시지 표시(히든 필드 포함), 기본 말풍선 미사용, 입력 시 해제 |
+| 실시간 검증 | `data-s2-live` blur(기본 UI)·input(렌더러): 초점을 빼앗지 않음, 고치면 해제, 속성 없는 폼은 제출 전 검증 안 함 |
+| 폼 없는 검증 | `check(rules, data)`로 중첩 데이터 검증 |
 
 규칙은 `demo/rules.json` 으로, 실제 서버 검증기(`BrowserDemoRules.java`)가 만든 JSON 입니다.
 

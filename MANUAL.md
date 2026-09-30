@@ -729,9 +729,23 @@ public String signup(@ModelAttribute("command") UserCommand command, BindingResu
     S2Validator.setRenderer({
       clear(form) { /* before each validation */ },
       show(form, errors) { showToast(Object.values(errors)[0][0]); }, // errors: { fieldName: [messages] }
-      clearField(form, fieldName) { /* the user edited this field */ }
+      clearField(form, fieldName) { /* the user edited this field */ },
+      showField(form, fieldName, messages) { /* live validation: show one field (do not move focus) */ }
     });
   </script>
+  ```
+
+- **Live validation (`data-s2-live`, `setLiveMode`)**:
+  By default forms are validated on submit only. Add `data-s2-live="blur"` (validate when a field loses focus; a field with an error clears as soon as it is fixed) or `"input"` (on every input) to a form, or set the global default with `S2Validator.setLiveMode('blur')`. Live validation never moves focus or pops up bubbles: with a renderer it updates just that field through `showField`/`clearField`; with the native UI it only sets the field's validity (for `:invalid`/`:user-invalid` CSS) and the bubble appears on submit. Combine it with `classRenderer()` to show messages next to the fields right away. Submit still validates every field.
+  ```html
+  <form th:data-s2-rules="${rules}" data-s2-live="blur"> ... </form>
+  ```
+
+- **Form-free validation (`S2Validator.check(rules, data)`)**:
+  Validates plain data without a `<form>`, for apps that render from state (React, Vue) or before sending JSON. It uses the same judgment engine as form validation and accepts nested data (`{ items: [{ qty: 0 }] }`) and flat keys (`{ 'items[0].qty': 0 }`). A field missing from the data is judged as empty, like on the server, and nothing under a missing object or row is validated. Nothing is displayed.
+  ```js
+  const errors = S2Validator.check(rulesJson, { name: '', items: [{ qty: 0 }] });
+  // { name: ['...is required.'], 'items[0].qty': ['...'] }
   ```
 
 ---

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>s2.validator.js live validation demo</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; max-width: 48rem; }
+    .is-invalid { border: 2px solid #c00; }
+    .feedback { color: #c00; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <h1>s2.validator.js — live validation (input mode, classRenderer)</h1>
+  <form id="live" data-rules-key="renderer" data-s2-live="input">
+    <label>이름 <input name="name" /></label>
+    <div class="feedback" data-s2-error-for="name"></div>
+    <label>이메일 <input name="email" /></label>
+    <div class="feedback" data-s2-error-for="email"></div>
+    <input type="hidden" name="token" value="" />
+    <div class="feedback" data-s2-error-for="token"></div>
+    <button>제출</button>
+  </form>
+  <script type="module">
+    import { S2Validator } from '/s2-util/js/s2.validator.js';
+    S2Validator.setRenderer(S2Validator.classRenderer());
+  </script>
+  <script type="module" src="/demo.js"></script>
+</body>
+</html>
