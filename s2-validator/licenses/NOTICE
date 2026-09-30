@@ -10,4 +10,9 @@ For more details, please refer to the 'LICENSE' file in the root directory.
    - Copyright: Broadcom / Pivotal Software, Inc.
    - URL: [https://spring.io/projects/spring-framework](https://spring.io/projects/spring-framework)
 
+2. Spring Boot (Auto-configuration) (Provided/Compile-only Dependency)
+   - License: Apache License 2.0
+   - Copyright: Broadcom / Pivotal Software, Inc.
+   - URL: [https://spring.io/projects/spring-boot](https://spring.io/projects/spring-boot)
+
 ---

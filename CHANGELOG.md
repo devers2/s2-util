@@ -152,6 +152,9 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 - The common executor is recreated after shutdown.
 - `S2ValidationError` compares its `errorArgs` array by content, not by reference (`equals`/`hashCode`/`toString`), so
   equal errors are equal and deduplicate in a `Set`.
+- License files in the jars: `s2-jpa` now ships `LICENSE-EPL-2.0` and `LICENSE-EDL-1.0` for Jakarta Persistence (its
+  NOTICE names both licenses); `s2-validator` no longer lists license files it does not have, and its NOTICE names Spring
+  Boot.
 
 ### Upgrade notes
 
