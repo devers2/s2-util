@@ -71,6 +71,27 @@ public class ConditionOperatorTest {
                 .field("memo").when("tags", S2Operator.EMPTY).validate());
     }
 
+    enum Grade {
+        GOLD {
+            @Override
+            public String toString() {
+                return "Gold member";
+            }
+        }
+    }
+
+    @Test
+    void enumConditionValuesAreExportedByNameLikeTheServerCompares() {
+        // The server compares enums by name(); exporting toString() would make the browser compare other text. | 서버는 name()으로 비교하므로 toString()을 내보내면 브라우저가 다른 문자열을 비교함
+        String json = S2Validator.<Map<String, Object>>builder()
+                .field("memo").when("grade", Grade.GOLD)
+                .field("note").when("grade", S2Operator.IN, List.of(Grade.GOLD))
+                .build().getRulesJson(Locale.KOREAN);
+        Assertions.assertTrue(json.contains("{\"field\":\"grade\",\"value\":\"GOLD\"}"), json);
+        Assertions.assertTrue(json.contains("\"op\":\"IN\",\"value\":[\"GOLD\"]"), json);
+        Assertions.assertFalse(S2Validator.of(input("grade", "GOLD"), false).field("memo").when("grade", Grade.GOLD).validate());
+    }
+
     @Test
     void rulesJsonCarriesTheOperatorExceptForEq() {
         String json = S2Validator.<Map<String, Object>>builder()

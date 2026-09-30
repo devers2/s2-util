@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import io.github.devers2.s2util.core.S2Util;
+import io.github.devers2.s2util.json.S2JsonUtil;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 
@@ -125,8 +126,8 @@ final class S2RulesJsonWriter {
             firstField = false;
 
             sb.append("{");
-            sb.append("\"name\":\"").append(escapeJsonString(String.valueOf(field.getName()))).append("\",");
-            sb.append("\"label\":\"").append(escapeJsonString(field.getLabel())).append("\",");
+            sb.append("\"name\":").append(jsonString(String.valueOf(field.getName()))).append(",");
+            sb.append("\"label\":").append(jsonString(field.getLabel())).append(",");
 
             // Rules 작성
             sb.append("\"rules\":[");
@@ -142,8 +143,8 @@ final class S2RulesJsonWriter {
                 }
                 sb.append("{");
                 sb.append("\"type\":\"").append(ruleType.name()).append("\",");
-                sb.append("\"regex\":").append(toJsonString(ruleType.getRegex())).append(",");
-                sb.append("\"message\":").append(toJsonString(field.getErrorMessage(rule, locale, outerValidators)));
+                sb.append("\"regex\":").append(S2JsonUtil.toJson(ruleType.getRegex())).append(",");
+                sb.append("\"message\":").append(S2JsonUtil.toJson(field.getErrorMessage(rule, locale, outerValidators)));
 
                 if (ruleType == S2RuleType.NESTED || ruleType == S2RuleType.EACH) {
                     if (rule.getCheckValue() instanceof S2Validator<?> sub) {
@@ -154,7 +155,7 @@ final class S2RulesJsonWriter {
                         appendRulesJson(sb, sub, locale, chain);
                     }
                 } else {
-                    sb.append(",\"value\":").append(toJsonString(rule.getCheckValue()));
+                    sb.append(",\"value\":").append(S2JsonUtil.toJson(clientValue(rule.getCheckValue())));
                 }
                 sb.append("}");
             }
@@ -176,12 +177,12 @@ final class S2RulesJsonWriter {
                             sb.append(",");
                         firstCond = false;
                         sb.append("{");
-                        sb.append("\"field\":\"").append(escapeJsonString(String.valueOf(cond.fieldName()))).append("\",");
+                        sb.append("\"field\":").append(jsonString(String.valueOf(cond.fieldName()))).append(",");
                         // EQ is the default and omitted, keeping plain conditions unchanged. | EQ 는 기본값이라 생략하여 기존 조건 JSON 을 그대로 유지
                         if (cond.operator() != S2Operator.EQ) {
                             sb.append("\"op\":\"").append(cond.operator().name()).append("\",");
                         }
-                        sb.append("\"value\":").append(toJsonString(cond.value()));
+                        sb.append("\"value\":").append(S2JsonUtil.toJson(clientValue(cond.value())));
                         sb.append("}");
                     }
                     sb.append("]");
@@ -287,104 +288,45 @@ final class S2RulesJsonWriter {
         reportedServerOnly.clear();
     }
 
-    private static String toJsonString(Object obj) {
-        if (obj == null) {
-            return "null";
-        }
-
-        if (obj instanceof String) {
-            return "\"" + escapeJsonString((String) obj) + "\"";
-        }
-
-        if (obj instanceof Number || obj instanceof Boolean) {
-            return obj.toString();
-        }
-
-        if (obj instanceof Enum<?>) {
-            return "\"" + escapeJsonString(obj.toString()) + "\"";
-        }
-
-        if (obj instanceof List<?> list) {
-            StringBuilder sb = new StringBuilder("[");
-            for (int i = 0; i < list.size(); i++) {
-                if (i > 0)
-                    sb.append(",");
-                sb.append(toJsonString(list.get(i)));
-            }
-            sb.append("]");
-            return sb.toString();
-        }
-
-        if (obj instanceof Map<?, ?> map) {
-            StringBuilder sb = new StringBuilder("{");
-            boolean first = true;
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (!first)
-                    sb.append(",");
-                first = false;
-                sb.append("\"").append(escapeJsonString(entry.getKey().toString())).append("\":");
-                sb.append(toJsonString(entry.getValue()));
-            }
-            sb.append("}");
-            return sb.toString();
-        }
-
-        // Fallback: toString() 사용
-        return "\"" + escapeJsonString(obj.toString()) + "\"";
+    /**
+     * Writes a string as a JSON string literal; {@code null} becomes {@code ""}, as before, so field names and labels are
+     * always strings.
+     *
+     * @param value The string | 문자열
+     * @return The JSON literal | JSON 리터럴
+     */
+    private static String jsonString(String value) {
+        return S2JsonUtil.toJson(value == null ? "" : value);
     }
 
     /**
-     * Escapes special JSON characters in a string.
-     * <p>
-     * Handles quotes, backslashes, control characters (\b, \f, \n, \r, \t),
-     * and Unicode escaping for characters below 0x20.
-     * </p>
+     * Converts a criterion or condition value to what the browser compares: strings, numbers, booleans and
+     * {@code null} as is, enums by {@code name()}, lists element-wise, anything else by {@code toString()}. This matches
+     * the server's normalization in {@link S2Condition}, so both sides compare the same text.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * JSON 문자열 이스케이핑 처리를 수행합니다.
+     * 기준값·조건 값을 브라우저가 비교할 형태로 바꿉니다. 문자열·숫자·불리언·{@code null}은 그대로, 열거형은 {@code name()}, 목록은 요소별로,
+     * 그 밖은 {@code toString()}입니다. 서버 {@link S2Condition}의 정규화와 같아 양쪽이 같은 문자열을 비교합니다.
      *
-     * @param str The string to escape | 이스케이핑할 문자열
-     * @return Escaped string | 이스케이핑된 문자열
+     * @param value The value | 값
+     * @return A JSON-writable value | JSON 으로 쓸 수 있는 값
      */
-    private static String escapeJsonString(String str) {
-        if (str == null)
-            return "";
-
-        StringBuilder sb = new StringBuilder(str.length() + 16);
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            switch (c) {
-                case '"':
-                    sb.append("\\\"");
-                    break;
-                case '\\':
-                    sb.append("\\\\");
-                    break;
-                case '\b':
-                    sb.append("\\b");
-                    break;
-                case '\f':
-                    sb.append("\\f");
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    break;
-                default:
-                    if (c < 0x20) {
-                        sb.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
-            }
+    private static Object clientValue(Object value) {
+        if (value == null || value instanceof String || value instanceof Number || value instanceof Boolean) {
+            return value;
         }
-        return sb.toString();
+        if (value instanceof Enum<?> e) {
+            return e.name();
+        }
+        if (value instanceof List<?> list) {
+            List<Object> converted = new java.util.ArrayList<>(list.size());
+            for (Object item : list) {
+                converted.add(clientValue(item));
+            }
+            return converted;
+        }
+        return value.toString();
     }
 }
