@@ -81,8 +81,9 @@ import java.util.regex.Pattern;
  * </p>
  * <ul>
  * <li><b>Strict by default:</b> standard JSON (RFC 8259) only; relaxed syntax is opt-in through {@link Feature}. Trailing
- * content, nesting deeper than {@link #MAX_DEPTH}, invalid escapes and malformed numbers are rejected with the character
- * position.</li>
+ * content, nesting deeper than {@link #MAX_DEPTH}, invalid escapes and malformed or overlong ({@link #MAX_NUMBER_LENGTH})
+ * numbers are rejected with the character position. Failures inside collections or proxies being written are wrapped in
+ * {@link S2JsonException} with the path.</li>
  * <li><b>Parsed values:</b> objects → {@code LinkedHashMap<String, Object>} (a duplicate key keeps the last value),
  * arrays → {@code ArrayList<Object>}, strings → {@code String}, integers → {@code Long} ({@code BigInteger} beyond
  * {@code long}), decimals → {@code Double} ({@code BigDecimal} with {@link Feature#USE_BIG_DECIMAL_FOR_FLOATS}),
@@ -112,7 +113,8 @@ import java.util.regex.Pattern;
  * </p>
  * <ul>
  * <li><b>기본은 엄격:</b> 표준 JSON(RFC 8259)만 받으며, 느슨한 문법은 {@link Feature}로 켭니다. 뒤따르는 문자, {@link #MAX_DEPTH}보다 깊은
- * 중첩, 잘못된 이스케이프와 숫자는 문자 위치와 함께 거부합니다.</li>
+ * 중첩, 잘못된 이스케이프, 잘못되거나 너무 긴({@link #MAX_NUMBER_LENGTH}) 숫자는 문자 위치와 함께 거부합니다. 쓰는 중 컬렉션·프록시에서 난
+ * 오류는 경로를 담은 {@link S2JsonException}으로 감쌉니다.</li>
  * <li><b>파싱 결과:</b> 객체 → {@code LinkedHashMap<String, Object>}(중복 키는 마지막 값), 배열 → {@code ArrayList<Object>}, 문자열 →
  * {@code String}, 정수 → {@code Long}({@code long} 범위를 넘으면 {@code BigInteger}), 소수 → {@code Double}
  * ({@link Feature#USE_BIG_DECIMAL_FOR_FLOATS}면 {@code BigDecimal}), 참/거짓 → {@code Boolean}, {@code null} → {@code null}.</li>
@@ -140,6 +142,16 @@ public final class S2JsonUtil {
      * </p>
      */
     public static final int MAX_DEPTH = 512;
+
+    /**
+     * Maximum length of a number in JSON text, and of the digits of an integer created from it; longer numbers fail
+     * instead of spending quadratic time building a huge {@code BigInteger} (the same default as Jackson).
+     * <p>
+     * <b>[한국어 설명]</b> JSON 숫자 표기와, 그로부터 만드는 정수 자릿수의 최대 길이입니다. 더 길면 거대한 {@code BigInteger}를 만드느라
+     * 제곱 시간을 쓰는 대신 예외를 던집니다(Jackson 기본값과 같음).
+     * </p>
+     */
+    public static final int MAX_NUMBER_LENGTH = 1000;
 
     /**
      * Opt-in relaxations of standard JSON.
@@ -340,7 +352,7 @@ public final class S2JsonUtil {
         List<T> result = new ArrayList<>(array.size());
         Mapper mapper = new Mapper();
         for (int i = 0; i < array.size(); i++) {
-            mapper.path.push("[" + i + "]");
+            mapper.path.push(i);
             @SuppressWarnings("unchecked")
             T element = (T) mapper.convert(array.get(i), elementType, 1);
             result.add(element);
@@ -368,7 +380,13 @@ public final class S2JsonUtil {
         if (type == null) {
             throw new IllegalArgumentException("type must not be null");
         }
-        return (T) new Mapper().convert(value, type, 0);
+        try {
+            return (T) new Mapper().convert(value, type, 0);
+        } catch (S2JsonException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new S2JsonException("Failed to map to " + type.getName(), e);
+        }
     }
 
     // =========================================================================
@@ -381,7 +399,7 @@ public final class S2JsonUtil {
     private static final class Writer {
         private final int flags;
         private final Set<Object> visiting = Collections.newSetFromMap(new IdentityHashMap<>());
-        private final Deque<String> path = new ArrayDeque<>();
+        private final Deque<Object> path = new ArrayDeque<>();
 
         Writer(int flags) {
             this.flags = flags;
@@ -439,19 +457,28 @@ public final class S2JsonUtil {
                 throw error("Circular reference to " + type.getName());
             }
             try {
-                if (value instanceof Map<?, ?> map) {
-                    writeMap(sb, map, depth);
-                } else if (value instanceof Collection<?> collection) {
-                    writeArray(sb, collection.iterator(), depth);
-                } else if (type.isArray()) {
-                    writeArray(sb, arrayIterator(value), depth);
-                } else if (type.isRecord()) {
-                    writeRecord(sb, value, depth);
-                } else {
-                    writePojo(sb, value, depth);
-                }
+                writeKnownContainer(sb, value, type, depth);
+            } catch (S2JsonException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                // e.g. a lazy JPA collection iterated after its session closed | 예: 세션이 닫힌 뒤 순회한 JPA 지연 컬렉션
+                throw new S2JsonException("Failed to write " + type.getName() + " at " + pathOf(path), e);
             } finally {
                 visiting.remove(value);
+            }
+        }
+
+        private void writeKnownContainer(StringBuilder sb, Object value, Class<?> type, int depth) {
+            if (value instanceof Map<?, ?> map) {
+                writeMap(sb, map, depth);
+            } else if (value instanceof Collection<?> collection) {
+                writeArray(sb, collection.iterator(), depth);
+            } else if (type.isArray()) {
+                writeArray(sb, arrayIterator(value), depth);
+            } else if (type.isRecord()) {
+                writeRecord(sb, value, depth);
+            } else {
+                writePojo(sb, value, depth);
             }
         }
 
@@ -514,7 +541,7 @@ public final class S2JsonUtil {
                 first = false;
                 writeString(sb, key);
                 sb.append(':');
-                path.push("." + key);
+                path.push(key);
                 write(sb, entry.getValue(), depth + 1);
                 path.pop();
             }
@@ -539,7 +566,7 @@ public final class S2JsonUtil {
                 if (index > 0) {
                     sb.append(',');
                 }
-                path.push("[" + index + "]");
+                path.push(index);
                 write(sb, items.next(), depth + 1);
                 path.pop();
                 index++;
@@ -550,22 +577,21 @@ public final class S2JsonUtil {
         private void writeRecord(StringBuilder sb, Object record, int depth) {
             sb.append('{');
             boolean first = true;
-            for (RecordComponent component : record.getClass().getRecordComponents()) {
+            RecordInfo info = recordInfo(record.getClass(), path);
+            for (int i = 0; i < info.names().length; i++) {
                 Object componentValue;
                 try {
-                    var accessor = component.getAccessor();
-                    accessor.setAccessible(true);
-                    componentValue = accessor.invoke(record);
+                    componentValue = info.accessors()[i].invoke(record);
                 } catch (ReflectiveOperationException | RuntimeException e) {
-                    throw new S2JsonException("Cannot read record component " + component.getName() + " at " + pathOf(path), e);
+                    throw new S2JsonException("Cannot read record component " + info.names()[i] + " at " + pathOf(path), e);
                 }
                 if (!first) {
                     sb.append(',');
                 }
                 first = false;
-                writeString(sb, component.getName());
+                writeString(sb, info.names()[i]);
                 sb.append(':');
-                path.push("." + component.getName());
+                path.push(info.names()[i]);
                 write(sb, componentValue, depth + 1);
                 path.pop();
             }
@@ -588,7 +614,7 @@ public final class S2JsonUtil {
                 first = false;
                 writeString(sb, field.getName());
                 sb.append(':');
-                path.push("." + field.getName());
+                path.push(field.getName());
                 write(sb, fieldValue, depth + 1);
                 path.pop();
             }
@@ -941,6 +967,9 @@ public final class S2JsonUtil {
                     throw error("Invalid exponent");
                 }
             }
+            if (pos - start > MAX_NUMBER_LENGTH) {
+                throw new S2JsonException("Number longer than " + MAX_NUMBER_LENGTH + " characters", start, null);
+            }
             String text = json.substring(start, pos);
             if (text.startsWith("+")) {
                 text = text.substring(1);
@@ -953,11 +982,10 @@ public final class S2JsonUtil {
                     BigInteger big = new BigInteger(text);
                     return big.bitLength() < 64 ? (Number) big.longValue() : big;
                 }
-                BigDecimal big = new BigDecimal(text);
                 if (Feature.USE_BIG_DECIMAL_FOR_FLOATS.in(flags)) {
-                    return big;
+                    return new BigDecimal(text);
                 }
-                double d = big.doubleValue();
+                double d = Double.parseDouble(text);
                 if (Double.isInfinite(d)) {
                     throw error("Number out of double range (use USE_BIG_DECIMAL_FOR_FLOATS)");
                 }
@@ -1037,7 +1065,7 @@ public final class S2JsonUtil {
     }
 
     private static final class Mapper {
-        private final Deque<String> path = new ArrayDeque<>();
+        private final Deque<Object> path = new ArrayDeque<>();
 
         private S2JsonException error(String message) {
             return new S2JsonException(message + " at " + pathOf(path));
@@ -1108,7 +1136,7 @@ public final class S2JsonUtil {
                 Type componentType = type instanceof GenericArrayType g ? g.getGenericComponentType() : raw.getComponentType();
                 Object array = Array.newInstance(raw.getComponentType(), list.size());
                 for (int i = 0; i < list.size(); i++) {
-                    path.push("[" + i + "]");
+                    path.push(i);
                     Array.set(array, i, convert(list.get(i), componentType, depth + 1));
                     path.pop();
                 }
@@ -1172,6 +1200,9 @@ public final class S2JsonUtil {
             if (target == BigDecimal.class) {
                 return decimal;
             }
+            if (decimal.signum() != 0 && (long) decimal.precision() - decimal.scale() > MAX_NUMBER_LENGTH) {
+                throw error("Number " + number + " has more than " + MAX_NUMBER_LENGTH + " integer digits");
+            }
             try {
                 if (target == BigInteger.class) {
                     return decimal.toBigIntegerExact();
@@ -1220,7 +1251,7 @@ public final class S2JsonUtil {
                 result = (Collection<Object>) instantiate(raw);
             }
             for (int i = 0; i < list.size(); i++) {
-                path.push("[" + i + "]");
+                path.push(i);
                 result.add(convert(list.get(i), elementType, depth + 1));
                 path.pop();
             }
@@ -1244,7 +1275,7 @@ public final class S2JsonUtil {
             Class<?> keyClass = rawClass(keyType);
             for (Map.Entry<?, ?> entry : node.entrySet()) {
                 String key = String.valueOf(entry.getKey());
-                path.push("." + key);
+                path.push(key);
                 Object mappedKey = keyClass == Object.class || keyClass == String.class ? key
                         : keyClass.isEnum() ? toEnum(key, keyClass)
                                 : STRING_TYPES.containsKey(keyClass) ? parseString(key, keyClass, STRING_TYPES.get(keyClass))
@@ -1268,22 +1299,17 @@ public final class S2JsonUtil {
         }
 
         private Object toRecord(Map<?, ?> node, Class<?> type, int depth) {
-            RecordComponent[] components = type.getRecordComponents();
-            Class<?>[] types = new Class<?>[components.length];
-            Object[] args = new Object[components.length];
-            for (int i = 0; i < components.length; i++) {
-                RecordComponent component = components[i];
-                types[i] = component.getType();
-                path.push("." + component.getName());
-                args[i] = node.containsKey(component.getName())
-                        ? convert(node.get(component.getName()), component.getGenericType(), depth + 1)
-                        : defaultValue(component.getType());
+            RecordInfo info = recordInfo(type, path);
+            Object[] args = new Object[info.names().length];
+            for (int i = 0; i < args.length; i++) {
+                String name = info.names()[i];
+                path.push(name);
+                args[i] = node.containsKey(name) ? convert(node.get(name), info.types()[i], depth + 1)
+                        : defaultValue(info.accessors()[i].getReturnType());
                 path.pop();
             }
             try {
-                Constructor<?> constructor = type.getDeclaredConstructor(types);
-                constructor.setAccessible(true);
-                return constructor.newInstance(args);
+                return info.constructor().newInstance(args);
             } catch (ReflectiveOperationException | RuntimeException e) {
                 Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
                 throw new S2JsonException("Cannot create record " + type.getName() + " at " + pathOf(path), cause);
@@ -1291,19 +1317,14 @@ public final class S2JsonUtil {
         }
 
         private Object toPojo(Map<?, ?> node, Class<?> type, int depth) {
-            Constructor<?> noArg = null;
-            try {
-                noArg = type.getDeclaredConstructor();
-            } catch (NoSuchMethodException e) {
-                // Immutable value object: create it through its constructor | 불변 VO: 생성자로 생성
-            }
+            // Without a no-arg constructor it is an immutable value object, created through its constructor | 인자 없는 생성자가 없으면 불변 VO 로 보고 생성자로 생성
             Set<String> assigned = new java.util.HashSet<>();
-            Object instance = noArg != null ? instantiate(type) : construct(node, type, assigned, depth);
+            Object instance = NO_ARG_CONSTRUCTOR.get(type).isPresent() ? instantiate(type) : construct(node, type, assigned, depth);
             for (Field field : propertyFields(type)) {
                 if (!node.containsKey(field.getName()) || assigned.contains(field.getName())) {
                     continue;
                 }
-                path.push("." + field.getName());
+                path.push(field.getName());
                 Object value = convert(node.get(field.getName()), field.getGenericType(), depth + 1);
                 try {
                     field.set(instance, value);
@@ -1336,7 +1357,7 @@ public final class S2JsonUtil {
                             + "available; compile with -parameters, add a no-arg constructor, or use a record");
                 }
                 String name = params[i].getName();
-                path.push("." + name);
+                path.push(name);
                 args[i] = node.containsKey(name) ? convert(node.get(name), params[i].getParameterizedType(), depth + 1)
                         : defaultValue(params[i].getType());
                 path.pop();
@@ -1374,12 +1395,13 @@ public final class S2JsonUtil {
         }
 
         private Object instantiate(Class<?> type) {
+            Constructor<?> constructor = NO_ARG_CONSTRUCTOR.get(type).orElse(null);
+            if (constructor == null) {
+                throw error(type.getName() + " needs a no-arg constructor");
+            }
             try {
-                Constructor<?> constructor = type.getDeclaredConstructor();
                 constructor.setAccessible(true);
                 return constructor.newInstance();
-            } catch (NoSuchMethodException e) {
-                throw error(type.getName() + " needs a no-arg constructor (or use a record)");
             } catch (ReflectiveOperationException | RuntimeException e) {
                 Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
                 throw new S2JsonException("Cannot create " + type.getName() + " at " + pathOf(path), cause);
@@ -1390,6 +1412,55 @@ public final class S2JsonUtil {
     // =========================================================================
     // Helpers
     // =========================================================================
+
+    /** Record metadata resolved once per class | 클래스별로 한 번 구하는 record 메타데이터 */
+    private record RecordInfo(String[] names, java.lang.reflect.Method[] accessors, Type[] types, Constructor<?> constructor) {
+    }
+
+    private static final ClassValue<RecordInfo> RECORD_INFO = new ClassValue<>() {
+        @Override
+        protected RecordInfo computeValue(Class<?> type) {
+            RecordComponent[] components = type.getRecordComponents();
+            String[] names = new String[components.length];
+            java.lang.reflect.Method[] accessors = new java.lang.reflect.Method[components.length];
+            Type[] types = new Type[components.length];
+            Class<?>[] rawTypes = new Class<?>[components.length];
+            for (int i = 0; i < components.length; i++) {
+                names[i] = components[i].getName();
+                accessors[i] = components[i].getAccessor();
+                accessors[i].setAccessible(true);
+                types[i] = components[i].getGenericType();
+                rawTypes[i] = components[i].getType();
+            }
+            try {
+                Constructor<?> constructor = type.getDeclaredConstructor(rawTypes);
+                constructor.setAccessible(true);
+                return new RecordInfo(names, accessors, types, constructor);
+            } catch (NoSuchMethodException e) {
+                throw new IllegalStateException("No canonical constructor in " + type.getName(), e);
+            }
+        }
+    };
+
+    private static RecordInfo recordInfo(Class<?> type, Deque<Object> path) {
+        try {
+            return RECORD_INFO.get(type);
+        } catch (RuntimeException e) {
+            throw new S2JsonException("Cannot access record " + type.getName() + " at " + pathOf(path), e);
+        }
+    }
+
+    /** The declared no-arg constructor per class, if any | 클래스별 선언된 인자 없는 생성자 (없으면 빈 값) */
+    private static final ClassValue<Optional<Constructor<?>>> NO_ARG_CONSTRUCTOR = new ClassValue<>() {
+        @Override
+        protected Optional<Constructor<?>> computeValue(Class<?> type) {
+            try {
+                return Optional.of(type.getDeclaredConstructor());
+            } catch (NoSuchMethodException e) {
+                return Optional.empty();
+            }
+        }
+    };
 
     /** Property fields per class; ClassValue does not keep classes from being unloaded | 클래스별 속성 필드. ClassValue 는 클래스 언로드를 막지 않음 */
     private static final ClassValue<List<Field>> PROPERTY_FIELDS = new ClassValue<>() {
@@ -1508,14 +1579,17 @@ public final class S2JsonUtil {
         return Array.get(Array.newInstance(type, 1), 0);
     }
 
-    private static String pathOf(Deque<String> path) {
-        if (path.isEmpty()) {
-            return "$";
-        }
+    /** Formats path segments (property names and array indexes, innermost first) only when an error needs them | 경로 조각(속성 이름, 배열 번호)은 오류가 날 때만 문자열로 조립 */
+    private static String pathOf(Deque<Object> path) {
         StringBuilder sb = new StringBuilder("$");
-        Iterator<String> it = path.descendingIterator();
+        Iterator<Object> it = path.descendingIterator();
         while (it.hasNext()) {
-            sb.append(it.next());
+            Object segment = it.next();
+            if (segment instanceof Integer index) {
+                sb.append('[').append(index).append(']');
+            } else {
+                sb.append('.').append(segment);
+            }
         }
         return sb.toString();
     }

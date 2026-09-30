@@ -830,7 +830,7 @@ Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALL
 
 - **Strict standard JSON by default.** Comments, single quotes, trailing commas and so on are enabled through `Feature`.
 - **Failures are always `S2JsonException`**, never `null` or broken JSON; parse errors carry the character position and mapping errors the path (`$.items[1].qty`).
-- Trailing content, nesting deeper than 512, circular references, NaN/Infinity (without `ALLOW_NON_NUMERIC_NUMBERS`), lossy number conversions (3.7 → `int`) and unsupported JDK types are rejected.
+- Trailing content, nesting deeper than 512, numbers longer than 1,000 characters, circular references, NaN/Infinity (without `ALLOW_NON_NUMERIC_NUMBERS`), lossy number conversions (3.7 → `int`) and unsupported JDK types are rejected.
 - The supported types (strings, numbers, booleans, enums, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, arrays, collections, maps, records, POJOs/DTOs/VOs) are listed in the class Javadoc. Unknown JSON properties are ignored when mapping.
 - **Creating DTOs/VOs:** with the no-arg constructor when there is one (private is fine), otherwise as an immutable value object through its constructor, matching parameter names to JSON keys (needs `-parameters`, the default in Spring Boot and s2-build-support). With several constructors, the one whose parameters are exactly the fields is used.
 - **Proxies:** Hibernate lazy proxies and Spring AOP proxies are written from their real object. A lazy entity is initialized at that point, so call it inside the session (transaction); a closed session fails. Hibernate bytecode enhancement fields (`$$_hibernate_*`) are skipped.

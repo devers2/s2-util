@@ -502,6 +502,45 @@ class S2JsonUtilTest {
         }
     }
 
+    record BigHolder(BigInteger v) {
+    }
+
+    @Nested
+    class Robustness {
+
+        @Test
+        @org.junit.jupiter.api.Timeout(5)
+        void hugeNumbersFailFastInsteadOfBurningCpu() {
+            String longDigits = "1" + "0".repeat(2_000_000);
+            S2JsonException e = assertThrows(S2JsonException.class, () -> S2JsonUtil.parse(longDigits));
+            assertTrue(e.getMessage().contains("longer than " + S2JsonUtil.MAX_NUMBER_LENGTH), e.getMessage());
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.fromJson("{\"v\":1e99999999}", BigHolder.class,
+                    Feature.USE_BIG_DECIMAL_FOR_FLOATS));
+            assertEquals(Double.valueOf(1e300), S2JsonUtil.parse("1e300"));
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.parse("1e99999999"));
+            String allowed = "9".repeat(S2JsonUtil.MAX_NUMBER_LENGTH);
+            assertEquals(new BigInteger(allowed), S2JsonUtil.parse(allowed));
+        }
+
+        @Test
+        void failuresFromForeignCodeAreWrappedWithThePath() {
+            List<Integer> lazy = new java.util.AbstractList<>() {
+                @Override
+                public Integer get(int index) {
+                    throw new IllegalStateException("failed to lazily initialize a collection - no Session");
+                }
+
+                @Override
+                public int size() {
+                    return 1;
+                }
+            };
+            S2JsonException e = assertThrows(S2JsonException.class, () -> S2JsonUtil.toJson(Map.of("items", lazy)));
+            assertTrue(e.getMessage().contains("$.items"), e.getMessage());
+            assertInstanceOf(IllegalStateException.class, e.getCause());
+        }
+    }
+
     private static Map<Object, Object> orderedMap(Object... kv) {
         Map<Object, Object> m = new LinkedHashMap<>();
         for (int i = 0; i < kv.length; i += 2) {

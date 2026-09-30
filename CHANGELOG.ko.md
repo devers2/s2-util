@@ -90,7 +90,7 @@
 
 - `s2-core`: 의존성 없는 경량 JSON 유틸 `io.github.devers2.s2util.json.S2JsonUtil`(`toJson`, `parse`, `parseObject`,
   `parseArray`, `fromJson`, `fromJsonList`, `convert`)과 `S2JsonException`. 기본은 엄격한 표준 JSON 이며 느슨한 문법은 `Feature`로
-  켭니다. 뒤따르는 문자·깊은 중첩(512)·잘못된 숫자를 위치와 함께 거부하고, 지원하지 않는 타입·순환 참조·NaN·손실되는 숫자 변환은
+  켭니다. 뒤따르는 문자·깊은 중첩(512)·잘못되거나 너무 긴 숫자(1,000자)를 위치와 함께 거부하고, 지원하지 않는 타입·순환 참조·NaN·손실되는 숫자 변환은
   예외입니다(`null`이나 깨진 JSON 을 돌려주지 않음). 지원 타입은 클래스 Javadoc 에 명시되어 있으며, 그 밖의 기능은 Jackson 을
   사용하십시오. `s2-support`의 같은 이름 클래스를 대체합니다. 인자 없는 생성자가 없는 불변 VO 는 생성자 파라미터 이름으로 만들고,
   Hibernate·Spring AOP 프록시는 실제 객체로 씁니다(빈 프록시 필드를 쓰지 않음).
