@@ -502,6 +502,65 @@ class S2JsonUtilTest {
         }
     }
 
+    @Nested
+    class Json5 {
+
+        @Test
+        void officialJson5ExampleParses() {
+            // The example from https://json5.org | json5.org 공식 예제
+            String json5 = """
+                    {
+                      // comments
+                      unquoted: 'and you can quote me on that',
+                      singleQuotes: 'I can use "double quotes" here',
+                      lineBreaks: "Look, Mom! \\
+                    No \\\\n's!",
+                      hexadecimal: 0xdecaf,
+                      leadingDecimalPoint: .8675309, andTrailing: 8675309.,
+                      positiveSign: +1,
+                      trailingComma: 'in objects', andIn: ['arrays',],
+                      "backwardsCompatible": "with JSON",
+                    }
+                    """;
+            Map<String, Object> m = S2JsonUtil.parseObject(json5, Feature.JSON5);
+            assertEquals("and you can quote me on that", m.get("unquoted"));
+            assertEquals("I can use \"double quotes\" here", m.get("singleQuotes"));
+            assertEquals("Look, Mom! No \\n's!", m.get("lineBreaks"));
+            assertEquals(912559L, m.get("hexadecimal"));
+            assertEquals(0.8675309, m.get("leadingDecimalPoint"));
+            assertEquals(8675309.0, m.get("andTrailing"));
+            assertEquals(1L, m.get("positiveSign"));
+            assertEquals(List.of("arrays"), m.get("andIn"));
+            assertEquals("with JSON", m.get("backwardsCompatible"));
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.parse(json5), "plain JSON stays strict");
+        }
+
+        @Test
+        void json5NumbersEscapesAndWhitespace() {
+            assertEquals(-16L, S2JsonUtil.parse("-0x10", Feature.JSON5));
+            assertEquals(new BigInteger("FFFFFFFFFFFFFFFFFF", 16), S2JsonUtil.parse("0xFFFFFFFFFFFFFFFFFF", Feature.JSON5));
+            assertEquals(Double.POSITIVE_INFINITY, S2JsonUtil.parse("+Infinity", Feature.JSON5));
+            assertTrue(Double.isNaN((Double) S2JsonUtil.parse("-NaN", Feature.JSON5)));
+            assertEquals("\u000B\0Aé", S2JsonUtil.parse("'\\v\\0\\x41\\xe9'", Feature.JSON5));
+            assertEquals("ab", S2JsonUtil.parse("'a\\\r\nb'", Feature.JSON5), "CRLF line continuation");
+            assertEquals("a\tb", S2JsonUtil.parse("'a\tb'", Feature.JSON5), "raw tab is allowed");
+            assertEquals(Map.of("키", 1L, "$_x1", 2L), S2JsonUtil.parse("{키: 1, $_x1: 2}", Feature.JSON5));
+            assertEquals(List.of(1L), S2JsonUtil.parse("﻿ [\u000B1 ]\f", Feature.JSON5));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = { "[1,,2]", "# c\n1", "007", "'\\1'", "'\\0" + "1'", "'a\nb'", "0x", "{1a: 1}", "0x1.5" })
+        void whatJson5DoesNotAllowIsStillRejected(String text) {
+            assertThrows(S2JsonException.class, () -> S2JsonUtil.parse(text, Feature.JSON5), text);
+        }
+
+        @Test
+        void json5CanBeMappedToTypes() {
+            Item item = S2JsonUtil.fromJson("{name: 'a', qty: 0x0A, /* 가격 */ price: null,}", Item.class, Feature.JSON5);
+            assertEquals(new Item("a", 10, null), item);
+        }
+    }
+
     record BigHolder(BigInteger v) {
     }
 

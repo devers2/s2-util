@@ -101,6 +101,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
   `parseObject`, `parseArray`, `fromJson`, `fromJsonList`, `convert`) and `S2JsonException`. Strict standard JSON by default,
   with relaxed syntax through `Feature`. Trailing content, deep nesting (512) and malformed or overlong (1,000 characters) numbers are rejected with the
   position; unsupported types, circular references, NaN and lossy number conversions throw (never `null` or broken JSON).
+  `Feature.JSON5` accepts the published JSON5 standard for hand-written files.
   The supported types are listed in the class Javadoc; use Jackson for anything beyond them. Replaces the class of the same
   name in `s2-support`. Immutable value objects without a no-arg constructor are created through their constructor by
   parameter name, and Hibernate/Spring AOP proxies are written from their real object (never from their empty proxy fields).
