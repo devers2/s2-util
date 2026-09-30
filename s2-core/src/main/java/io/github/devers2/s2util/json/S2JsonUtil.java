@@ -91,8 +91,12 @@ import java.util.regex.Pattern;
  * {@code Character}, {@code Boolean}, numbers (primitives, wrappers, {@code BigInteger}, {@code BigDecimal}), enums (by
  * {@code name()}), {@code java.time} types and {@code Date} (ISO-8601 strings), {@code UUID}, {@code URI},
  * {@code Locale} (language tag), {@code Optional}, arrays, {@code Collection}s, {@code Map}s (keys written as strings),
- * records (components) and POJOs (non-static, non-transient fields including inherited ones; mapping needs a no-arg
- * constructor). Unknown JSON properties are ignored when mapping.</li>
+ * records (components) and POJOs/DTOs/VOs (non-static, non-transient fields including inherited ones). Mapping creates a
+ * POJO with its no-arg constructor, or else an immutable value object through its constructor by parameter name
+ * (requires compiling with {@code -parameters}). Unknown JSON properties are ignored when mapping.</li>
+ * <li><b>Proxies:</b> Hibernate and Spring AOP proxies are written from their real object (a lazy entity is initialized,
+ * so the session must be open); fields added by Hibernate bytecode enhancement are skipped. Other proxies, lambdas and
+ * hidden classes fail instead of being written from their empty proxy fields.</li>
  * <li><b>Errors:</b> never returns {@code null} or partial output for bad input; circular references, NaN/Infinity
  * (unless {@link Feature#ALLOW_NON_NUMERIC_NUMBERS}), lossy number conversions (3.7 → {@code int}) and unsupported JDK
  * types throw.</li>
@@ -115,7 +119,10 @@ import java.util.regex.Pattern;
  * <li><b>지원 타입</b>(생성·매핑): {@code null}, {@code String}/{@code CharSequence}, {@code Character}, {@code Boolean}, 숫자(기본형,
  * 래퍼, {@code BigInteger}, {@code BigDecimal}), 열거형({@code name()}), {@code java.time} 타입과 {@code Date}(ISO-8601 문자열),
  * {@code UUID}, {@code URI}, {@code Locale}(언어 태그), {@code Optional}, 배열, {@code Collection}, {@code Map}(키는 문자열로 기록),
- * record(컴포넌트), POJO(상속 포함, static·transient 제외 필드. 매핑에는 인자 없는 생성자 필요). 매핑할 때 모르는 JSON 속성은 무시합니다.</li>
+ * record(컴포넌트), POJO/DTO/VO(상속 포함, static·transient 제외 필드). 매핑할 때 POJO 는 인자 없는 생성자로, 없으면 불변 VO 로 보고 생성자
+ * 파라미터 이름으로 만듭니다({@code -parameters} 컴파일 필요). 매핑할 때 모르는 JSON 속성은 무시합니다.</li>
+ * <li><b>프록시:</b> Hibernate·Spring AOP 프록시는 실제 객체로 씁니다(지연 로딩 엔티티는 초기화되므로 세션이 열려 있어야 함). Hibernate
+ * 바이트코드 강화로 추가된 필드는 제외합니다. 그 밖의 프록시, 람다, 숨은 클래스는 빈 프록시 필드로 쓰지 않고 예외를 던집니다.</li>
  * <li><b>오류:</b> 잘못된 입력에 {@code null}이나 일부만 만든 결과를 돌려주지 않습니다. 순환 참조, NaN/Infinity
  * ({@link Feature#ALLOW_NON_NUMERIC_NUMBERS} 없이), 손실되는 숫자 변환(3.7 → {@code int}), 지원하지 않는 JDK 타입은 예외입니다.</li>
  * </ul>
@@ -422,9 +429,10 @@ public final class S2JsonUtil {
         }
 
         private void writeContainer(StringBuilder sb, Object value, int depth) {
+            value = unwrapProxy(value);
             Class<?> type = value.getClass();
             boolean known = value instanceof Map || value instanceof Collection || type.isArray() || type.isRecord();
-            if (!known && isJdkType(type)) {
+            if (!known && (isJdkType(type) || type.isHidden() || type.isSynthetic())) {
                 throw error("Unsupported type " + type.getName());
             }
             if (!visiting.add(value)) {
@@ -444,6 +452,54 @@ public final class S2JsonUtil {
                 }
             } finally {
                 visiting.remove(value);
+            }
+        }
+
+        /**
+         * Returns the real object behind a Hibernate or Spring AOP proxy. The proxy's own fields are empty (the state
+         * lives in the target) and hold interceptor internals, so writing it directly would produce wrong JSON.
+         * Unwrapping initializes a lazy Hibernate proxy, which needs an open session.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * Hibernate·Spring AOP 프록시 뒤의 실제 객체를 반환합니다. 프록시 자체의 필드는 비어 있고(상태는 대상 객체에 있음) 인터셉터
+         * 내부값을 담고 있어, 그대로 쓰면 틀린 JSON 이 나옵니다. 지연 로딩 Hibernate 프록시는 꺼낼 때 초기화되므로 세션이 열려 있어야 합니다.
+         */
+        private Object unwrapProxy(Object value) {
+            for (int i = 0; i < 4 && isProxy(value.getClass()); i++) {
+                Object target = invokeNoArg(value, "getHibernateLazyInitializer", "getImplementation");
+                if (target == null) {
+                    target = invokeNoArg(value, "getTargetSource", "getTarget");
+                }
+                if (target == null) {
+                    throw error("Cannot unwrap proxy " + value.getClass().getName()
+                            + " (supported: Hibernate and Spring AOP proxies); convert it to a DTO first");
+                }
+                value = target;
+            }
+            return value;
+        }
+
+        /** Calls {@code first()} then {@code second()} on its result; null when {@code first} does not exist. | first() 결과에 second() 호출. first 가 없으면 null */
+        private Object invokeNoArg(Object target, String first, String second) {
+            java.lang.reflect.Method method;
+            try {
+                method = target.getClass().getMethod(first);
+            } catch (NoSuchMethodException e) {
+                return null;
+            }
+            try {
+                method.setAccessible(true);
+                Object holder = method.invoke(target);
+                java.lang.reflect.Method next = holder.getClass().getMethod(second);
+                next.setAccessible(true);
+                return next.invoke(holder);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                throw new S2JsonException("Cannot initialize proxy " + target.getClass().getName() + " at " + pathOf(path)
+                        + " (a lazy entity needs an open session)", e.getCause());
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                throw new S2JsonException("Cannot unwrap proxy " + target.getClass().getName() + " at " + pathOf(path), e);
             }
         }
 
@@ -574,7 +630,7 @@ public final class S2JsonUtil {
                 case '\r' -> sb.append("\\r");
                 case '\t' -> sb.append("\\t");
                 default -> {
-                    if (c < 0x20 || c == ' ' || c == ' ') {
+                    if (c < 0x20 || c == '\u2028' || c == '\u2029') {
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
                         sb.append(c);
@@ -1235,9 +1291,16 @@ public final class S2JsonUtil {
         }
 
         private Object toPojo(Map<?, ?> node, Class<?> type, int depth) {
-            Object instance = instantiate(type);
+            Constructor<?> noArg = null;
+            try {
+                noArg = type.getDeclaredConstructor();
+            } catch (NoSuchMethodException e) {
+                // Immutable value object: create it through its constructor | 불변 VO: 생성자로 생성
+            }
+            Set<String> assigned = new java.util.HashSet<>();
+            Object instance = noArg != null ? instantiate(type) : construct(node, type, assigned, depth);
             for (Field field : propertyFields(type)) {
-                if (!node.containsKey(field.getName())) {
+                if (!node.containsKey(field.getName()) || assigned.contains(field.getName())) {
                     continue;
                 }
                 path.push("." + field.getName());
@@ -1250,6 +1313,64 @@ public final class S2JsonUtil {
                 path.pop();
             }
             return instance;
+        }
+
+        /**
+         * Creates an object without a no-arg constructor by matching JSON keys to constructor parameter names. Uses the
+         * only constructor, or else the one whose parameters are exactly the property fields. Parameter names require
+         * compiling with {@code -parameters} (on by default in Spring Boot and s2-build-support).
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 인자 없는 생성자가 없는 객체를 JSON 키와 생성자 파라미터 이름을 맞춰 만듭니다. 생성자가 하나면 그것을, 여럿이면 파라미터가 속성 필드와
+         * 정확히 같은 생성자를 씁니다. 파라미터 이름은 {@code -parameters}로 컴파일해야 알 수 있습니다(Spring Boot, s2-build-support 기본값).
+         */
+        private Object construct(Map<?, ?> node, Class<?> type, Set<String> assigned, int depth) {
+            Constructor<?> constructor = selectConstructor(type);
+            java.lang.reflect.Parameter[] params = constructor.getParameters();
+            Object[] args = new Object[params.length];
+            for (int i = 0; i < params.length; i++) {
+                if (!params[i].isNamePresent()) {
+                    throw error(type.getName() + " has no no-arg constructor and its constructor parameter names are not "
+                            + "available; compile with -parameters, add a no-arg constructor, or use a record");
+                }
+                String name = params[i].getName();
+                path.push("." + name);
+                args[i] = node.containsKey(name) ? convert(node.get(name), params[i].getParameterizedType(), depth + 1)
+                        : defaultValue(params[i].getType());
+                path.pop();
+                assigned.add(name);
+            }
+            try {
+                constructor.setAccessible(true);
+                return constructor.newInstance(args);
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite ? ite.getCause() : e;
+                throw new S2JsonException("Cannot create " + type.getName() + " at " + pathOf(path), cause);
+            }
+        }
+
+        private Constructor<?> selectConstructor(Class<?> type) {
+            List<Constructor<?>> candidates = new ArrayList<>();
+            for (Constructor<?> c : type.getDeclaredConstructors()) {
+                if (!c.isSynthetic()) {
+                    candidates.add(c);
+                }
+            }
+            if (candidates.size() == 1) {
+                return candidates.get(0);
+            }
+            List<String> fieldNames = propertyFields(type).stream().map(Field::getName).toList();
+            for (Constructor<?> c : candidates) {
+                List<String> paramNames = java.util.Arrays.stream(c.getParameters())
+                        .map(p -> p.isNamePresent() ? p.getName() : "").toList();
+                if (paramNames.equals(fieldNames)) {
+                    return c;
+                }
+            }
+            throw error(type.getName() + " has no no-arg constructor and several constructors; add a no-arg constructor "
+                    + "or one whose parameters are all fields in declaration order");
         }
 
         private Object instantiate(Class<?> type) {
@@ -1292,7 +1413,9 @@ public final class S2JsonUtil {
         for (Class<?> c : hierarchy) {
             for (Field field : c.getDeclaredFields()) {
                 int mod = field.getModifiers();
-                if (Modifier.isStatic(mod) || Modifier.isTransient(mod) || field.isSynthetic()) {
+                // $$_hibernate_* fields are added by Hibernate bytecode enhancement, not entity state | $$_hibernate_* 필드는 Hibernate 바이트코드 강화가 추가한 것으로 엔티티 상태가 아님
+                if (Modifier.isStatic(mod) || Modifier.isTransient(mod) || field.isSynthetic()
+                        || field.getName().startsWith("$$_hibernate_")) {
                     continue;
                 }
                 try {
@@ -1311,6 +1434,12 @@ public final class S2JsonUtil {
         String name = type.getName();
         return name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("jdk.") || name.startsWith("sun.")
                 || name.startsWith("com.sun.");
+    }
+
+    /** Proxy class per the s2-core convention ({@link io.github.devers2.s2util.core.S2Cache#getRealClass(Object)}), excluding lambdas | s2-core 규칙상 프록시 클래스 (람다 제외) */
+    private static boolean isProxy(Class<?> type) {
+        String name = type.getName();
+        return !type.isHidden() && (name.contains("$$") || name.contains("CGLIB") || name.contains("HibernateProxy"));
     }
 
     private static boolean isJavaTime(Class<?> type) {

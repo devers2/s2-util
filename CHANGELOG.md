@@ -102,7 +102,8 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
   with relaxed syntax through `Feature`. Trailing content, deep nesting (512) and malformed numbers are rejected with the
   position; unsupported types, circular references, NaN and lossy number conversions throw (never `null` or broken JSON).
   The supported types are listed in the class Javadoc; use Jackson for anything beyond them. Replaces the class of the same
-  name in `s2-support`.
+  name in `s2-support`. Immutable value objects without a no-arg constructor are created through their constructor by
+  parameter name, and Hibernate/Spring AOP proxies are written from their real object (never from their empty proxy fields).
 - `S2Validator.fromJson(json)`: builds a validator from rules JSON (the `getRulesJson()` shape plus the definition keys
   `messages` and `key`), so rules can live in a database or configuration and change without a redeploy. Unknown keys,
   rule types or operators, bad criteria and unsupported `schemaVersion` fail with `IllegalArgumentException` naming the
