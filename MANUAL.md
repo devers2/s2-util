@@ -13,6 +13,7 @@
    - [1-1. Dependencies & Components](#1-1-dependencies--components)
    - [1-2. S2Validator Static Analysis Plugin & Dead Code Detection](#1-2-s2validator-static-analysis-plugin--dead-code-detection-)
    - [1-3. Global Configuration (ResourceBundle)](#1-3-global-configuration-resourcebundle---optional)
+   - [1-4. Spring Boot Auto-Configuration](#1-4-spring-boot-auto-configuration---optional)
 2. [S2Validator: Strategic Validation Patterns](#2-s2validator-strategic-validation-patterns)
    - [A. Pattern: Immediate Mode](#a-pattern-immediate-mode)
    - [B. Pattern: Blueprint Mode](#b-pattern-blueprint-mode)
@@ -151,6 +152,31 @@ S2BindValidator.setValidationBundle("messages");
 // messages.properties -> err.required={0|is/are} required.
 .field("id", "User ID").rule(S2RuleType.REQUIRED, null, "err.required")
 ```
+
+---
+
+### 1-4. Spring Boot Auto-Configuration - [Optional]
+
+In a Spring Boot application, adding s2-validator as a dependency is enough; there is no separate starter. Without Spring this configuration is never loaded and the validator works as before (Spring Boot is a compile-only dependency and does not appear in the published POM).
+
+```yaml
+s2:
+  validator:
+    bundle: messages/validation   # validation message bundle (optional)
+    default-locale: ko            # fallback language for messages (optional, JVM locale by default)
+    use-message-source: true      # look message keys up in Spring's MessageSource first (default true)
+    enabled: true                 # false turns the auto-configuration off
+```
+
+- **Messages:** message keys (built-in keys such as `valid.err.required`, and keys given with `.rule(type, value, key)`) are looked up in Spring's `MessageSource` first, so defining them in `messages.properties` (`spring.messages.basename`) overrides validation messages. Templates may use josa tokens such as `{0|은/는}`.
+  ```properties
+  # messages_ko.properties
+  valid.err.required={0|을/를} 꼭 입력하세요.
+  ```
+- **Request language:** `S2BindValidator` reads `LocaleContextHolder`, so it follows Spring MVC's `LocaleResolver` (Accept-Language, cookie, session).
+- Lookup order: `MessageSource` → `bundle` → message set on the rule → built-in message.
+- The settings are the validator's global settings; they apply when the context starts and are reset when it closes.
+- To use another source (a database, for example) without Spring Boot, plug it in with `S2Validator.setMessageResolver((key, locale) -> …)`.
 
 ---
 
@@ -863,6 +889,7 @@ dependencies {
     // Essential runtime dependencies for optional functionalities
     implementation 'com.github.ben-manes.caffeine:caffeine:3.3.0'
     implementation 'org.springframework:spring-context:6.2.19'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```

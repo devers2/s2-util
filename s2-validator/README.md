@@ -653,6 +653,7 @@ s2-validator Version: 2.0.0 (2026-09-30)
 dependencies {
     // Essential runtime dependencies for optional functionalities
     implementation 'org.springframework:spring-context:6.2.19'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
 }
 ```
 

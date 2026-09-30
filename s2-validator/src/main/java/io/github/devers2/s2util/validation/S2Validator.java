@@ -1111,7 +1111,7 @@ public class S2Validator<T> implements Serializable {
          * @return The formatted message | 완성된 메시지
          */
         private static String systemMessage(String key, String ko, String en, Locale locale, Object... args) {
-            String template = S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), key, locale)
+            String template = S2Validator.findMessage(key, locale)
                     .orElse(S2Util.isKorean(locale) ? ko : en);
             return io.github.devers2.s2util.core.S2StringUtil.formatMessage(template, args);
         }
@@ -1752,6 +1752,63 @@ public class S2Validator<T> implements Serializable {
         return S2Validator.validationBundle;
     }
 
+    /** Message source consulted before the validation bundle, or null | 검증 번들보다 먼저 조회하는 메시지 출처 (없으면 null) */
+    private static volatile S2MessageResolver messageResolver;
+
+    /**
+     * Sets a message source consulted before the validation bundle, such as Spring's {@code MessageSource} (the Spring
+     * Boot auto-configuration does this) or a database. {@code null} removes it.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검증 번들보다 먼저 조회할 메시지 출처를 설정합니다. 예: Spring 의 {@code MessageSource}(Spring Boot 자동 설정이 연결), DB.
+     * {@code null}이면 해제합니다.
+     *
+     * @param resolver The message resolver, or null | 메시지 조회기 (해제 시 null)
+     * @since 2.0.0
+     */
+    public static void setMessageResolver(S2MessageResolver resolver) {
+        S2Validator.messageResolver = resolver;
+    }
+
+    /**
+     * Removes the message resolver.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 메시지 조회기를 해제합니다.
+     *
+     * @since 2.0.0
+     */
+    public static void resetMessageResolver() {
+        S2Validator.messageResolver = null;
+    }
+
+    /**
+     * Looks a message key up in the message resolver, then in the validation bundle.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 메시지 키를 메시지 조회기에서, 없으면 검증 번들에서 찾습니다.
+     *
+     * @param key    The message key | 메시지 키
+     * @param locale The locale | 로케일
+     * @return The template, or empty | 템플릿, 없으면 빈 값
+     */
+    static java.util.Optional<String> findMessage(String key, Locale locale) {
+        S2MessageResolver resolver = S2Validator.messageResolver;
+        if (resolver != null && key != null && !key.isBlank()) {
+            java.util.Optional<String> found = resolver.resolve(key, locale);
+            if (found != null && found.isPresent()) {
+                return found;
+            }
+        }
+        return S2ResourceBundle.getMessage(S2Validator.getValidationBundle(), key, locale);
+    }
+
     /**
      * 검증 시스템의 기본 로케일을 설정한다.
      * <p>
@@ -1822,7 +1879,7 @@ public class S2Validator<T> implements Serializable {
     /**
      * Resets all global validation configurations.
      * <p>
-     * Clears the default locale, validation bundle, and resource bundle basename.
+     * Clears the default locale, validation bundle, message resolver, and resource bundle basename.
      * Intended primarily for test teardown (e.g. {@code @AfterEach}).
      * </p>
      *
@@ -1831,13 +1888,14 @@ public class S2Validator<T> implements Serializable {
      * </p>
      * 모든 전역 검증 설정을 일괄 초기화합니다.
      * <p>
-     * 기본 로케일, 검증 번들, 리소스 번들 기본 이름을 한 번에 초기화합니다.
+     * 기본 로케일, 검증 번들, 메시지 조회기, 리소스 번들 기본 이름을 한 번에 초기화합니다.
      * 주로 단위 테스트의 {@code @AfterEach} 정리 작업에 사용됩니다.
      * </p>
      */
     public static void resetAll() {
         resetDefaultLocale();
         resetValidationBundle();
+        resetMessageResolver();
         S2ResourceBundle.resetDefaultBasename();
     }
 

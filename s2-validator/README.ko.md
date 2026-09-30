@@ -653,6 +653,7 @@ s2-validator Version: 2.0.0 (2026-09-30)
 dependencies {
     // 선택적 기능을 위한 필수 런타임 의존성
     implementation 'org.springframework:spring-context:6.2.19'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
 }
 ```
 
