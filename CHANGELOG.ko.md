@@ -133,6 +133,8 @@
 - 공용 실행기가 종료된 뒤 다시 만들어집니다.
 - `S2ValidationError`가 `errorArgs` 배열을 참조가 아닌 내용으로 비교합니다(`equals`/`hashCode`/`toString`). 같은 오류가 서로 다르다고
   판정되거나 `Set`에서 중복 제거되지 않던 문제를 고쳤습니다.
+- jar 의 라이선스 파일: `s2-jpa`가 Jakarta Persistence 용 `LICENSE-EPL-2.0`, `LICENSE-EDL-1.0`을 함께 담으며(NOTICE 에 두 라이선스 명시),
+  `s2-validator`는 없는 라이선스 파일을 목록에서 뺐고 NOTICE 에 Spring Boot 를 추가했습니다.
 
 ### 업그레이드 안내
 
