@@ -47,6 +47,7 @@
    - **S2Cache**: 패턴 기반 제거 정책을 갖춘 고급 캐싱
    - **S2ThreadUtil**: 버전 인식 최적화가 적용된 스레드 및 실행기 관리
    - **S2StringUtil**: 문자 치환, 검증, 인코딩을 지원하는 문자열 조작; 정규식 패턴 캐싱으로 컴파일 오버헤드 감소
+   - **S2JsonUtil**: 의존성 없는 경량 JSON 생성, 엄격한 파싱, record/POJO 매핑 (지원 타입 밖의 기능은 Jackson 사용)
    - **S2DateUtil**: 날짜/시간 파싱, 포맷팅, 타임존 처리
 
 6. **다단계 접근 모드**
@@ -65,7 +66,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.2.0'
+    implementation 'io.github.devers2:s2-core:2.0.0'
 }
 ```
 
@@ -75,7 +76,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-core</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -138,7 +139,7 @@ ExecutorService executor = S2ThreadUtil.getCommonExecutor();
 
 ---
 
-s2-core Version: 1.2.0 (2026-09-22)
+s2-core Version: 2.0.0 (2026-09-30)
 
 [//]: # 'S2_DEPS_INFO_START'
 

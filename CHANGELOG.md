@@ -4,16 +4,16 @@
 
 All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-validator-plugin` are recorded here.
 
-## [1.2.0] - Unreleased
+## [2.0.0] - Unreleased
 
-Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade notes](#upgrade-notes) before upgrading.
+Compared with 1.1.8. This is a **major release** that does not keep backward compatibility and contains behavior changes; read [Upgrade notes](#upgrade-notes) before upgrading.
 
 ### ⚠️ Compatibility
 
-- **`s2-support` 1.1.x is not compatible with `s2-core` 1.2.0.** `S2AutoConfiguration` in `s2-support` 1.1.3 calls the removed
+- **`s2-support` 1.x is not compatible with `s2-core` 2.0.0.** `S2AutoConfiguration` in `s2-support` 1.1.3 calls the removed
   `S2LogManager.touch()`, so a Spring Boot application fails at startup with
-  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`. Upgrade `s2-support` to the version released
-  together with `s2-core` 1.2.0.
+  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`. Upgrade `s2-support` to 2.0.0. `S2JsonUtil`
+  was removed from `s2-support`; use `io.github.devers2.s2util.json.S2JsonUtil` in `s2-core`.
 - **Removed public API** (compared with the 1.1.8 artifacts):
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (the warning banner and its thread were removed)
@@ -97,6 +97,16 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 
 ### Added
 
+- `s2-core`: dependency-free lightweight JSON utility `io.github.devers2.s2util.json.S2JsonUtil` (`toJson`, `parse`,
+  `parseObject`, `parseArray`, `fromJson`, `fromJsonList`, `convert`) and `S2JsonException`. Strict standard JSON by default,
+  with relaxed syntax through `Feature`. Trailing content, deep nesting (512) and malformed numbers are rejected with the
+  position; unsupported types, circular references, NaN and lossy number conversions throw (never `null` or broken JSON).
+  The supported types are listed in the class Javadoc; use Jackson for anything beyond them. Replaces the class of the same
+  name in `s2-support`.
+- `S2Validator.fromJson(json)`: builds a validator from rules JSON (the `getRulesJson()` shape plus the definition keys
+  `messages` and `key`), so rules can live in a database or configuration and change without a redeploy. Unknown keys,
+  rule types or operators, bad criteria and unsupported `schemaVersion` fail with `IllegalArgumentException` naming the
+  JSON path.
 - Condition operators `S2Operator`: `when(field, operator, value)` / `and(...)` support `NE`, `GT`/`GTE`/`LT`/`LTE` (numeric),
   `IN`/`NOT_IN` and `EMPTY`/`NOT_EMPTY`, judged the same on the server and in the browser. `when(field, value)` stays
   equality (`EQ`). Conditions in the rules JSON carry `"op"` only when it is not `EQ`.
@@ -156,7 +166,7 @@ Compared with 1.1.8. This release contains **behavior changes**; read [Upgrade n
 8. Swap the arguments of `.message(Locale, "…")` to `.message("…", Locale)`.
 9. If your server code or scripts parse the rules JSON directly, read the `fields` array instead of a top-level array.
 
-## s2-validator-plugin [1.2.0] - Unreleased
+## s2-validator-plugin [2.0.0] - Unreleased
 
 - **Configuration cache**: `checkS2Validators` no longer calls `getProject()` at execution time and works with
   `--configuration-cache`.

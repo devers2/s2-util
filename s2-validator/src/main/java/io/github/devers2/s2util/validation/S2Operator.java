@@ -55,7 +55,7 @@ package io.github.devers2.s2util.validation;
  * </ul>
  *
  * @author devers2
- * @since 1.2.0
+ * @since 2.0.0
  */
 public enum S2Operator {
     /** Equal | 같음 */

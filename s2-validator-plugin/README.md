@@ -89,7 +89,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.2.0'
+    id 'io.github.devers2.validator' version '2.0.0'
 }
 ```
 
@@ -119,4 +119,4 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator-plugin Version: 1.2.0 (unreleased)
+s2-validator-plugin Version: 2.0.0 (unreleased)

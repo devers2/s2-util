@@ -76,7 +76,7 @@ public class GlobalStateTest {
     }
 
     @Test
-    @DisplayName("전역 등록부와 S2ValidatorFactory 는 1.2.0 에서 삭제되었다 (S2BindValidator.bind, S2Validator.getRulesJson 만 제공)")
+    @DisplayName("전역 등록부와 S2ValidatorFactory 는 2.0.0 에서 삭제되었다 (S2BindValidator.bind, S2Validator.getRulesJson 만 제공)")
     void testRegistryApiIsRemoved() {
         Assertions.assertThrows(ClassNotFoundException.class,
                 () -> Class.forName("io.github.devers2.s2util.validation.S2ValidatorFactory"));

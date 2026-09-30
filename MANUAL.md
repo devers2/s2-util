@@ -29,6 +29,7 @@
    - [5-1. Object Graph Navigation (Dot, Bracket, Wildcard)](#5-1-object-graph-navigation-dot-bracket-wildcard)
    - [5-2. Recursive & Compositional Validation (EACH, NESTED)](#5-2-recursive--compositional-validation-each-nested)
    - [5-3. Custom Logic: Predicate & BiPredicate (Server-Only)](#5-3-custom-logic-predicate--bipredicate-server-only)
+   - [5-4. Building a Validator from Rules JSON (fromJson)](#5-4-building-a-validator-from-rules-json-fromjson)
 6. [Unified Integration: Server-Client Synchronization](#6-unified-integration-server-client-synchronization)
    - [6-1. End-to-End Implementation Example](#6-1-end-to-end-implementation-example)
    - [6-2. Technical Architecture (s2.validator.js)](#6-2-technical-architecture-s2validatorjs)
@@ -44,6 +45,7 @@
    - [9-2. Intelligent Dual-Mode Caching (S2Cache)](#9-2-intelligent-dual-mode-caching-s2cache)
    - [9-3. Version-Adaptive Threading (S2ThreadUtil)](#9-3-version-adaptive-threading-s2threadutil)
    - [9-4. Optimized String Utilities (S2StringUtil)](#9-4-optimized-string-utilities-s2stringutil)
+   - [9-5. Lightweight JSON (S2JsonUtil)](#9-5-lightweight-json-s2jsonutil)
 
 ---
 
@@ -59,7 +61,7 @@ Add a single dependency to access all modules (`s2-core`, `s2-validator`, and `s
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:1.2.0'
+    implementation 'io.github.devers2:s2-util:2.0.0'
 }
 ```
 
@@ -69,7 +71,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -90,13 +92,13 @@ For minimal footprint, declare only the specific sub-modules your application re
 ```groovy
 dependencies {
     // 1. Validation only
-    implementation 'io.github.devers2:s2-validator:1.2.0'
+    implementation 'io.github.devers2:s2-validator:2.0.0'
 
     // 2. JPA dynamic queries only
-    implementation 'io.github.devers2:s2-jpa:1.2.0'
+    implementation 'io.github.devers2:s2-jpa:2.0.0'
 
     // 3. Core utilities & copier only (lightest)
-    implementation 'io.github.devers2:s2-core:1.2.0'
+    implementation 'io.github.devers2:s2-core:2.0.0'
 }
 ```
 
@@ -127,7 +129,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '1.2.0'
+    id 'io.github.devers2.validator' version '2.0.0'
 }
 ```
 
@@ -537,6 +539,36 @@ Inject custom business lambdas when built-in rule types are not sufficient:
 > If a rule must be enforced on both client and server, use [`S2RuleType.REGEX`](#3-1-30-built-in-rules-s2ruletype) or built-in rules.
 > When `getRulesJson()` meets such a rule, it logs an `INFO` notice once per definition site (not per request) so this is visible during development.
 
+### 5-4. Building a Validator from Rules JSON (`fromJson`)
+
+Use it to keep rules in a database or configuration and change them without a redeploy. It reads the shape `getRulesJson()` writes, plus the definition keys `messages` and `key`.
+
+```java
+String json = ruleRepository.findJson("signup");   // e.g. rules stored in a database
+S2Validator<SignupCommand> validator = S2Validator.fromJson(json);
+S2BindValidator.bind(validator).validate(command, bindingResult);   // same as a validator built in code
+```
+
+```json
+{"schemaVersion": 1, "fields": [
+  {"name": "memo", "label": "Memo",
+   "rules": [{"type": "MAX_LENGTH", "value": 500,
+              "messages": {"ko": "{0|은/는} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
+   "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
+  {"name": "items", "label": "Items",
+   "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "label": "Qty", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
+]}
+```
+
+| Level | Keys |
+|---|---|
+| Field | `name` (required), `label`, `rules`, `conditions`. Without rules it is a required check |
+| Rule | `type` (required, `S2RuleType` name), `value` (criterion; the pattern for `REGEX`), `message` (any language), `messages` (language tag → template), `key` (bundle key), `nestedRules` (`NESTED`/`EACH`) |
+| Condition | `field`, `op` (`S2Operator` name, default `EQ`), `value`. The outer array is OR, each inner array is AND |
+
+- **Strict:** unknown keys (a `mesage` typo), unknown rule types or operators, criteria that do not fit and an unsupported `schemaVersion` fail with `IllegalArgumentException`; the message names the path (`$.fields[2].rules[0].type`). JSON syntax errors are `S2JsonException`.
+- Custom lambda rules are code and cannot be defined in JSON.
+
 ---
 
 ## 6. Unified Integration: Server-Client Synchronization
@@ -784,6 +816,23 @@ S2Util.setValue(user, "address.city", "Seoul");
 - **Sanitization**: `S2StringUtil.sanitizeInput()` strips control characters.
 - **Korean Particles**: `S2StringUtil.appendJosa()` programmatically appends proper Korean grammar particles.
 
+### 9-5. Lightweight JSON (`S2JsonUtil`)
+
+Writes and reads JSON and maps it to and from plain Java types without external dependencies. It is deliberately small; use Jackson for annotations, polymorphism or custom serializers.
+
+```java
+String json = S2JsonUtil.toJson(order);                          // records, POJOs, maps, lists, java.time ...
+Order order = S2JsonUtil.fromJson(json, Order.class);            // canonical constructor for records, no-arg for POJOs
+List<Item> items = S2JsonUtil.fromJsonList(arrayJson, Item.class);
+Map<String, Object> tree = S2JsonUtil.parseObject(json);         // Map / List / String / Long / Double / Boolean
+Object relaxed = S2JsonUtil.parse(text, Feature.ALLOW_JAVA_COMMENTS, Feature.ALLOW_TRAILING_COMMA);
+```
+
+- **Strict standard JSON by default.** Comments, single quotes, trailing commas and so on are enabled through `Feature`.
+- **Failures are always `S2JsonException`**, never `null` or broken JSON; parse errors carry the character position and mapping errors the path (`$.items[1].qty`).
+- Trailing content, nesting deeper than 512, circular references, NaN/Infinity (without `ALLOW_NON_NUMERIC_NUMBERS`), lossy number conversions (3.7 → `int`) and unsupported JDK types are rejected.
+- The supported types (strings, numbers, booleans, enums, `java.time`, `Date`, `UUID`, `URI`, `Locale`, `Optional`, arrays, collections, maps, records, POJOs) are listed in the class Javadoc. Unknown JSON properties are ignored when mapping.
+
 ---
 
 [//]: # 'S2_DEPS_INFO_START'
@@ -805,4 +854,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 1.2.0 (2026-09-22)
+s2-util Version: 2.0.0 (2026-09-30)

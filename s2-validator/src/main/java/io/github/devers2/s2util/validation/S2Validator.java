@@ -1553,6 +1553,62 @@ public class S2Validator<T> implements Serializable {
     }
 
     /**
+     * Builds a validator from rules JSON, so rules can be kept in a database or configuration and changed without a
+     * redeploy. It reads the same shape {@link #getRulesJson()} writes, plus definition-only keys.
+     *
+     * <pre>{@code
+     * {"schemaVersion": 1, "fields": [
+     *   {"name": "memo", "label": "메모",
+     *    "rules": [{"type": "MAX_LENGTH", "value": 500,
+     *               "messages": {"ko": "{0|은/는} 500자 이하", "en": "{0} must be at most 500 characters"}}],
+     *    "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
+     *   {"name": "items", "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
+     * ]}
+     * }</pre>
+     * <ul>
+     * <li><b>Field:</b> {@code name} (required), {@code label}, {@code rules}, {@code conditions}. A field without rules
+     * is a required check, as with {@link S2FieldStep.BaseStep#field(Object, String)}.</li>
+     * <li><b>Rule:</b> {@code type} ({@link S2RuleType} name, required), {@code value} (criterion; the pattern for
+     * {@code REGEX}), {@code message} (template for any language), {@code messages} (language tag → template),
+     * {@code key} (message bundle key), {@code nestedRules} (fields of a NESTED/EACH sub-validator). {@code regex} is
+     * accepted and ignored, so exported JSON can be read back.</li>
+     * <li><b>Condition:</b> {@code field}, {@code op} ({@link S2Operator} name, default {@code EQ}), {@code value}. The
+     * outer array is OR, each inner array is AND.</li>
+     * <li>Custom lambda rules cannot be defined in JSON (they are code).</li>
+     * </ul>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 규칙 JSON 으로 검증기를 만듭니다. 규칙을 DB 나 설정에 두고 재배포 없이 바꿀 수 있습니다. {@link #getRulesJson()}이 쓰는 형식과 같은
+     * 모양에 정의용 키를 더해 읽습니다.
+     * <ul>
+     * <li><b>필드:</b> {@code name}(필수), {@code label}, {@code rules}, {@code conditions}. 규칙 없는 필드는
+     * {@link S2FieldStep.BaseStep#field(Object, String)}처럼 필수 검증입니다.</li>
+     * <li><b>규칙:</b> {@code type}({@link S2RuleType} 이름, 필수), {@code value}(기준값, {@code REGEX}는 패턴), {@code message}(모든
+     * 언어용 템플릿), {@code messages}(언어 태그 → 템플릿), {@code key}(메시지 번들 키), {@code nestedRules}(NESTED/EACH 하위 검증기의
+     * 필드). 내보낸 JSON 을 다시 읽을 수 있도록 {@code regex}는 받되 무시합니다.</li>
+     * <li><b>조건:</b> {@code field}, {@code op}({@link S2Operator} 이름, 기본 {@code EQ}), {@code value}. 바깥 배열은 OR, 안쪽 배열은
+     * AND 입니다.</li>
+     * <li>커스텀 람다 규칙은 코드이므로 JSON 으로 정의할 수 없습니다.</li>
+     * </ul>
+     *
+     * @param <T>  The target type | 대상 타입
+     * @param json Rules JSON | 규칙 JSON
+     * @return A new validator | 새 검증기
+     * @throws io.github.devers2.s2util.json.S2JsonException If the text is not valid JSON | 올바른 JSON 이 아닌 경우
+     * @throws IllegalArgumentException                      If the rules are invalid (unknown key, rule type or operator,
+     *                                                       unsupported {@code schemaVersion}, bad criterion); the
+     *                                                       message names the JSON path | 규칙이 잘못된 경우 (모르는 키·규칙
+     *                                                       타입·연산자, 지원하지 않는 {@code schemaVersion}, 잘못된 기준값).
+     *                                                       메시지에 JSON 경로 포함
+     * @since 2.0.0
+     */
+    public static <T> S2Validator<T> fromJson(String json) {
+        return S2RulesJsonReader.read(json);
+    }
+
+    /**
      * Exports this validator's rules as JSON for the browser validator ({@code s2.validator.js}) using the default
      * locale ({@link #setDefaultLocale(Locale)}).
      *
@@ -1580,7 +1636,7 @@ public class S2Validator<T> implements Serializable {
      * </p>
      * <p>
      * Format: {@code {"schemaVersion":1,"fields":[...]}}. {@code s2.validator.js} warns when the version is newer than
-     * it supports (a server and browser script from different releases) and also accepts the pre-1.2.0 bare array.
+     * it supports (a server and browser script from different releases) and also accepts the pre-2.0.0 bare array.
      * </p>
      *
      * <p>
@@ -1593,7 +1649,7 @@ public class S2Validator<T> implements Serializable {
      * </p>
      * <p>
      * 형식: {@code {"schemaVersion":1,"fields":[...]}}. {@code s2.validator.js}는 지원하는 것보다 높은 버전(서버와 브라우저 스크립트의
-     * 릴리스가 다름)이면 경고하며, 1.2.0 이전의 배열 형식도 받습니다.
+     * 릴리스가 다름)이면 경고하며, 2.0.0 이전의 배열 형식도 받습니다.
      * </p>
      *
      * @param locale The locale for error messages (null means the default locale) | 오류 메시지 로케일 (null 이면 기본 로케일)

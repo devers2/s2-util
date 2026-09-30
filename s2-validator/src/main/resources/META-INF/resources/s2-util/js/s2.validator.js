@@ -1666,7 +1666,7 @@ const SCHEMA_VERSION = 1;
 const warnedSchemaVersions = new Set();
 
 /**
- * Returns the field rules array from parsed rules JSON: {@code {schemaVersion, fields}} or the pre-1.2.0 bare array.
+ * Returns the field rules array from parsed rules JSON: {@code {schemaVersion, fields}} or the pre-2.0.0 bare array.
  * <p>
  * A newer {@code schemaVersion} means the server and this script come from different releases; it is logged once and
  * the rules are still applied as far as they are understood (the server validates on submit regardless).
@@ -1675,7 +1675,7 @@ const warnedSchemaVersions = new Set();
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 파싱한 규칙 JSON 에서 필드 규칙 배열을 꺼냅니다. {@code {schemaVersion, fields}} 형식과 1.2.0 이전의 배열 형식을 모두 받습니다.
+ * 파싱한 규칙 JSON 에서 필드 규칙 배열을 꺼냅니다. {@code {schemaVersion, fields}} 형식과 2.0.0 이전의 배열 형식을 모두 받습니다.
  * <p>
  * 더 높은 {@code schemaVersion}은 서버와 이 스크립트의 릴리스가 다르다는 뜻이며, 한 번 기록하고 이해하는 범위에서 규칙을 적용합니다
  * (제출 시 서버 검증은 그대로 수행됨).

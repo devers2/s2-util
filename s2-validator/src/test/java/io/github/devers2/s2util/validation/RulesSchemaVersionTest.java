@@ -17,13 +17,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * The rules JSON carries {@code schemaVersion}; s2.validator.js reads it, still accepts the pre-1.2.0 bare array, and
+ * The rules JSON carries {@code schemaVersion}; s2.validator.js reads it, still accepts the pre-2.0.0 bare array, and
  * warns once about a newer version.
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 규칙 JSON 이 {@code schemaVersion}을 담고, s2.validator.js 가 이를 읽으며 1.2.0 이전 배열 형식도 받고, 더 높은 버전은 한 번 경고하는지
+ * 규칙 JSON 이 {@code schemaVersion}을 담고, s2.validator.js 가 이를 읽으며 2.0.0 이전 배열 형식도 받고, 더 높은 버전은 한 번 경고하는지
  * 확인합니다.
  */
 public class RulesSchemaVersionTest {
@@ -92,7 +92,7 @@ public class RulesSchemaVersionTest {
         String current = rulesJson();
         String legacy = current.substring(current.indexOf('['), current.lastIndexOf(']') + 1);
         Assertions.assertTrue(validate(current).hasMember("name"), "current format");
-        Assertions.assertTrue(validate(legacy).hasMember("name"), "pre-1.2.0 bare array");
+        Assertions.assertTrue(validate(legacy).hasMember("name"), "pre-2.0.0 bare array");
     }
 
     @Test

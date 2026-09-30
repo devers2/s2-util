@@ -47,6 +47,7 @@ The **s2-core** module is the foundational library of the `s2-util` project, pro
    - **S2Cache**: Advanced caching with pattern-based eviction policies
    - **S2ThreadUtil**: Thread and executor management with version-aware optimization
    - **S2StringUtil**: String manipulation with character replacement, validation, encoding; Pattern caching for regex operations reduces compilation overhead
+   - **S2JsonUtil**: Lightweight, dependency-free JSON writing, strict parsing and mapping to records/POJOs (use Jackson for anything beyond the supported types)
    - **S2DateUtil**: Date/time parsing, formatting, timezone handling
 
 6. **Multi-Level Access Modes**
@@ -65,7 +66,7 @@ Add the following dependency to your `build.gradle` or `pom.xml`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:1.2.0'
+    implementation 'io.github.devers2:s2-core:2.0.0'
 }
 ```
 
@@ -75,7 +76,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-core</artifactId>
-    <version>1.2.0</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -138,7 +139,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-core Version: 1.2.0 (2026-09-22)
+s2-core Version: 2.0.0 (2026-09-30)
 
 [//]: # 'S2_DEPS_INFO_START'
 

@@ -2,7 +2,7 @@
 # Plugin Versions
 s2-build-support = "0.2.5"
 shadow = "9.6.1"
-s2-validator-plugin = "1.2.0"
+s2-validator-plugin = "2.0.0"
 
 
 # Java / Core
