@@ -108,7 +108,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 - `S2Validator.fromJson(json)`: builds a validator from rules JSON (the `getRulesJson()` shape plus the definition keys
   `messages` and `key`), so rules can live in a database or configuration and change without a redeploy. Unknown keys,
   rule types or operators, bad criteria and unsupported `schemaVersion` fail with `IllegalArgumentException` naming the
-  JSON path.
+  JSON path. Hand-written rule files can use JSON5 with `fromJson(json, Feature.JSON5)`.
 - Condition operators `S2Operator`: `when(field, operator, value)` / `and(...)` support `NE`, `GT`/`GTE`/`LT`/`LTE` (numeric),
   `IN`/`NOT_IN` and `EMPTY`/`NOT_EMPTY`, judged the same on the server and in the browser. `when(field, value)` stays
   equality (`EQ`). Conditions in the rules JSON carry `"op"` only when it is not `EQ`.

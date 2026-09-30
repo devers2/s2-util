@@ -111,6 +111,32 @@ public class FromJsonTest {
         Assertions.assertFalse(v.validate(input("items", List.of(Map.of("qty", 0))), e -> {}));
     }
 
+    @Test
+    void handWrittenJson5RulesBuildTheSameValidator() {
+        String json5 = """
+                {
+                  schemaVersion: 1,
+                  fields: [
+                    // 메모: 유형이 A/B 일 때 필수, 최대 3자
+                    { name: 'memo', label: '메모',
+                      rules: [{ type: 'REQUIRED' }, { type: 'MAX_LENGTH', value: 0x3 }],
+                      conditions: [[{ field: 'type', op: 'IN', value: ['A', 'B',] }]], },
+                  ],
+                }""";
+        String standard = """
+                {"schemaVersion": 1, "fields": [
+                  {"name": "memo", "label": "메모",
+                   "rules": [{"type": "REQUIRED"}, {"type": "MAX_LENGTH", "value": 3}],
+                   "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]}
+                ]}""";
+        S2Validator<Map<String, Object>> fromJson5 = S2Validator.fromJson(json5, io.github.devers2.s2util.json.S2JsonUtil.Feature.JSON5);
+        S2Validator<Map<String, Object>> fromStandard = S2Validator.fromJson(standard);
+        Assertions.assertEquals(fromStandard.getRulesJson(Locale.KOREAN), fromJson5.getRulesJson(Locale.KOREAN));
+        Assertions.assertFalse(fromJson5.validate(input("type", "A", "memo", "abcd"), e -> {}));
+        Assertions.assertTrue(fromJson5.validate(input("type", "C"), e -> {}));
+        Assertions.assertThrows(S2JsonException.class, () -> S2Validator.fromJson(json5), "standard JSON stays the default");
+    }
+
     @ParameterizedTest(name = "{0}")
     @CsvSource(delimiter = '|', value = {
             "typo in a key | {\"schemaVersion\":1,\"fields\":[{\"name\":\"a\",\"rules\":[{\"type\":\"REQUIRED\",\"mesage\":\"x\"}]}]} | $.fields[0].rules[0].mesage",
