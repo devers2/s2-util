@@ -37,4 +37,34 @@ jobs:
         run: |
           # Propagate the Gradle exit code through the pipe so tail's success does not hide build failures. | 파이프를 거쳐도 Gradle 종료코드를 전달하여 tail 의 성공이 빌드 실패를 가리지 않도록 함
           set -o pipefail
-          ./gradlew build --stacktrace 2>&1 | tail -150
+          # Keep the full output in build.log; the log view shows the last 150 lines | 전체 출력은 build.log 에 두고 로그 화면에는 마지막 150줄만 표시
+          ./gradlew build --stacktrace 2>&1 | tee build.log | tail -150
+      - name: Show failed tests
+        if: failure()
+        shell: bash
+        run: |
+          # The build output above is cut to its last 150 lines, so list failed tests from the JUnit XML reports (also as annotations on the run page) | 위 출력은 마지막 150줄만 남으므로 JUnit XML 에서 실패한 시험을 뽑아 출력 (실행 요약 화면에도 주석으로 표시)
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          failed = 0
+          for path in sorted(glob.glob("**/build/test-results/**/*.xml", recursive=True)):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for problem in case.findall("failure") + case.findall("error"):
+                      failed += 1
+                      name = f"{case.get('classname')} > {case.get('name')}"
+                      message = (problem.get("message") or "").replace("\n", " ")[:500]
+                      print(f"::error title=Failed test::{name}: {message}")
+                      print(f"===== {name}\n{(problem.text or '')[:4000]}")
+          print(f"{failed} failed test(s)" if failed else "No failed tests in the JUnit reports; the failure is outside the tests (see build.log).")
+          PY
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-java-${{ matrix.java }}
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+            build.log
+          retention-days: 7
+          if-no-files-found: ignore
