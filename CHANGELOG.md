@@ -192,6 +192,13 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
   before, the check was skipped with "DTO 소스를 찾을 수 없어 검증을 건너뜁니다". A DTO's fields are its own fields,
   record components and superclass fields only (before, the fields of every type in the file were mixed, so an outer
   class's field name passed).
+- **Paths**: `address.city`, `items[0].name`, `products[].price` and `byCode[A1].qty` are checked part by part,
+  following the declared types into nested objects and the elements of arrays, collections and map values, and
+  stopping where the sources cannot tell the type (`Map`, type variables, JDK types). Before, only the first part
+  (`address`, `items`) was checked, so a typo later in the path (`address.ctiy`) passed. An error names the missing
+  part and the class it was looked up in.
+- **Error lines**: in a chain written over several lines, field and criterion errors point at the line of the
+  `.field(...)` or `.rule(...)` call instead of the start of the chain.
 
 ## s2-validator-plugin [2.0.0] - 2026-10-02
 
