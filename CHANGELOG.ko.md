@@ -161,6 +161,13 @@
 8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
 9. 규칙 JSON 을 서버나 자체 스크립트에서 직접 파싱한다면 최상위 배열 대신 `fields` 배열을 읽으십시오.
 
+## s2-validator-plugin [Unreleased]
+
+- **중첩 DTO 검사**: 다른 타입 안에 선언한 DTO(컨트롤러 안의 `record Form`, static 중첩 클래스)도 검사합니다. 같은 파일의 `Form`,
+  `Join.Form`, `import ...Join.Form`, `S2Validator.of(form)` 모두 찾으며, 이전에는 "DTO 소스를 찾을 수 없어 검증을 건너뜁니다" 경고만
+  남겼습니다. DTO 필드는 그 타입 자신의 필드·레코드 컴포넌트·상위 클래스 필드만 모읍니다(이전에는 같은 파일의 모든 타입 필드를 섞어 바깥
+  클래스 필드명이 통과했습니다).
+
 ## s2-validator-plugin [2.0.0] - 2026-10-02
 
 - **Configuration cache**: `checkS2Validators`가 실행 시점에 `getProject()`를 호출하지 않아 `--configuration-cache`에서 동작합니다.
