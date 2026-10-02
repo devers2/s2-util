@@ -139,7 +139,7 @@ ExecutorService executor = S2ThreadUtil.getCommonExecutor();
 
 ---
 
-s2-core Version: 2.0.0 (2026-09-30)
+s2-core Version: 2.0.0 (2026-10-02)
 
 [//]: # 'S2_DEPS_INFO_START'
 

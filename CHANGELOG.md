@@ -4,7 +4,7 @@
 
 All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-validator-plugin` are recorded here.
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-10-02
 
 Compared with 1.1.8. This is a **major release** that does not keep backward compatibility and contains behavior changes; read [Upgrade notes](#upgrade-notes) before upgrading.
 

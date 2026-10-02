@@ -915,4 +915,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 2.0.0 (2026-09-30)
+s2-util Version: 2.0.0 (2026-10-02)
