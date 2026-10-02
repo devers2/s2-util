@@ -69,10 +69,12 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.UnknownType;
 import com.github.javaparser.ast.type.VarType;
+import com.github.javaparser.ast.type.WildcardType;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
@@ -143,8 +145,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      */
     private static final Set<String> TERMINAL_CALL_NAMES = Set.of("validate", "getRulesJson");
 
-    /** Field list cache per analyzed DTO class for performance enhancement | 분석된 DTO 클래스별 필드 목록 캐시 */
-    private final Map<String, Set<String>> fieldCache = new LinkedHashMap<>();
+    /** Fields (name to declared type) per analyzed DTO class | 분석한 DTO 클래스별 필드 (이름 → 선언 타입) 캐시 */
+    private final Map<String, Map<String, FieldRef>> fieldCache = new LinkedHashMap<>();
+
+    /** A field's declared type and the file it is declared in (to resolve the type name) | 필드의 선언 타입과 선언 파일 */
+    private record FieldRef(Type type, CompilationUnit cu) {
+    }
 
     /** List of DTOs for which analysis results have already been logged to prevent log overflow | 로그 오버플로우 방지를 위해 이미 분석 결과를 출력한 DTO 목록 */
     private final Set<String> loggedDTOs = new HashSet<>();
@@ -316,11 +322,18 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                     Path relativePath = projectDir.toPath().relativize(Path.of(file));
                     getLogger().error("");
                     getLogger().error("  📄 " + ANSI_BOLD + "{}" + ANSI_RESET, relativePath);
-                    errors.forEach(
-                            error -> getLogger().error(
-                                    "    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {}) 필드가 "
-                                            + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
-                                    error.lineNumber, error.fieldName, error.methodName, error.targetClass));
+                    errors.forEach(error -> {
+                        if (error.missingField.equals(error.fieldName)) {
+                            getLogger().error("    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {}) 필드가 "
+                                    + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
+                                    error.lineNumber, error.fieldName, error.methodName, error.targetClass);
+                        } else {
+                            // A later part of a path: name the part and the class it was looked up in | 경로 뒷부분: 그 부분과 찾은 클래스를 표시
+                            getLogger().error("    " + ANSI_YELLOW + "⚠️  Line {}:" + ANSI_RESET + " '{}' (메서드: {})의 '{}' 필드가 "
+                                    + ANSI_CYAN + "{}" + ANSI_RESET + "에 없습니다",
+                                    error.lineNumber, error.fieldName, error.methodName, error.missingField, error.targetClass);
+                        }
+                    });
                 });
                 getLogger().error("");
             }
@@ -491,15 +504,10 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                     }
 
                     String fieldName = ((StringLiteralExpr) fieldCall.getArguments().get(0)).getValue();
-                    String baseName = extractBaseName(fieldName);
-
-                    if (!validFieldNames.contains(baseName)) {
-                        errors.add(
-                                new ValidationError(
-                                        fieldName,
-                                        targetClassName,
-                                        fieldCall.getNameAsString(),
-                                        fieldCall.getBegin().map(pos -> pos.line).orElse(0)));
+                    ValidationError error = checkPath(fieldName, targetClassName, fieldCall.getNameAsString(),
+                            fieldCall.getName().getBegin().map(pos -> pos.line).orElse(0));
+                    if (error != null) {
+                        errors.add(error);
                     }
                 }
 
@@ -595,7 +603,8 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     private void analyzeCriteria(CompilationUnit cu, List<CriterionIssue> errors, List<CriterionIssue> warnings) {
         for (MethodCallExpr call : cu.findAll(MethodCallExpr.class)) {
             String name = call.getNameAsString();
-            int line = call.getBegin().map(pos -> pos.line).orElse(0);
+            // The line of the call itself, not of the chain it continues | 이어지는 체인의 시작이 아닌 그 호출의 줄
+            int line = call.getName().getBegin().map(pos -> pos.line).orElse(0);
             if ("rule".equals(name) && !call.getArguments().isEmpty()) {
                 String ruleType = s2Constant(call.getArguments().get(0), "S2RuleType", RULE_CRITERIA.keySet());
                 if (ruleType != null) {
@@ -1324,6 +1333,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      * @return The field names, or null when the source is not found | 필드명 집합, 소스를 찾지 못하면 null
      */
     private Set<String> getAllFieldNames(String fullClassName) {
+        Map<String, FieldRef> fields = getFields(fullClassName);
+        return fields == null ? null : fields.keySet();
+    }
+
+    /** The fields of a DTO with their declared types ({@link #getAllFieldNames}) | DTO 의 필드와 선언 타입 */
+    private Map<String, FieldRef> getFields(String fullClassName) {
         if (fieldCache.containsKey(fullClassName)) {
             return fieldCache.get(fullClassName);
         }
@@ -1341,24 +1356,25 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             return null;
         }
 
-        Set<String> names = new HashSet<>();
-        type.getFields().forEach(field -> field.getVariables().forEach(v -> names.add(v.getNameAsString())));
-        // Record components are not FieldDeclarations but are accessible fields of the DTO. | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 DTO 의 필드로 접근 가능
-        if (type instanceof RecordDeclaration recordDecl) {
-            recordDecl.getParameters().forEach(param -> names.add(param.getNameAsString()));
-        }
-        // Inherited fields | 상속 필드
+        CompilationUnit cu = type.findCompilationUnit().orElse(null);
+        Map<String, FieldRef> names = new LinkedHashMap<>();
+        // Inherited fields first, so the class's own declarations win | 상속 필드를 먼저 넣어 자신의 선언이 우선하게 함
         if (type instanceof ClassOrInterfaceDeclaration clazz) {
-            CompilationUnit cu = type.findCompilationUnit().orElse(null);
             for (ClassOrInterfaceType extendedType : clazz.getExtendedTypes()) {
                 String superClassName = resolveFullClassName(cu, extendedType.getNameWithScope());
                 if (!"Object".equals(superClassName) && !"java.lang.Object".equals(superClassName)) {
-                    Set<String> superFields = getAllFieldNames(superClassName);
+                    Map<String, FieldRef> superFields = getFields(superClassName);
                     if (superFields != null) {
-                        names.addAll(superFields);
+                        names.putAll(superFields);
                     }
                 }
             }
+        }
+        type.getFields().forEach(field -> field.getVariables()
+                .forEach(v -> names.put(v.getNameAsString(), new FieldRef(v.getType(), cu))));
+        // Record components are not FieldDeclarations but are accessible fields of the DTO. | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 DTO 의 필드로 접근 가능
+        if (type instanceof RecordDeclaration recordDecl) {
+            recordDecl.getParameters().forEach(param -> names.put(param.getNameAsString(), new FieldRef(param.getType(), cu)));
         }
 
         fieldCache.put(fullClassName, names);
@@ -1433,23 +1449,87 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         return cu.getPackageDeclaration().map(pkg -> pkg.getNameAsString() + "." + name).orElse(name);
     }
 
-    /** 중첩 필드(Dot)나 리스트 인덱스([])가 포함된 필드 문자열에서 실제 소유 클래스의 필드명을 추출합니다. */
-    private String extractBaseName(String fieldName) {
-        if (fieldName.contains("."))
-            fieldName = fieldName.substring(0, fieldName.indexOf("."));
-        fieldName = fieldName.replaceAll("\\[.*?\\]", "");
-        return fieldName;
+    /** Collection types whose element is their only type argument | 유일한 타입 인자가 요소인 컬렉션 타입 */
+    private static final Set<String> COLLECTION_TYPES = Set.of("Iterable", "Collection", "List", "ArrayList", "LinkedList",
+            "Set", "HashSet", "LinkedHashSet", "SortedSet", "NavigableSet", "TreeSet", "Queue", "Deque", "ArrayDeque");
+
+    /** Map types, indexed by key, whose element is the value type | 키로 꺼내며 값 타입이 요소인 맵 타입 */
+    private static final Set<String> MAP_TYPES = Set.of("Map", "HashMap", "LinkedHashMap", "SortedMap", "NavigableMap",
+            "TreeMap", "ConcurrentMap", "ConcurrentHashMap");
+
+    /**
+     * Checks a field path ({@code name}, {@code address.city}, {@code items[0].name}, {@code products[].price},
+     * {@code matrix[1][2]}) part by part, following each field's declared type and, for {@code [..]}, the element type
+     * of arrays, collections and maps. Checking stops quietly where a type cannot be read from the sources (JDK types,
+     * type variables, classes without source), so it never reports a path it cannot see.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 필드 경로를 부분마다 검사합니다. 각 필드의 선언 타입을 따라가고, {@code [..]}이면 배열·컬렉션·맵의 요소 타입으로 들어갑니다. 소스에서 타입을
+     * 알 수 없는 지점(JDK 타입, 타입 변수, 소스 없는 클래스)에서는 조용히 멈춰, 볼 수 없는 경로를 오류로 보고하지 않습니다.
+     *
+     * @return The error for the first missing part, or null | 처음 없는 부분의 오류, 없으면 null
+     */
+    private ValidationError checkPath(String path, String targetClass, String methodName, int line) {
+        String currentClass = targetClass;
+        for (String part : path.split("\\.", -1)) {
+            int bracket = part.indexOf('[');
+            String name = bracket < 0 ? part : part.substring(0, bracket);
+            Map<String, FieldRef> fields = getFields(currentClass);
+            if (fields == null) {
+                return null;
+            }
+            FieldRef field = fields.get(name);
+            if (field == null) {
+                return new ValidationError(path, name, currentClass, methodName, line);
+            }
+            Type type = field.type();
+            for (int i = 0; type != null && bracket >= 0 && i < part.length(); i++) {
+                if (part.charAt(i) == '[') {
+                    type = elementType(type);
+                }
+            }
+            currentClass = type == null ? null : toCheckableClassName(field.cu(), type);
+            if (currentClass == null) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** The element type of an array, collection or map type, or null | 배열·컬렉션·맵 타입의 요소 타입 (모르면 null) */
+    private static Type elementType(Type type) {
+        if (type instanceof ArrayType array) {
+            return array.getComponentType();
+        }
+        if (!(type instanceof ClassOrInterfaceType classType) || classType.getTypeArguments().isEmpty()) {
+            return null;
+        }
+        NodeList<Type> args = classType.getTypeArguments().get();
+        Type element = COLLECTION_TYPES.contains(classType.getNameAsString()) && args.size() == 1 ? args.get(0)
+                : MAP_TYPES.contains(classType.getNameAsString()) && args.size() == 2 ? args.get(1) : null;
+        // List<? extends Item> holds Items | List<? extends Item> 의 요소는 Item
+        if (element instanceof WildcardType wildcard) {
+            return wildcard.getExtendedType().map(Type.class::cast).orElse(null);
+        }
+        return element;
     }
 
     /** 발견된 유효성 점검 오류 정보를 담는 내부 클래스 */
     static class ValidationError {
+        /** The whole path as written | 적힌 경로 전체 */
         final String fieldName;
+        /** The part of the path that is missing | 경로 중 없는 부분 */
+        final String missingField;
+        /** The class the missing part was looked up in | 없는 부분을 찾은 클래스 */
         final String targetClass;
         final String methodName;
         final int lineNumber;
 
-        ValidationError(String fieldName, String targetClass, String methodName, int lineNumber) {
+        ValidationError(String fieldName, String missingField, String targetClass, String methodName, int lineNumber) {
             this.fieldName = fieldName;
+            this.missingField = missingField;
             this.targetClass = targetClass;
             this.methodName = methodName;
             this.lineNumber = lineNumber;
