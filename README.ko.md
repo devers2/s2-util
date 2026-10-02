@@ -55,7 +55,7 @@
 
 > [!TIP]
 > **실무 애플리케이션 레벨의 유틸리티가 필요하신가요?**
-> `s2-core`와 `s2-validator`를 기반으로 페이징(`S2PaginationInfo`), 파일 관리(`FileManager`), Spring 빈 정적 조회(`S2ContextUtil`), 암호화/이미지 유틸리티 등을 제공하는 동반 라이브러리 **[`s2-support`](https://github.com/devers2/s2-support)**를 확인해 보세요.
+> `s2-core` 위에 문서 변환·병합(PDF, 오피스·한글), 페이징(`S2PaginationInfo`), 파일 관리(`FileManager`), Spring·서블릿 헬퍼, 프런트 JS/CSS 를 모은 팀 공통 모듈 **[`s2-kit`](https://github.com/devers2/s2-kit)**(이전 이름 `s2-support`)도 있습니다.
 
 ---
 
