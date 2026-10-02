@@ -3,7 +3,7 @@
 🌐 [English](MANUAL.md) | **한국어**
 
 > **한 번 정의하고, 어디서나 검증한다 (Write Once, Validate Anywhere).**
-> S2Util은 서버(Java)와 클라이언트(JavaScript) 간의 검증 로직을 완벽하게 동기화하고, 리플렉션 병목 없는 초고속 객체 매핑, 지능형 듀얼 캐시, 고성능 스레드 관리, 안전한 동적 JPQL 생성을 지원하는 통합 유틸리티 생태계입니다.
+> S2Util은 서버(Java)와 브라우저(JavaScript)가 같은 규칙으로 검증하고, MethodHandle 기반 객체 매핑, 캐시, 스레드 유틸리티, 안전한 동적 JPQL 생성을 제공하는 유틸리티 제품군입니다.
 
 ---
 

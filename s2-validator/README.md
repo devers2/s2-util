@@ -20,16 +20,34 @@ The **s2-validator** module is a unified cross-platform validation framework tha
 
 ## 🥊 Why s2-validator? (vs Bean Validation)
 
-While standard Bean Validation (JSR-380 / Hibernate Validator) works well for static, simple constraints, modern real-world enterprise applications frequently hit its limitations. **s2-validator eliminates the traditional "annotation hell" and redundant client-side coding:**
+Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at simple constraints and standard integrations. s2-validator covers what it leaves out — **browser validation, short conditional rules, Korean business rules and rules kept as data** — and the two can be used together.
 
-| Feature / Challenge | Standard Bean Validation (JSR-380) | ⭐ s2-validator |
+| Item | Standard Bean Validation (Jakarta Validation) | s2-validator |
 | :--- | :--- | :--- |
-| **Conditional Validation**<br>*(e.g. Field B is required only if A == 'X')* | Requires verbose custom validator classes or complex `@GroupSequenceProvider` (code explosion) ❌ | Fluent and expressive in just two lines:<br>`.when("paymentMethod", "CARD")`<br>`.rule(S2RuleType.REQUIRED)` ✅ |
-| **Cross-Field Comparison**<br>*(Password confirm, Date ranges)* | Requires class-level annotations; errors are bound to root object (Global Error), making field-specific UI display awkward ❌ | Directly binds errors to the exact target field:<br>`.rule(S2RuleType.EQUALS_FIELD, "password")`<br>`.rule(S2RuleType.DATE_AFTER, "startDate")` ✅ |
-| **Client-Side Sync**<br>*(Browser UI validation)* | Server-only. Frontend developers must **re-implement identical rules & regex in JS/TS** (Zod, Yup, etc.) ❌ | **Write Once, Validate Anywhere**: Export rules via `getRulesJson()` and import `s2.validator.js` — **zero frontend code** required for native browser tooltips & auto-focus ✅ |
-| **Korean Particle Grammar** 🇰🇷<br>*(Natural error messages)* | Not supported out-of-the-box. Requires implementing a custom `MessageInterpolator` ❌ | Built-in smart particle interpolation:<br>`{0\|은/는}`, `{0\|이/가}`, `{0\|을/를}`, `{0\|과/와}` automatically adjust based on final consonants ✅ |
-| **Compile-Time Typo Safety** | Runtime failures if field names are misspelled in reflection/templates ❌ | Companion `s2-validator-plugin` uses **AST static analysis** to block builds on typos before hitting runtime 🛡️ ✅ |
-| **Dynamic Data / Map Validation** | Extremely cumbersome without declaring formal DTO classes ❌ | Validate unstructured data immediately without DTOs:<br>`S2Validator.of(map)...validate()` ✅ |
+| **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
+| **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
+| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
+| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은/는}` particles adjust automatically |
+| **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
+| **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
+| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
+
+### 🧭 When to use
+
+**s2-validator fits when**
+- A server-rendered web app (Thymeleaf, JSP) should validate the UI and the server with the same rules
+- Screens have many conditional rules ("B required if A", per-row conditions in lists)
+- You need Korean business rules (resident and business numbers, phone and postal codes, byte length) and natural Korean messages
+- Rules live in a database or configuration, differ per screen or role for one DTO, or a `Map` is validated without a DTO
+
+**Bean Validation is enough when**
+- There is only a REST API and the frontend team owns UI validation
+- Constraints are simple (required, length, format)
+- Standard integrations matter most: method parameters, JPA entities, generated OpenAPI docs
+
+**Using both**
+- Both can live in one project — for example Bean Validation for API and entity constraints, s2-validator for user-facing forms whose rules are shared with the browser.
+- Validate a given form field on one side only; checking it on both sides can report the same error twice.
 
 ---
 
@@ -42,7 +60,7 @@ While standard Bean Validation (JSR-380 / Hibernate Validator) works well for st
    - `when()` conditional validation: Apply rules only when conditions are met
 
 2. **Performance Optimization**
-   - **High-Performance Reflection with Method Handles**: Eliminates reflection bottlenecks through MethodHandle caching; JIT compiler optimization for near-native performance
+   - **High-Performance Reflection with Method Handles**: MethodHandles for field access are cached, so repeated calls skip the usual reflective lookups (and can be inlined by the JIT)
    - **Intelligent Caching with Caffeine**: W-TinyLFU algorithm for optimal hit rates; Prevents data eviction during traffic spikes; Automatic cache optimization
    - **Java Version-Adaptive Thread Factory**: Virtual Thread support for Java 21+; Optimized platform thread pools for earlier versions
    - **Pattern Caching**: Regex patterns cached to reduce compilation overhead on repeated validations

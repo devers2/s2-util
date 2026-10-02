@@ -20,7 +20,7 @@ The **s2-core** module is the foundational library of the `s2-util` project, pro
 
 1. **High-Performance Reflection with Method Handles**
    - Eliminates performance bottlenecks of standard Java reflection (`java.lang.reflect`)
-   - JIT compiler optimizes MethodHandle calls to near-native performance
+   - Cached MethodHandle calls can be inlined by the JIT
    - Strategic caching of MethodHandles in ConcurrentHashMap for repeated access
 
 2. **Intelligent Caching (Dual Mode)**
