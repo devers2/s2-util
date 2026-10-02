@@ -161,7 +161,7 @@
 8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
 9. 규칙 JSON 을 서버나 자체 스크립트에서 직접 파싱한다면 최상위 배열 대신 `fields` 배열을 읽으십시오.
 
-## s2-validator-plugin [2.0.0] - 미배포
+## s2-validator-plugin [2.0.0] - 2026-10-02
 
 - **Configuration cache**: `checkS2Validators`가 실행 시점에 `getProject()`를 호출하지 않아 `--configuration-cache`에서 동작합니다.
 - **바인딩 검사**: `S2BindValidator.bind(...)` 결과에서 `validate`/`getRulesJson`을 호출하지 않으면 경고합니다. 삭제된
