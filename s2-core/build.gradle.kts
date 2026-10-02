@@ -47,7 +47,7 @@ extra["dynamicSourceInfoMap"] = mapOf(
 extra["artifactTestClassNames"] = emptyList<String>()
 
 // Test-only: slf4j-api for the isolated SLF4J bridge test | 시험 전용: 격리된 SLF4J 브리지 시험용 slf4j-api
-val slf4jBridgeTest: Configuration by configurations.creating
+val slf4jBridgeTest: Configuration = configurations.create("slf4jBridgeTest")
 
 dependencies {
     /**
