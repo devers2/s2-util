@@ -128,4 +128,4 @@ plugins {
 
 ---
 
-s2-validator-plugin Version: 2.0.0 (미배포)
+s2-validator-plugin Version: 2.0.0 (2026-10-02)

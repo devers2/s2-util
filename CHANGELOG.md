@@ -185,7 +185,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 8. Swap the arguments of `.message(Locale, "…")` to `.message("…", Locale)`.
 9. If your server code or scripts parse the rules JSON directly, read the `fields` array instead of a top-level array.
 
-## s2-validator-plugin [2.0.0] - Unreleased
+## s2-validator-plugin [2.0.0] - 2026-10-02
 
 - **Configuration cache**: `checkS2Validators` no longer calls `getProject()` at execution time and works with
   `--configuration-cache`.
