@@ -20,16 +20,34 @@
 
 ## 🥊 왜 s2-validator인가? (표준 Bean Validation과의 비교)
 
-표준 Bean Validation(JSR-380 / Hibernate Validator)은 정적인 기본 제약조건에는 유용하지만, 실무 엔터프라이즈 환경에서는 빈번하게 한계에 부딪힙니다. **s2-validator는 고질적인 '어노테이션 지옥'과 프론트엔드 중복 코딩을 완전히 해결합니다:**
+표준 Bean Validation(Jakarta Validation / Hibernate Validator)은 단순 제약과 표준 연동에 강합니다. s2-validator 는 그것이 다루지 않는 **화면 검증, 짧은 조건부 규칙, 한국 업무 규칙, 데이터로 관리하는 규칙**을 채우며, 함께 쓸 수 있습니다.
 
-| 비교 항목 | 표준 Bean Validation (JSR-380) | ⭐ s2-validator |
+| 항목 | 표준 Bean Validation (Jakarta Validation) | s2-validator |
 | :--- | :--- | :--- |
-| **동적 조건부 검증**<br>*(A 값에 따라 B 필수 여부 변경)* | 복잡한 커스텀 어노테이션 작성 또는 악명 높은 `@GroupSequenceProvider` 구현 필수 (코드 급증) ❌ | 직관적인 체이닝 단 2줄로 해결:<br>`.when("paymentMethod", "CARD")`<br>`.rule(S2RuleType.REQUIRED)` ✅ |
-| **크로스 필드 비교**<br>*(비밀번호 확인, 날짜 전후 관계)* | 클래스 레벨 어노테이션 필요; 에러가 루트(Global Error)에 바인딩되어 특정 필드별 UI 에러 표시 곤란 ❌ | 해당 필드에 에러가 정확히 바인딩됨:<br>`.rule(S2RuleType.EQUALS_FIELD, "password")`<br>`.rule(S2RuleType.DATE_AFTER, "startDate")` ✅ |
-| **클라이언트(브라우저) 연동**<br>*(화면 검증 및 자동 포커스)* | 서버 전용. 프론트엔드 개발자가 JS/TS(Zod 등)로 **동일한 정규식과 규칙을 중복 코딩**해야 함 ❌ | **Write Once, Validate Anywhere**: `getRulesJson()` 전달 및 `s2.validator.js` 로드만으로 **프론트 JS 코드 0줄로 네이티브 툴팁/포커스 자동 처리** ✅ |
-| **자연스러운 한국어 조사** 🇰🇷<br>*(매끄러운 에러 문구)* | 기본 지원 없음. 받침 유무를 판별하는 커스텀 `MessageInterpolator` 직접 구현 필요 ❌ | `{0\|은/는}`, `{0\|이/가}`, `{0\|을/를}`, `{0\|과/와}` 등 **받침에 따른 조사 자동 보정 기본 내장** ✅ |
-| **컴파일 시점 오타 안전성** | 문자열 기반 바인딩 실수 시 런타임에 에러 발생 위험 ❌ | 동반 `s2-validator-plugin`이 **AST 정적 분석으로 빌드 시점에 오타 및 필드 누락을 사전 차단** 🛡️ ✅ |
-| **동적 데이터 / Map 검증** | DTO 클래스를 일일이 선언하지 않으면 검증이 매우 고통스러움 ❌ | DTO 클래스 없이도 `S2Validator.of(map)...validate()`로 즉시 동적 검증 가능 ✅ |
+| **조건부 검증**<br>_(A 이면 B 필수)_ | 그룹, `@GroupSequenceProvider`, 클래스 단위 제약으로 구현 (코드가 길어짐) | `.when("type", "VIP").rule(REQUIRED)` |
+| **교차 필드**<br>_(비밀번호 확인, 기간)_ | 클래스 단위 제약을 만들고 `addPropertyNode`로 대상 필드에 연결 (직접 구현) | 내장 규칙 `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`. 메시지에 대상 필드의 라벨 |
+| **브라우저 검증** | 서버 전용. 화면은 JS/TS(Zod 등)로 따로 구현 | 같은 규칙을 JSON 으로 내보내 `s2.validator.js`가 검증 |
+| **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은/는}` 조사 자동 보정 |
+| **규칙을 데이터로** | 클래스 어노테이션에 고정 | JSON 으로 읽고 쓰기(DB·설정), DTO 없이 `Map` 검증, 한 DTO 에 화면·역할별 규칙 여러 벌 |
+| **규칙 위치·필드 이름** | 필드 위 어노테이션이라 **필드 이름 오타가 생길 수 없음** | 필드 이름을 문자열로 씀. 동반 플러그인이 빌드할 때 경로·기준값을 검사해 보완 |
+| **생태계** | **표준.** 스프링 `@Valid`, 메서드 검증, JPA, OpenAPI 문서 등과 바로 연결 | 스프링 `BindingResult` 연동 |
+
+### 🧭 언제 쓰나 (When to use)
+
+**s2-validator 가 맞는 경우**
+- 서버가 화면을 만드는 웹(Thymeleaf, JSP)에서 화면 검증과 서버 검증을 같은 규칙으로 맞추고 싶을 때
+- "A 이면 B 필수", 목록 항목별 조건처럼 조건부 규칙이 많은 업무 화면
+- 주민·사업자번호, 전화·우편번호, 바이트 길이 같은 한국 업무 규칙과 자연스러운 한국어 메시지가 필요할 때
+- 규칙을 DB·설정으로 관리하거나, 같은 DTO 에 화면·역할별로 다른 규칙을 둘 때, DTO 없이 `Map`을 검증할 때
+
+**Bean Validation 으로 충분한 경우**
+- REST API 만 있고 화면 검증은 프런트엔드가 따로 관리할 때
+- 필수·길이·형식 같은 단순 제약 위주일 때
+- 메서드 파라미터·JPA 엔티티 검증, OpenAPI 문서 자동 생성처럼 표준 연동이 중요할 때
+
+**함께 쓰기**
+- 같은 프로젝트에서 함께 써도 됩니다. 예: API·엔티티의 기본 제약은 Bean Validation, 사용자 입력 화면의 규칙(브라우저와 공유)은 s2-validator.
+- 한 폼의 같은 필드를 양쪽에서 모두 검증하면 오류가 두 번 나올 수 있으므로, 폼 하나는 한쪽에서만 검증하십시오.
 
 ---
 
@@ -42,7 +60,7 @@
    - `when()` 조건부 검증: 조건 충족 시에만 규칙 적용
 
 2. **성능 최적화 (Performance Optimization)**
-   - **MethodHandle을 활용한 고성능 리플렉션**: MethodHandle 캐싱을 통해 리플렉션 병목 현상을 제거하고, JIT 컴파일러 최적화를 통해 네이티브에 가까운 성능 구현
+   - **MethodHandle을 활용한 고성능 리플렉션**: 필드 접근에 쓰는 MethodHandle 을 캐시해 반복 호출 때 일반 리플렉션 조회 비용을 줄임 (JIT 인라이닝 대상)
    - **Caffeine을 활용한 지능형 캐싱**: W-TinyLFU 알고리즘으로 최적의 적중률 달성; 트래픽 급증 시에도 중요 데이터 축출 방지; 자동 캐시 최적화
    - **자바 버전별 적응형 스레드 팩토리**: Java 21 이상 환경에서 가상 스레드 지원; 이전 버전에서는 최적화된 플랫폼 스레드 풀 사용
    - **패턴 캐싱**: 정규식 패턴을 캐싱하여 반복 검증 시 컴파일 오버헤드 감소
@@ -388,7 +406,7 @@ S2Validator.setValidationBundle("messages/validation");
 
 #### 2.7. Spring Framework 연동 (`S2BindValidator`)
 
-`s2-validator` 검증 로직을 Spring MVC의 `BindingResult`와 자연스럽게 연결하고, `getRulesJson()`을 통해 클라이언트 JavaScript(`s2.validator.js`)와 동일한 검증 규칙을 완벽하게 공유합니다.
+`s2-validator` 검증 로직을 Spring MVC의 `BindingResult`와 자연스럽게 연결하고, `getRulesJson()`을 통해 클라이언트 JavaScript(`s2.validator.js`)와 같은 검증 규칙을 공유합니다.
 
 ```java
 @Controller

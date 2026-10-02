@@ -17,30 +17,34 @@
 
 ## 📖 Overview
 
-**s2-util** is a high-performance Java utility library featuring a **Unified Dynamic Validator** (`s2-validator`) that seamlessly synchronizes validation logic between Server (Java) and Client (JavaScript). Designed for **production-ready** environments, it leverages advanced technologies like Method Handles and intelligent caching to ensure maximum efficiency and type safety.
+**s2-util** is a Java utility suite built around `s2-validator`, which validates on the server (Java) and in the browser (JavaScript) with the same rules, plus object copying, JSON and dynamic JPQL. It runs on Java 17+, and its hot paths use MethodHandles and caches.
 
 ---
 
 ## ✨ Why s2-util?
 
-`s2-util` was built to solve the most painful limitations of traditional Java validation (Bean Validation / Hibernate Validator) and enterprise frontend boilerplate:
+`s2-util` fills what standard Bean Validation (Hibernate Validator) leaves out — **browser validation, short conditional rules and Korean business rules**. It complements Bean Validation rather than replacing it:
 
-- **🌐 Write Once, Validate Anywhere** — Define rules once in Java and export them via JSON (`getRulesJson()`). The browser executes native tooltip validation with **zero frontend JavaScript code** (`s2.validator.js`).
-- **⚡ Fluent & Conditional Without Annotation Hell** — Eliminate verbose `@GroupSequenceProvider` and custom annotations. Express complex dynamic constraints cleanly with `.when(...).and(...)`.
-- **🏎️ Extreme Performance** — `MethodHandle` caching eliminates reflection bottlenecks; JIT-optimized execution; Caffeine (W-TinyLFU) intelligent caching; full Java 21+ Virtual Thread scalability.
-- **🇰🇷 30+ Built-in Rules & Smart i18n** — Email, Phone, Business ID, Resident Registration Number, and more; full i18n with automatic Korean particle grammar (`{0|은/는}`, `{0|이/가}`).
-- **🛡️ Compile-Time Field & Chaining Safety** — The companion `s2-validator-plugin` uses AST static analysis to catch DTO field typos and missing terminal methods (dead code) at build time (`compileJava`), preventing runtime errors.
-- **🍃 Seamless Spring MVC Integration** — `S2BindValidator` directly binds validation errors into Spring's standard `BindingResult`.
+- **🌐 Write Once, Validate Anywhere** — Export the Java rules with `getRulesJson()` and load `s2.validator.js`; the browser checks the same rules, with no validation code to write for the UI.
+- **⚡ Short conditional rules** — Rules such as "B is required when A is X" take a line or two with `.when(...).and(...)`.
+- **🏎️ Performance** — MethodHandle caching for field access, Caffeine (W-TinyLFU) caches for metadata, virtual threads on Java 21+ (detected at runtime).
+- **🇰🇷 31 built-in rules & Korean messages** — Resident, business and alien registration numbers, mobile, phone and postal codes, byte length and more, with Korean particles that follow the final consonant (`{0|은/는}`, `{0|이/가}`).
+- **🛡️ Build-time checks** — Field names are strings, so the companion `s2-validator-plugin` checks paths, criteria and missing terminal calls at build time (before `compileJava`).
+- **🍃 Spring MVC integration** — `S2BindValidator` puts validation errors into Spring's standard `BindingResult`.
 
 ### 🥊 At a Glance: Standard Bean Validation vs s2-validator
 
-| Problem / Use Case                                 | Standard Bean Validation (JSR-380)                                         | ⭐ s2-validator (s2-util)                                                            |
-| :------------------------------------------------- | :------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- |
-| **Conditional Fields**<br>_(If A then B required)_ | Custom annotation classes or complex `@GroupSequenceProvider` (verbose) ❌ | Expressive in 2 lines:<br>`.when("type", "VIP").rule(REQUIRED)` ✅                   |
-| **Cross-Field Validation**<br>_(pw == confirmPw)_  | Class-level annotation; bound to root object (Global Error) ❌             | Directly bound to the target field:<br>`.rule(EQUALS_FIELD, "pw")` ✅                |
-| **Browser / Frontend Sync**                        | Server-only. Must duplicate logic in JS/TS (Zod, Yup) ❌                   | **Zero frontend code**: `th:data-s2-rules` + native tooltip auto-focus ✅            |
-| **Korean Particle Grammar** 🇰🇷                     | Complex custom `MessageInterpolator` required ❌                           | Built-in automatic postposition formatting (`{0\|은/는}`) ✅                         |
-| **Field Typo & Chaining Safety**                   | Field typos or incomplete chains remain undetected until runtime ❌        | Compile-time AST verification & dead code prevention via `s2-validator-plugin` 🛡️ ✅ |
+| Item | Standard Bean Validation (Jakarta Validation) | s2-validator |
+| :--- | :--- | :--- |
+| **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
+| **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
+| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
+| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은/는}` particles adjust automatically |
+| **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
+| **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
+| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
+
+> Which one fits, and how to use both: see "When to use" in the [`s2-validator` README](./s2-validator/README.md).
 
 ---
 
@@ -109,7 +113,7 @@ plugins {
 `s2-validator` supports two flexible approaches depending on whether client-side UI synchronization is needed:
 
 - **Approach A: Standalone Backend Validation** — Simple, declarative validation for services, batches, or REST APIs with zero UI setup.
-- **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and automatic browser tooltip synchronization with **zero JavaScript**.
+- **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and browser validation with the same rules, no validation code to write for the UI.
 
 ---
 
@@ -143,7 +147,7 @@ if (!isValid) {
 
 #### Approach B. Full-Stack Sync Validation (Server + Client)
 
-Define validation once in Java and enforce it across both backend Spring `BindingResult` and native browser HTML forms with **zero frontend JavaScript code**.
+Define validation once in Java and enforce it across both backend Spring `BindingResult` and native browser HTML forms with the same rules, with no validation code to write for the UI.
 
 ##### [Controller]
 
@@ -238,7 +242,7 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 **Zero-Code Client Automatic Validation:**
 
-Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — **no JavaScript code required**:
+Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — no validation code to write:
 
 1. Disables native browser validation (`noValidate`) on all forms with `data-s2-rules`; uses `MutationObserver` to cover dynamically added forms (SPAs, modals)
 2. Intercepts form submit events and parses the JSON rules
