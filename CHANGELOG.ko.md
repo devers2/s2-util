@@ -12,8 +12,8 @@
 
 - **`s2-support` 1.x 는 `s2-core` 2.0.0 과 호환되지 않습니다.** `s2-support` 1.1.3 의 `S2AutoConfiguration`이 삭제된
   `S2LogManager.touch()`를 호출하므로, Spring Boot 애플리케이션이 시작 시
-  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`로 실패합니다. `s2-support` 2.0.0 으로
-  올리십시오. `s2-support`의 `S2JsonUtil`은 삭제되었으며 `s2-core`의 `io.github.devers2.s2util.json.S2JsonUtil`을 사용합니다.
+  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`로 실패합니다. `s2-support`의 새 이름인 `s2-kit`
+  1.0.0 으로 옮기십시오. `s2-support`의 `S2JsonUtil`은 삭제되었으며 `s2-core`의 `io.github.devers2.s2util.json.S2JsonUtil`을 사용합니다.
 - **삭제된 공개 API** (1.1.8 배포본 대비):
   - `S2LogManager.touch()`
   - `DefaultS2Logger.printWarningBannerOnce()`, `DefaultS2Logger.markAdapterConfigured()` (경고 배너와 배너 스레드 제거)
@@ -138,7 +138,7 @@
 
 ### 업그레이드 안내
 
-1. `s2-support`를 `s2-core`와 함께 올리십시오 (호환성 참고).
+1. `s2-support`를 `s2-kit` 1.0.0 으로 바꿔 `s2-core`와 함께 올리십시오 (호환성 참고).
 2. 등록부를 `S2BindValidator.bind(...)`로 바꾸십시오. GET 폼과 POST 처리가 계속 같은 규칙 정의를 쓰므로 동일한 규칙이 적용됩니다:
    ```java
    // 이전

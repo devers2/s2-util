@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](../LICENSE)
 
 > 📦 Part of the **[s2-util suite](../README.md)**.  
-> Works seamlessly with **[`s2-validator`](../s2-validator/README.md)** for query parameter validation and **[`s2-support`](https://github.com/devers2/s2-support)** for pagination (`S2PaginationInfo`).
+> Works seamlessly with **[`s2-validator`](../s2-validator/README.md)** for query parameter validation and **[`s2-kit`](https://github.com/devers2/s2-kit)** for pagination (`S2PaginationInfo`).
 
 ---
 
@@ -133,8 +133,8 @@ List<Member> page = q.getResultList();
 Use `limit(offset, limit)` for simple pagination; for conditional application use the overload `limit(condition, offset, limit)`.
 
 > [!TIP]
-> **Integration with `s2-support` (`S2PaginationInfo`):**  
-> If you are using the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, you can directly pass `getFirstRecordIndex()` and `getRecordCountPerPage()` to streamline pagination calculations and list queries:
+> **Integration with `s2-kit` (`S2PaginationInfo`):**  
+> If you are using the companion library **[`s2-kit`](https://github.com/devers2/s2-kit)**, you can directly pass `getFirstRecordIndex()` and `getRecordCountPerPage()` to streamline pagination calculations and list queries:
 >
 > ```java
 > S2PaginationInfo pagination = new S2PaginationInfo();

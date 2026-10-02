@@ -55,7 +55,7 @@
 
 > [!TIP]
 > **Looking for application-level utilities?**
-> Check out the companion library **[`s2-support`](https://github.com/devers2/s2-support)**, which builds upon `s2-core` and `s2-validator` to provide ready-to-use pagination (`S2PaginationInfo`), file management (`FileManager`), Spring utilities (`S2ContextUtil`), and more.
+> There is also **[`s2-kit`](https://github.com/devers2/s2-kit)** (formerly `s2-support`), shared team modules on top of `s2-core`: document conversion and merging (PDF, Office and Hangul), pagination (`S2PaginationInfo`), file management (`FileManager`), Spring and servlet helpers, and front-end JS/CSS.
 
 ---
 

@@ -8,7 +8,7 @@
 
 > 📦 Part of the **[s2-util suite](../README.md)**.
 > 📖 For the comprehensive architecture and end-to-end integration guide, see the **[Developer Manual (MANUAL.md)](../MANUAL.md)**.
-> Works seamlessly with companion library **[`s2-support`](https://github.com/devers2/s2-support)** for extended pagination, file management, and Spring utilities.
+> Works seamlessly with companion library **[`s2-kit`](https://github.com/devers2/s2-kit)** for extended pagination, file management, and Spring utilities.
 
 ---
 

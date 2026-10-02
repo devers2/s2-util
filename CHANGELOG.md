@@ -12,7 +12,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 
 - **`s2-support` 1.x is not compatible with `s2-core` 2.0.0.** `S2AutoConfiguration` in `s2-support` 1.1.3 calls the removed
   `S2LogManager.touch()`, so a Spring Boot application fails at startup with
-  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`. Upgrade `s2-support` to 2.0.0. `S2JsonUtil`
+  `NoSuchMethodError: 'void io.github.devers2.s2util.log.S2LogManager.touch()'`. Move to `s2-kit` 1.0.0, the new name of `s2-support`. `S2JsonUtil`
   was removed from `s2-support`; use `io.github.devers2.s2util.json.S2JsonUtil` in `s2-core`.
 - **Removed public API** (compared with the 1.1.8 artifacts):
   - `S2LogManager.touch()`
@@ -158,7 +158,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 
 ### Upgrade notes
 
-1. Upgrade `s2-support` together with `s2-core` (see Compatibility).
+1. Replace `s2-support` with `s2-kit` 1.0.0 and upgrade it together with `s2-core` (see Compatibility).
 2. Replace the registry with `S2BindValidator.bind(...)`. Both the GET form and the POST handler keep using the same rule
    definition, so they still apply identical rules:
    ```java
