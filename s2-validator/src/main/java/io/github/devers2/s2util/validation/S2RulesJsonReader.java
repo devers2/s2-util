@@ -29,7 +29,7 @@ import io.github.devers2.s2util.json.S2JsonUtil;
 
 /**
  * Builds an {@link S2Validator} from rules JSON (the inverse of {@link S2RulesJsonWriter}); the entry point is
- * {@link S2Validator#fromJson(String)}.
+ * {@link S2Validator#fromJson(String, S2JsonUtil.Feature...)}.
  * <p>
  * Strict on purpose: a rules definition usually comes from a database or configuration, and a typo that is silently
  * ignored would silently drop validation. Unknown keys, unknown rule types or operators, and criteria that do not fit a
@@ -39,7 +39,7 @@ import io.github.devers2.s2util.json.S2JsonUtil;
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 규칙 JSON 으로 {@link S2Validator}를 만듭니다({@link S2RulesJsonWriter}의 역방향). 진입점은 {@link S2Validator#fromJson(String)}입니다.
+ * 규칙 JSON 으로 {@link S2Validator}를 만듭니다({@link S2RulesJsonWriter}의 역방향). 진입점은 {@link S2Validator#fromJson(String, S2JsonUtil.Feature...)}입니다.
  * <p>
  * 의도적으로 엄격합니다. 규칙 정의는 보통 DB 나 설정에서 오므로, 오타를 조용히 무시하면 검증이 조용히 빠집니다. 모르는 키, 모르는 규칙
  * 타입·연산자, 규칙에 맞지 않는 기준값은 문제 위치의 JSON 경로와 함께 거부합니다.
