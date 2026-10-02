@@ -63,7 +63,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
  *
  * <pre>{@code
  *  plugins {
- *      id 'io.github.devers2.validator' version '1.0.0' // 버전은 상황에 맞게 설정
+ *      id 'io.github.devers2.validator' version '2.0.0' // 버전은 상황에 맞게 설정
  *  }
  *     }</pre>
  *
