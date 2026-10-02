@@ -115,7 +115,7 @@ plugins {
 
 ## 🔄 Compatibility
 
-This plugin supports **s2-validator version 1.1.0 or higher** to ensure optimal functionality and compatibility with the latest features.
+Use this plugin with **s2-validator 2.0.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
 
 ---
 

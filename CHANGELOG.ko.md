@@ -131,6 +131,7 @@
 - 와일드카드 행의 규칙 실행 오류가 실제 경로(`items[1].qty`)를 담습니다.
 - 라벨 없는 `field(Object)`가 문자열이 아닌 키에서 `ClassCastException`을 내지 않습니다.
 - 공용 실행기가 종료된 뒤 다시 만들어집니다.
+- `S2DateUtil.dateFormat`이 날짜로 해석하지 못한 값을 표준 오류(`System.err`)에 출력하지 않고 디버그 로그로 남깁니다(원래 값을 돌려주는 동작은 같음).
 - `S2ValidationError`가 `errorArgs` 배열을 참조가 아닌 내용으로 비교합니다(`equals`/`hashCode`/`toString`). 같은 오류가 서로 다르다고
   판정되거나 `Set`에서 중복 제거되지 않던 문제를 고쳤습니다.
 - jar 의 라이선스 파일: `s2-jpa`가 Jakarta Persistence 용 `LICENSE-EPL-2.0`, `LICENSE-EDL-1.0`을 함께 담으며(NOTICE 에 두 라이선스 명시),

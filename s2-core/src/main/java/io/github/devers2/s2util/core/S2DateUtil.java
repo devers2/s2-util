@@ -899,7 +899,14 @@ public class S2DateUtil {
                             result = ldtParsed.format(formatter);
                         }
                     } catch (Exception e) {
-                        System.err.println("날짜 변환 중 오류가 발생하였습니다: " + e.getMessage());
+                        // The original value is returned below | 아래에서 원래 값을 돌려줌
+                        if (logger.isDebugEnabled()) {
+                            if (S2Util.isKorean()) {
+                                logger.debug("날짜로 해석하지 못해 원래 값을 돌려줍니다: {} ({})", oriValue, e.getMessage());
+                            } else {
+                                logger.debug("Not a date; returning the original value: {} ({})", oriValue, e.getMessage());
+                            }
+                        }
                     }
                 }
             }

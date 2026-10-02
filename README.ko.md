@@ -83,6 +83,9 @@ dependencies {
 </dependency>
 ```
 
+> [!NOTE]
+> `s2-util`은 `s2-core`·`s2-validator`·`s2-jpa`를 JAR 하나에 담은 번들입니다. 개별 모듈이나 `s2-core`를 가져오는 라이브러리(예: [`s2-kit`](https://github.com/devers2/s2-kit))와 함께 넣으면 같은 클래스가 두 번 올라가므로, 그때는 번들 대신 필요한 개별 모듈(`s2-core`, `s2-validator`, `s2-jpa`)만 추가하십시오.
+
 **[선택 사항] S2Validator 정적 분석 플러그인**
 
 오타나 필드명 불일치로 인한 런타임 오류를 방지합니다. 제네릭을 사용하는 경우(예: `S2Validator.<UserCommand>builder()`), 이 플러그인은 빌드 시점에 정적 분석을 수행하여 지정된 모든 필드명이 DTO 클래스에 실제로 존재하는지 확인합니다. 존재하지 않는 필드가 감지되면 즉시 빌드 에러가 발생합니다.

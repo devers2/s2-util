@@ -83,6 +83,9 @@ dependencies {
 </dependency>
 ```
 
+> [!NOTE]
+> `s2-util` is a bundle of `s2-core`, `s2-validator` and `s2-jpa` in one JAR. Next to the individual modules or a library that brings `s2-core` (such as [`s2-kit`](https://github.com/devers2/s2-kit)) the same classes would load twice, so in that case add only the individual modules you need (`s2-core`, `s2-validator`, `s2-jpa`) instead of the bundle.
+
 **[Optional] `s2-validator-plugin` (Compile-Time Field & Chaining Static Analysis)**
 
 Prevent runtime errors caused by typos or field name mismatches. When using Generics (e.g., `S2Validator.<UserCommand>builder()`), this plugin performs static analysis during the build to verify that all referenced field names actually exist in the specified DTO class. It triggers a build error if a non-existent field is detected.

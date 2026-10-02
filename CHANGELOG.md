@@ -150,6 +150,8 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 - Wildcard rows report rule execution errors with the concrete path (`items[1].qty`).
 - `field(Object)` without a label no longer throws `ClassCastException` for non-String keys.
 - The common executor is recreated after shutdown.
+- `S2DateUtil.dateFormat` logs a value it cannot read as a date at debug level instead of printing it to `System.err`
+  (it still returns the original value).
 - `S2ValidationError` compares its `errorArgs` array by content, not by reference (`equals`/`hashCode`/`toString`), so
   equal errors are equal and deduplicate in a `Set`.
 - License files in the jars: `s2-jpa` now ships `LICENSE-EPL-2.0` and `LICENSE-EDL-1.0` for Jakarta Persistence (its
