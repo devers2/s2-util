@@ -22,8 +22,10 @@ package io.github.devers2.validator.plugin;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +40,7 @@ import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -1308,93 +1311,126 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 지정된 클래스명을 멀티 프로젝트 내의 소스 파일에서 찾아 모든 필드명을 추출합니다.
-     * 상속 관계를 분석하여 부모 클래스의 필드까지 재귀적으로 포함합니다.
+     * Returns the field names a validator may use for a DTO: its own fields and record components, plus those of the
+     * superclasses found in the scanned sources. A nested DTO ({@code Outer.Form}) is read from its outer type's file.
      *
-     * @param fullClassName 분석할 대상 클래스의 전체 이름 (패키지 포함)
-     * @return 해당 클래스에서 사용 가능한 유효 필드명 집합
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * DTO 에서 검증기가 쓸 수 있는 필드명을 반환합니다. 그 타입 자신의 필드와 레코드 컴포넌트, 스캔 소스에서 찾은 상위 클래스의 필드를 모읍니다.
+     * 중첩 DTO({@code Outer.Form})는 바깥 타입의 파일에서 읽습니다. 같은 파일의 다른 타입 필드는 섞지 않습니다.
+     *
+     * @param fullClassName The canonical class name | 정식 클래스명 (중첩이면 {@code com.example.Outer.Form})
+     * @return The field names, or null when the source is not found | 필드명 집합, 소스를 찾지 못하면 null
      */
     private Set<String> getAllFieldNames(String fullClassName) {
         if (fieldCache.containsKey(fullClassName)) {
             return fieldCache.get(fullClassName);
         }
+        // Also stops a cyclic extends chain | 순환 상속도 여기서 멈춤
+        fieldCache.put(fullClassName, null);
 
-        Set<String> names = new HashSet<>();
-        String relativePath = fullClassName.replace('.', File.separatorChar) + ".java";
-
-        // 모든 서브프로젝트의 소스 루트 순회
-        File sourceFile = null;
-        for (File sourceRoot : getSourceRoots().get()) {
-            File potential = new File(sourceRoot, relativePath);
-            if (potential.exists()) {
-                sourceFile = potential;
-                break;
-            }
+        TypeDeclaration<?> type;
+        try {
+            type = findTypeDeclaration(fullClassName);
+        } catch (Exception e) {
+            getLogger().debug("DTO 분석 실패: {}", fullClassName);
+            return null;
         }
-
-        if (sourceFile == null) {
-            fieldCache.put(fullClassName, null);
+        if (type == null) {
             return null;
         }
 
-        try {
-            CompilationUnit cu = StaticJavaParser.parse(sourceFile);
-
-            // 모든 필드 추출
-            cu.findAll(com.github.javaparser.ast.body.FieldDeclaration.class).forEach(field -> {
-                field.getVariables().forEach(v -> names.add(v.getNameAsString()));
-            });
-
-            // Record components are not FieldDeclarations but are accessible fields of the DTO. | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 DTO 의 필드로 접근 가능
-            cu.findAll(com.github.javaparser.ast.body.RecordDeclaration.class).forEach(recordDecl -> {
-                recordDecl.getParameters().forEach(param -> names.add(param.getNameAsString()));
-            });
-
-            // 상속 처리
-            cu.findAll(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class).forEach(clazz -> {
-                clazz.getExtendedTypes().forEach(extendedType -> {
-                    String superClassName = resolveFullClassName(cu, extendedType.getNameAsString());
-                    if (!"Object".equals(superClassName) && !"java.lang.Object".equals(superClassName)) {
-                        Set<String> superFields = getAllFieldNames(superClassName);
-                        if (superFields != null)
-                            names.addAll(superFields);
+        Set<String> names = new HashSet<>();
+        type.getFields().forEach(field -> field.getVariables().forEach(v -> names.add(v.getNameAsString())));
+        // Record components are not FieldDeclarations but are accessible fields of the DTO. | 레코드 컴포넌트는 FieldDeclaration 이 아니지만 DTO 의 필드로 접근 가능
+        if (type instanceof RecordDeclaration recordDecl) {
+            recordDecl.getParameters().forEach(param -> names.add(param.getNameAsString()));
+        }
+        // Inherited fields | 상속 필드
+        if (type instanceof ClassOrInterfaceDeclaration clazz) {
+            CompilationUnit cu = type.findCompilationUnit().orElse(null);
+            for (ClassOrInterfaceType extendedType : clazz.getExtendedTypes()) {
+                String superClassName = resolveFullClassName(cu, extendedType.getNameWithScope());
+                if (!"Object".equals(superClassName) && !"java.lang.Object".equals(superClassName)) {
+                    Set<String> superFields = getAllFieldNames(superClassName);
+                    if (superFields != null) {
+                        names.addAll(superFields);
                     }
-                });
-            });
-
-            fieldCache.put(fullClassName, names);
-
-            if (loggedDTOs.add(fullClassName)) {
-                getLogger().lifecycle(ANSI_GREEN + "✅ DTO 분석 완료:" + ANSI_RESET + " {} (필드: {}개)", fullClassName,
-                        names.size());
+                }
             }
-        } catch (Exception e) {
-            getLogger().debug("DTO 분석 실패: {}", fullClassName);
-            fieldCache.put(fullClassName, null);
         }
 
+        fieldCache.put(fullClassName, names);
+        if (loggedDTOs.add(fullClassName)) {
+            getLogger().lifecycle(ANSI_GREEN + "✅ DTO 분석 완료:" + ANSI_RESET + " {} (필드: {}개)", fullClassName,
+                    names.size());
+        }
         return names;
     }
 
-    /** 단순 클래스명을 파일의 Import 섹션이나 패키지 정보를 바탕으로 Full Qualified Name으로 변환합니다. */
-    private String resolveFullClassName(CompilationUnit cu, String simpleName) {
-        if (simpleName == null || simpleName.contains("."))
-            return simpleName;
-        if (cu == null)
-            return simpleName;
+    /**
+     * Finds the declaration of a canonical type name in the scanned sources. A nested type lives in the file of its
+     * outermost type, so {@code a.b.Outer.Form} is looked for in {@code a/b/Outer/Form.java}, then {@code a/b/Outer.java}.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 정식 타입 이름의 선언을 스캔 소스에서 찾습니다. 중첩 타입은 가장 바깥 타입의 파일에 있으므로 {@code a.b.Outer.Form}은
+     * {@code a/b/Outer/Form.java}, 그다음 {@code a/b/Outer.java}에서 찾습니다.
+     */
+    private TypeDeclaration<?> findTypeDeclaration(String canonicalName) throws IOException {
+        String[] parts = canonicalName.split("\\.");
+        for (int fileEnd = parts.length; fileEnd >= 1; fileEnd--) {
+            String relativePath = String.join(File.separator, Arrays.copyOfRange(parts, 0, fileEnd)) + ".java";
+            for (File sourceRoot : getSourceRoots().get()) {
+                File file = new File(sourceRoot, relativePath);
+                if (!file.isFile()) {
+                    continue;
+                }
+                for (TypeDeclaration<?> type : StaticJavaParser.parse(file).findAll(TypeDeclaration.class)) {
+                    if (canonicalName.equals(type.getFullyQualifiedName().orElse(null))) {
+                        return type;
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
+    /**
+     * Resolves a type name as written in a file ({@code Form}, {@code Outer.Form}, {@code com.example.Outer.Form}) to
+     * its canonical name: types declared in the same file (nested ones included) first, then imports, then the package.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파일에 적힌 타입 이름을 정식 이름으로 바꿉니다. 같은 파일에 선언된 타입(중첩 포함)을 먼저, 그다음 import, 그다음 패키지 순으로 찾습니다.
+     */
+    private String resolveFullClassName(CompilationUnit cu, String name) {
+        if (name == null || cu == null) {
+            return name;
+        }
+        int dot = name.indexOf('.');
+        String first = dot < 0 ? name : name.substring(0, dot);
+        String rest = dot < 0 ? "" : name.substring(dot);
+
+        for (TypeDeclaration<?> type : cu.findAll(TypeDeclaration.class)) {
+            if (first.equals(type.getNameAsString()) && type.getFullyQualifiedName().isPresent()) {
+                return type.getFullyQualifiedName().get() + rest;
+            }
+        }
         for (var importDecl : cu.getImports()) {
             String importedName = importDecl.getNameAsString();
-            if (importedName.endsWith("." + simpleName))
-                return importedName;
+            if (!importDecl.isAsterisk() && importedName.endsWith("." + first)) {
+                return importedName + rest;
+            }
         }
-
-        if (cu.getPackageDeclaration().isPresent()) {
-            String packageName = cu.getPackageDeclaration().get().getNameAsString();
-            return packageName + "." + simpleName;
+        // Already qualified: a package name starts in lower case | 이미 전체 이름: 패키지 이름은 소문자로 시작
+        if (dot > 0 && Character.isLowerCase(first.charAt(0))) {
+            return name;
         }
-
-        return simpleName;
+        return cu.getPackageDeclaration().map(pkg -> pkg.getNameAsString() + "." + name).orElse(name);
     }
 
     /** 중첩 필드(Dot)나 리스트 인덱스([])가 포함된 필드 문자열에서 실제 소유 클래스의 필드명을 추출합니다. */
