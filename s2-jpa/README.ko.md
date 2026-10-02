@@ -224,7 +224,7 @@ String clause = String.format("AND m.name = %s", userName);  // SQL 인젝션!
 
 ---
 
-s2-jpa Version: 2.0.0 (2026-09-30)
+s2-jpa Version: 2.0.0 (2026-10-02)
 
 [//]: # 'S2_DEPS_INFO_START'
 

@@ -639,7 +639,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 2.0.0 (2026-09-30)
+s2-validator Version: 2.0.0 (2026-10-02)
 
 [//]: # 'S2_DEPS_INFO_START'
 
