@@ -27,7 +27,7 @@
 | **조건부 검증**<br>_(A 이면 B 필수)_ | 그룹, `@GroupSequenceProvider`, 클래스 단위 제약으로 구현 (코드가 길어짐) | `.when("type", "VIP").rule(REQUIRED)` |
 | **교차 필드**<br>_(비밀번호 확인, 기간)_ | 클래스 단위 제약을 만들고 `addPropertyNode`로 대상 필드에 연결 (직접 구현) | 내장 규칙 `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`. 메시지에 대상 필드의 라벨 |
 | **브라우저 검증** | 서버 전용. 화면은 JS/TS(Zod 등)로 따로 구현 | 같은 규칙을 JSON 으로 내보내 `s2.validator.js`가 검증 |
-| **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은/는}` 조사 자동 보정 |
+| **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은}` 조사 자동 완성 |
 | **규칙을 데이터로** | 클래스 어노테이션에 고정 | JSON 으로 읽고 쓰기(DB·설정), DTO 없이 `Map` 검증, 한 DTO 에 화면·역할별 규칙 여러 벌 |
 | **규칙 위치·필드 이름** | 필드 위 어노테이션이라 **필드 이름 오타가 생길 수 없음** | 필드 이름을 문자열로 씀. 동반 플러그인이 빌드할 때 경로·기준값을 검사해 보완 |
 | **생태계** | **표준.** 스프링 `@Valid`, 메서드 검증, JPA, OpenAPI 문서 등과 바로 연결 | 스프링 `BindingResult` 연동 |
@@ -95,7 +95,7 @@
    - `.message(String, Locale)` 메서드로 제3의 언어(일본어, 중국어 등) 확장 지원
    - `S2ResourceBundle` 통합으로 중앙 집중식 메시지 관리
    - 메시지 매개변수 치환: `{0}`(필드 라벨), `{1}`(규칙 기준값)
-   - 한국어 조사 자동 치환: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}`로 문법에 맞는 메시지 자동 생성
+   - 한국어 조사 자동 완성 지원: `{0|은}`, `{0|이}`, `{0|을}`, `{0|과}`, `{0|로}` 등 하나의 조사만 지정하더라도 앞 단어의 받침 유무에 따라 알맞은 조사를 자동 완성 (오기 방지를 위해 슬래시 쌍 표기는 제외)
 
 7. **커스텀 및 조건부 검증 (Custom & Conditional Validation)**
    - 사용자 정의 검증 로직을 위한 람다(`Predicate`, `BiPredicate`) 지원
@@ -127,7 +127,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:2.0.0'
+    implementation 'io.github.devers2:s2-validator:2.1.0'
 
     // (선택사항) Spring 연동 기능(S2BindValidator) 사용 시에만 필요
     implementation 'org.springframework:spring-context:6.2.19'
@@ -140,7 +140,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -164,7 +164,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -291,7 +291,7 @@ S2Validator.of(form)
         .rule((value, target) -> {
             String password = S2Util.getValue(target, "password", "");
             return password.equals(value);
-        }).ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
+        }).ko("{0|은} 원본 비밀번호와 일치해야 합니다.")
     .validate(errors::add, Locale.KOREAN);
 ```
 
@@ -370,13 +370,13 @@ S2Validator<OrderVO> orderValidator = S2Validator.<OrderVO>builder()
 
 #### 2.6. 기본 내장 메시지 및 다국어 커스터마이징 (Built-in Messages & Localization)
 
-- **기본 내장 메시지 완비**: `S2RuleType`의 모든 내장 규칙은 한국어와 영어 기본 메시지를 이미 기본 탑재하고 있습니다 (예: `REQUIRED`는 한국어 로케일에서 `"{0|은/는} 필수 입력 항목입니다."`, 영어 로케일에서 `"{0} is required."` 자동 생성). **따라서 일반적인 상황에서는 `.ko()`나 `.en()`을 호출할 필요가 없습니다.**
+- **기본 내장 메시지 완비**: `S2RuleType`의 모든 내장 규칙은 한국어와 영어 기본 메시지를 이미 기본 탑재하고 있습니다 (예: `REQUIRED`는 한국어 로케일에서 `"{0|은} 필수 입력 항목입니다."`, 영어 로케일에서 `"{0} is required."` 자동 생성). **따라서 일반적인 상황에서는 `.ko()`나 `.en()`을 호출할 필요가 없습니다.**
 - **커스텀 메시지 재정의 (`.ko()`, `.en()`)**: 기본 메시지 대신 특정 문구를 사용하고 싶을 때만 `.ko("...")` 또는 `.en("...")`을 체이닝하여 메시지를 재정의합니다.
 - **기타 언어 지원 (`.message(String, Locale)`)**: 한국어/영어 외의 다국어(일본어, 중국어, 프랑스어 등) 메시지가 필요할 때는 `.message(String template, Locale locale)` 메서드를 사용하여 원하는 로케일의 메시지를 자유롭게 등록할 수 있습니다 (예: `.message("{0}は必須入力項目です。", Locale.JAPANESE)`).
 - **메시지 플레이스홀더**:
   - `{0}`: 필드 라벨 (예: "사용자명", "아이디").
   - `{1}`: 규칙 기준값 (예: 최소 자릿수, 최소 금액 등).
-- **한국어 자동 조사 지원**: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}` 문법을 지원하여 라벨의 받침 유무에 따라 문법에 맞는 조사를 자동으로 선택·치환합니다.
+- **한국어 조사 자동 완성 지원**: `{0|은}`, `{0|이}`, `{0|을}`, `{0|과}`, `{0|로}` 등 하나의 조사만 지정하더라도 라벨의 받침 유무에 따라 알맞은 조사("이/가", "은/는", "을/를" 등)를 자동으로 완성하여 붙여줍니다 (오기 방지를 위해 슬래시 쌍 표기는 제외).
 - **전역 리소스 번들 연동**: `S2Validator.setValidationBundle("messages/validation")`을 설정하면 프로퍼티 파일(`messages/validation_ko.properties` 등)을 통한 중앙 집중식 메시지 관리가 가능합니다.
 
 ```java
@@ -388,7 +388,7 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
     // 2) 커스텀 메시지 오버라이딩 (.ko, .en)
     .field("userPw", "비밀번호")
         .rule(S2RuleType.MIN_LENGTH, 8)
-            .ko("{0|은/는} 보안을 위해 최소 {1}자 이상이어야 합니다.")
+            .ko("{0|은} 보안을 위해 최소 {1}자 이상이어야 합니다.")
             .en("{0} must be at least {1} characters for security.")
 
     // 기타 다국어 지원 (.message)
@@ -657,7 +657,7 @@ public class MemberController {
 
 ---
 
-s2-validator Version: 2.0.0 (2026-10-02)
+s2-validator Version: 2.1.0 (2026-10-13)
 
 [//]: # 'S2_DEPS_INFO_START'
 

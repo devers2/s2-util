@@ -54,7 +54,7 @@ import io.github.devers2.s2util.log.S2Logger;
  * <li><b>성능 최적화:</b> {@link S2Cache}를 활용하여 리소스 검색 결과를 캐싱함으로써 반복적인
  * 클래스패스 탐색 부하를 최소화합니다. (부재 리소스에 대한 중복 탐색 방지 포함)</li>
  * <li><b>지능형 포맷팅:</b> {@link S2StringUtil#formatMessage(String, Object...)}와 연동되어
- * 한국어 특유의 조사('은/는', '이/가' 등)를 상황에 맞게 자동 교정 처리합니다.</li>
+ * 한국어 특유의 조사('은', '을', '로' 등)를 상황에 맞게 자동 교정 처리합니다.</li>
  * <li><b>확장성:</b> {@code defaultBasename} 설정을 통해 애플리케이션의 기존 메시지 설정과
  * 쉽게 동기화하여 사용할 수 있습니다.</li>
  * </ul>
@@ -68,7 +68,7 @@ import io.github.devers2.s2util.log.S2Logger;
  *
  * // 사용
  * String msg = S2ResourceBundle.getMessage("valid.err.required", Locale.KOREA, "이름");
- * // → "이름은(는) 필수 입력 항목입니다."
+ * // → "이름은 필수 입력 항목입니다."
  * }</pre>
  *
  * @author devers2
@@ -209,7 +209,7 @@ public final class S2ResourceBundle {
      * This method combines {@link #getMessage(String, Locale)} with the intelligent
      * formatting engine of {@link S2StringUtil}. It supports indexed placeholders
      * like {@code {0}}, {@code {1}}, and special Korean postposition modifiers
-     * like {@code {0|은/는}}.
+     * like {@code {0|은}}, {@code {0|을}}, {@code {0|로}} (automatic postposition completion).
      * </p>
      *
      * <p>
@@ -218,7 +218,7 @@ public final class S2ResourceBundle {
      * 리소스 번들에서 메시지를 조회하고 인자를 치환하여 반환합니다.
      * <p>
      * 조회된 템플릿의 {@code {0}}, {@code {1}} 등 인덱스 기반 치환자를 실제 값으로 변경하며,
-     * {@code {0|은/는}}과 같은 특수 구문을 통해 한국어 조사를 자동으로 교정 처리하는
+     * {@code {0|은}}, {@code {0|을}} 등 조사 자동 완성 구문을 통해 한국어 조사를 올바르게 완성하는
      * {@link S2StringUtil}의 지능형 포맷팅 기능을 제공합니다.
      * </p>
      *

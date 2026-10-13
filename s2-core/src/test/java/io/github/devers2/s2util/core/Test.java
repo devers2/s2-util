@@ -1266,28 +1266,58 @@ public class Test {
 
     // ===== S2StringUtil Tests =====
 
-    @DisplayName("S2StringUtil - appendJosa 조사 정확성 (이/가, 으로/로, 와/과 등)")
+    @DisplayName("S2StringUtil - appendJosa 조사 정확성 (조사 자동 완성)")
     @org.junit.jupiter.api.Test
     void testAppendJosaCorrectness() {
         String testName = "testAppendJosaCorrectness";
         try {
-            assert "사과가".equals(S2StringUtil.appendJosa("사과", "이/가"));
-            assert "책이".equals(S2StringUtil.appendJosa("책", "이/가"));
-            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "은/는"));
-            assert "이름은".equals(S2StringUtil.appendJosa("이름", "은/는"));
-            assert "나무를".equals(S2StringUtil.appendJosa("나무", "을/를"));
-            assert "책을".equals(S2StringUtil.appendJosa("책", "을/를"));
-            assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로/로"));
-            assert "집으로".equals(S2StringUtil.appendJosa("집", "으로/로"));
-            assert "차로".equals(S2StringUtil.appendJosa("차", "으로/로"));
-            // 받침 판별 불가(영문 등): 조사를 빠뜨리지 않고 병기형을 붙임
-            assert "[pw]과(와)".equals(S2StringUtil.appendJosa("pw", "과/와"));
-            assert "[documentId]은(는)".equals(S2StringUtil.appendJosa("documentId", "은/는"));
-            assert "[ID]이(가)".equals(S2StringUtil.appendJosa("ID", "가/이"));
-            assert "[URL](으)로".equals(S2StringUtil.appendJosa("URL", "으로/로"));
-            assert "[x]이에요(예요)".equals(S2StringUtil.appendJosa("x", "이에요/예요"));
-            assert "사과와".equals(S2StringUtil.appendJosa("사과", "와/과"));
-            assert "책과".equals(S2StringUtil.appendJosa("책", "와/과"));
+            // 1. 조사 자동 완성 테스트 (하나의 조사만 지정해도 앞 단어 받침에 맞춰 자동 결합)
+            assert "사과가".equals(S2StringUtil.appendJosa("사과", "이"));
+            assert "사과가".equals(S2StringUtil.appendJosa("사과", "가"));
+            assert "책이".equals(S2StringUtil.appendJosa("책", "이"));
+            assert "책이".equals(S2StringUtil.appendJosa("책", "가"));
+
+            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "은"));
+            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "는"));
+            assert "이름은".equals(S2StringUtil.appendJosa("이름", "은"));
+            assert "이름은".equals(S2StringUtil.appendJosa("이름", "는"));
+
+            assert "나무를".equals(S2StringUtil.appendJosa("나무", "을"));
+            assert "나무를".equals(S2StringUtil.appendJosa("나무", "를"));
+            assert "책을".equals(S2StringUtil.appendJosa("책", "을"));
+            assert "책을".equals(S2StringUtil.appendJosa("책", "를"));
+
+            assert "사과와".equals(S2StringUtil.appendJosa("사과", "과"));
+            assert "사과와".equals(S2StringUtil.appendJosa("사과", "와"));
+            assert "책과".equals(S2StringUtil.appendJosa("책", "과"));
+            assert "책과".equals(S2StringUtil.appendJosa("책", "와"));
+
+            // 'ㄹ' 받침 예외: 서울로, 총괄로, 1로, 7로, 8로
+            assert "서울로".equals(S2StringUtil.appendJosa("서울", "로"));
+            assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로"));
+            assert "총괄로".equals(S2StringUtil.appendJosa("총괄", "로"));
+            assert "총괄로".equals(S2StringUtil.appendJosa("총괄", "으로"));
+            assert "집으로".equals(S2StringUtil.appendJosa("집", "로"));
+            assert "집으로".equals(S2StringUtil.appendJosa("집", "으로"));
+            assert "차로".equals(S2StringUtil.appendJosa("차", "로"));
+            assert "차로".equals(S2StringUtil.appendJosa("차", "으로"));
+
+            // 숫자 받침 및 'ㄹ' 예외
+            assert "1로".equals(S2StringUtil.appendJosa("1", "로"));
+            assert "1을".equals(S2StringUtil.appendJosa("1", "을"));
+            assert "2를".equals(S2StringUtil.appendJosa("2", "를"));
+            assert "3으로".equals(S2StringUtil.appendJosa("3", "로"));
+
+            // 2. 받침 판별 불가(영문 등): 조사 자동 완성 시 병기형을 결합
+            assert "[pw]과(와)".equals(S2StringUtil.appendJosa("pw", "과"));
+            assert "[documentId]은(는)".equals(S2StringUtil.appendJosa("documentId", "은"));
+            assert "[ID]이(가)".equals(S2StringUtil.appendJosa("ID", "이"));
+            assert "[URL](으)로".equals(S2StringUtil.appendJosa("URL", "로"));
+
+            // 3. S2StringUtil.formatMessage 조사 자동 완성 치환 테스트
+            assert "사과가 창고를 방문함".equals(S2StringUtil.formatMessage("{0|이} {1|을} 방문함", "사과", "창고"));
+            assert "총괄로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "총괄"));
+            assert "책임자로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "책임자"));
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");

@@ -28,7 +28,7 @@
 - **🌐 Write Once, Validate Anywhere** — Java 로 정의한 규칙을 `getRulesJson()`으로 내보내고 `s2.validator.js`를 불러오면 브라우저가 같은 규칙으로 검증합니다. 화면용 검증 코드를 따로 작성하지 않아도 됩니다.
 - **⚡ 짧은 조건부 검증** — "A 가 X 일 때 B 필수" 같은 규칙을 `.when(...).and(...)`로 한두 줄에 씁니다.
 - **🏎️ 성능** — 필드 접근은 MethodHandle 캐시, 메타데이터는 Caffeine(W-TinyLFU) 캐시를 씁니다. Java 21 이상이면 가상 스레드를 지원합니다(실행 환경 자동 감지).
-- **🇰🇷 31종 내장 규칙과 한국어 메시지** — 주민·사업자·외국인등록번호, 휴대폰·전화·우편번호, 바이트 길이 등 한국 업무 규칙과, 받침에 따른 조사 자동 보정(`{0|은/는}`, `{0|이/가}`, `{0|을/를}`).
+- **🇰🇷 31종 내장 규칙과 한국어 메시지** — 주민·사업자·외국인등록번호, 휴대폰·전화·우편번호, 바이트 길이 등 한국 업무 규칙과, 받침에 따른 조사 자동 완성(`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
 - **🛡️ 빌드 시점 검사** — 필드 이름을 문자열로 쓰는 방식이라 생길 수 있는 오타를, 동반 플러그인 `s2-validator-plugin`이 빌드할 때(`compileJava` 전) 경로·기준값·종단 메서드 누락까지 검사해 막습니다.
 - **🍃 Spring MVC 연동** — `S2BindValidator`가 검증 오류를 스프링 표준 `BindingResult`에 넣습니다.
 
@@ -39,7 +39,7 @@
 | **조건부 검증**<br>_(A 이면 B 필수)_ | 그룹, `@GroupSequenceProvider`, 클래스 단위 제약으로 구현 (코드가 길어짐) | `.when("type", "VIP").rule(REQUIRED)` |
 | **교차 필드**<br>_(비밀번호 확인, 기간)_ | 클래스 단위 제약을 만들고 `addPropertyNode`로 대상 필드에 연결 (직접 구현) | 내장 규칙 `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`. 메시지에 대상 필드의 라벨 |
 | **브라우저 검증** | 서버 전용. 화면은 JS/TS(Zod 등)로 따로 구현 | 같은 규칙을 JSON 으로 내보내 `s2.validator.js`가 검증 |
-| **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은/는}` 조사 자동 보정 |
+| **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은}` 조사 자동 완성 |
 | **규칙을 데이터로** | 클래스 어노테이션에 고정 | JSON 으로 읽고 쓰기(DB·설정), DTO 없이 `Map` 검증, 한 DTO 에 화면·역할별 규칙 여러 벌 |
 | **규칙 위치·필드 이름** | 필드 위 어노테이션이라 **필드 이름 오타가 생길 수 없음** | 필드 이름을 문자열로 씀. 동반 플러그인이 빌드할 때 경로·기준값을 검사해 보완 |
 | **생태계** | **표준.** 스프링 `@Valid`, 메서드 검증, JPA, OpenAPI 문서 등과 바로 연결 | 스프링 `BindingResult` 연동 |
@@ -73,7 +73,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.0.0'
+    implementation 'io.github.devers2:s2-util:2.1.0'
 }
 ```
 
@@ -83,7 +83,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -104,7 +104,7 @@ pluginManagement {
 
 // build.gradle
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 

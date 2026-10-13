@@ -39,7 +39,7 @@ public class MessageTemplateTest {
     @Test
     void defaultTemplateAppliesToEveryLanguage() {
         S2Validator<Map<String, Object>> v = S2Validator.<Map<String, Object>>builder()
-                .field("name", "이름").rule(S2RuleType.REQUIRED).message("{0|은/는} 꼭 입력해 주세요.")
+                .field("name", "이름").rule(S2RuleType.REQUIRED).message("{0|은} 꼭 입력해 주세요.")
                 .build();
 
         Assertions.assertEquals("이름은 꼭 입력해 주세요.", firstMessage(v, Locale.KOREAN));
@@ -86,7 +86,7 @@ public class MessageTemplateTest {
     @Test
     void customLambdaRuleSupportsTheDefaultTemplate() {
         S2Validator<Map<String, Object>> v = S2Validator.<Map<String, Object>>builder()
-                .field("code", "코드").rule((String s) -> s.startsWith("ADM-")).message("{0|은/는} ADM- 로 시작해야 합니다.")
+                .field("code", "코드").rule((String s) -> s.startsWith("ADM-")).message("{0|은} ADM- 로 시작해야 합니다.")
                 .build();
 
         List<S2ValidationError> errors = new ArrayList<>();

@@ -28,7 +28,7 @@
 - **🌐 Write Once, Validate Anywhere** — Export the Java rules with `getRulesJson()` and load `s2.validator.js`; the browser checks the same rules, with no validation code to write for the UI.
 - **⚡ Short conditional rules** — Rules such as "B is required when A is X" take a line or two with `.when(...).and(...)`.
 - **🏎️ Performance** — MethodHandle caching for field access, Caffeine (W-TinyLFU) caches for metadata, virtual threads on Java 21+ (detected at runtime).
-- **🇰🇷 31 built-in rules & Korean messages** — Resident, business and alien registration numbers, mobile, phone and postal codes, byte length and more, with Korean particles that follow the final consonant (`{0|은/는}`, `{0|이/가}`).
+- **🇰🇷 31 built-in rules & Korean messages** — Resident, business and alien registration numbers, mobile, phone and postal codes, byte length and more, with Korean postposition auto-completion (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
 - **🛡️ Build-time checks** — Field names are strings, so the companion `s2-validator-plugin` checks paths, criteria and missing terminal calls at build time (before `compileJava`).
 - **🍃 Spring MVC integration** — `S2BindValidator` puts validation errors into Spring's standard `BindingResult`.
 
@@ -39,7 +39,7 @@
 | **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
 | **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
 | **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
-| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은/는}` particles adjust automatically |
+| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은}` postposition auto-completion |
 | **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
 | **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
 | **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
@@ -73,7 +73,7 @@ Add the following dependency to your `build.gradle` (Maven Central).
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.0.0'
+    implementation 'io.github.devers2:s2-util:2.1.0'
 }
 ```
 
@@ -83,7 +83,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -104,7 +104,7 @@ pluginManagement {
 
 // build.gradle
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
