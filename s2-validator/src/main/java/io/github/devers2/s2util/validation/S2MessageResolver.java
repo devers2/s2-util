@@ -29,7 +29,7 @@ import java.util.Optional;
  * It keeps the validator free of framework dependencies: the Spring Boot auto-configuration plugs Spring's
  * {@code MessageSource} in through this interface, and any other source (a database, a cache) can be plugged in the
  * same way with {@link S2Validator#setMessageResolver(S2MessageResolver)}. Return the raw template (with {@code {0}}
- * and josa tokens such as <code>{0|은/는}</code> unformatted), or empty to fall back to the bundle and built-in messages.
+ * and josa tokens such as <code>{0|은}</code> unformatted), or empty to fall back to the bundle and built-in messages.
  * </p>
  *
  * <p>
@@ -39,7 +39,7 @@ import java.util.Optional;
  * <p>
  * 검증기가 프레임워크에 의존하지 않도록 둔 연결 지점입니다. Spring Boot 자동 설정은 이 인터페이스로 Spring 의 {@code MessageSource}를 연결하며,
  * 다른 출처(DB, 캐시)도 {@link S2Validator#setMessageResolver(S2MessageResolver)}로 같은 방식으로 연결할 수 있습니다. 치환하지 않은 원본
- * 템플릿({@code {0}}, <code>{0|은/는}</code> 같은 조사 토큰 포함)을 돌려주고, 없으면 빈 값을 돌려주어 번들과 내장 메시지로 넘어가게 하십시오.
+ * 템플릿({@code {0}}, <code>{0|은}</code> 같은 조사 토큰 포함)을 돌려주고, 없으면 빈 값을 돌려주어 번들과 내장 메시지로 넘어가게 하십시오.
  * </p>
  *
  * @author devers2

@@ -88,7 +88,7 @@ public class FromJsonTest {
                   {"name": "memo", "label": "메모",
                    "rules": [{"type": "MAX_LENGTH", "value": 3,
                               "message": "{0} too long",
-                              "messages": {"ko": "{0|은/는} 3자 이하"}}]},
+                              "messages": {"ko": "{0|은} 3자 이하"}}]},
                   {"name": "type", "label": "유형"}
                 ]}""");
         Map<String, Object> in = input("memo", "abcd");

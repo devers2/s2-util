@@ -297,30 +297,33 @@ Set messages for different locales.
 Automatically selects appropriate particles based on field label.
 
 ```java
-// {0|은/는}, {0|이/가}, {0|을/를} pick the particle from the label's final consonant
+// {0|은}, {0|이}, {0|을}, {0|로} pick the particle from the label's final consonant
 
 .field("id", "아이디")
     .rule(S2RuleType.REQUIRED)
-    .ko("{0|은/는} 필수입니다.")
-    // Result: "아이디는 필수입니다."
+    .ko("{0|은} 필수입니다.")
+    // Result: "아이디는 필수입니다." (no batchim -> substitutes 는)
 
 .field("name", "이름")
     .rule(S2RuleType.REQUIRED)
-    .ko("{0|은/는} 필수입니다.")
-    // Result: "이름은 필수입니다."
+    .ko("{0|은} 필수입니다.")
+    // Result: "이름은 필수입니다." (batchim -> selects 은)
 
 .field("email", "이메일")
     .rule(S2RuleType.EMAIL)
-    .ko("{0|이/가} 올바르지 않습니다.")
-    // Result: "이메일이 올바르지 않습니다."
+    .ko("{0|이} 올바르지 않습니다.")
+    // Result: "이메일이 올바르지 않습니다." (selects 이)
 ```
 
-**Supported Particles:**
+**Supported Particles (Postposition Auto-Completion):**
 
-- `{0|은/는}` → 은 / 는
-- `{0|이/가}` → 이 / 가
-- `{0|을/를}` → 을 / 를
-- `{0|과/와}` → 과 / 와
+- `{0|은}` or `{0|는}` → 은 / 는
+- `{0|이}` or `{0|가}` → 이 / 가
+- `{0|을}` or `{0|를}` → 을 / 를
+- `{0|과}` or `{0|와}` → 과 / 와
+- `{0|로}` or `{0|으로}` → 으로 / 로 ('ㄹ' batchim exception handled automatically)
+
+> Paired slash notations (like `이/가`) are excluded to prevent pairing errors. Specifying a single particle (e.g., `{0|이}`) automatically completes to the grammatically correct particle (e.g., "이" or "가") based on the preceding character's batchim.
 
 ---
 

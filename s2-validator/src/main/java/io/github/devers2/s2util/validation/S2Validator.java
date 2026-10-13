@@ -63,7 +63,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
  *
  * <pre>{@code
  *  plugins {
- *      id 'io.github.devers2.validator' version '2.0.0' // 버전은 상황에 맞게 설정
+ *      id 'io.github.devers2.validator' version '2.1.0' // 버전은 상황에 맞게 설정
  *  }
  *     }</pre>
  *
@@ -232,7 +232,7 @@ public class S2Validator<T> implements Serializable {
      *             String password = S2Util.getValue(target, "password", "");
      *             return password.equals(value);
      *         })
-     *         .ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
+     *         .ko("{0|은} 원본 비밀번호와 일치해야 합니다.")
      *     .validate();
      * }</pre>
      */
@@ -288,7 +288,7 @@ public class S2Validator<T> implements Serializable {
      * // Example 1: Define a reusable validator blueprint
      * S2Validator<UserDTO> userValidator = S2Validator.<UserDTO>builder()
      *     .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-     *         .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
+     *         .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은} 최소 {1}자 이상이어야 합니다.")
      *     .field("userPw", "비밀번호").rule(S2RuleType.MIN_LENGTH, 8)
      *     .field("email", "이메일").rule(S2RuleType.EMAIL)
      *     .build();
@@ -312,7 +312,7 @@ public class S2Validator<T> implements Serializable {
      *         .when("userType", "ADMIN")  // Only validate when userType is ADMIN
      *         .rule(S2RuleType.REQUIRED)
      *         .rule((String v) -> v.startsWith("ADM-"))
-     *         .ko("{0|은/는} 'ADM-'로 시작해야 합니다.")
+     *         .ko("{0|은} 'ADM-'로 시작해야 합니다.")
      *     .build();
      *
      * // Example 3: Keep a validator for reuse (field or Spring bean) and bind it in a controller
@@ -1561,7 +1561,7 @@ public class S2Validator<T> implements Serializable {
      * {"schemaVersion": 1, "fields": [
      *   {"name": "memo", "label": "메모",
      *    "rules": [{"type": "MAX_LENGTH", "value": 500,
-     *               "messages": {"ko": "{0|은/는} 500자 이하", "en": "{0} must be at most 500 characters"}}],
+     *               "messages": {"ko": "{0|은} 500자 이하", "en": "{0} must be at most 500 characters"}}],
      *    "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
      *   {"name": "items", "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
      * ]}

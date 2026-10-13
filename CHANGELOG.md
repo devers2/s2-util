@@ -4,6 +4,12 @@
 
 All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-validator-plugin` are recorded here.
 
+## [2.1.0]
+
+- **Korean Postposition Auto-Completion**:
+  - Automatically completes Korean particles from single postposition notation (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`) by analyzing the final consonant (batchim) of the preceding word.
+  - Replaced paired slash notation (`{0|은/는}`) to eliminate pairing typos (e.g., `이/로`).
+
 ## [2.0.0] - 2026-10-02
 
 Compared with 1.1.8. This is a **major release** that does not keep backward compatibility and contains behavior changes; read [Upgrade notes](#upgrade-notes) before upgrading.
@@ -59,8 +65,8 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 - **Messages**:
   - Korean particles are no longer dropped for words whose final consonant cannot be determined (Latin letters, symbols):
     `[documentId]은(는) 필수 입력 항목입니다.` instead of `[documentId] 필수 입력 항목입니다.`
-  - `ASSERT_TRUE`: "{0|을/를} 선택(동의)해야 합니다." / "{0} must be checked." (was "must be true");
-    `ASSERT_FALSE`: "{0|은/는} 선택할 수 없습니다." / "{0} must not be checked."
+  - `ASSERT_TRUE`: "{0|을} 선택(동의)해야 합니다." / "{0} must be checked." (was "must be true");
+    `ASSERT_FALSE`: "{0|은} 선택할 수 없습니다." / "{0} must not be checked."
   - A relative cross-field target in wildcard rows (`items[].end` → `"start"`) shows the label (`시작일`), not `start`.
   - The circular reference error uses the bundle key `valid.err.circular` (was `ERR_CIRCULAR_REFERENCE`) and is
     localized ("Circular reference detected at {0}."); it was Korean-only.
