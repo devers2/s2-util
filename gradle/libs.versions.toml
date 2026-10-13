@@ -23,7 +23,7 @@ errorprone = "2.50.0"
 
 # Spring Framework
 spring-framework-6 = "6.2.19"
-spring-boot-3 = "3.5.16"
+spring-boot-3 = "4.1.1"
 
 # Servlet / JSP
 jakarta-servlet-api = "6.1.0"
