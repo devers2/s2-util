@@ -445,7 +445,7 @@ public class Test {
     void testGetValue_Array() {
         String testName = "getValue - Array";
         try {
-            String[] arr = { "alpha", "beta", "gamma" };
+            String[] arr = {"alpha", "beta", "gamma"};
 
             assert "alpha".equals(S2Util.getValue(arr, 0));
             assert "beta".equals(S2Util.getValue(arr, 1));
