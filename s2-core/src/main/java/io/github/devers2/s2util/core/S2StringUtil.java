@@ -483,38 +483,186 @@ public class S2StringUtil {
         JOSA_RULES = java.util.Map.copyOf(rules);
     }
 
+    /**
+     * Holds the resolved target character for postposition selection, along with classification flags.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조사 선택을 위해 분석된 대상 문자와 분류 플래그를 담는 내부 결과 객체입니다.
+     */
+    private static final class TargetCharResult {
+        final char ch;
+        final boolean isKorean;
+        final boolean isNumber;
+        final String trimmedWord;
+
+        TargetCharResult(char ch, boolean isKorean, boolean isNumber, String trimmedWord) {
+            this.ch = ch;
+            this.isKorean = isKorean;
+            this.isNumber = isNumber;
+            this.trimmedWord = trimmedWord;
+        }
+    }
+
+    /**
+     * Resolves the target character used for postposition (Josa) selection.
+     * <ol>
+     *   <li>Leading/trailing whitespace is trimmed.</li>
+     *   <li>If the word ends with a closing bracket ({@code )}, {@code ]}, or full-width equivalents):
+     *     <ul>
+     *       <li>If the last character inside the brackets is Korean or a digit, that character is used
+     *           (e.g. {@code "프로젝트명 (한글)"} → {@code '글'}).</li>
+     *       <li>If the content inside the brackets is non-Korean/non-digit (e.g. {@code "서버 (API)"},
+     *           {@code "달성률 (%)"}), the last character before the brackets is used
+     *           (e.g. {@code '버'}, {@code '률'}).</li>
+     *     </ul>
+     *   </li>
+     *   <li>Otherwise the last character of the trimmed word is used.</li>
+     * </ol>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 조사 결합을 위해 기준이 되는 마지막 음절/문자를 추출합니다.
+     * <ol>
+     *   <li>앞뒤 공백을 trim 처리합니다.</li>
+     *   <li>닫는 괄호로 끝나는 경우:
+     *     <ul>
+     *       <li>괄호 안의 마지막 글자가 한글 또는 숫자이면 해당 글자 기준 (예: {@code "프로젝트명 (한글)"} → {@code '글'})</li>
+     *       <li>괄호 안이 영문/기호(예: {@code "서버 (API)"}, {@code "달성률 (%)"})이면 괄호 앞의 단어 기준
+     *           (예: {@code '버'}, {@code '률'})</li>
+     *     </ul>
+     *   </li>
+     *   <li>일반 단어인 경우 마지막 글자 기준</li>
+     * </ol>
+     */
+    private static TargetCharResult resolveTargetChar(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String trimmed = text.trim();
+
+        // Ends with a closing bracket: (...) or [...] | 닫는 괄호로 끝나는 경우: (...) 또는 [...]
+        char lastCh = trimmed.charAt(trimmed.length() - 1);
+        if (lastCh == ')' || lastCh == ']' || lastCh == '\uFF09' || lastCh == '\uFF3D') {
+            boolean isParen = lastCh == ')' || lastCh == '\uFF09';
+            int openIdx = isParen
+                    ? Math.max(trimmed.lastIndexOf('('), trimmed.lastIndexOf('\uFF08'))
+                    : Math.max(trimmed.lastIndexOf('['), trimmed.lastIndexOf('\uFF3B'));
+
+            if (openIdx != -1 && openIdx < trimmed.length() - 1) {
+                String inside = trimmed.substring(openIdx + 1, trimmed.length() - 1).trim();
+                if (!inside.isBlank()) {
+                    char insideLastCh = inside.charAt(inside.length() - 1);
+                    boolean isKorean = isKorean(insideLastCh);
+                    boolean isNumber = isNumber(insideLastCh);
+                    if (isKorean || isNumber) {
+                        return new TargetCharResult(insideLastCh, isKorean, isNumber, trimmed);
+                    }
+                }
+                // Non-Korean/digit inside brackets: check the word before brackets | 괄호 안이 한글/숫자가 아닌 경우: 괄호 앞 단어 검사
+                String before = trimmed.substring(0, openIdx).trim();
+                if (!before.isBlank()) {
+                    char beforeLastCh = before.charAt(before.length() - 1);
+                    boolean isKorean = isKorean(beforeLastCh);
+                    boolean isNumber = isNumber(beforeLastCh);
+                    if (isKorean || isNumber) {
+                        return new TargetCharResult(beforeLastCh, isKorean, isNumber, trimmed);
+                    }
+                }
+            }
+        }
+
+        // Plain word | 일반 단어
+        char ch = trimmed.charAt(trimmed.length() - 1);
+        boolean isKorean = isKorean(ch);
+        boolean isNumber = isNumber(ch);
+        return new TargetCharResult(ch, isKorean, isNumber, trimmed);
+    }
+
+    /**
+     * Checks if the character is a Korean syllable (U+AC00–U+D7A3). | 한글 완성형 음절(AC00~D7A3) 여부를 확인합니다.
+     */
+    private static boolean isKorean(char c) {
+        return c >= 0xAC00 && c <= 0xD7A3;
+    }
+
+    /**
+     * Checks if the character is an ASCII digit ({@code '0'–'9'}). | ASCII 숫자('0'~'9') 여부를 확인합니다.
+     */
+    private static boolean isNumber(char c) {
+        return c >= '0' && c <= '9';
+    }
+    /**
+     * Automatically completes and attaches the appropriate Korean postposition (Josa) to a word.
+     * <p>
+     * By providing any single postposition from a pair (e.g., "이", "가", "을", "를", "은", "는", "로", "으로"),
+     * this method identifies the corresponding postposition group and automatically selects the grammatically
+     * correct postposition based on whether the preceding word ends with a final consonant (batchim).
+     * For example, passing "이" will result in "사과가" for "사과" and "책이" for "책".
+     * Includes specialized logic for the "ㄹ" batchim exception (e.g., "서울로", "총괄로" instead of "서울으로").
+     * </p>
+     * <p>
+     * Leading/trailing whitespace is trimmed from the input. If the word ends with parentheses or brackets,
+     * the character inside (or before) the brackets is used for batchim detection via {@code resolveTargetChar}.
+     * When the target character cannot be determined (e.g. Latin letters, symbols), the dual form is appended
+     * without surrounding brackets (e.g. {@code "ID은(는)"}).
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 단어 뒤에 붙을 조사를 마지막 글자의 받침 유무에 따라 자동으로 완성하여 결합합니다.
+     * <p>
+     * 관련된 조사 중 하나의 조사(예: "이", "가", "을", "를", "은", "는", "로", "으로" 등)만 넘겨주면,
+     * 앞 단어의 받침 유무를 분석하여 해당 조사군 중 알맞은 조사를 자동으로 붙여줍니다.
+     * <ul>
+     * <li>예: "이"만 넣어도 "사과" 뒤에는 "사과가", "책" 뒤에는 "책이"로 "이/가" 중 알맞은 조사가 완성됩니다.</li>
+     * <li>예: "을"만 넣어도 "총괄" 뒤에는 "총괄을", "책임자" 뒤에는 "책임자를"로 "을/를" 중 알맞은 조사가 완성됩니다.</li>
+     * <li>예: "으로" 또는 "로"만 넣어도 "총괄" 뒤에는 "총괄로"('ㄹ' 종성 예외), "집" 뒤에는 "집으로"로 알맞게 완성됩니다.</li>
+     * </ul>
+     * 입력 앞뒤의 공백은 trim 처리됩니다. 괄호/대괄호로 끝나는 경우 {@code resolveTargetChar}를 통해
+     * 괄호 안 또는 앞의 문자를 기준으로 받침을 판별합니다.
+     * 판별이 불가능한 경우(영문, 특수문자 등) 대괄호 없이 병기형을 결합합니다 (예: {@code "ID은(는)"}).
+     * </p>
+     *
+     * @param word The target word (e.g., "사과", "총괄") | 대상 단어 (예: "사과", "총괄")
+     * @param josa The postposition to apply (e.g., "이", "을", "은", "로") | 적용할 조사 (예: "이", "을", "은", "로")
+     * @return The combined string with its correct postposition | 알맞은 조사가 결합된 문자열
+     */
     public static String appendJosa(String word, String josa) {
         if (word == null || word.isBlank() || josa == null || josa.isBlank()) {
             return word;
         }
 
-        char lastChar = word.charAt(word.length() - 1);
+        TargetCharResult target = resolveTargetChar(word);
+        String trimmed = target != null ? target.trimmedWord : word.trim();
+        JosaRule rule = JOSA_RULES.get(josa);
 
-        // 한글 또는 숫자인 경우에만 조사 처리 진행
-        if (isKoreanOrNumber(lastChar)) {
-            boolean wordHasBatchim = hasBatchim(lastChar);
+        if (target != null && (target.isKorean || target.isNumber)) {
+            boolean wordHasBatchim = hasBatchim(target.ch);
 
-            JosaRule rule = JOSA_RULES.get(josa);
             if (rule != null) {
-                // 지정된 조사를 통해 조사군을 식별하고, 받침 유무에 따라 적합한 조사로 자동 완성
+                // Identify the particle group and select the correct form based on batchim | 조사군을 식별하고, 받침 유무에 따라 적합한 조사로 자동 완성
                 String targetJosa = wordHasBatchim ? rule.batchim : rule.noBatchim;
 
+                // [Special exception] 'ㄹ' batchim → "로" for 으로/로 group (Korean ㄹ, digits 1, 7, 8)
                 // [특수 예외] '으로/로' 계열: 종성이 'ㄹ'인 경우(한글 및 숫자 1, 7, 8) "로" 선택
-                if (rule.rieulSpecial && wordHasBatchim && isRieulBatchim(lastChar)) {
+                if (rule.rieulSpecial && wordHasBatchim && isRieulBatchim(target.ch)) {
                     targetJosa = rule.noBatchim; // "로"
                 }
 
-                return word + targetJosa;
+                return trimmed + targetJosa;
             }
 
-            // 목록에 없는 고정 조사(예: "의", "에", "도", "만" 등): 그대로 결합
-            return word + josa;
+            // Fixed particle not in the lookup (e.g. "의", "에", "도", "만"): append as is | 목록에 없는 고정 조사: 그대로 결합
+            return trimmed + josa;
         }
 
-        // Undeterminable (Latin letters, symbols): append the dual form | 판별 불가(영문/특수문자 등): 병기형을 붙임
-        JosaRule rule = JOSA_RULES.get(josa);
+        // Undeterminable (Latin letters, symbols): append the dual form (without brackets)
         String dualForm = rule != null ? rule.dualForm : josa;
-        return "[" + word + "]" + dualForm;
+        return trimmed + dualForm;
     }
 
     /**
@@ -541,7 +689,8 @@ public class S2StringUtil {
     }
 
     /**
-     * 문자의 종성이 'ㄹ' 받침인지 확인합니다. (한글 및 숫자 1, 7, 8)
+     * Checks if the character has a 'ㄹ' (rieul) final consonant (Korean syllables and digits 1, 7, 8).
+     * | 문자의 종성이 'ㄹ' 받침인지 확인합니다. (한글 및 숫자 1, 7, 8)
      */
     private static boolean isRieulBatchim(char c) {
         if (c >= 0xAC00 && c <= 0xD7A3) {
@@ -550,7 +699,7 @@ public class S2StringUtil {
         return c == '1' || c == '7' || c == '8';
     }
 
-    /** 한글 또는 숫자 여부 확인 */
+    /** Checks if the character is Korean or a digit. | 한글 또는 숫자 여부를 확인합니다. */
     private static boolean isKoreanOrNumber(char c) {
         return (c >= 0xAC00 && c <= 0xD7A3) || (c >= '0' && c <= '9');
     }
@@ -570,21 +719,32 @@ public class S2StringUtil {
      * @return {@code true} if it has a batchim, {@code false} otherwise
      */
     public static boolean hasBatchim(String text) {
-        if (text == null || text.isBlank()) {
+        TargetCharResult target = resolveTargetChar(text);
+        if (target == null || (!target.isKorean && !target.isNumber)) {
             return false;
         }
-        return hasBatchim(text.charAt(text.length() - 1));
+        return hasBatchim(target.ch);
     }
 
     /**
-     * 지정된 문자에 한글 받침(종성)이 있는지 확인한다.
+     * Checks if the given character has a Korean final consonant (Batchim).
      * <p>
-     * 현대 한글 유니코드(AC00~D7A3) 공식에 따라 문자의 종성 인덱스를 계산하여 판별한다.
-     * 계산식: (문자 코드 - 0xAC00) % 28 > 0
+     * For modern Korean syllables (U+AC00–U+D7A3), the final consonant index is computed as
+     * {@code (charCode - 0xAC00) % 28 > 0}. For digits, those whose Korean reading ends with
+     * a batchim (0, 1, 3, 6, 7, 8) return {@code true}.
      * </p>
      *
-     * @param c 확인할 문자 (한글 한 글자)
-     * @return 한글 받침이 있으면 true, 한글이 아니거나 받침이 없으면 false
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 지정된 문자에 한글 받침(종성)이 있는지 확인합니다.
+     * <p>
+     * 현대 한글 유니코드(AC00~D7A3) 공식에 따라 문자의 종성 인덱스를 계산하여 판별합니다.
+     * 계산식: {@code (문자 코드 - 0xAC00) % 28 > 0}
+     * </p>
+     *
+     * @param c The character to check | 확인할 문자 (한글 한 글자)
+     * @return {@code true} if it has a batchim, {@code false} otherwise | 한글 받침이 있으면 true, 아니면 false
      */
     public static boolean hasBatchim(char c) {
         // 1. 한글 판별

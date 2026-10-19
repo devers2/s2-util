@@ -217,8 +217,8 @@ public class DefectFixParityTest {
                 .validate(target, errors::add, Locale.KOREAN);
 
         Assertions.assertEquals(1, errors.size());
-        Assertions.assertTrue(errors.get(0).defaultMessage().contains("[pw]"), errors.get(0).defaultMessage());
-        Assertions.assertFalse(errors.get(0).defaultMessage().contains("[pw] 일치"), "조사가 빠지면 안 됨: " + errors.get(0).defaultMessage());
+        Assertions.assertTrue(errors.get(0).defaultMessage().contains("pw이(가)"), errors.get(0).defaultMessage());
+        Assertions.assertFalse(errors.get(0).defaultMessage().contains("pw 일치"), "조사가 빠지면 안 됨: " + errors.get(0).defaultMessage());
     }
 
     @Test

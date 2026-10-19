@@ -1308,16 +1308,67 @@ public class Test {
             assert "2를".equals(S2StringUtil.appendJosa("2", "를"));
             assert "3으로".equals(S2StringUtil.appendJosa("3", "로"));
 
-            // 2. 받침 판별 불가(영문 등): 조사 자동 완성 시 병기형을 결합
-            assert "[pw]과(와)".equals(S2StringUtil.appendJosa("pw", "과"));
-            assert "[documentId]은(는)".equals(S2StringUtil.appendJosa("documentId", "은"));
-            assert "[ID]이(가)".equals(S2StringUtil.appendJosa("ID", "이"));
-            assert "[URL](으)로".equals(S2StringUtil.appendJosa("URL", "로"));
+            // 2. 받침 판별 불가(영문 등): 조사 자동 완성 시 대괄호 없이 병기형을 결합
+            assert "pw과(와)".equals(S2StringUtil.appendJosa("pw", "과"));
+            assert "documentId은(는)".equals(S2StringUtil.appendJosa("documentId", "은"));
+            assert "ID이(가)".equals(S2StringUtil.appendJosa("ID", "이"));
+            assert "URL(으)로".equals(S2StringUtil.appendJosa("URL", "로"));
+            assert "SDK(core)은(는)".equals(S2StringUtil.appendJosa("SDK(core)", "은"));
+            assert "()은(는)".equals(S2StringUtil.appendJosa("()", "은"));
+            assert "(API)은(는)".equals(S2StringUtil.appendJosa("(API)", "은"));
 
-            // 3. S2StringUtil.formatMessage 조사 자동 완성 치환 테스트
+            // 3. 괄호 및 단위 표기 처리
+            assert "프로젝트명(한글)은".equals(S2StringUtil.appendJosa("프로젝트명(한글)", "은"));
+            assert "프로젝트명 (한글)은".equals(S2StringUtil.appendJosa("프로젝트명 (한글)", "은"));
+            assert "프로젝트명 ( 한글 )은".equals(S2StringUtil.appendJosa("프로젝트명 ( 한글 ) ", "은"));
+            assert "담당자(부)는".equals(S2StringUtil.appendJosa("담당자(부)", "은"));
+            assert "담당자 (부)는".equals(S2StringUtil.appendJosa("담당자 (부)", "은"));
+            assert "달성률(%)은".equals(S2StringUtil.appendJosa("달성률(%)", "은"));
+            assert "달성률 (%)은".equals(S2StringUtil.appendJosa("달성률 (%)", "은"));
+            assert "진행도(%)는".equals(S2StringUtil.appendJosa("진행도(%)", "은"));
+            assert "서버 (API)는".equals(S2StringUtil.appendJosa("서버 (API)", "은"));
+            assert "시스템(API)은".equals(S2StringUtil.appendJosa("시스템(API)", "은"));
+            assert "프로젝트(Eng)는".equals(S2StringUtil.appendJosa("프로젝트(Eng)", "은"));
+            assert "사업계획(Draft)은".equals(S2StringUtil.appendJosa("사업계획(Draft)", "은"));
+            assert "몸무게(kg)는".equals(S2StringUtil.appendJosa("몸무게(kg)", "은"));
+            assert "체중(kg)은".equals(S2StringUtil.appendJosa("체중(kg)", "은"));
+            assert "금액($)은".equals(S2StringUtil.appendJosa("금액($)", "은"));
+            assert "단가($)는".equals(S2StringUtil.appendJosa("단가($)", "은"));
+            assert "목적지(LA)로".equals(S2StringUtil.appendJosa("목적지(LA)", "로"));
+
+            // 괄호 안 숫자
+            assert "버전(1)로".equals(S2StringUtil.appendJosa("버전(1)", "로"));
+            assert "버전(2)로".equals(S2StringUtil.appendJosa("버전(2)", "로"));
+            assert "버전(3)으로".equals(S2StringUtil.appendJosa("버전(3)", "로"));
+
+            // 대괄호 및 전각 괄호
+            assert "프로젝트[한글]은".equals(S2StringUtil.appendJosa("프로젝트[한글]", "은"));
+            assert "서버[API]는".equals(S2StringUtil.appendJosa("서버[API]", "은"));
+            assert "달성률[%]은".equals(S2StringUtil.appendJosa("달성률[%]", "은"));
+            assert "프로젝트명（한글）은".equals(S2StringUtil.appendJosa("프로젝트명（한글）", "은"));
+            assert "서버（API）는".equals(S2StringUtil.appendJosa("서버（API）", "은"));
+
+            // 공백 trim 처리
+            assert "프로젝트 명은".equals(S2StringUtil.appendJosa("프로젝트 명 ", "은"));
+            assert "시작일은".equals(S2StringUtil.appendJosa(" 시작일", "은"));
+            assert "종료일은".equals(S2StringUtil.appendJosa(" 종료일 ", "은"));
+            assert "프로젝트   번호는".equals(S2StringUtil.appendJosa("프로젝트   번호  ", "은"));
+
+            // hasBatchim 단위 테스트
+            assert S2StringUtil.hasBatchim("프로젝트명(한글)");
+            assert !S2StringUtil.hasBatchim("담당자(부)");
+            assert S2StringUtil.hasBatchim("달성률(%)");
+            assert !S2StringUtil.hasBatchim("서버 (API)");
+            assert S2StringUtil.hasBatchim("프로젝트 명 ");
+            assert !S2StringUtil.hasBatchim("English");
+
+            // 4. S2StringUtil.formatMessage 조사 자동 완성 치환 테스트
             assert "사과가 창고를 방문함".equals(S2StringUtil.formatMessage("{0|이} {1|을} 방문함", "사과", "창고"));
             assert "총괄로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "총괄"));
             assert "책임자로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "책임자"));
+            assert "프로젝트명 (한글)을 입력해주세요.".equals(S2StringUtil.formatMessage("{0|을} 입력해주세요.", "프로젝트명 (한글)"));
+            assert "달성률 (%)은 필수 입력 항목입니다.".equals(S2StringUtil.formatMessage("{0|은} 필수 입력 항목입니다.", "달성률 (%)"));
+            assert "ID은(는) 필수 입력 항목입니다.".equals(S2StringUtil.formatMessage("{0|은} 필수 입력 항목입니다.", "ID"));
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
