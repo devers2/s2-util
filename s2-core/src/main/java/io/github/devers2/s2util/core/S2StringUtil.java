@@ -433,7 +433,8 @@ public class S2StringUtil {
      */
 
     /** Josa rule: batchim form, no-batchim form, ㄹ-special flag, dual display form. */
-    private record JosaRule(String batchim, String noBatchim, boolean rieulSpecial, String dualForm) {}
+    private record JosaRule(String batchim, String noBatchim, boolean rieulSpecial, String dualForm) {
+    }
 
     /** Postposition rule lookup map. Maps each particle to its rule. */
     private static final java.util.Map<String, JosaRule> JOSA_RULES;
@@ -442,43 +443,56 @@ public class S2StringUtil {
         JosaRule r;
 
         r = new JosaRule("을", "를", false, "을(를)");
-        rules.put("을", r); rules.put("를", r);
+        rules.put("을", r);
+        rules.put("를", r);
 
         r = new JosaRule("이", "가", false, "이(가)");
-        rules.put("이", r); rules.put("가", r);
+        rules.put("이", r);
+        rules.put("가", r);
 
         r = new JosaRule("은", "는", false, "은(는)");
-        rules.put("은", r); rules.put("는", r);
+        rules.put("은", r);
+        rules.put("는", r);
 
         r = new JosaRule("과", "와", false, "과(와)");
-        rules.put("과", r); rules.put("와", r);
+        rules.put("과", r);
+        rules.put("와", r);
 
         r = new JosaRule("으로", "로", true, "(으)로");
-        rules.put("으로", r); rules.put("로", r);
+        rules.put("으로", r);
+        rules.put("로", r);
 
         r = new JosaRule("이나", "나", false, "(이)나");
-        rules.put("이나", r); rules.put("나", r);
+        rules.put("이나", r);
+        rules.put("나", r);
 
         r = new JosaRule("이란", "란", false, "(이)란");
-        rules.put("이란", r); rules.put("란", r);
+        rules.put("이란", r);
+        rules.put("란", r);
 
         r = new JosaRule("아", "야", false, "아(야)");
-        rules.put("아", r); rules.put("야", r);
+        rules.put("아", r);
+        rules.put("야", r);
 
         r = new JosaRule("이어", "여", false, "이어(여)");
-        rules.put("이어", r); rules.put("여", r);
+        rules.put("이어", r);
+        rules.put("여", r);
 
         r = new JosaRule("이에", "예", false, "이에(예)");
-        rules.put("이에", r); rules.put("예", r);
+        rules.put("이에", r);
+        rules.put("예", r);
 
         r = new JosaRule("이며", "며", false, "(이)며");
-        rules.put("이며", r); rules.put("며", r);
+        rules.put("이며", r);
+        rules.put("며", r);
 
         r = new JosaRule("이든", "든", false, "(이)든");
-        rules.put("이든", r); rules.put("든", r);
+        rules.put("이든", r);
+        rules.put("든", r);
 
         r = new JosaRule("이라", "라", false, "(이)라");
-        rules.put("이라", r); rules.put("라", r);
+        rules.put("이라", r);
+        rules.put("라", r);
 
         JOSA_RULES = java.util.Map.copyOf(rules);
     }
@@ -594,6 +608,7 @@ public class S2StringUtil {
     private static boolean isNumber(char c) {
         return c >= '0' && c <= '9';
     }
+
     /**
      * Automatically completes and attaches the appropriate Korean postposition (Josa) to a word.
      * <p>
@@ -666,29 +681,6 @@ public class S2StringUtil {
     }
 
     /**
-     * Returns the conventional dual form of a particle for words whose final consonant cannot be determined.
-     * <p>
-     * e.g. {@code 을 → 을(를)}, {@code 은 → 은(는)}, {@code 로 → (으)로}. A fixed particle without
-     * a known pair is returned as is.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 받침을 판별할 수 없는 단어에 붙일 조사 병기형을 반환합니다.
-     * <p>
-     * 예: {@code 을 → 을(를)}, {@code 은 → 은(는)}, {@code 로 → (으)로}. 알려진 쌍이 없는 고정 조사는 그대로 반환합니다.
-     * </p>
-     *
-     * @param josa The postposition | 조사
-     * @return The dual form | 조사 병기형
-     */
-    private static String dualFormJosa(String josa) {
-        JosaRule rule = JOSA_RULES.get(josa);
-        return rule != null ? rule.dualForm : josa;
-    }
-
-    /**
      * Checks if the character has a 'ㄹ' (rieul) final consonant (Korean syllables and digits 1, 7, 8).
      * | 문자의 종성이 'ㄹ' 받침인지 확인합니다. (한글 및 숫자 1, 7, 8)
      */
@@ -697,11 +689,6 @@ public class S2StringUtil {
             return (c - 0xAC00) % 28 == 8;
         }
         return c == '1' || c == '7' || c == '8';
-    }
-
-    /** Checks if the character is Korean or a digit. | 한글 또는 숫자 여부를 확인합니다. */
-    private static boolean isKoreanOrNumber(char c) {
-        return (c >= 0xAC00 && c <= 0xD7A3) || (c >= '0' && c <= '9');
     }
 
     /**
