@@ -523,13 +523,22 @@ public class S2StringUtil {
      * Resolves the target character used for postposition (Josa) selection.
      * <ol>
      *   <li>Leading/trailing whitespace is trimmed.</li>
-     *   <li>If the word ends with a closing bracket ({@code )}, {@code ]}, or full-width equivalents):
+     *   <li><b>Quotation marks</b> ({@code " "}, {@code ' '}, 「」, 『』, 〈〉, {@code <>}, 《》):
      *     <ul>
-     *       <li>If the last character inside the brackets is Korean or a digit, that character is used
-     *           (e.g. {@code "프로젝트명 (한글)"} → {@code '글'}).</li>
-     *       <li>If the content inside the brackets is non-Korean/non-digit (e.g. {@code "서버 (API)"},
-     *           {@code "달성률 (%)"}), the last character before the brackets is used
-     *           (e.g. {@code '버'}, {@code '률'}).</li>
+     *       <li>Quotation marks wrap titles, proper nouns, or emphasized words. The entire content functions
+     *           as the principal noun phrase, so the <b>last character inside the quote</b> is used for
+     *           batchim detection.
+     *           (e.g. {@code "수박"을}, {@code '사과'를}, {@code 「처리방침」을}, {@code 『가이드』를})</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>Parentheses/brackets</b> ({@code ()}, {@code []}, <code>{}</code>, 【】, 〔〕, and full-width equivalents):
+     *     <ul>
+     *       <li>Per the National Institute of Korean Language (국립국어원) norms, parenthesized content is
+     *           supplementary. The <b>last character before the opening bracket</b> is used first.
+     *           (Bracket-removal test: "수임인(이승수)을" → "수임인을" [OK]; "수임인(이승수)를" → "수임인를" [ungrammatical])</li>
+     *       <li>Fallback: if the string starts with a bracket (no word before it), the last character
+     *           inside is used.
+     *           (e.g. {@code "[공지사항]이"}, {@code "[안내]가"})</li>
      *     </ul>
      *   </li>
      *   <li>Otherwise the last character of the trimmed word is used.</li>
@@ -541,11 +550,20 @@ public class S2StringUtil {
      * 조사 결합을 위해 기준이 되는 마지막 음절/문자를 추출합니다.
      * <ol>
      *   <li>앞뒤 공백을 trim 처리합니다.</li>
-     *   <li>닫는 괄호로 끝나는 경우:
+     *   <li><b>닫는 인용부호</b>로 끝나는 경우:
      *     <ul>
-     *       <li>괄호 안의 마지막 글자가 한글 또는 숫자이면 해당 글자 기준 (예: {@code "프로젝트명 (한글)"} → {@code '글'})</li>
-     *       <li>괄호 안이 영문/기호(예: {@code "서버 (API)"}, {@code "달성률 (%)"})이면 괄호 앞의 단어 기준
-     *           (예: {@code '버'}, {@code '률'})</li>
+     *       <li>대상: 큰따옴표({@code “ ”}), 작은따옴표({@code ‘ ’}), 홈낫표(「」), 겹낫표(『』),
+     *               홈화살괄호(〈〉, {@code <>}), 겹화살괄호(《》)</li>
+     *       <li>인용부호 내부의 내용 전체가 하나의 주된 체언으로 기능하므로 <b>'부호 내부의 마지막 글자'</b> 기준으로 조사를 결정합니다.</li>
+     *       <li>예: {@code “수박”을}, {@code ‘사과’를}, {@code 「개인정보 처리방침」을}, {@code 『연구 가이드』를}</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>닫는 괄호</b>로 끝나는 경우:
+     *     <ul>
+     *       <li>대상: 소괄호, 대괄호, 중괄호, 렌티큐러 괄호(【】), 귀괄호(〔〕)</li>
+     *       <li>국립국어원 문법 규범에 따라 <b>'괄호 앞의 본말(주요 명사)'</b> 기준으로 조사를 결정합니다.
+     *           (괄호 생략 검증: "수임인(이승수)을" → "수임인을"[O] vs "수임인(이승수)를" → "수임인를"[X 비문])</li>
+     *       <li>예외: 괄호 앞 단어가 없는 경우 (예: "[공지사항]", "(안내)") 안쪽 글자 기준</li>
      *     </ul>
      *   </li>
      *   <li>일반 단어인 경우 마지막 글자 기준</li>
@@ -556,43 +574,96 @@ public class S2StringUtil {
             return null;
         }
         String trimmed = text.trim();
-
-        // Ends with a closing bracket: (...) or [...] | 닫는 괄호로 끝나는 경우: (...) 또는 [...]
         char lastCh = trimmed.charAt(trimmed.length() - 1);
-        if (lastCh == ')' || lastCh == ']' || lastCh == '\uFF09' || lastCh == '\uFF3D') {
-            boolean isParen = lastCh == ')' || lastCh == '\uFF09';
-            int openIdx = isParen
-                    ? Math.max(trimmed.lastIndexOf('('), trimmed.lastIndexOf('\uFF08'))
-                    : Math.max(trimmed.lastIndexOf('['), trimmed.lastIndexOf('\uFF3B'));
 
-            if (openIdx != -1 && openIdx < trimmed.length() - 1) {
-                String inside = trimmed.substring(openIdx + 1, trimmed.length() - 1).trim();
+        boolean isQuote = false;
+        int openIdx = -1;
+
+        switch (lastCh) {
+            // === Quotation marks (인용부호) ===
+            case '"':
+            case '\u201D': // ”
+                isQuote = true;
+                openIdx = Math.max(trimmed.lastIndexOf('"', trimmed.length() - 2), trimmed.lastIndexOf('\u201C'));
+                break;
+            case '\'':
+            case '\u2019': // ’
+                isQuote = true;
+                openIdx = Math.max(trimmed.lastIndexOf('\'', trimmed.length() - 2), trimmed.lastIndexOf('\u2018'));
+                break;
+            case '\u300D': // 」
+                isQuote = true;
+                openIdx = trimmed.lastIndexOf('\u300C'); // 「
+                break;
+            case '\u300F': // 』
+                isQuote = true;
+                openIdx = trimmed.lastIndexOf('\u300E'); // 『
+                break;
+            case '\u3009': // 〉
+                isQuote = true;
+                openIdx = trimmed.lastIndexOf('\u3008'); // 〈
+                break;
+            case '>':
+                isQuote = true;
+                openIdx = trimmed.lastIndexOf('<');
+                break;
+            case '\u300B': // 》
+                isQuote = true;
+                openIdx = trimmed.lastIndexOf('\u300A'); // 《
+                break;
+
+            // === Parentheses / Brackets (괄호부호) ===
+            case ')':
+            case '\uFF09': // ）
+                openIdx = Math.max(trimmed.lastIndexOf('('), trimmed.lastIndexOf('\uFF08'));
+                break;
+            case ']':
+            case '\uFF3D': // ］
+                openIdx = Math.max(trimmed.lastIndexOf('['), trimmed.lastIndexOf('\uFF3B'));
+                break;
+            case '}':
+            case '\uFF5D': // ｝
+                openIdx = Math.max(trimmed.lastIndexOf('{'), trimmed.lastIndexOf('\uFF5B'));
+                break;
+            case '\u3011': // 】
+                openIdx = trimmed.lastIndexOf('\u3010'); // 【
+                break;
+            case '\u3015': // 〕
+                openIdx = trimmed.lastIndexOf('\u3014'); // 〔
+                break;
+            default:
+                break;
+        }
+
+        if (openIdx != -1 && openIdx < trimmed.length() - 1) {
+            String inside = trimmed.substring(openIdx + 1, trimmed.length() - 1).trim();
+            String before = trimmed.substring(0, openIdx).trim();
+
+            if (isQuote) {
+                // Quotation: inside-first | 인용부호: 부호 안쪽 우선
                 if (!inside.isBlank()) {
                     char insideLastCh = inside.charAt(inside.length() - 1);
-                    boolean isKorean = isKorean(insideLastCh);
-                    boolean isNumber = isNumber(insideLastCh);
-                    if (isKorean || isNumber) {
-                        return new TargetCharResult(insideLastCh, isKorean, isNumber, trimmed);
-                    }
+                    return new TargetCharResult(insideLastCh, isKorean(insideLastCh), isNumber(insideLastCh), trimmed);
                 }
-                // Non-Korean/digit inside brackets: check the word before brackets | 괄호 안이 한글/숫자가 아닌 경우: 괄호 앞 단어 검사
-                String before = trimmed.substring(0, openIdx).trim();
                 if (!before.isBlank()) {
                     char beforeLastCh = before.charAt(before.length() - 1);
-                    boolean isKorean = isKorean(beforeLastCh);
-                    boolean isNumber = isNumber(beforeLastCh);
-                    if (isKorean || isNumber) {
-                        return new TargetCharResult(beforeLastCh, isKorean, isNumber, trimmed);
-                    }
+                    return new TargetCharResult(beforeLastCh, isKorean(beforeLastCh), isNumber(beforeLastCh), trimmed);
+                }
+            } else {
+                // Brackets: before-first, inside-fallback | 괄호: 앞말 우선, 없을 때만 안쪽
+                if (!before.isBlank()) {
+                    char beforeLastCh = before.charAt(before.length() - 1);
+                    return new TargetCharResult(beforeLastCh, isKorean(beforeLastCh), isNumber(beforeLastCh), trimmed);
+                } else if (!inside.isBlank()) {
+                    char insideLastCh = inside.charAt(inside.length() - 1);
+                    return new TargetCharResult(insideLastCh, isKorean(insideLastCh), isNumber(insideLastCh), trimmed);
                 }
             }
         }
 
         // Plain word | 일반 단어
         char ch = trimmed.charAt(trimmed.length() - 1);
-        boolean isKorean = isKorean(ch);
-        boolean isNumber = isNumber(ch);
-        return new TargetCharResult(ch, isKorean, isNumber, trimmed);
+        return new TargetCharResult(ch, isKorean(ch), isNumber(ch), trimmed);
     }
 
     /**

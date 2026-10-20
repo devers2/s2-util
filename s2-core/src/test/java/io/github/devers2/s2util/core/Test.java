@@ -1336,17 +1336,44 @@ public class Test {
             assert "단가($)는".equals(S2StringUtil.appendJosa("단가($)", "은"));
             assert "목적지(LA)로".equals(S2StringUtil.appendJosa("목적지(LA)", "로"));
 
-            // 괄호 안 숫자
-            assert "버전(1)로".equals(S2StringUtil.appendJosa("버전(1)", "로"));
-            assert "버전(2)로".equals(S2StringUtil.appendJosa("버전(2)", "로"));
+            // 괄호 앞 단어 기준 (국립국어원 표준 규범: 괄호 생략 테스트 통과)
+            assert "수임인(김철수)을".equals(S2StringUtil.appendJosa("수임인(김철수)", "을"));
+            assert "사용자(홍길동)를".equals(S2StringUtil.appendJosa("사용자(홍길동)", "을"));
+            assert "프로젝트 명(영어)을".equals(S2StringUtil.appendJosa("프로젝트 명(영어)", "을"));
+            assert "버전(1)으로".equals(S2StringUtil.appendJosa("버전(1)", "로"));
+            assert "버전(2)으로".equals(S2StringUtil.appendJosa("버전(2)", "로"));
             assert "버전(3)으로".equals(S2StringUtil.appendJosa("버전(3)", "로"));
 
+            // 괄호 앞 단어가 없는 경우 (안쪽 단어/숫자 기준 fallback)
+            assert "(1)로".equals(S2StringUtil.appendJosa("(1)", "로"));
+            assert "(2)로".equals(S2StringUtil.appendJosa("(2)", "로"));
+            assert "(3)으로".equals(S2StringUtil.appendJosa("(3)", "로"));
+            assert "[공지사항]이".equals(S2StringUtil.appendJosa("[공지사항]", "이"));
+            assert "[안내]가".equals(S2StringUtil.appendJosa("[안내]", "이"));
+            assert "[안내]를".equals(S2StringUtil.appendJosa("[안내]", "을"));
+            assert "(작성 중)을".equals(S2StringUtil.appendJosa("(작성 중)", "을"));
+
             // 대괄호 및 전각 괄호
-            assert "프로젝트[한글]은".equals(S2StringUtil.appendJosa("프로젝트[한글]", "은"));
+            assert "프로젝트[한글]는".equals(S2StringUtil.appendJosa("프로젝트[한글]", "은"));
             assert "서버[API]는".equals(S2StringUtil.appendJosa("서버[API]", "은"));
             assert "달성률[%]은".equals(S2StringUtil.appendJosa("달성률[%]", "은"));
             assert "프로젝트명（한글）은".equals(S2StringUtil.appendJosa("프로젝트명（한글）", "은"));
             assert "서버（API）는".equals(S2StringUtil.appendJosa("서버（API）", "은"));
+
+            // 인용부호 (큰따옴표, 작은따옴표, 낫표, 겹낫표, 화살괄호: 부호 안쪽 단어 기준)
+            assert "\"수박\"을".equals(S2StringUtil.appendJosa("\"수박\"", "을"));
+            assert "\"사과\"를".equals(S2StringUtil.appendJosa("\"사과\"", "을"));
+            assert "'수박'을".equals(S2StringUtil.appendJosa("'수박'", "을"));
+            assert "'사과'를".equals(S2StringUtil.appendJosa("'사과'", "을"));
+            assert "「개인정보 처리방침」을".equals(S2StringUtil.appendJosa("「개인정보 처리방침」", "을"));
+            assert "「연구 가이드」를".equals(S2StringUtil.appendJosa("「연구 가이드」", "을"));
+            assert "『연구윤리 규정』을".equals(S2StringUtil.appendJosa("『연구윤리 규정』", "을"));
+            assert "『삼국유사』를".equals(S2StringUtil.appendJosa("『삼국유사』", "을"));
+            assert "〈프로젝트 계획서〉를".equals(S2StringUtil.appendJosa("〈프로젝트 계획서〉", "을"));
+            assert "〈지침〉을".equals(S2StringUtil.appendJosa("〈지침〉", "을"));
+            assert "《삼국유사》를".equals(S2StringUtil.appendJosa("《삼국유사》", "을"));
+            assert "<보고서>를".equals(S2StringUtil.appendJosa("<보고서>", "을"));
+            assert "<지침>을".equals(S2StringUtil.appendJosa("<지침>", "을"));
 
             // 공백 trim 처리
             assert "프로젝트 명은".equals(S2StringUtil.appendJosa("프로젝트 명 ", "은"));
