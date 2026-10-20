@@ -1,14 +1,48 @@
 version: 2
 updates:
-  # 1. Gradle 의존성 및 플러그인 관리 (s2-util 포함 전체)
+  # --------------------------------------------------------------------------
+  # 1. Gradle 의존성 및 플러그인 관리
+  # --------------------------------------------------------------------------
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
 
-  # 2. GitHub Actions 버전 관리 (setup-java 등 액션 도구 업데이트)
+    # [메이저 업그레이드 제한 규칙]
+    # s2-util 라이브러리의 표준 플랫폼 규격(Java 21, Spring Framework 6,
+    # Spring Boot 3, Jakarta EE 10)에 종속된 의존성은 하위 호환성 보호를 위해
+    # 메이저 업그레이드를 제외하고 마이너/패치 업데이트만 수신합니다.
+    ignore:
+      # Spring Framework 6.x 계열 유지 (Spring 7 메이저 업그레이드 차단)
+      - dependency-name: "org.springframework:*"
+        update-types: ["version-update:semver-major"]
+
+      # Spring Boot 3.x 계열 유지 (Spring Boot 4 메이저 업그레이드 차단)
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+
+      # Jakarta EE 10 표준 스펙 유지 (Servlet 6.x, JSP 4.x, JPA 3.x)
+      - dependency-name: "jakarta.servlet:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jakarta.servlet.jsp:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jakarta.persistence:*"
+        update-types: ["version-update:semver-major"]
+
+      # Gradle Wrapper 메이저 버전업 차단 (빌드 스크립트 호환성 보호)
+      - dependency-name: "gradle"
+        update-types: ["version-update:semver-major"]
+
+    # ※ 그 외 독립 유틸리티 라이브러리(caffeine, lz4, uuid-creator, commons-pool2,
+    #    slf4j, junit, mockito 등)는 메이저/마이너/패치 모두 정상 수신됩니다.
+
+  # --------------------------------------------------------------------------
+  # 2. GitHub Actions 버전 관리 (CI 도구 생태계)
+  # --------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    # ※ CI 러너 환경(Node.js 런타임 호환성, 보안 패치 등) 유지를 위해
+    #    setup-node, checkout 등 공식 액션의 메이저 업그레이드를 항상 허용합니다.
