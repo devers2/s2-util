@@ -25,7 +25,7 @@
    - [3-3. 필드 간 상호 비교 (Cross-Field Comparisons)](#3-3-필드-간-상호-비교-cross-field-comparisons)
 4. [메시지 및 다국어(i18n) 처리](#4-메시지-및-다국어i18n-처리)
    - [4-1. 인라인 다국어 설정 (.ko, .en, .message)](#4-1-인라인-다국어-설정-ko-en-message)
-   - [4-2. 한국어 조사 자동 완성 (은/는, 이/가 등)](#4-2-한국어-조사-자동-완성-은는-이가-등)
+   - [4-2. 한국어 조사 자동 완성 (은/는, 이/가, 을/를, 로/으로 등)](#4-2-한국어-조사-자동-완성-은는-이가-을를-로으로-등)
 5. [고급 검증 기법](#5-고급-검증-기법)
    - [5-1. 객체 그래프 탐색 (점, 인덱스, 와일드카드)](#5-1-객체-그래프-탐색-점-인덱스-와일드카드)
    - [5-2. 재귀 및 합성 검증 (EACH, NESTED)](#5-2-재귀-및-합성-검증-each-nested)
@@ -62,7 +62,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.0.0'
+    implementation 'io.github.devers2:s2-util:2.1.0'
 }
 ```
 
@@ -72,7 +72,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -93,13 +93,13 @@ dependencies {
 ```groovy
 dependencies {
     // 1. 검증 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-validator:2.0.0'
+    implementation 'io.github.devers2:s2-validator:2.1.0'
 
     // 2. 동적 JPQL 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-jpa:2.0.0'
+    implementation 'io.github.devers2:s2-jpa:2.1.0'
 
     // 3. 코어 유틸리티 및 객체 복사 기능만 필요한 경우 (가장 경량)
-    implementation 'io.github.devers2:s2-core:2.0.0'
+    implementation 'io.github.devers2:s2-core:2.1.0'
 }
 ```
 
@@ -131,7 +131,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -150,7 +150,7 @@ plugins {
 S2BindValidator.setValidationBundle("messages");
 
 // 사용 예시:
-// messages.properties -> err.required={0|은/는} 필수 입력 항목입니다.
+// messages.properties -> err.required={0|은} 필수 입력 항목입니다.
 .field("id", "아이디").rule(S2RuleType.REQUIRED, null, "err.required")
 ```
 
@@ -173,10 +173,10 @@ s2:
     enabled: true                 # false 면 자동 설정을 끔
 ```
 
-- **메시지:** 메시지 키(`valid.err.required` 등 내장 키, `.rule(type, value, key)`의 키)를 Spring `MessageSource`에서 먼저 찾습니다. 그래서 `messages.properties`(`spring.messages.basename`)에 키를 정의하면 검증 메시지를 바꿀 수 있습니다. 템플릿은 `{0|은/는}` 같은 조사 토큰을 그대로 쓸 수 있습니다.
+- **메시지:** 메시지 키(`valid.err.required` 등 내장 키, `.rule(type, value, key)`의 키)를 Spring `MessageSource`에서 먼저 찾습니다. 그래서 `messages.properties`(`spring.messages.basename`)에 키를 정의하면 검증 메시지를 바꿀 수 있습니다. 템플릿은 `{0|은}` 같은 조사 자동 완성 토큰을 그대로 쓸 수 있습니다.
   ```properties
   # messages_ko.properties
-  valid.err.required={0|을/를} 꼭 입력하세요.
+  valid.err.required={0|을} 꼭 입력하세요.
   ```
 - **요청 언어:** `S2BindValidator`가 `LocaleContextHolder`를 읽으므로 Spring MVC 의 `LocaleResolver`(Accept-Language, 쿠키, 세션)를 그대로 따릅니다.
 - 조회 순서: `MessageSource` → `bundle` → 규칙에 지정한 메시지 → 내장 메시지.
@@ -233,7 +233,7 @@ S2Validator.of(userInput)
 - 서버와 브라우저(규칙 JSON)가 같게 동작합니다.
 - 빈 값을 건너뛰지 않는 예외: `ASSERT_TRUE`/`ASSERT_FALSE`, `.includeEmpty()`를 붙인 커스텀 람다.
 - 커스텀 람다만 있는 필드도 "규칙이 있는 필드"라서 `REQUIRED`가 자동 적용되지 않습니다.
-- 자동 필수 검증의 메시지는 내장 문구(`{0|은/는} 필수 입력 항목입니다.`)입니다. 필드별로 바꾸려면 규칙을 명시하고
+- 자동 필수 검증의 메시지는 내장 문구(`{0|은} 필수 입력 항목입니다.`)입니다. 필드별로 바꾸려면 규칙을 명시하고
   (`.rule(S2RuleType.REQUIRED).ko("…")`), 전역으로 바꾸려면 [전역 메시지 번들](#1-3-전역-메시지-번들-설정-선택-사항)에
   `valid.err.required` 키를 정의합니다.
 
@@ -445,7 +445,7 @@ S2Validator.<RegisterDTO>builder()
 // 1) 한 언어만 쓰는 서비스: 기본 메시지 하나
 .field("name", "이름")
     .rule(S2RuleType.REQUIRED)
-    .message("{0|은/는} 꼭 입력해 주세요.")
+    .message("{0|은} 꼭 입력해 주세요.")
 
 // 2) 기본 메시지 + 언어별 덮어쓰기
 .field("age", "나이")
@@ -454,7 +454,7 @@ S2Validator.<RegisterDTO>builder()
     .en("Age must be at least 19.")                    // 영어 요청
     .message("19歳以上である必要があります。", Locale.JAPAN) // 일본어 요청
 
-// 3) 번들의 메시지 키 사용 (messages.properties: err.adult={0|은/는} {1}세 이상이어야 합니다.)
+// 3) 번들의 메시지 키 사용 (messages.properties: err.adult={0|은} {1}세 이상이어야 합니다.)
 .field("age", "나이")
     .rule(S2RuleType.MIN_VALUE, 19, "err.adult")
 ```
@@ -469,16 +469,25 @@ S2Validator.<RegisterDTO>builder()
 
 치환자: `{0}`은 필드 라벨, `{1}`은 규칙 기준값입니다(예: `19`, `EQUALS_FIELD`는 대상 필드의 라벨). 메시지는 서버에서 만들어지므로 브라우저로 보내는 규칙 JSON 에는 요청 로케일의 문구가 이미 들어 있습니다.
 
-### 4-2. 한국어 조사 자동 완성 (은/는, 이/가 등)
+### 4-2. 한국어 조사 자동 완성 (은/는, 이/가, 을/를, 로/으로 등)
 
-S2Util은 필드명의 종성(받침) 유무를 실시간 분석하여 자연스러운 한국어 조사를 자동 완성합니다:
+S2Util은 메시지 템플릿에 조사 하나만 지정하더라도(`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}` 등), 앞 단어(필드명)의 받침(종성) 유무 및 'ㄹ' 받침 예외를 실시간으로 분석하여 문맥에 맞는 최적의 조사를 **자동으로 완성**합니다.
+
+기존의 슬래시 쌍 표기("이/가", "을/를" 등)는 작성 중 "이/로", "을/가"처럼 엉뚱한 조합을 실수로 입력할 위험이 있습니다. S2Util에서는 관련된 조사 중 **하나의 조사만 지정**하면, 앞 단어에 맞추어 알맞은 조사(예: "이"를 지정해도 단어에 따라 "이/가" 중 알맞은 조사)를 자동으로 완성하여 붙여줍니다:
 
 ```java
-// 받침 없음 -> "는" 자동 선택: "아이디는 필수 항목입니다."
-.field("id", "아이디").ko("{0|은/는} 필수 항목입니다.")
+// "아이디"(받침 없음) + "은" -> "은/는" 중 알맞은 조사 자동 완성: "아이디는 필수 항목입니다."
+.field("id", "아이디").ko("{0|은} 필수 항목입니다.")
 
-// 받침 있음 -> "은" 자동 선택: "이름은 필수 항목입니다."
-.field("name", "이름").ko("{0|은/는} 필수 항목입니다.")
+// "이름"(받침 있음) + "는" -> "은/는" 중 알맞은 조사 자동 완성: "이름은 필수 항목입니다."
+.field("name", "이름").ko("{0|는} 필수 항목입니다.")
+
+// "사과"(받침 없음) + "이" -> "이/가" 중 알맞은 조사 자동 완성: "사과가..."
+// "책"(받침 있음) + "이" -> "이/가" 중 알맞은 조사 자동 완성: "책이..."
+.field("item", "사과").ko("{0|이} 선택되었습니다.")
+
+// 'ㄹ' 받침 예외 자동 처리: "총괄" -> "총괄로", "집" -> "집으로"
+.field("role", "총괄").ko("{0|으로} 배정할 참여자를 선택해주세요.") // -> "총괄로 배정할 참여자를 선택해주세요."
 ```
 
 ---
@@ -584,7 +593,7 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // 이후는
 {"schemaVersion": 1, "fields": [
   {"name": "memo", "label": "메모",
    "rules": [{"type": "MAX_LENGTH", "value": 500,
-              "messages": {"ko": "{0|은/는} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
+              "messages": {"ko": "{0|은} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
    "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
   {"name": "items", "label": "품목",
    "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "label": "수량", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
@@ -915,4 +924,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 2.0.0 (2026-10-02)
+s2-util Version: 2.1.0 (2026-10-13)

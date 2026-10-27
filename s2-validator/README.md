@@ -27,7 +27,7 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
 | **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
 | **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
 | **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
-| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은/는}` particles adjust automatically |
+| **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은}` postposition auto-completion |
 | **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
 | **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
 | **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
@@ -95,7 +95,7 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
    - Custom locale support via `.message(String, Locale)` method (e.g., Japanese, Chinese, etc.)
    - `S2ResourceBundle` integration for centralized message management
    - Message parameter substitution: `{0}`, `{1}` for field names and rule values
-   - Korean particle support: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}` for grammatically correct messages
+   - Korean postposition auto-completion: `{0|은}`, `{0|이}`, `{0|을}`, `{0|과}`, `{0|로}` automatically completes to the grammatically correct particle (specifying one particle completes the pair, e.g. "이" -> "이/가"; paired slash notation is excluded to prevent pairing errors)
 
 7. **Custom & Conditional Validation**
    - Functional interfaces (`Predicate`, `BiPredicate`) for user-defined validation logic
@@ -127,7 +127,7 @@ Add the following dependency to your `build.gradle` or `pom.xml`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:2.0.0'
+    implementation 'io.github.devers2:s2-validator:2.1.0'
 
     // (Optional) Required only when using Spring integration (S2BindValidator)
     implementation 'org.springframework:spring-context:6.2.19'
@@ -140,7 +140,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -164,7 +164,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -370,13 +370,13 @@ S2Validator<OrderVO> orderValidator = S2Validator.<OrderVO>builder()
 
 #### 2.6. Built-in Messages & Localization
 
-- **Default Built-in Messages**: Every built-in rule in `S2RuleType` already provides default messages for both English and Korean out-of-the-box (e.g., `REQUIRED` generates `"{0} is required."` for English, and `"{0|은/는} 필수 입력 항목입니다."` for Korean). **You do not need to call `.en()` or `.ko()` in standard situations.**
+- **Default Built-in Messages**: Every built-in rule in `S2RuleType` already provides default messages for both English and Korean out-of-the-box (e.g., `REQUIRED` generates `"{0} is required."` for English, and `"{0|은} 필수 입력 항목입니다."` for Korean). **You do not need to call `.en()` or `.ko()` in standard situations.**
 - **Custom Messages (`.en()`, `.ko()`)**: Use `.en("...")` or `.ko("...")` only when you need to customize or override the default message for a specific rule.
 - **Other Languages (`.message(String, Locale)`)**: For languages other than English and Korean (e.g., Japanese, Chinese, French, etc.), use `.message(String template, Locale locale)` (e.g., `.message("{0}は必須入力項目です。", Locale.JAPANESE)`).
 - **Message Placeholders**:
   - `{0}`: Field label (e.g., "User ID", "Username").
   - `{1}`: Rule criteria value (e.g., minimum length, numeric threshold).
-- **Korean Postposition (Josa) Support**: `{0|은/는}`, `{0|이/가}`, `{0|을/를}`, `{0|과/와}` automatically select the grammatically correct Korean particle based on whether `{0}` ends with a final consonant.
+- **Korean Postposition Auto-Completion Support**: Specifying any particle like `{0|은}`, `{0|이}`, `{0|을}`, `{0|과}`, `{0|로}` automatically completes to the grammatically correct Korean particle based on whether `{0}` ends with a final consonant (paired slash notations like `이/가` are excluded to eliminate pairing errors).
 - **Global ResourceBundle**: Centralize messages across the application using `S2Validator.setValidationBundle("messages/validation")`.
 
 ```java
@@ -389,7 +389,7 @@ S2Validator<UserVO> validator = S2Validator.<UserVO>builder()
     .field("userPw", "Password")
         .rule(S2RuleType.MIN_LENGTH, 8)
             .en("{0} must be at least {1} characters for security.")
-            .ko("{0|은/는} 보안을 위해 최소 {1}자 이상이어야 합니다.")
+            .ko("{0|은} 보안을 위해 최소 {1}자 이상이어야 합니다.")
 
     // Support for other languages via .message(String, Locale)
     .field("email", "Email")
@@ -657,7 +657,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 2.0.0 (2026-10-02)
+s2-validator Version: 2.1.0 (2026-10-13)
 
 [//]: # 'S2_DEPS_INFO_START'
 

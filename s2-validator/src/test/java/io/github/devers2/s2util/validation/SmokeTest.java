@@ -611,13 +611,13 @@ public class SmokeTest {
                 .rule((value, target) -> {
                     String password = S2Util.getValue(target, "password", "");
                     return password.equals(value);
-                }).ko("{0|은/는} 원본 비밀번호와 일치해야 합니다.")
+                }).ko("{0|은} 원본 비밀번호와 일치해야 합니다.")
                 // 날짜 범위 교차 검증 (BiPredicate)
                 .field("endDate", "종료일")
                 .rule((value, target) -> {
                     String startDate = S2Util.getValue(target, "startDate", "");
                     return startDate.compareTo((String) value) <= 0;
-                }).ko("{0|은/는} 시작일보다 이후여야 합니다.")
+                }).ko("{0|은} 시작일보다 이후여야 합니다.")
                 .validate(errors::add, Locale.KOREAN);
 
         record(errors.size() == 2, "교차 필드 검증 실패 테스트 (2개 에러 예상)");
@@ -1029,28 +1029,28 @@ public class SmokeTest {
                 // 다중 규칙: 필수, 최소길이 4
                 .field("username", "사용자명")
                 .rule(S2RuleType.REQUIRED)
-                .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
+                .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은} 최소 {1}자 이상이어야 합니다.")
 
                 // --- 필드: userType ---
                 // 커스텀 규칙: ADMIN, MEMBER, GUEST 중 하나여야 함
                 .field("userType", "사용자 타입")
                 .rule(S2RuleType.REQUIRED)
                 .rule((String value) -> List.of("ADMIN", "MEMBER", "GUEST").contains(value))
-                .ko("{0|은/는} 허용된 타입(ADMIN, MEMBER, GUEST)이 아닙니다.")
+                .ko("{0|은} 허용된 타입(ADMIN, MEMBER, GUEST)이 아닙니다.")
 
                 // --- 필드: adminId ---
                 // 조건부 검증 (when): userType이 'ADMIN'일 때만 필수, 'ADM-'으로 시작해야 함
                 .field("adminId", "관리자 ID")
                 .when("userType", "ADMIN")
                 .rule(S2RuleType.REQUIRED)
-                .rule((String v) -> v.startsWith("ADM-")).ko("{0|은/는} 'ADM-'으로 시작해야 합니다.")
+                .rule((String v) -> v.startsWith("ADM-")).ko("{0|은} 'ADM-'으로 시작해야 합니다.")
 
                 // --- 필드: accessLevel ---
                 // 복합 조건부 검증 (when + and): userType='ADMIN'이고, hasExtraPermissions=true일 때만 필수, 최소값 5
                 .field("accessLevel", "접근 레벨")
                 .when("userType", "ADMIN").and("hasExtraPermissions", true)
                 .rule(S2RuleType.REQUIRED)
-                .rule(S2RuleType.MIN_VALUE, 5).ko("관리자의 {0|은/는} {1} 이상이어야 합니다.")
+                .rule(S2RuleType.MIN_VALUE, 5).ko("관리자의 {0|은} {1} 이상이어야 합니다.")
 
                 // --- 필드: email ---
                 // 다중 규칙 (표준+커스텀), 커스텀 메시지
@@ -1484,7 +1484,7 @@ public class SmokeTest {
 
             try {
                 S2Validator.check((String) null, "이름")
-                        .rule(S2RuleType.REQUIRED).ko("{0|은/는} 필수값입니다.")
+                        .rule(S2RuleType.REQUIRED).ko("{0|은} 필수값입니다.")
                         .validate();
                 record(false, "check(value, label) 예외 발생 테스트 (예외 발생 안함 오류)");
             } catch (io.github.devers2.s2util.exception.S2RuntimeException e) {
@@ -1756,7 +1756,7 @@ public class SmokeTest {
                     .field("code", "코드")
                     .rule(S2RuleType.REQUIRED)
                     .rule((String v) -> v.startsWith("ADM-"))
-                    .ko("{0|은/는} 'ADM-'으로 시작해야 합니다.")
+                    .ko("{0|은} 'ADM-'으로 시작해야 합니다.")
                     .build();
 
             List<S2ValidationError> errors = new ArrayList<>();

@@ -62,7 +62,7 @@ Add a single dependency to access all modules (`s2-core`, `s2-validator`, and `s
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.0.0'
+    implementation 'io.github.devers2:s2-util:2.1.0'
 }
 ```
 
@@ -72,7 +72,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -93,13 +93,13 @@ For minimal footprint, declare only the specific sub-modules your application re
 ```groovy
 dependencies {
     // 1. Validation only
-    implementation 'io.github.devers2:s2-validator:2.0.0'
+    implementation 'io.github.devers2:s2-validator:2.1.0'
 
     // 2. JPA dynamic queries only
-    implementation 'io.github.devers2:s2-jpa:2.0.0'
+    implementation 'io.github.devers2:s2-jpa:2.1.0'
 
     // 3. Core utilities & copier only (lightest)
-    implementation 'io.github.devers2:s2-core:2.0.0'
+    implementation 'io.github.devers2:s2-core:2.1.0'
 }
 ```
 
@@ -131,7 +131,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -150,7 +150,7 @@ Register a global resource bundle for centralized error messages:
 S2BindValidator.setValidationBundle("messages");
 
 // Usage with message keys:
-// messages.properties -> err.required={0|is/are} required.
+// messages.properties -> err.required={0} is required.
 .field("id", "User ID").rule(S2RuleType.REQUIRED, null, "err.required")
 ```
 
@@ -173,10 +173,10 @@ s2:
     enabled: true                 # false turns the auto-configuration off
 ```
 
-- **Messages:** message keys (built-in keys such as `valid.err.required`, and keys given with `.rule(type, value, key)`) are looked up in Spring's `MessageSource` first, so defining them in `messages.properties` (`spring.messages.basename`) overrides validation messages. Templates may use josa tokens such as `{0|은/는}`.
+- **Messages:** message keys (built-in keys such as `valid.err.required`, and keys given with `.rule(type, value, key)`) are looked up in Spring's `MessageSource` first, so defining them in `messages.properties` (`spring.messages.basename`) overrides validation messages. Templates may use postposition auto-completion tokens such as `{0|은}`.
   ```properties
   # messages_ko.properties
-  valid.err.required={0|을/를} 꼭 입력하세요.
+  valid.err.required={0|을} 꼭 입력하세요.
   ```
 - **Request language:** `S2BindValidator` reads `LocaleContextHolder`, so it follows Spring MVC's `LocaleResolver` (Accept-Language, cookie, session).
 - Lookup order: `MessageSource` → `bundle` → message set on the rule → built-in message.
@@ -445,7 +445,7 @@ Attach messages right after a rule in the builder chain. Each call applies to th
 // 1) Single-language service: one default message
 .field("name", "이름")
     .rule(S2RuleType.REQUIRED)
-    .message("{0|은/는} 꼭 입력해 주세요.")
+    .message("{0|은} 꼭 입력해 주세요.")
 
 // 2) Default message + per-language overrides
 .field("age", "나이")
@@ -469,16 +469,25 @@ Attach messages right after a rule in the builder chain. Each call applies to th
 
 Placeholders: `{0}` is the field label and `{1}` the rule criterion (e.g. `19`, or the target field's label for `EQUALS_FIELD`). Messages are rendered on the server, so the rules JSON sent to the browser already contains the text for the request locale.
 
-### 4-2. Smart Korean Particle Handling
+### 4-2. Smart Korean Postposition Auto-Completion
 
-S2Util automatically selects grammatically correct Korean particles (`은/는`, `이/가`, `을/를`, `과/와`) by analyzing the batchim (terminal consonants) of the field label:
+S2Util automatically completes and attaches the grammatically correct Korean postposition (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`, etc.) by analyzing the final consonant (batchim) of the preceding field label as well as the 'ㄹ' batchim exception.
+
+Paired slash notations (such as `이/가`) often lead to typos and pairing errors (e.g., `이/로`). With S2Util, simply specifying **any single postposition** from the group will automatically determine and complete the appropriate particle matching the preceding word (e.g., specifying "이" completes to "가" for words without batchim, and "이" for words with batchim):
 
 ```java
-// Automatically outputs: "아이디는 필수입니다." (no batchim -> 는)
-.field("id", "아이디").ko("{0|은/는} 필수입니다.")
+// "아이디" (no batchim) + "은" -> completes to "는": "아이디는 필수입니다."
+.field("id", "아이디").ko("{0|은} 필수입니다.")
 
-// Automatically outputs: "이름은 필수입니다." (batchim -> 은)
-.field("name", "이름").ko("{0|은/는} 필수입니다.")
+// "이름" (with batchim) + "는" -> completes to "은": "이름은 필수입니다."
+.field("name", "이름").ko("{0|는} 필수입니다.")
+
+// "사과" (no batchim) + "이" -> completes to "가": "사과가..."
+// "책" (with batchim) + "이" -> completes to "이": "책이..."
+.field("item", "사과").ko("{0|이} 선택되었습니다.")
+
+// 'ㄹ' batchim exception handled automatically: "총괄로", "집으로"
+.field("role", "총괄").ko("{0|으로} 배정할 참여자를 선택해주세요.") // -> "총괄로 배정할 참여자를 선택해주세요."
 ```
 
 ---
@@ -584,7 +593,7 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // same as a
 {"schemaVersion": 1, "fields": [
   {"name": "memo", "label": "Memo",
    "rules": [{"type": "MAX_LENGTH", "value": 500,
-              "messages": {"ko": "{0|은/는} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
+              "messages": {"ko": "{0|은} 500자 이하로 입력하십시오.", "en": "{0} must be at most 500 characters."}}],
    "conditions": [[{"field": "type", "op": "IN", "value": ["A", "B"]}]]},
   {"name": "items", "label": "Items",
    "rules": [{"type": "EACH", "nestedRules": [{"name": "qty", "label": "Qty", "rules": [{"type": "MIN_VALUE", "value": 1}]}]}]}
@@ -915,4 +924,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 2.0.0 (2026-10-02)
+s2-util Version: 2.1.0 (2026-10-13)

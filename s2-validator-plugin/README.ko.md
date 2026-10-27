@@ -102,7 +102,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -117,7 +117,7 @@ plugins {
 
 ## 🔄 호환성 (Compatibility)
 
-본 플러그인은 **s2-validator 2.0.0** 과 함께 사용합니다. 필드 이름 검사는 1.1.0 이상에서도 동작하지만, 규칙 기준값·조건 값 검사는 2.0.0 의 규칙(`S2RuleType`, `S2Operator`)을 기준으로 합니다.
+본 플러그인은 **s2-validator 2.1.0** 과 함께 사용합니다. 필드 이름 검사는 1.1.0 이상에서도 동작하지만, 규칙 기준값·조건 값 검사는 2.0.0 의 규칙(`S2RuleType`, `S2Operator`)을 기준으로 합니다.
 
 ---
 
@@ -132,4 +132,4 @@ plugins {
 
 ---
 
-s2-validator-plugin Version: 2.0.0 (2026-10-02)
+s2-validator-plugin Version: 2.1.0

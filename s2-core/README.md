@@ -66,7 +66,7 @@ Add the following dependency to your `build.gradle` or `pom.xml`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-core:2.0.0'
+    implementation 'io.github.devers2:s2-core:2.1.0'
 }
 ```
 
@@ -76,7 +76,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-core</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
 </dependency>
 ```
 
@@ -139,7 +139,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-core Version: 2.0.0 (2026-10-02)
+s2-core Version: 2.1.0 (2026-10-13)
 
 [//]: # 'S2_DEPS_INFO_START'
 

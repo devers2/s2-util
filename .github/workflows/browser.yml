@@ -3,13 +3,13 @@ name: Browser tests (s2.validator.js)
 # Runs only when the client validator, the browser demo, or its tests change. | 클라이언트 검증기·브라우저 데모·시험이 바뀔 때만 실행
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
     paths:
       - "s2-validator/src/main/resources/META-INF/resources/s2-util/js/**"
       - "s2-validator/browser-test/**"
       - ".github/workflows/browser.yml"
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop"]
     paths:
       - "s2-validator/src/main/resources/META-INF/resources/s2-util/js/**"
       - "s2-validator/browser-test/**"
