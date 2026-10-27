@@ -708,15 +708,15 @@ public class S2Field<T> implements Serializable {
      * 통해 기본 리소스 경로가 사전에 설정되어 있어야 합니다.
      * </p>
      *
-     * @param errorMessageTemplate Error message template (e.g., "{0|is/are} required") | 에러 메시지 템플릿 (예: "{0|은/는} 필수 입력 항목입니다.")
+     * @param errorMessageTemplate Error message template (e.g., "{0} is required") | 에러 메시지 템플릿 (예: "{0|은} 필수 입력 항목입니다.")
      * @param checkValue           Validation criterion value | 검증 기준값
      * @param locale               Current user locale | 현재 사용자 로케일
-     * @return Substituted error message | 치환 완료된 에러 메시지 (예: "이름은(는) 필수 입력 항목입니다.")
+     * @return Substituted error message | 치환 완료된 에러 메시지 (예: "이름은 필수 입력 항목입니다.")
      */
     private String getErrorMessage(String errorMessageTemplate, Object checkValue, Locale locale) {
         var fieldLabel = label != null && !label.isBlank() ? label : name;
         var template = (errorMessageTemplate == null || errorMessageTemplate.isBlank())
-                ? (S2Util.isKorean(locale) ? "{0|은/는} 올바르지 않은 값입니다." : "Invalid value: {0}")
+                ? (S2Util.isKorean(locale) ? "{0|은} 올바르지 않은 값입니다." : "Invalid value: {0}")
                 : errorMessageTemplate;
 
         return S2StringUtil.formatMessage(template, fieldLabel, checkValue);

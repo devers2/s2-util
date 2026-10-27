@@ -106,7 +106,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.0.0'
+    id 'io.github.devers2.validator' version '2.1.0'
 }
 ```
 
@@ -121,7 +121,7 @@ plugins {
 
 ## 🔄 Compatibility
 
-Use this plugin with **s2-validator 2.0.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
+Use this plugin with **s2-validator 2.1.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
 
 ---
 
@@ -136,4 +136,4 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator-plugin Version: 2.0.0 (2026-10-02)
+s2-validator-plugin Version: 2.1.0

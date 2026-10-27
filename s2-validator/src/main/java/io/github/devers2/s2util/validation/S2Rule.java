@@ -170,7 +170,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * 특정 언어와 그에 해당하는 에러 메시지 템플릿을 저장합니다.
      *
      * @param language Language code (e.g., "ko", "en") | 언어 코드 (예: "ko", "en")
-     * @param template Message template (e.g., "{0} is required.") | 메시지 템플릿 (예: "{0}은(는) 필수입니다.")
+     * @param template Message template (e.g., "{0} is required.") | 메시지 템플릿 (예: "{0|은} 필수 입력 항목입니다.")
      * @return This rule instance for chaining | 체이닝을 위한 현재 규칙 인스턴스
      */
     @Override

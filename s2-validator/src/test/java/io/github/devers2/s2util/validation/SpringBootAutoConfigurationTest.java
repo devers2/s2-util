@@ -46,7 +46,7 @@ public class SpringBootAutoConfigurationTest {
 
     private static StaticMessageSource koreanRequiredMessage() {
         StaticMessageSource messages = new StaticMessageSource();
-        messages.addMessage("valid.err.required", Locale.KOREAN, "{0|을/를} 꼭 입력하세요.");
+        messages.addMessage("valid.err.required", Locale.KOREAN, "{0|을} 꼭 입력하세요.");
         return messages;
     }
 

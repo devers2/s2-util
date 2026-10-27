@@ -49,7 +49,7 @@ import io.github.devers2.s2util.validation.S2Validator;
  *
  * <pre>{@code
  *  plugins {
- *      id 'io.github.devers2.validator' version '2.0.0' // 버전은 상황에 맞게 설정
+ *      id 'io.github.devers2.validator' version '2.1.0' // 버전은 상황에 맞게 설정
  *  }
  *     }</pre>
  *
@@ -148,7 +148,7 @@ public final class S2BindValidator {
      *     private S2Validator<MemberDTO> memberRules() {
      *         return S2Validator.<MemberDTO>builder()
      *             .field("userId", "아이디").rule(S2RuleType.REQUIRED)
-     *                 .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은/는} 최소 {1}자 이상이어야 합니다.")
+     *                 .rule(S2RuleType.MIN_LENGTH, 4).ko("{0|은} 최소 {1}자 이상이어야 합니다.")
      *             .field("userPw", "비밀번호").rule(S2RuleType.REQUIRED).rule(S2RuleType.PASSWORD)
      *             .field("confirmPw", "비밀번호 확인")
      *                 .rule(S2RuleType.REQUIRED)

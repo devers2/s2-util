@@ -46,7 +46,7 @@ import io.github.devers2.s2util.core.S2Util;
  * <ul>
  * <li><b>{0}:</b> The label of the field being validated (e.g., "User ID").</li>
  * <li><b>{1}:</b> The criterion value (e.g., minimum length, max value, or regex pattern).</li>
- * <li><b>{0|은/는}:</b> Automated Korean postposition (Josa) selection based on {0}.</li>
+ * <li><b>{0|은}:</b> Automated Korean postposition (Josa) selection based on {0} (e.g., {0|은}, {0|을}, {0|이}).</li>
  * </ul>
  *
  * @author devers2
@@ -56,70 +56,70 @@ import io.github.devers2.s2util.core.S2Util;
 public enum S2RuleType {
 
     /** 필수 입력 체크 ({0}: 필드설명) */
-    REQUIRED("valid.err.required", "{0|은/는} 필수 입력 항목입니다.", "{0} is required.", null),
+    REQUIRED("valid.err.required", "{0|은} 필수 입력 항목입니다.", "{0} is required.", null),
 
     /** 값이 true 인지 검증 (Boolean 타입) ({0}: 필드설명) */
-    ASSERT_TRUE("valid.err.asserttrue", "{0|을/를} 선택(동의)해야 합니다.", "{0} must be checked.", null),
+    ASSERT_TRUE("valid.err.asserttrue", "{0|을} 선택(동의)해야 합니다.", "{0} must be checked.", null),
 
     /** 값이 false 인지 검증 (Boolean 타입) ({0}: 필드설명) */
-    ASSERT_FALSE("valid.err.assertfalse", "{0|은/는} 선택할 수 없습니다.", "{0} must not be checked.", null),
+    ASSERT_FALSE("valid.err.assertfalse", "{0|은} 선택할 수 없습니다.", "{0} must not be checked.", null),
 
     /** 길이 체크 ({0}: 필드설명, {1}: 기준값) */
-    LENGTH("valid.err.length", "{0|은/는} {1}자를 입력해야 합니다.", "{0} must be {1} characters.", null),
+    LENGTH("valid.err.length", "{0|은} {1}자를 입력해야 합니다.", "{0} must be {1} characters.", null),
 
     /** 최소 길이 체크 ({0}: 필드설명, {1}: 기준값) */
-    MIN_LENGTH("valid.err.minlength", "{0|은/는} 최소 {1}자 이상 입력해야 합니다.", "{0} must be at least {1} characters.", null),
+    MIN_LENGTH("valid.err.minlength", "{0|은} 최소 {1}자 이상 입력해야 합니다.", "{0} must be at least {1} characters.", null),
 
     /** 최대 길이 체크 ({0}: 필드설명, {1}: 기준값) */
-    MAX_LENGTH("valid.err.maxlength", "{0|은/는} 최대 {1}자를 초과할 수 없습니다.", "{0} cannot exceed {1} characters.", null),
+    MAX_LENGTH("valid.err.maxlength", "{0|은} 최대 {1}자를 초과할 수 없습니다.", "{0} cannot exceed {1} characters.", null),
 
     /** 최소 바이트 체크 ({0}: 필드설명, {1}: 기준값) */
-    MIN_BYTE("valid.err.minbyte", "{0|은/는} 최소 {1}바이트 이상 입력해야 합니다.", "{0} must be at least {1} bytes.", null),
+    MIN_BYTE("valid.err.minbyte", "{0|은} 최소 {1}바이트 이상 입력해야 합니다.", "{0} must be at least {1} bytes.", null),
 
     /** 최대 바이트 체크 ({0}: 필드설명, {1}: 기준값) */
-    MAX_BYTE("valid.err.maxbyte", "{0|은/는} 최대 {1}바이트를 초과할 수 없습니다.", "{0} cannot exceed {1} bytes.", null),
+    MAX_BYTE("valid.err.maxbyte", "{0|은} 최대 {1}바이트를 초과할 수 없습니다.", "{0} cannot exceed {1} bytes.", null),
 
     /** 최소 값 체크 ({0}: 필드설명, {1}: 기준값) */
-    MIN_VALUE("valid.err.minvalue", "{0|은/는} 최소 {1} 이상 입력해야 합니다.", "{0} must be at least {1}.", null),
+    MIN_VALUE("valid.err.minvalue", "{0|은} 최소 {1} 이상 입력해야 합니다.", "{0} must be at least {1}.", null),
 
     /** 최대 값 체크 ({0}: 필드설명, {1}: 기준값) */
-    MAX_VALUE("valid.err.maxvalue", "{0|은/는} 최대 {1} 이하 입력해야 합니다.", "{0} must be at most {1}.", null),
+    MAX_VALUE("valid.err.maxvalue", "{0|은} 최대 {1} 이하 입력해야 합니다.", "{0} must be at most {1}.", null),
 
     /** 날짜 형식 체크 (yyyyMMdd 형식) ({0}: 필드설명) */
-    DATE("valid.err.date", "{0|은/는} 날짜 형식이 올바르지 않습니다.", "Invalid date format for {0}.", null),
+    DATE("valid.err.date", "{0|은} 날짜 형식이 올바르지 않습니다.", "Invalid date format for {0}.", null),
 
     /** 날짜 선후 관계 확인 (기준일 이후) {0}: 대상필드명, {1}: 기준필드설명 */
-    DATE_AFTER("valid.err.dateafter", "{0|은/는} {1}보다 이전일 수 없습니다.", "{0} cannot be earlier than {1}.", null),
+    DATE_AFTER("valid.err.dateafter", "{0|은} {1}보다 이전일 수 없습니다.", "{0} cannot be earlier than {1}.", null),
 
     /** 날짜 선후 관계 확인 (기준일 이전) {0}: 대상필드명, {1}: 기준필드설명 */
-    DATE_BEFORE("valid.err.datebefore", "{0|은/는} {1}보다 이후일 수 없습니다.", "{0} cannot be later than {1}.", null),
+    DATE_BEFORE("valid.err.datebefore", "{0|은} {1}보다 이후일 수 없습니다.", "{0} cannot be later than {1}.", null),
 
     /** 필드 값 동등 확인 ({0}: 대상필드명, {1}: 기준필드설명) */
-    EQUALS_FIELD("valid.err.equalsfield", "{0|와/과} {1|이/가} 일치하지 않습니다.", "{0} must match {1}.", null),
+    EQUALS_FIELD("valid.err.equalsfield", "{0|과} {1|이} 일치하지 않습니다.", "{0} must match {1}.", null),
 
     /** 정규식 체크 ({0}: 필드설명, {1}: 정규식) */
-    REGEX("valid.err.regex", "{0|은/는} 형식이 올바르지 않습니다.", "Invalid format for {0}.", null),
+    REGEX("valid.err.regex", "{0|은} 형식이 올바르지 않습니다.", "Invalid format for {0}.", null),
 
     /** 숫자 형식 체크 ({0}: 필드설명) */
-    NUMBER("valid.err.number", "{0|은/는} 숫자만 입력 가능합니다.", "{0} must be a number.", "^[0-9]*$"),
+    NUMBER("valid.err.number", "{0|은} 숫자만 입력 가능합니다.", "{0} must be a number.", "^[0-9]*$"),
 
     /** 텍스트 형식 체크 (숫자/특문 제외) ({0}: 필드설명) */
-    TEXT_INTACT("valid.err.textintact", "{0|은/는} 텍스트만 입력 가능합니다.", "{0} must contain only text.", "^[가-힣a-zA-Z]*$"),
+    TEXT_INTACT("valid.err.textintact", "{0|은} 텍스트만 입력 가능합니다.", "{0} must contain only text.", "^[가-힣a-zA-Z]*$"),
 
     /** 텍스트 형식 체크 (특문 제외) ^[가-힣a-zA-Z0-9\s\-\(\)\,\.]*$ */
-    TEXT_COMBINE("valid.err.textcombine", "{0|은/는} 텍스트만 입력 가능합니다.", "{0} must contain only text and numbers.",
+    TEXT_COMBINE("valid.err.textcombine", "{0|은} 텍스트만 입력 가능합니다.", "{0} must contain only text and numbers.",
             "^[가-힣a-zA-Z0-9\\s\\-\\(\\)\\,\\.]*$"),
 
     /** 휴대폰 번호 형식 체크 ({0}: 필드설명) */
-    MPHONE_NO("valid.err.mphone", "{0|은/는} 휴대폰 번호 형식이 올바르지 않습니다.", "Invalid mobile phone format for {0}.",
+    MPHONE_NO("valid.err.mphone", "{0|은} 휴대폰 번호 형식이 올바르지 않습니다.", "Invalid mobile phone format for {0}.",
             "^01[016789]-\\d{3,4}-\\d{4}$"),
 
     /** 전화번호 형식 체크 ({0}: 필드설명) */
-    TEL_NO("valid.err.telno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.", "Invalid phone number format for {0}.",
+    TEL_NO("valid.err.telno", "{0|은} 전화번호 형식이 올바르지 않습니다.", "Invalid phone number format for {0}.",
             "^(\\d{2,3}-\\d{3,4}-\\d{4}|\\d{10,11})$"),
 
     /** 국제 전화번호 형식 체크 - E.164 표준 기반 ({0}: 필드설명) */
-    INTERNATIONAL_TEL_NO("valid.err.intltelno", "{0|은/는} 전화번호 형식이 올바르지 않습니다.",
+    INTERNATIONAL_TEL_NO("valid.err.intltelno", "{0|은} 전화번호 형식이 올바르지 않습니다.",
             "Invalid international phone format for {0}. (e.g., +1 123-456-7890)", "^\\+(?:[0-9] ?){6,14}[0-9]$"),
 
     /** 이메일 형식 체크 ({0}: 필드설명) */
@@ -240,7 +240,7 @@ public enum S2RuleType {
      * 정상 번호를 거부할 수 있습니다.
      * </p>
      */
-    JUMIN("valid.err.jumin", "{0|은/는} 주민번호 형식이 올바르지 않습니다.", "Invalid resident registration number for {0}.", null),
+    JUMIN("valid.err.jumin", "{0|은} 주민번호 형식이 올바르지 않습니다.", "Invalid resident registration number for {0}.", null),
 
     /**
      * 중첩 객체 검증 ({0}: 필드설명)
@@ -262,7 +262,7 @@ public enum S2RuleType {
      *     .build();
      * }</pre>
      */
-    NESTED("valid.err.nested", "{0|은/는} 하위 유효성 검증에 실패했습니다.", "{0} failed nested validation.", null),
+    NESTED("valid.err.nested", "{0|은} 하위 유효성 검증에 실패했습니다.", "{0} failed nested validation.", null),
 
     /**
      * 리스트/배열의 각 요소 검증 ({0}: 필드설명)
@@ -285,7 +285,7 @@ public enum S2RuleType {
      *     .build();
      * }</pre>
      */
-    EACH("valid.err.each", "{0|의/의} 요소가 유효성 검증에 실패했습니다.", "One or more elements in {0} failed validation.", null);
+    EACH("valid.err.each", "{0|의} 요소가 유효성 검증에 실패했습니다.", "One or more elements in {0} failed validation.", null);
 
     /**
      * Error message property key.

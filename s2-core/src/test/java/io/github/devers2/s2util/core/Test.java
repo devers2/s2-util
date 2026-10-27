@@ -445,7 +445,7 @@ public class Test {
     void testGetValue_Array() {
         String testName = "getValue - Array";
         try {
-            String[] arr = { "alpha", "beta", "gamma" };
+            String[] arr = {"alpha", "beta", "gamma"};
 
             assert "alpha".equals(S2Util.getValue(arr, 0));
             assert "beta".equals(S2Util.getValue(arr, 1));
@@ -1266,28 +1266,136 @@ public class Test {
 
     // ===== S2StringUtil Tests =====
 
-    @DisplayName("S2StringUtil - appendJosa 조사 정확성 (이/가, 으로/로, 와/과 등)")
+    @DisplayName("S2StringUtil - appendJosa 조사 정확성 (조사 자동 완성)")
     @org.junit.jupiter.api.Test
     void testAppendJosaCorrectness() {
         String testName = "testAppendJosaCorrectness";
         try {
-            assert "사과가".equals(S2StringUtil.appendJosa("사과", "이/가"));
-            assert "책이".equals(S2StringUtil.appendJosa("책", "이/가"));
-            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "은/는"));
-            assert "이름은".equals(S2StringUtil.appendJosa("이름", "은/는"));
-            assert "나무를".equals(S2StringUtil.appendJosa("나무", "을/를"));
-            assert "책을".equals(S2StringUtil.appendJosa("책", "을/를"));
-            assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로/로"));
-            assert "집으로".equals(S2StringUtil.appendJosa("집", "으로/로"));
-            assert "차로".equals(S2StringUtil.appendJosa("차", "으로/로"));
-            // 받침 판별 불가(영문 등): 조사를 빠뜨리지 않고 병기형을 붙임
-            assert "[pw]과(와)".equals(S2StringUtil.appendJosa("pw", "과/와"));
-            assert "[documentId]은(는)".equals(S2StringUtil.appendJosa("documentId", "은/는"));
-            assert "[ID]이(가)".equals(S2StringUtil.appendJosa("ID", "가/이"));
-            assert "[URL](으)로".equals(S2StringUtil.appendJosa("URL", "으로/로"));
-            assert "[x]이에요(예요)".equals(S2StringUtil.appendJosa("x", "이에요/예요"));
-            assert "사과와".equals(S2StringUtil.appendJosa("사과", "와/과"));
-            assert "책과".equals(S2StringUtil.appendJosa("책", "와/과"));
+            // 1. 조사 자동 완성 테스트 (하나의 조사만 지정해도 앞 단어 받침에 맞춰 자동 결합)
+            assert "사과가".equals(S2StringUtil.appendJosa("사과", "이"));
+            assert "사과가".equals(S2StringUtil.appendJosa("사과", "가"));
+            assert "책이".equals(S2StringUtil.appendJosa("책", "이"));
+            assert "책이".equals(S2StringUtil.appendJosa("책", "가"));
+
+            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "은"));
+            assert "아이디는".equals(S2StringUtil.appendJosa("아이디", "는"));
+            assert "이름은".equals(S2StringUtil.appendJosa("이름", "은"));
+            assert "이름은".equals(S2StringUtil.appendJosa("이름", "는"));
+
+            assert "나무를".equals(S2StringUtil.appendJosa("나무", "을"));
+            assert "나무를".equals(S2StringUtil.appendJosa("나무", "를"));
+            assert "책을".equals(S2StringUtil.appendJosa("책", "을"));
+            assert "책을".equals(S2StringUtil.appendJosa("책", "를"));
+
+            assert "사과와".equals(S2StringUtil.appendJosa("사과", "과"));
+            assert "사과와".equals(S2StringUtil.appendJosa("사과", "와"));
+            assert "책과".equals(S2StringUtil.appendJosa("책", "과"));
+            assert "책과".equals(S2StringUtil.appendJosa("책", "와"));
+
+            // 'ㄹ' 받침 예외: 서울로, 총괄로, 1로, 7로, 8로
+            assert "서울로".equals(S2StringUtil.appendJosa("서울", "로"));
+            assert "서울로".equals(S2StringUtil.appendJosa("서울", "으로"));
+            assert "총괄로".equals(S2StringUtil.appendJosa("총괄", "로"));
+            assert "총괄로".equals(S2StringUtil.appendJosa("총괄", "으로"));
+            assert "집으로".equals(S2StringUtil.appendJosa("집", "로"));
+            assert "집으로".equals(S2StringUtil.appendJosa("집", "으로"));
+            assert "차로".equals(S2StringUtil.appendJosa("차", "로"));
+            assert "차로".equals(S2StringUtil.appendJosa("차", "으로"));
+
+            // 숫자 받침 및 'ㄹ' 예외
+            assert "1로".equals(S2StringUtil.appendJosa("1", "로"));
+            assert "1을".equals(S2StringUtil.appendJosa("1", "을"));
+            assert "2를".equals(S2StringUtil.appendJosa("2", "를"));
+            assert "3으로".equals(S2StringUtil.appendJosa("3", "로"));
+
+            // 2. 받침 판별 불가(영문 등): 조사 자동 완성 시 대괄호 없이 병기형을 결합
+            assert "pw과(와)".equals(S2StringUtil.appendJosa("pw", "과"));
+            assert "documentId은(는)".equals(S2StringUtil.appendJosa("documentId", "은"));
+            assert "ID이(가)".equals(S2StringUtil.appendJosa("ID", "이"));
+            assert "URL(으)로".equals(S2StringUtil.appendJosa("URL", "로"));
+            assert "SDK(core)은(는)".equals(S2StringUtil.appendJosa("SDK(core)", "은"));
+            assert "()은(는)".equals(S2StringUtil.appendJosa("()", "은"));
+            assert "(API)은(는)".equals(S2StringUtil.appendJosa("(API)", "은"));
+
+            // 3. 괄호 및 단위 표기 처리
+            assert "프로젝트명(한글)은".equals(S2StringUtil.appendJosa("프로젝트명(한글)", "은"));
+            assert "프로젝트명 (한글)은".equals(S2StringUtil.appendJosa("프로젝트명 (한글)", "은"));
+            assert "프로젝트명 ( 한글 )은".equals(S2StringUtil.appendJosa("프로젝트명 ( 한글 ) ", "은"));
+            assert "담당자(부)는".equals(S2StringUtil.appendJosa("담당자(부)", "은"));
+            assert "담당자 (부)는".equals(S2StringUtil.appendJosa("담당자 (부)", "은"));
+            assert "달성률(%)은".equals(S2StringUtil.appendJosa("달성률(%)", "은"));
+            assert "달성률 (%)은".equals(S2StringUtil.appendJosa("달성률 (%)", "은"));
+            assert "진행도(%)는".equals(S2StringUtil.appendJosa("진행도(%)", "은"));
+            assert "서버 (API)는".equals(S2StringUtil.appendJosa("서버 (API)", "은"));
+            assert "시스템(API)은".equals(S2StringUtil.appendJosa("시스템(API)", "은"));
+            assert "프로젝트(Eng)는".equals(S2StringUtil.appendJosa("프로젝트(Eng)", "은"));
+            assert "사업계획(Draft)은".equals(S2StringUtil.appendJosa("사업계획(Draft)", "은"));
+            assert "몸무게(kg)는".equals(S2StringUtil.appendJosa("몸무게(kg)", "은"));
+            assert "체중(kg)은".equals(S2StringUtil.appendJosa("체중(kg)", "은"));
+            assert "금액($)은".equals(S2StringUtil.appendJosa("금액($)", "은"));
+            assert "단가($)는".equals(S2StringUtil.appendJosa("단가($)", "은"));
+            assert "목적지(LA)로".equals(S2StringUtil.appendJosa("목적지(LA)", "로"));
+
+            // 괄호 앞 단어 기준 (국립국어원 표준 규범: 괄호 생략 테스트 통과)
+            assert "수임인(김철수)을".equals(S2StringUtil.appendJosa("수임인(김철수)", "을"));
+            assert "사용자(홍길동)를".equals(S2StringUtil.appendJosa("사용자(홍길동)", "을"));
+            assert "프로젝트 명(영어)을".equals(S2StringUtil.appendJosa("프로젝트 명(영어)", "을"));
+            assert "버전(1)으로".equals(S2StringUtil.appendJosa("버전(1)", "로"));
+            assert "버전(2)으로".equals(S2StringUtil.appendJosa("버전(2)", "로"));
+            assert "버전(3)으로".equals(S2StringUtil.appendJosa("버전(3)", "로"));
+
+            // 괄호 앞 단어가 없는 경우 (안쪽 단어/숫자 기준 fallback)
+            assert "(1)로".equals(S2StringUtil.appendJosa("(1)", "로"));
+            assert "(2)로".equals(S2StringUtil.appendJosa("(2)", "로"));
+            assert "(3)으로".equals(S2StringUtil.appendJosa("(3)", "로"));
+            assert "[공지사항]이".equals(S2StringUtil.appendJosa("[공지사항]", "이"));
+            assert "[안내]가".equals(S2StringUtil.appendJosa("[안내]", "이"));
+            assert "[안내]를".equals(S2StringUtil.appendJosa("[안내]", "을"));
+            assert "(작성 중)을".equals(S2StringUtil.appendJosa("(작성 중)", "을"));
+
+            // 대괄호 및 전각 괄호
+            assert "프로젝트[한글]는".equals(S2StringUtil.appendJosa("프로젝트[한글]", "은"));
+            assert "서버[API]는".equals(S2StringUtil.appendJosa("서버[API]", "은"));
+            assert "달성률[%]은".equals(S2StringUtil.appendJosa("달성률[%]", "은"));
+            assert "프로젝트명（한글）은".equals(S2StringUtil.appendJosa("프로젝트명（한글）", "은"));
+            assert "서버（API）는".equals(S2StringUtil.appendJosa("서버（API）", "은"));
+
+            // 인용부호 (큰따옴표, 작은따옴표, 낫표, 겹낫표, 화살괄호: 부호 안쪽 단어 기준)
+            assert "\"수박\"을".equals(S2StringUtil.appendJosa("\"수박\"", "을"));
+            assert "\"사과\"를".equals(S2StringUtil.appendJosa("\"사과\"", "을"));
+            assert "'수박'을".equals(S2StringUtil.appendJosa("'수박'", "을"));
+            assert "'사과'를".equals(S2StringUtil.appendJosa("'사과'", "을"));
+            assert "「개인정보 처리방침」을".equals(S2StringUtil.appendJosa("「개인정보 처리방침」", "을"));
+            assert "「연구 가이드」를".equals(S2StringUtil.appendJosa("「연구 가이드」", "을"));
+            assert "『연구윤리 규정』을".equals(S2StringUtil.appendJosa("『연구윤리 규정』", "을"));
+            assert "『삼국유사』를".equals(S2StringUtil.appendJosa("『삼국유사』", "을"));
+            assert "〈프로젝트 계획서〉를".equals(S2StringUtil.appendJosa("〈프로젝트 계획서〉", "을"));
+            assert "〈지침〉을".equals(S2StringUtil.appendJosa("〈지침〉", "을"));
+            assert "《삼국유사》를".equals(S2StringUtil.appendJosa("《삼국유사》", "을"));
+            assert "<보고서>를".equals(S2StringUtil.appendJosa("<보고서>", "을"));
+            assert "<지침>을".equals(S2StringUtil.appendJosa("<지침>", "을"));
+
+            // 공백 trim 처리
+            assert "프로젝트 명은".equals(S2StringUtil.appendJosa("프로젝트 명 ", "은"));
+            assert "시작일은".equals(S2StringUtil.appendJosa(" 시작일", "은"));
+            assert "종료일은".equals(S2StringUtil.appendJosa(" 종료일 ", "은"));
+            assert "프로젝트   번호는".equals(S2StringUtil.appendJosa("프로젝트   번호  ", "은"));
+
+            // hasBatchim 단위 테스트
+            assert S2StringUtil.hasBatchim("프로젝트명(한글)");
+            assert !S2StringUtil.hasBatchim("담당자(부)");
+            assert S2StringUtil.hasBatchim("달성률(%)");
+            assert !S2StringUtil.hasBatchim("서버 (API)");
+            assert S2StringUtil.hasBatchim("프로젝트 명 ");
+            assert !S2StringUtil.hasBatchim("English");
+
+            // 4. S2StringUtil.formatMessage 조사 자동 완성 치환 테스트
+            assert "사과가 창고를 방문함".equals(S2StringUtil.formatMessage("{0|이} {1|을} 방문함", "사과", "창고"));
+            assert "총괄로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "총괄"));
+            assert "책임자로 배정함".equals(S2StringUtil.formatMessage("{0|로} 배정함", "책임자"));
+            assert "프로젝트명 (한글)을 입력해주세요.".equals(S2StringUtil.formatMessage("{0|을} 입력해주세요.", "프로젝트명 (한글)"));
+            assert "달성률 (%)은 필수 입력 항목입니다.".equals(S2StringUtil.formatMessage("{0|은} 필수 입력 항목입니다.", "달성률 (%)"));
+            assert "ID은(는) 필수 입력 항목입니다.".equals(S2StringUtil.formatMessage("{0|은} 필수 입력 항목입니다.", "ID"));
 
             stats.recordSuccess();
             logger.info("✓ " + testName + " PASSED");
