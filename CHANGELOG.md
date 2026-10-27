@@ -4,7 +4,7 @@
 
 All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-validator-plugin` are recorded here.
 
-## [2.1.0] - 2026-10-28
+## [2.1.0]
 
 - **Korean Postposition Auto-Completion**:
   - Automatically completes Korean particles from single postposition notation (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`) by analyzing the final consonant (batchim) of the preceding word.
@@ -191,7 +191,7 @@ Compared with 1.1.8. This is a **major release** that does not keep backward com
 8. Swap the arguments of `.message(Locale, "…")` to `.message("…", Locale)`.
 9. If your server code or scripts parse the rules JSON directly, read the `fields` array instead of a top-level array.
 
-## s2-validator-plugin [2.1.0] - 2026-10-28
+## s2-validator-plugin [2.1.0]
 
 - **Nested DTOs**: DTOs declared inside another type (a `record Form` in a controller, a static nested class) are
   checked. `Form` in the same file, `Join.Form`, `import ...Join.Form` and `S2Validator.of(form)` are all found;
