@@ -4,7 +4,7 @@
 
 `s2-util`(`s2-core`, `s2-validator`, `s2-jpa`)과 `s2-validator-plugin`의 주요 변경 사항을 기록합니다.
 
-## [2.1.0] - 2026-10-28
+## [2.1.0]
 
 - **한국어 조사 자동 완성 (Smart Postposition Auto-Completion)**:
   - `{0|은}`, `{0|이}`, `{0|을}`, `{0|로}` 등 하나의 조사만 지정하더라도 앞 단어의 받침 유무(및 'ㄹ' 받침 예외)에 따라 알맞은 조사를 자동으로 완성하도록 개선.
@@ -167,7 +167,7 @@
 8. `.message(Locale, "…")`의 인자 순서를 `.message("…", Locale)`로 바꾸십시오.
 9. 규칙 JSON 을 서버나 자체 스크립트에서 직접 파싱한다면 최상위 배열 대신 `fields` 배열을 읽으십시오.
 
-## s2-validator-plugin [2.1.0] - 2026-10-28
+## s2-validator-plugin [2.1.0]
 
 - **중첩 DTO 검사**: 다른 타입 안에 선언한 DTO(컨트롤러 안의 `record Form`, static 중첩 클래스)도 검사합니다. 같은 파일의 `Form`,
   `Join.Form`, `import ...Join.Form`, `S2Validator.of(form)` 모두 찾으며, 이전에는 "DTO 소스를 찾을 수 없어 검증을 건너뜁니다" 경고만
