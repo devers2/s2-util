@@ -9,7 +9,7 @@ s2-validator-plugin = "2.1.0"
 java = "21"
 
 # Dependencies
-aspectj = "1.9.26"
+aspectj = "1.9.27"
 caffeine = "3.3.1"
 commons-pool2 = "2.13.1"
 javaparser = "3.28.2"
