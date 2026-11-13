@@ -1,0 +1,39 @@
+# Dependabot PR 의 줄바꿈 정규화
+# Dependabot 은 .gitattributes 를 적용하지 않고 파일을 그대로 커밋한다(예: gradle-wrapper 업데이트의 gradlew.bat 이 CRLF 로 저장됨).
+# 그러면 받는 쪽 작업 트리에 '수정됨'으로 계속 남으므로, Dependabot PR 이 열리거나 갱신될 때 .gitattributes 기준으로
+# 다시 정규화(git add --renormalize)하고 바뀐 것이 있을 때만 PR 브랜치에 커밋을 추가한다.
+#   ● GITHUB_TOKEN 으로 올린 커밋은 워크플로를 다시 실행시키지 않으므로 반복 실행되지 않는다(CI 결과는 Dependabot 커밋 기준 —
+#     줄바꿈만 바뀌므로 빌드 결과는 같다).
+#   ● 다른 사람이 커밋을 추가한 PR 은 Dependabot 이 자동 리베이스를 멈춘다. 다시 만들려면 PR 에 `@dependabot recreate` 댓글
+#     (새로 만들어진 PR 에 이 워크플로가 다시 적용된다).
+name: Dependabot line endings
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  renormalize:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Renormalize per .gitattributes
+        run: |
+          git add --renormalize .
+          if git diff --cached --quiet; then
+            echo "정규화할 파일 없음"
+            exit 0
+          fi
+          git diff --cached --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "build: Dependabot 변경 파일의 줄바꿈을 .gitattributes 기준으로 정규화"
+          git push
