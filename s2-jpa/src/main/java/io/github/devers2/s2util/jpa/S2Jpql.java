@@ -239,6 +239,42 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     private int offset = -1;
     private int limit = -1;
 
+    /**
+     * Escapes the LIKE wildcards {@code %} and {@code _} (and the escape character {@code \}) in a search keyword so
+     * user input matches literally. Use it with an {@code ESCAPE '\'} clause in the JPQL, since databases differ in the
+     * default escape character.
+     *
+     * <pre>{@code
+     * "AND p.name LIKE :name ESCAPE '\\'"
+     * .bindParameter("name", S2Jpql.escapeLike(keyword), LikeMode.ANYWHERE)   // "100%" matches only "100%"
+     * }</pre>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검색어의 LIKE 와일드카드 {@code %}, {@code _}(와 이스케이프 문자 {@code \})를 이스케이프해 사용자 입력이 글자 그대로 일치하게 합니다.
+     * DB 마다 기본 이스케이프 문자가 다르므로 JPQL 에 {@code ESCAPE '\'} 절을 함께 쓰십시오. 이스케이프하지 않으면 {@code %}·{@code _}가
+     * 든 검색어가 의도보다 넓게 일치하고, 와일드카드가 많은 입력은 느린 쿼리가 될 수 있습니다.
+     *
+     * @param keyword The search keyword (null is returned as is) | 검색어 (null 이면 그대로 반환)
+     * @return The escaped keyword | 이스케이프한 검색어
+     * @since 2.2.0
+     */
+    public static String escapeLike(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(keyword.length() + 8);
+        for (int i = 0; i < keyword.length(); i++) {
+            char c = keyword.charAt(i);
+            if (c == '\\' || c == '%' || c == '_') {
+                sb.append('\\');
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
     private S2Jpql(String sql, EntityManager entityManager, Class<T> resultClass) {
         super(sql);
         this.entityManager = Objects.requireNonNull(entityManager, "EntityManager must not be null");

@@ -119,6 +119,14 @@ public class S2JpqlTest {
         when(entityManager.createQuery(anyString(), eq(Member.class))).thenReturn(typedQuery);
     }
 
+    @Test
+    @DisplayName("escapeLike: %, _, \\ 를 역슬래시로 이스케이프하고 null 은 그대로 둔다")
+    void escapeLikeEscapesWildcards() {
+        org.junit.jupiter.api.Assertions.assertEquals("100\\%\\_a\\\\b", S2Jpql.escapeLike("100%_a\\b"));
+        org.junit.jupiter.api.Assertions.assertEquals("plain", S2Jpql.escapeLike("plain"));
+        org.junit.jupiter.api.Assertions.assertNull(S2Jpql.escapeLike(null));
+    }
+
     @DisplayName("S2Jpql - Fluent API 체이닝")
     @SuppressWarnings({ "null", "unchecked" })
     @Test

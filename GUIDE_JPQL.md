@@ -133,8 +133,17 @@ String jpql = "SELECT p FROM Product p WHERE p.name LIKE :name";
 // Pattern 3: END (suffix) - "%keyword"
 .bindParameter("name", "pro", LikeMode.END)
 
-// Pattern 4: EXACT (no wildcards) - "keyword"
-.bindParameter("name", "laptop", LikeMode.EXACT)
+// Pattern 4: exact (no wildcards) - "keyword" (bind without a LikeMode)
+.bindParameter("name", "laptop")
+```
+
+Escape user-entered keywords with `S2Jpql.escapeLike()` so `%` and `_` are not read as wildcards, and add `ESCAPE '\'` to the JPQL
+(databases differ in the default escape character). Without it, searching `100%` matches every value starting with `100`, and input with
+many wildcards can make a slow query.
+
+```java
+String jpql = "SELECT p FROM Product p WHERE p.name LIKE :name ESCAPE '\\'";
+.bindParameter("name", S2Jpql.escapeLike(keyword), LikeMode.ANYWHERE)
 ```
 
 ### 3-3. Collection Binding

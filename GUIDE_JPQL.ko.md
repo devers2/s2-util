@@ -131,8 +131,16 @@ String jpql = "SELECT p FROM Product p WHERE p.name LIKE :name";
 // 패턴 3: 끝 - "%keyword"
 .bindParameter("name", "pro", LikeMode.END)
 
-// 패턴 4: 정확히 - "keyword"
-.bindParameter("name", "laptop", LikeMode.EXACT)
+// 패턴 4: 정확히 - "keyword" (LikeMode 없이 바인딩)
+.bindParameter("name", "laptop")
+```
+
+사용자가 입력한 검색어는 `%`·`_` 가 와일드카드로 해석되지 않도록 `S2Jpql.escapeLike()` 로 이스케이프하고 JPQL 에 `ESCAPE '\'` 를 붙이십시오
+(DB 마다 기본 이스케이프 문자가 다름). 이스케이프하지 않으면 `100%` 검색이 `100` 으로 시작하는 모든 값과 일치하고, 와일드카드가 많은 입력은 느린 쿼리가 됩니다.
+
+```java
+String jpql = "SELECT p FROM Product p WHERE p.name LIKE :name ESCAPE '\\'";
+.bindParameter("name", S2Jpql.escapeLike(keyword), LikeMode.ANYWHERE)
 ```
 
 ### 3-3. 컬렉션 바인딩

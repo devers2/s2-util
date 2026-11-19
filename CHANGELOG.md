@@ -26,8 +26,11 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 - A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
 
+- `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
+
 ### Fixed
 
+- GUIDE_JPQL referred to a nonexistent `LikeMode.EXACT`.
 - `DATE_AFTER`/`DATE_BEFORE` always passed for `java.util.Date` (and `java.sql.Date`, `Timestamp`, `Instant`) fields.
 - `DATE_AFTER`/`DATE_BEFORE` threw `ClassCastException` when comparing values of different types (e.g. a `LocalDate` field and a string).
 - `<input type="datetime-local">` values (`2024-01-01T09:00`) were not compared on the server and always failed in the browser; both now compare including the time.

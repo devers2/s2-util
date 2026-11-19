@@ -21,8 +21,11 @@
 
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
 
+- `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
+
 ### 수정
 
+- GUIDE_JPQL 이 없는 `LikeMode.EXACT` 를 안내하던 문서 오류.
 - `DATE_AFTER`·`DATE_BEFORE` 가 `java.util.Date`(및 `java.sql.Date`·`Timestamp`·`Instant`) 필드를 비교하지 않고 항상 통과하던 문제.
 - `DATE_AFTER`·`DATE_BEFORE` 에서 타입이 다른 값(예: `LocalDate` 필드와 문자열)을 비교하면 `ClassCastException` 이 나던 문제.
 - `<input type="datetime-local">` 값(`2024-01-01T09:00`)을 서버는 비교하지 않고, 브라우저는 항상 실패시키던 문제 — 이제 양쪽 모두 시간까지 비교.
