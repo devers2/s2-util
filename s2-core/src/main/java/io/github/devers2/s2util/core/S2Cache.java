@@ -228,7 +228,51 @@ public class S2Cache {
     private static final AtomicBoolean DYNAMIC_CACHE_LIMIT_WARNED = new AtomicBoolean(false);
 
     private static final String RESOURCE_BUNDLE_CACHE_NAME = "s2.cache.resource_bundle";
-    private static final String FIELDS_CACHE_NAME = "s2.cache.fields";
+
+    /**
+     * Per-class cache of the proxy-stripped real class. {@link ClassValue} is the JDK's lock-free per-class
+     * store and does not prevent unloading of the class (and its class loader).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 클래스별로 프록시를 걷어낸 실제 클래스를 저장합니다. {@link ClassValue}는 JDK 의 락 없는 클래스별 저장소이며
+     * 클래스(와 그 클래스로더)의 언로드를 막지 않습니다.
+     */
+    private static final ClassValue<Class<?>> REAL_CLASS = new ClassValue<>() {
+        @Override
+        protected Class<?> computeValue(Class<?> type) {
+            String name = type.getName();
+            if (name.contains("$$") || name.contains("CGLIB") || name.contains("HibernateProxy")) {
+                Class<?> superclass = type.getSuperclass();
+                return superclass != null ? superclass : type;
+            }
+            return type;
+        }
+    };
+
+    /**
+     * Per-class cache of declared fields made accessible. Kept in a {@link ClassValue} so redeployed or
+     * reloaded classes are not retained by this static cache.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 클래스별로 접근 가능하게 설정한 선언 필드를 저장합니다. {@link ClassValue}에 두어 재배포·재로딩된 클래스를
+     * 이 정적 캐시가 붙잡지 않게 합니다.
+     */
+    private static final ClassValue<Field[]> DECLARED_FIELDS = new ClassValue<>() {
+        @Override
+        protected Field[] computeValue(Class<?> type) {
+            Field[] fieldArray = type.getDeclaredFields();
+
+            // 모든 필드에 대해 접근 권한 부여함
+            for (Field field : fieldArray) {
+                field.setAccessible(true);
+            }
+            return fieldArray;
+        }
+    };
 
     private S2Cache() {
         // Prevent instantiation
@@ -320,10 +364,9 @@ public class S2Cache {
                         }
                         : null;
 
-                // Caffeine 어댑터 생성 (Executor는 S2ThreadUtil의 공용 실행기 사용)
+                // Caffeine 어댑터 생성 (유지보수는 Caffeine 기본 실행기 사용 — 공용 실행기는 외부에서 종료될 수 있어 쓰지 않음)
                 var caffeineCache = CaffeineCacheAdapter.<K, V>createCache(
-                        maxSize, expiryMs, STATS_ENABLED, removalListener,
-                        Objects.requireNonNull(S2ThreadUtil.getCommonExecutor()));
+                        maxSize, expiryMs, STATS_ENABLED, removalListener);
                 var adapter = new CaffeineCacheAdapter<K, V>(caffeineCache);
 
                 if (logger.isDebugEnabled()) {
@@ -752,12 +795,7 @@ public class S2Cache {
         if (clazz == null) {
             return null;
         }
-        String name = clazz.getName();
-        if (name.contains("$$") || name.contains("CGLIB") || name.contains("HibernateProxy")) {
-            Class<?> superclass = clazz.getSuperclass();
-            return superclass != null ? superclass : clazz;
-        }
-        return clazz;
+        return REAL_CLASS.get(clazz);
     }
 
     /**
@@ -802,7 +840,7 @@ public class S2Cache {
      * Retrieves all declared fields for a class, leveraging high-performance caching.
      * <p>
      * Fields are pre-processed with {@link java.lang.reflect.Field#setAccessible(boolean)} set to true.
-     * Returns a cloned array to prevent external modification of the cache origin.
+     * The returned array is shared by all callers and must not be modified.
      * If {@code clazz} is a proxy (Hibernate/CGLIB), it is resolved to the real entity
      * class via {@link #getRealClass(Class)} first, so callers get the entity's actual
      * fields (not the proxy's synthetic ones) and share one cache entry regardless of
@@ -814,7 +852,7 @@ public class S2Cache {
      * </p>
      * 캐싱을 적용하여 클래스의 모든 선언된 필드(Declared Fields)를 반환합니다.
      * <p>
-     * 조회된 필드들은 즉시 접근 가능하도록 설정되어 있으며, 캐시 수정을 방지하기 위해 복사본을 반환합니다.
+     * 조회된 필드들은 즉시 접근 가능하도록 설정되어 있습니다. 반환 배열은 모든 호출자가 공유하므로 수정하면 안 됩니다.
      * {@code clazz}가 프록시(Hibernate/CGLIB)라면 먼저 {@link #getRealClass(Class)}로 실제 엔티티 클래스를
      * 구해서 사용하므로, 프록시의 합성 필드가 아닌 엔티티의 실제 필드를 얻으며 어떤 프록시 서브클래스가
      * 들어와도 캐시 항목을 공유합니다.
@@ -827,24 +865,7 @@ public class S2Cache {
         if (clazz == null)
             return Optional.empty();
 
-        Class<?> realClass = getRealClass(clazz);
-
-        return resolve(
-                FIELDS_CACHE_NAME,
-                realClass, Class.class,
-                Field[].class,
-                1000,
-                key -> {
-                    Field[] fieldArray = key.getDeclaredFields();
-
-                    // 모든 필드에 대해 접근 권한 부여함
-                    for (Field field : fieldArray) {
-                        field.setAccessible(true);
-                    }
-
-                    // 방어적 복사를 통해 외부 수정으로부터 캐시 원본 보호함
-                    return Optional.of(fieldArray.clone());
-                });
+        return Optional.of(DECLARED_FIELDS.get(getRealClass(clazz)));
     }
 
     /**

@@ -32,6 +32,14 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
 
+### Performance
+
+- s2-core lightweight cache (`S2OptimisticCache`): reads no longer bump a shared counter; recency is tracked as an epoch-based approximate LRU, so reads perform no shared writes
+  and throughput scales with the number of cores under concurrent reads. Eviction still runs asynchronously on its dedicated platform thread and now trims to 75% of the maximum size instead of half.
+- `S2Cache.getFields` and proxy real-class resolution are cached in a `ClassValue`: faster per-class lookups, and redeployed or reloaded classes are no longer retained by a static cache.
+- The Caffeine backend uses Caffeine's default executor for maintenance. It used the `S2ThreadUtil` common executor before,
+  so every cache write logged a `RejectedExecutionException` warning after `S2ThreadUtil.shutdownCommonExecutor()`.
+
 ### Docs & examples
 
 - Public demo site (GitHub Pages, `s2-validator/browser-test/site`): sign-up, order rows, Bean Validation conversion and a `check()` playground in Korean/English, with rules made by the server validators. Covered by Playwright tests.

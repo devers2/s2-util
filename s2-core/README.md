@@ -26,7 +26,7 @@ The **s2-core** module is the foundational library of the `s2-util` project, pro
 2. **Intelligent Caching (Dual Mode)**
    - **Default**: Built-in `S2OptimisticCache` optimized for speed and simplicity (No external dependencies)
      - Lock-free reads & Optimistic/Atomic writes
-     - Sequence-based LRU eviction strategy
+     - Epoch-based approximate LRU eviction (reads do no shared writes, so throughput scales with cores); bounded at twice the maximum size even under a burst of distinct keys
    - **Optional**: Seamless integration with **Caffeine Cache** for enterprise-grade workloads
      - W-TinyLFU algorithm for maximizing hit rates in high-traffic scenarios
      - Automatically activated when Caffeine is present in the classpath

@@ -27,6 +27,14 @@
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
 - `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
 
+### 성능
+
+- s2-core 경량 캐시(`S2OptimisticCache`): 조회 때 공유 카운터를 올리던 방식을 세대(epoch) 기반 근사 LRU 로 바꿔, 조회가 공유 쓰기 없이 동작합니다.
+  여러 스레드가 동시에 조회해도 처리량이 코어 수만큼 늘어납니다. 축출은 지금처럼 전용 플랫폼 스레드에서 비동기로 하며, 절반이 아닌 최대 크기의 75%까지만 지웁니다.
+- `S2Cache.getFields` 와 프록시 실제 클래스 판별을 `ClassValue` 로 캐시합니다. 클래스별 조회가 빨라지고, 재배포·재로딩된 클래스를 정적 캐시가 붙잡지 않습니다.
+- Caffeine 백엔드의 유지보수 작업은 Caffeine 기본 실행기를 씁니다. 이전에는 `S2ThreadUtil` 공용 실행기를 써서,
+  `S2ThreadUtil.shutdownCommonExecutor()` 이후 캐시에 쓸 때마다 `RejectedExecutionException` 경고가 찍혔습니다.
+
 ### 문서·예제
 
 - 공개 데모 사이트(GitHub Pages, `s2-validator/browser-test/site`): 서버 검증기로 만든 규칙으로 회원가입·주문 행·Bean Validation 변환·`check()` 플레이그라운드를 한국어/영어로 시연. Playwright 시험 포함.

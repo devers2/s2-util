@@ -34,7 +34,7 @@ import java.util.function.Function;
 import io.github.devers2.s2util.core.S2ThreadUtil;
 
 /**
- * High-performance lightweight cache supporting optimistic creation and sequence-based LRU.
+ * High-performance lightweight cache supporting optimistic creation and epoch-based approximate LRU.
  *
  * <h3>Design Philosophy and Advantages</h3>
  * <ul>
@@ -43,14 +43,15 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <li><b>Optimistic Creation:</b> Allows multiple threads to create values simultaneously
  * when a cache miss occurs, but ensures atomicity at the storage stage using {@code putIfAbsent}.
  * This eliminates wait time for other threads during value creation.</li>
- * <li><b>Sequence-based LRU:</b> Uses a simple {@link AtomicLong} counter instead of expensive
- * {@code System.nanoTime()} or {@code System.currentTimeMillis()} to track access order,
- * minimizing CPU overhead.</li>
+ * <li><b>Epoch-based approximate LRU:</b> Each entry records the access <i>epoch</i>, a counter advanced by
+ * insertions (not by reads). A hit only reads the current epoch and writes the entry only when the epoch has
+ * changed since its last access, so reads perform no shared atomic update and scale with the number of cores.
+ * Recency is tracked at epoch granularity, which is precise enough for eviction.</li>
  * <li><b>Asynchronous and Gradual Eviction:</b> When the cache reaches its maximum size,
  * eviction is performed on a dedicated maintenance thread (separate from application-facing
  * executors, see {@link MaintenanceExecutorHolder}) to prevent blocking the main thread and
  * to keep eviction timely even when the application saturates its own executors. Instead of
- * clearing the entire cache, it gradually removes only the oldest 50% of entries to maintain
+ * clearing the entire cache, it removes the least recently used entries down to 75% of the maximum to maintain
  * a high hit rate. If eviction cannot keep up (e.g. a burst of distinct keys), new values beyond
  * twice the maximum size are returned without being cached, so growth stays bounded and callers
  * never run eviction themselves.</li>
@@ -58,8 +59,8 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  *
  * <h3>Philosophical Considerations and Guardrails</h3>
  * <ul>
- * <li><b>Sequence Overflow:</b> Uses a {@code long} counter. With 1 billion increments per second,
- * it takes approx. 292 years to overflow. For system stability, this is considered
+ * <li><b>Epoch Overflow:</b> Uses a {@code long} counter advanced at most once per insertion. With 1 billion
+ * increments per second, it takes approx. 292 years to overflow. For system stability, this is considered
  * "effectively infinite" and no reset logic is added to maintain zero-overhead.</li>
  * <li><b>Double Creation:</b> Optimistic creation is a deliberate trade-off. We prefer occasional
  * duplicate object creation over mandatory thread blocking (locking) during high concurrency.</li>
@@ -71,7 +72,7 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 낙관적 생성과 Sequence 기반 LRU를 지원하는 고성능 경량 캐시 구현체입니다.
+ * 낙관적 생성과 세대(epoch) 기반 근사 LRU를 지원하는 고성능 경량 캐시 구현체입니다.
  *
  * <h3>설계 철학 및 장점</h3>
  * <ul>
@@ -80,18 +81,19 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <li><b>낙관적 생성:</b> 캐시 미스 발생 시 여러 스레드가 동시에 값을 생성하는 것을 허용하되,
  * 저장 시점에 {@code putIfAbsent}를 통해 원자성을 보장합니다. 이를 통해 값 생성 중 다른 스레드가
  * 대기하는 현상을 완벽히 제거합니다.</li>
- * <li><b>Sequence 기반 LRU:</b> 값 비싼 {@code System.nanoTime()} 호출 대신 단순한 {@link AtomicLong}
- * 카운터를 사용하여 접근 순서를 추적함으로써 CPU 오버헤드를 최소화합니다.</li>
+ * <li><b>세대(epoch) 기반 근사 LRU:</b> 각 항목은 마지막 접근 <i>세대</i>를 기록하며, 세대는 조회가 아닌 삽입에 따라
+ * 증가합니다. 조회는 현재 세대를 읽기만 하고 마지막 접근 이후 세대가 바뀌었을 때만 항목에 기록하므로, 공유 원자 연산이
+ * 없어 코어 수에 비례해 확장됩니다. 접근 순서는 세대 단위로 추적되며 축출에는 충분히 정확합니다.</li>
  * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고, 애플리케이션이 쓰는
  * 실행기와 분리된 전용 유지보수 스레드({@link MaintenanceExecutorHolder})에서 삭제 작업을 수행하여
- * 애플리케이션 부하와 무관하게 축출이 지연되지 않도록 합니다. 전체를 비우는 대신 오래된 순으로 50%만
- * 삭제하여 캐시 적중률을 안정적으로 유지하며, 축출이 따라가지 못하는 상황(서로 다른 키가 몰릴 때 등)에는
+ * 애플리케이션 부하와 무관하게 축출이 지연되지 않도록 합니다. 전체를 비우는 대신 오래된 순으로 최대 크기의
+ * 75%까지만 삭제하여 캐시 적중률을 안정적으로 유지하며, 축출이 따라가지 못하는 상황(서로 다른 키가 몰릴 때 등)에는
  * 최대 크기의 2배를 넘는 새 값을 캐싱하지 않고 반환만 하여 무한 증가를 막고 호출자가 축출을 떠안지 않게 합니다.</li>
  * </ul>
  *
  * <h3>기술적 고려사항 및 방어 기제</h3>
  * <ul>
- * <li><b>Sequence 오버플로우:</b> {@code long} 카운터를 사용합니다. 초당 10억 번의 요청이 발생해도
+ * <li><b>세대 오버플로우:</b> 삽입당 최대 1회 증가하는 {@code long} 카운터를 사용합니다. 초당 10억 번 증가해도
  * 약 292년이 소요되므로, 실무적으로 무한한 수치로 간주하며 오버헤드 방지를 위해 별도의 리셋 로직을 두지 않습니다.</li>
  * <li><b>이중 생성(Double Creation):</b> 여러 스레드가 동시에 같은 값을 생성하는 것은 의도된 트레이드오프입니다.
  * 값 생성 중 모든 스레드를 블로킹(Lock)하는 비용보다, 아주 가끔 발생하는 중복 생성 비용이 훨씬 저렴합니다.</li>
@@ -130,21 +132,21 @@ public class S2OptimisticCache<K, V> {
 
     /**
      * Wrapper class for cache entries.
-     * Stores the value along with a sequence number to track access order.
+     * Stores the value along with the epoch of its last access to track access order.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 캐시 항목을 감싸는 래퍼 클래스입니다.
-     * 값과 함께 접근 순서를 추적하기 위한 sequence를 저장합니다.
+     * 값과 함께 접근 순서를 추적하기 위한 마지막 접근 세대(epoch)를 저장합니다.
      */
     private static class CacheEntry<V> {
         final V value;
-        volatile long sequence; // Access sequence (smaller is older) | 접근 순서 추적 (작을수록 오래됨)
+        volatile long accessEpoch; // 마지막 접근 세대 (작을수록 오래됨)
 
-        CacheEntry(V value, long sequence) {
+        CacheEntry(V value, long accessEpoch) {
             this.value = value;
-            this.sequence = sequence;
+            this.accessEpoch = accessEpoch;
         }
     }
 
@@ -166,7 +168,9 @@ public class S2OptimisticCache<K, V> {
     private final int maxEntries;
     private final long hardLimit;
     private final AtomicInteger size = new AtomicInteger(0);
-    private final AtomicLong sequenceGenerator = new AtomicLong(0);
+    private final AtomicLong epoch = new AtomicLong(0);
+    private final AtomicInteger insertTick = new AtomicInteger(0);
+    private final int epochMask;
     private final AtomicBoolean evicting = new AtomicBoolean(false);
 
     /**
@@ -182,11 +186,13 @@ public class S2OptimisticCache<K, V> {
     public S2OptimisticCache(int maxEntries) {
         this.maxEntries = maxEntries;
         this.hardLimit = Math.max(1L, (long) maxEntries * HARD_LIMIT_MULTIPLIER);
+        // 세대는 삽입 N건마다 1 증가: 작은 캐시는 촘촘하게(정확도), 큰 캐시는 성기게(조회 쪽 캐시 라인 무효화 감소)
+        this.epochMask = Integer.highestOneBit(Math.max(1, Math.min(64, maxEntries / 32))) - 1;
     }
 
     /**
      * Returns the cached value, or creates it if not present.
-     * The sequence is updated on every access to provide LRU effects.
+     * The access epoch is refreshed on access to provide LRU effects.
      * Supports null values through negative caching using a sentinel pattern.
      *
      * <h4>Concurrency and Double Creation</h4>
@@ -212,7 +218,7 @@ public class S2OptimisticCache<K, V> {
      * <b>[한국어 설명]</b>
      * </p>
      * 캐시된 값을 반환하며, 없을 경우 현재 스레드에서 생성하여 등록 후 반환합니다.
-     * 조회 시마다 sequence를 갱신하여 LRU 효과를 제공합니다.
+     * 조회 시 접근 세대를 갱신하여 LRU 효과를 제공합니다.
      * null 값도 센티넬 패턴을 통해 캐싱됩니다(음수 캐싱).
      *
      * <h4>동시성 및 이중 생성</h4>
@@ -241,8 +247,7 @@ public class S2OptimisticCache<K, V> {
         // 1. Non-blocking lookup (99% of cases)
         CacheEntry<V> entry = cache.get(key);
         if (entry != null) {
-            // Update sequence - AtomicLong.incrementAndGet() is extremely fast!
-            entry.sequence = sequenceGenerator.incrementAndGet();
+            touch(entry);
             V value = entry.value;
             return (value == NULL_HOLDER) ? null : value;
         }
@@ -260,19 +265,22 @@ public class S2OptimisticCache<K, V> {
         }
 
         // 3. Atomic registration (first-come, first-served)
-        CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, sequenceGenerator.incrementAndGet());
+        CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, epoch.get());
         CacheEntry<V> existingEntry = cache.putIfAbsent(key, newEntry);
 
         if (existingEntry == null) {
             // 등록에 성공한 스레드만 크기를 세고, 상한을 넘으면 비동기 축출을 예약한다(호출 스레드는 막지 않음)
+            if ((insertTick.incrementAndGet() & epochMask) == 0) {
+                epoch.incrementAndGet();
+            }
             if (size.incrementAndGet() > maxEntries) {
                 scheduleEviction();
             }
             return newValue;
         }
 
-        // If another thread registered first, return that value and update its sequence
-        existingEntry.sequence = sequenceGenerator.incrementAndGet();
+        // If another thread registered first, return that value and update its access epoch
+        touch(existingEntry);
         V existingValue = existingEntry.value;
         return (existingValue == NULL_HOLDER) ? null : existingValue;
     }
@@ -293,11 +301,27 @@ public class S2OptimisticCache<K, V> {
     public V getIfPresent(K key) {
         CacheEntry<V> entry = cache.get(key);
         if (entry != null) {
-            entry.sequence = sequenceGenerator.incrementAndGet();
+            touch(entry);
             V value = entry.value;
             return (value == NULL_HOLDER) ? null : value;
         }
         return null;
+    }
+
+    /**
+     * Marks the entry as accessed in the current epoch. Writes only when the epoch has changed, so repeated
+     * hits within an epoch are plain reads.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 항목을 현재 세대에 접근한 것으로 표시합니다. 세대가 바뀌었을 때만 기록하므로 같은 세대 안의 반복 조회는 읽기만 합니다.
+     */
+    private void touch(CacheEntry<V> entry) {
+        long current = epoch.get();
+        if (entry.accessEpoch != current) {
+            entry.accessEpoch = current;
+        }
     }
 
     /**
@@ -357,9 +381,9 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
-     * Evicts the least recently accessed entries until the cache is back to half of {@code maxEntries}.
+     * Evicts the least recently accessed entries until the cache is back to 75% of {@code maxEntries}.
      * <p>
-     * Access sequences are copied into a primitive snapshot before ordering, because they keep changing
+     * Access epochs are copied into a primitive snapshot before ordering, because they keep changing
      * under concurrent reads; ordering live values would break the sort contract. An entry is removed only
      * if it is still the same instance that was snapshotted.
      * </p>
@@ -367,7 +391,7 @@ public class S2OptimisticCache<K, V> {
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 접근이 가장 오래된 항목부터 삭제하여 {@code maxEntries}의 절반까지 줄입니다.
+     * 접근이 가장 오래된 항목부터 삭제하여 {@code maxEntries}의 75%까지 줄입니다.
      * <p>
      * 동시 조회 중에도 접근 순서 값이 계속 바뀌므로, 정렬 전에 원시 배열 스냅샷으로 복사합니다(살아있는 값으로
      * 정렬하면 정렬 계약이 깨짐). 스냅샷 시점과 같은 항목 인스턴스일 때만 삭제합니다.
@@ -385,7 +409,7 @@ public class S2OptimisticCache<K, V> {
         int capacity = cache.size() + 16;
         Object[] keys = new Object[capacity];
         CacheEntry<V>[] entries = new CacheEntry[capacity];
-        long[] sequences = new long[capacity];
+        long[] epochs = new long[capacity];
         int count = 0;
         for (Map.Entry<K, CacheEntry<V>> e : cache.entrySet()) {
             if (count == capacity) {
@@ -394,24 +418,24 @@ public class S2OptimisticCache<K, V> {
             CacheEntry<V> entry = e.getValue();
             keys[count] = e.getKey();
             entries[count] = entry;
-            sequences[count] = entry.sequence;
+            epochs[count] = entry.accessEpoch;
             count++;
         }
 
         // 2. 지울 개수만큼의 경계값을 원시 배열 정렬로 구함
-        int targetSize = maxEntries / 2;
+        int targetSize = (int) ((long) maxEntries * 3 / 4);
         int toRemove = count - targetSize;
         if (toRemove <= 0) {
             return 0;
         }
-        long[] sorted = Arrays.copyOf(sequences, count);
+        long[] sorted = Arrays.copyOf(epochs, count);
         Arrays.sort(sorted);
         long cutoff = sorted[toRemove - 1];
 
         // 3. 경계값 이하(오래된) 항목을 지울 개수만큼 삭제 — 그사이 교체된 항목은 건드리지 않음
         int removedCount = 0;
         for (int i = 0; i < count && removedCount < toRemove; i++) {
-            if (sequences[i] <= cutoff && cache.remove((K) keys[i], entries[i])) {
+            if (epochs[i] <= cutoff && cache.remove((K) keys[i], entries[i])) {
                 size.decrementAndGet();
                 removedCount++;
             }
