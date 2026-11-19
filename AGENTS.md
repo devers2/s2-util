@@ -1,111 +1,52 @@
-# S2Util AI 에이전트 개발 및 검증 절대 원칙 (AGENTS.md)
+# s2-util AI 에이전트 원칙
 
-이 문서는 `s2-util` 저장소의 코드를 분석, 수정, 생성하는 모든 AI 에이전트가 준수해야 할 **절대 원칙 및 검증 가이드라인**입니다.
+## 필수: 수정 후 전체 검증
+Java·`s2.validator.js`·Gradle 설정·문서를 수정했으면 완료 보고·커밋·push 전에 `./gradlew check` 전수 통과를 확인한다.
+개별 테스트만으로 끝내지 않는다(`s2-core`, `s2-jpa`, `s2-validator`, `s2-validator-plugin` 전부).
 
----
+## 1. 서버·클라이언트 규칙 일치 (s2-validator)
+- 새 `S2RuleType` 은 `s2-validator/src/main/resources/META-INF/resources/s2-util/js/s2.validator.js` 의 `validateCheck()` 구현과
+  `ServerClientParityTest.testCases()` 의 성공·실패·빈값 케이스를 함께 추가한다(누락 시 `testAllRuleTypesHaveParityTests()` 가 빌드 실패).
+- 정규식: Java `matcher.matches()` 와 JS `RegExp.test()` 모두 전체 일치. JS 정규식 오류는 `try/catch` 로 격리해 실패(fail-closed) 처리하고 submit 리스너가 멈추지 않게 한다.
+- `MIN_VALUE`·`MAX_VALUE` 등 숫자 규칙은 `Number` 뿐 아니라 숫자 문자열 값(`"25"`)·문자열 기준값(`"19"`)도 비교되어야 한다.
+- `EQUALS_FIELD`·`DATE_AFTER`·`DATE_BEFORE` 메시지는 대상 필드의 영문 이름이 아닌 라벨(`비밀번호`, `시작일`)로 치환한다.
+- `s2.validator.js` 의 DOM 처리(오류 표시, 히든 필드 앵커, 렌더러, `reindex`)를 바꿨으면 `s2-validator/browser-test/run.sh`(Playwright)도 통과시킨다.
+  - 시스템 라이브러리 설치에 sudo 가 필요하다. 에이전트는 sudo 를 실행하지 말고, 라이브러리가 없다고 나오면 사용자에게 `! s2-validator/browser-test/run.sh` 실행을 요청한다.
+  - 이 시험은 `./gradlew check` 에 없고, GitHub Actions `Browser tests (s2.validator.js)` 가 JS·`browser-test/` 변경 때만 실행한다.
+  - `BrowserDemoRules.java` 를 바꾸면 `./gradlew :s2-validator:writeBrowserDemoRules` 로 `demo/rules.json` 을 다시 만든다.
 
-## 🚨 [CRITICAL RULE] 코드 수정 후 전체 빌드 및 검증 필수 실행
+## 2. 커스텀 람다 규칙
+- 값이 비면(`S2Util.isEmpty`) 실행하지 않고 통과한다. 빈 값도 검사해야 하면(예: 둘 중 하나 필수) `.includeEmpty()` 를 붙인다.
+- 비밀번호 확인 같은 연관 필드는 `.rule(REQUIRED)` 를 먼저 두고 람다를 잇는다(빈 확인 필드 통과 방지).
+- 람다 안의 런타임 예외는 삼키지 말고 필드명을 담은 `S2RuleExecutionException` 으로 감싸 전파한다.
+- 람다 규칙은 JSON 으로 직렬화되지 않아 서버에서만 동작한다. 양쪽에서 검증할 규칙은 `S2RuleType.REGEX` 나 내장 규칙을 쓴다.
 
-Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문서를 수정한 후에는 **사용자에게 완료를 보고하거나 커밋/푸시하기 전에 반드시 아래 검증 명령어를 실행하여 전수 통과(100% PASS)를 확인**해야 합니다.
+## 3. 전역 상태
+- 전역 검증기 등록부(`S2ValidatorFactory`, `S2BindValidator.context`)는 2.0.0 에서 삭제됐다. Spring 은 `S2BindValidator.bind(validator)`,
+  Spring 이 없으면 `validator.getRulesJson(locale)` 을 쓴다.
+- 문자열 키 전역 캐시를 다시 도입하지 않는다(키가 첫 규칙에 고정돼 역할별 규칙이 경고 없이 공유되던 문제).
+- 테스트 간 격리가 필요하면 `S2Validator.resetAll()`(기본 로케일, 검증 번들, 리소스 번들 기본 이름).
 
-### 필수 실행 명령어
-```bash
-./gradlew check
-```
+## 4. 버전·배포
+- 버전은 `build.gradle.kts` 만 바꾼다. `./gradlew test` 때 `S2BuildUtils` 가 `README`·`GUIDE`·`MANUAL` 의 버전·의존성 블록을 동기화한다.
+- 사용자가 요청하지 않으면 배포 태스크(`publish`, `publishToCentralPortal` 등)를 실행하지 않는다.
+- 평소에는 `develop` 브랜치에서 commit·push 한다. `main` 은 Maven Central 배포본과 같아야 하므로, 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 단다.
 
-> ⚠️ 개별 임의 테스트만 실행하고 끝내지 마십시오. 반드시 `./gradlew check`를 통해 전체 서브프로젝트(`s2-core`, `s2-jpa`, `s2-validator`, `s2-validator-plugin`)의 모든 단위/통합/스모크 테스트가 100% 통과함을 검증해야 합니다.
+## 5. Java 버전
+- 기준은 Java 17(`--release 17`). Java 21+ 전용 문법·API(`Thread.ofVirtual()`, `getFirst()` 등)를 직접 쓰지 않는다.
+- 예외는 `s2-core` 의 `S2ThreadUtil` 가상 스레드뿐이며, MethodHandle/리플렉션으로 런타임에 감지하고 Java 17 용 대체 로직(플랫폼 스레드 풀)을 반드시 둔다.
 
----
+## 6. 인코딩
+- 모든 소스·설정·문서는 UTF-8 NoBOM.
 
-## 1. 서버-클라이언트 규칙 일관성 절대 원칙 (Write Once, Validate Anywhere)
-
-`s2-validator`는 서버(Java)와 클라이언트(JavaScript)가 동일한 규칙으로 일관되게 검증되는 것을 핵심 가치로 합니다.
-
-1. **신규 룰(`S2RuleType`) 추가 시**:
-   - `s2-validator/src/main/resources/META-INF/resources/s2-util/js/s2.validator.js`의 `validateCheck()`에 해당 룰에 대한 검증 로직을 반드시 구현해야 합니다.
-   - `ServerClientParityTest.testCases()`에 신규 룰의 성공/실패/빈값 판정 테스트 케이스를 반드시 추가해야 합니다.
-   - `ServerClientParityTest.testAllRuleTypesHaveParityTests()`가 누락을 자동 감지하므로, 테스트 누락 시 빌드가 실패합니다.
-2. **정규식 일치성 및 예외 격리**:
-   - Java의 `matcher.matches()`와 JavaScript의 `RegExp.test()`가 동일하게 전체 일치(full match)로 동작해야 합니다.
-   - JavaScript 검증기에서 정규식 평가 시 구문 오류(`SyntaxError`)가 발생하더라도 submit 리스너가 중단되지 않도록 `try/catch`로 예외를 안전하게 격리(fail-closed)해야 합니다.
-3. **숫자 형 변환 호환성**:
-   - `MIN_VALUE`, `MAX_VALUE` 등 숫자 규칙은 DTO의 `Number`뿐 아니라 폼 및 `Map` 바인딩에서 들어오는 숫자 문자열(`"25"`)과 문자열 기준값(`"19"`)도 정상적으로 비교되어야 합니다.
-4. **교차 필드 메시지 가독성**:
-   - `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`의 에러 메시지는 내부 영문 필드명(`pw`, `startDate`)이 아닌 대상 필드의 논리 라벨(`비밀번호`, `시작일`)로 치환되어야 합니다.
-5. **실제 브라우저 시험**:
-   - `s2.validator.js`의 DOM 처리(오류 표시, 히든 필드 앵커, 렌더러, `reindex`)를 수정했다면 `./gradlew check`에 더해 `s2-validator/browser-test/run.sh`(Playwright)를 실행하여 통과를 확인해야 합니다. 스크립트가 npm 패키지·Chromium·시스템 라이브러리 중 없는 것만 준비한 뒤 시험을 실행합니다.
-   - 시스템 라이브러리 설치에는 sudo 비밀번호가 필요합니다. 에이전트는 sudo 를 실행하지 말고, 라이브러리가 없다고 나오면 사용자에게 `! s2-validator/browser-test/run.sh` 실행을 요청하십시오.
-   - 이 시험은 `./gradlew check`에 포함되지 않으며, GitHub Actions `Browser tests (s2.validator.js)` 워크플로가 JS·`browser-test/` 변경 시에만 자동 실행합니다.
-   - 데모 규칙(`BrowserDemoRules.java`)을 바꾸면 `./gradlew :s2-validator:writeBrowserDemoRules`로 `demo/rules.json`을 다시 생성하십시오.
-
----
-
-## 2. 커스텀 람다 규칙 빈 값 및 예외 처리 원칙
-
-1. **빈 값(null/empty) 단락(Short-circuit)**:
-   - 커스텀 람다 규칙은 기본적으로 대상 값이 비어있으면(`S2Util.isEmpty(value)`) 실행되지 않고 통과합니다 (NPE 방지).
-   - 빈 값 상태에서도 검증이 필요한 특수 규칙(예: 두 필드 중 하나 필수)은 반드시 `.includeEmpty()`를 명시해야 합니다.
-2. **비밀번호 확인 등 연관 필드 검증**:
-   - 확인 필드가 비었을 때 통과되는 것을 방지하기 위해 반드시 `.rule(REQUIRED)`를 선행하고 커스텀 람다를 연결하십시오.
-3. **람다 예외 전파**:
-   - 커스텀 람다 내부에서 발생한 런타임 예외는 삼키지 말고 필드명을 포함한 `S2RuleExecutionException`으로 감싸서 전파해야 합니다.
-4. **서버 전용 검증 원칙 (Server-Only Rule)**:
-   - 커스텀 람다 규칙(`Predicate`, `BiPredicate`)은 JVM 메모리 상의 바이트코드 객체이므로 클라이언트(`s2.validator.js`)로 JSON 직렬화되지 않으며, **오직 서버 사이드 검증 시에만 동작**합니다.
-   - 클라이언트와 서버 양쪽에서 동일(교차)하게 검증되어야 하는 규칙은 람다 대신 `S2RuleType.REGEX` 또는 내장 규칙을 사용해야 합니다.
-
----
-
-## 3. 전역 상태 격리 및 인스턴스 패턴 우선
-
-1. **검증기 연결 경로**:
-   - 전역 검증기 등록부(`S2ValidatorFactory`, `S2BindValidator.context`)는 2.0.0 에서 삭제되었습니다. Spring 연동은 `S2BindValidator.bind(validator)` 인스턴스 직접 전달 방식만 사용하고, Spring 이 없으면 `validator.getRulesJson(locale)`으로 규칙 JSON 을 만듭니다.
-   - 문자열 키 기반 전역 캐시를 다시 도입하지 마십시오. 키가 첫 규칙에 고정되어 역할별 규칙이 경고 없이 공유되는 문제가 있었습니다.
-2. **전역 상태 초기화**:
-   - 단위 테스트 간 상태 격리를 위해 필요 시 `S2Validator.resetAll()`을 호출하십시오 (기본 로케일, 검증 번들, 리소스 번들 기본 이름).
-
----
-
-## 4. 버전 관리 및 문서 동기화 원칙
-
-1. **버전 변경**:
-   - `build.gradle.kts`의 버전만 변경하십시오.
-   - 빌드 플러그인(`S2BuildUtils`)이 `./gradlew test` 실행 시 모든 `README`, `GUIDE`, `MANUAL`의 버전 및 의존성 코드 블록을 자동으로 동기화합니다.
-2. **배포 안전성**:
-   - 사용자가 명시적으로 배포를 요청하지 않는 한 임의로 배포 태스크(`publish`, `publishToCentralPortal` 등)를 실행하지 마십시오.
-   - 평상시에는 `develop` 브랜치에서 `git commit` 및 `git push`만 수행합니다.
-   - `main` 은 Maven Central 배포본과 같아야 합니다. 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 답니다.
-
----
-
-## 5. Java 버전 호환성 원칙 (Java 17 Baseline & Java 21+ Dynamic Feature)
-
-1. **기본 호환성 (Java 17 Baseline)**:
-   - 모든 기본 소스코드는 Java 17 바이트코드 타깃(`--release 17`) 호환을 기준으로 작성해야 합니다.
-   - Java 21+ 전용 문법이나 신규 API(예: `Thread.ofVirtual()`, `Thread.startVirtualThread()`, Sequenced Collections `getFirst()` 등)를 소스에 직접 하드코딩해서는 안 됩니다.
-2. **Java 21+ 기능 사용 원칙 (가상 스레드 독점 예외)**:
-   - 가상 스레드(Virtual Thread)는 `s2-core`의 `S2ThreadUtil`에서만 유일하게 Java 21+ 동적 기능으로 지원합니다.
-   - Java 21+ 신규 기능을 활용할 때는 반드시 `S2ThreadUtil`과 같이 **MethodHandle/리플렉션을 통한 런타임 동적 감지** 방식을 취해야 합니다.
-   - 실행 환경이 Java 17인 경우를 대비하여 **안전한 대체 로직(Fallback: 플랫폼 스레드 풀 등)**을 필수적으로 함께 제공해야 합니다.
-
----
-
-## 6. 인코딩 절대 원칙: UTF-8 NoBOM
-
-- 저장소의 모든 소스 파일, 설정 파일, 마크다운 문서는 순수 UTF-8 NoBOM(Byte Order Mark 없음)이어야 합니다.
-
----
-
-## 7. 언어 원칙 (문서·주석·커밋)
-
-외부 사용자가 실제로 읽는 곳(가이드 문서·API 문서)만 영문/한글을 병기하고, 나머지는 한국어로 작성합니다.
-
+## 7. 언어 (문서·주석·커밋)
 | 대상 | 언어 |
 |---|---|
-| `README`·`GUIDE`·`MANUAL`·`CHANGELOG` 등 가이드 문서 | 영문(`*.md`)과 한글(`*.ko.md`) 쌍으로 작성하고 함께 갱신 |
-| Javadoc·JSDoc (클래스·메서드·필드 등 API 문서 주석) | 영문 설명 먼저, 이어서 `<p><b>[한국어 설명]</b></p>` 아래 한글 설명 (기존 형식 유지) |
-| 그 밖의 코드 주석 (`//`, 메서드 내부 블록 주석, 빌드 스크립트 주석) | 한국어만 |
-| 커밋 메시지 | 한국어. Conventional Commits 접두어(`feat:`, `fix:`, `docs:`, `build:` …)와 식별자는 영어 그대로 — 예: `fix: 날짜 검증에서 null 처리 누락 수정` |
-| 예외·로그 메시지 등 사용자에게 그대로 노출되는 문자열 | 영어 유지 (검색·이슈 보고에 쓰이는 공개 텍스트 — 다국어 메시지는 기존 i18n 구조를 따름) |
-| 이슈·PR 답변 | 작성자의 언어로 |
+| `README`·`GUIDE`·`MANUAL`·`CHANGELOG` 등 가이드 문서 | 영문(`*.md`)·한글(`*.ko.md`) 쌍으로 함께 갱신 |
+| Javadoc·JSDoc | 영문 설명 → `<p><b>[한국어 설명]</b></p>` → 한글 설명 (기존 형식) |
+| 그 밖의 주석(`//`, 메서드 내부 블록 주석, 빌드 스크립트) | 한국어 |
+| 커밋 메시지 | 한국어. 접두어(`feat:`, `fix:`, `docs:`, `build:` …)·식별자는 영어 — 예: `fix: 날짜 검증에서 null 처리 누락 수정` |
+| 예외·로그 등 사용자에게 노출되는 문자열 | 영어 (다국어 메시지는 기존 i18n 구조) |
+| 이슈·PR 답변 | 작성자의 언어 |
 
-- 기존 주석·커밋 이력은 일부러 바꾸지 않습니다(번역·정리 목적 수정 금지). 주석은 설명하는 코드가 바뀌었거나 내용이 틀렸을 때만 그 부분을 고치고, 고친 주석은 이 원칙의 언어로 씁니다.
+- 기존 주석·커밋 이력은 번역·정리 목적으로 바꾸지 않는다. 주석은 설명하는 코드가 바뀌었거나 틀렸을 때만 그 부분을 고치고, 고친 주석은 위 원칙의 언어로 쓴다.
