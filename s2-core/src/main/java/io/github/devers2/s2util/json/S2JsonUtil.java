@@ -246,11 +246,20 @@ public final class S2JsonUtil {
 
     /**
      * Writes a value as JSON.
+     * <p>
+     * {@code <}, {@code >} and {@code &} in strings are written as {@code \\u003c}, {@code \\u003e} and
+     * {@code \\u0026}, so the output can be placed inside an HTML {@code <script>} block as is (the parsed value is
+     * the same).
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 값을 JSON 으로 씁니다.
+     * <p>
+     * 문자열 안의 {@code <}, {@code >}, {@code &}는 {@code \\u003c}, {@code \\u003e}, {@code \\u0026}으로 써서,
+     * 출력을 HTML {@code <script>} 블록에 그대로 넣어도 안전합니다(읽은 값은 같음).
+     * </p>
      *
      * @param value    The value (supported types in the class documentation) | 값 (지원 타입은 클래스 설명 참고)
      * @param features Optional features ({@link Feature#ALLOW_NON_NUMERIC_NUMBERS}) | 선택 기능
@@ -684,6 +693,10 @@ public final class S2JsonUtil {
                 case '\n' -> sb.append("\\n");
                 case '\r' -> sb.append("\\r");
                 case '\t' -> sb.append("\\t");
+                // HTML <script> 안에 그대로 넣어도 </script> 로 닫히거나 엔티티로 해석되지 않도록(값은 동일)
+                case '<' -> sb.append("\\u003c");
+                case '>' -> sb.append("\\u003e");
+                case '&' -> sb.append("\\u0026");
                 default -> {
                     if (c < 0x20 || c == '\u2028' || c == '\u2029') {
                         sb.append(String.format("\\u%04x", (int) c));

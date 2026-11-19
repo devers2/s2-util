@@ -31,6 +31,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **`S2Copier` copies inherited fields and keeps empty strings and empty collections instead of turning them into `null`.** Static fields are not copied.
 - **`S2Template.render()` no longer re-expands `{{=…}}` inside binding values.** They used to be replaced by other bindings or removed, with results depending on binding order.
 - `S2StringUtil.clearNewline` escapes backslashes too. Before, a `\'` in the input closed the JS string and allowed script injection.
+- `S2JsonUtil.toJson` writes `<`, `>` and `&` in strings as `\u003c`, `\u003e` and `\u0026`, so the output can be placed inside an HTML `<script>` block as is without being closed by `</script>` (the parsed value is the same).
 
 ### Added
 
@@ -98,6 +99,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `S2StringUtil.substringByBytes`: 4-byte characters such as emoji were counted as 6 bytes and could be cut in half, returning a broken string.
 - `S2StringUtil` case conversion (`toCamelCase`, `toSnakeCase`, ...) followed the system locale and produced `userİd` under Turkish.
 - The JSON parser accepted non-ASCII characters such as Arabic-Indic digits and fullwidth letters as hex digits in `\u` escapes.
+- `S2DateUtil` parsing read text fields such as AM/PM (`a`), month names (`MMM`) and day names (`E`) only in the default locale, so `11:30 PM` failed on a Korean JVM. English is now tried after the default locale, case-insensitively.
 
 ## [2.1.0]
 

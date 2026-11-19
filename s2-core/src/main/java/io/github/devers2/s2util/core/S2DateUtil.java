@@ -35,11 +35,15 @@ import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
+import java.time.temporal.TemporalQuery;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -87,36 +91,75 @@ public class S2DateUtil {
     private static final S2Logger logger = S2LogManager.getLogger(S2DateUtil.class);
 
     /**
-     * Returns a strict, cached formatter for parsing.
+     * Parses text strictly with the pattern and returns the result of the query.
      * <p>
      * {@link ResolverStyle#STRICT} rejects nonexistent dates such as {@code 2024-02-30} or {@code 2023-02-29}
      * instead of silently adjusting them to the last day of the month (the default {@code SMART} behavior).
      * Because {@code yyyy} (year-of-era) resolves under {@code STRICT} only with an era, the era defaults to CE.
+     * When the pattern has text fields (AM/PM {@code a}, month names {@code MMM}, day names {@code E}, ...) and
+     * the default locale is not English, English is tried after the default locale, so both {@code 오후} and
+     * {@code PM} are accepted on a Korean JVM.
      * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 파싱용 엄격한 포맷터를 캐시하여 반환합니다.
+     * 텍스트를 패턴으로 엄격하게 파싱하여 query 결과를 반환합니다.
      * <p>
      * {@link ResolverStyle#STRICT}는 {@code 2024-02-30}, {@code 2023-02-29} 같은 없는 날짜를 그 달의 마지막 날로 조용히
      * 바꾸지 않고(기본값 {@code SMART}의 동작) 거부합니다. {@code STRICT}에서 {@code yyyy}(연호 기준 연도)는 연호가 있어야
-     * 해석되므로 연호를 서기(CE)로 기본 지정합니다.
+     * 해석되므로 연호를 서기(CE)로 기본 지정합니다. 패턴에 문자형 필드(오전/오후 {@code a}, 월 이름 {@code MMM}, 요일
+     * {@code E} 등)가 있고 기본 로케일이 영어가 아니면, 기본 로케일 다음에 영어로도 시도하므로 한국어 JVM 에서
+     * {@code 오후}와 {@code PM}을 모두 받아들입니다.
      * </p>
      *
+     * @param <T>     Result type | 결과 타입
+     * @param text    Text to parse | 파싱할 텍스트
      * @param pattern Date/time pattern | 날짜/시간 패턴
-     * @return Strict formatter | 엄격한 포맷터
+     * @param query   Query that builds the result (e.g. {@code LocalDate::from}) | 결과를 만드는 query
+     * @return Parsed result | 파싱 결과
+     * @throws DateTimeParseException   if the text cannot be parsed | 파싱할 수 없는 경우
      * @throws IllegalArgumentException if the pattern is invalid | 패턴이 잘못된 경우
      */
-    private static DateTimeFormatter parsingFormatter(String pattern) {
-        return S2Cache.resolve("s2.cache.date_parsing_formatter", pattern, String.class, DateTimeFormatter.class, 256,
-                p -> {
-                    var builder = new DateTimeFormatterBuilder().appendPattern(p);
-                    if (p.indexOf('y') >= 0) {
-                        builder.parseDefaulting(ChronoField.ERA, 1);
-                    }
-                    return Optional.of(builder.toFormatter().withResolverStyle(ResolverStyle.STRICT));
-                }).orElseThrow();
+    private static <T> T parseStrict(String text, String pattern, TemporalQuery<T> query) {
+        DateTimeParseException first = null;
+        for (DateTimeFormatter formatter : parsingFormatters(pattern)) {
+            try {
+                return formatter.parse(text, query);
+            } catch (DateTimeParseException e) {
+                if (first == null) {
+                    first = e;
+                }
+            }
+        }
+        throw first;
+    }
+
+    // 따옴표 리터럴을 뺀 패턴에 로케일 의존 문자형 필드가 있는지(오전/오후·월/요일 이름·연호·시간대 이름 등)
+    private static final Pattern TEXT_FIELDS = Pattern.compile("[aEGBzvO]|M{3}|L{3}|Q{3}|q{3}|e{3}|c{3}");
+
+    /** 패턴·기본 로케일별 엄격한 파싱 포맷터 목록(기본 로케일, 필요하면 영어)을 캐시하여 반환한다. */
+    @SuppressWarnings("unchecked")
+    private static List<DateTimeFormatter> parsingFormatters(String pattern) {
+        Locale locale = Locale.getDefault();
+        String key = locale.toLanguageTag() + '\u0000' + pattern;
+        return S2Cache.resolve("s2.cache.date_parsing_formatter", key, String.class, List.class, 256, k -> {
+            List<DateTimeFormatter> formatters = new ArrayList<>(2);
+            formatters.add(strictFormatter(pattern, locale));
+            boolean hasTextFields = TEXT_FIELDS.matcher(pattern.replaceAll("'[^']*'", "")).find();
+            if (hasTextFields && !Locale.ENGLISH.getLanguage().equals(locale.getLanguage())) {
+                formatters.add(strictFormatter(pattern, Locale.ENGLISH));
+            }
+            return Optional.of(List.copyOf(formatters));
+        }).orElseThrow();
+    }
+
+    private static DateTimeFormatter strictFormatter(String pattern, Locale locale) {
+        var builder = new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(pattern);
+        if (pattern.indexOf('y') >= 0) {
+            builder.parseDefaulting(ChronoField.ERA, 1);
+        }
+        return builder.toFormatter(locale).withResolverStyle(ResolverStyle.STRICT);
     }
 
     /**
@@ -159,8 +202,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = parsingFormatter(pattern);
-            result = LocalDate.parse(dateString, formatter);
+            result = parseStrict(dateString, pattern, LocalDate::from);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
                 if (S2Util.isKorean()) {
@@ -216,8 +258,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = parsingFormatter(pattern);
-            result = LocalDateTime.parse(dateTimeString, formatter);
+            result = parseStrict(dateTimeString, pattern, LocalDateTime::from);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
                 if (S2Util.isKorean()) {
@@ -269,8 +310,7 @@ public class S2DateUtil {
         var result = false;
         if (dateTimeString != null && !dateTimeString.isBlank() && pattern != null && !pattern.isBlank()) {
             try {
-                var formatter = parsingFormatter(pattern);
-                formatter.parse(dateTimeString);
+                parseStrict(dateTimeString, pattern, temporal -> temporal);
                 result = true;
             } catch (DateTimeParseException | IllegalArgumentException e) {
                 if (logger.isDebugEnabled()) {
@@ -310,10 +350,8 @@ public class S2DateUtil {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
-        var formatter = parsingFormatter(pattern);
-
         // 기준 일시 문자열을 LocalDate 객체로 파싱
-        var referenceDate = LocalDateTime.parse(referenceDateTimeString, formatter);
+        var referenceDate = parseStrict(referenceDateTimeString, pattern, LocalDateTime::from);
 
         return compareDates(dateTimeString, pattern, referenceDate);
     }
@@ -339,10 +377,8 @@ public class S2DateUtil {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
-        var formatter = parsingFormatter(pattern);
-
         // 일시 문자열을 LocalDate 객체로 파싱
-        var dateToCompare = LocalDateTime.parse(dateTimeString, formatter);
+        var dateToCompare = parseStrict(dateTimeString, pattern, LocalDateTime::from);
 
         // LocalDate의 compareTo 메서드를 사용하여 비교
         return dateToCompare.compareTo(referenceDate);
@@ -432,8 +468,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = parsingFormatter(pattern);
-            result = OffsetDateTime.parse(dateTimeString, formatter);
+            result = parseStrict(dateTimeString, pattern, OffsetDateTime::from);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (isThrowException) {
                 throw e;
@@ -626,8 +661,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = parsingFormatter(pattern);
-            var date = LocalDate.parse(dateString, formatter);
+            var date = parseStrict(dateString, pattern, LocalDate::from);
 
             // 대상 날짜가 최대 허용 날짜 이전이라면 대상 날짜, 이후라면 최대 허용 날짜를 반환한다.
             return date.isAfter(maximumDate) ? maximumDate : date;
@@ -714,15 +748,14 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = parsingFormatter(pattern);
             var zoneId = (zoneIdStr == null || zoneIdStr.isBlank()) ? ZoneId.systemDefault() : ZoneId.of(zoneIdStr);
 
             // 패턴에 지역 정보(V)나 오프셋 정보가 포함되어 있는지 확인하여 파싱함
             if (pattern.contains("V") || pattern.contains("z") || pattern.contains("X") || pattern.contains("Z")) {
-                return ZonedDateTime.parse(dateTimeString, formatter);
+                return parseStrict(dateTimeString, pattern, ZonedDateTime::from);
             } else {
                 // 시간 정보만 있는 경우 입력받은 zoneId와 결합함
-                var localDateTime = java.time.LocalDateTime.parse(dateTimeString, formatter);
+                var localDateTime = parseStrict(dateTimeString, pattern, LocalDateTime::from);
                 return ZonedDateTime.of(localDateTime, zoneId);
             }
         } catch (java.time.DateTimeException | IllegalArgumentException e) {

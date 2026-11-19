@@ -149,4 +149,29 @@ class S2CoreUtilFixesTest {
         assertFalse(logger.isDebugEnabled());
         assertTrue(logger.isInfoEnabled());
     }
+
+    @Test
+    void dateTextFieldsAcceptEnglishOnNonEnglishLocale() {
+        Locale original = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.KOREA);
+            assertTrue(S2DateUtil.isValidDate("11:30 PM", "hh:mm a", false));
+            assertTrue(S2DateUtil.isValidDate("11:30 pm", "hh:mm a", false));
+            assertTrue(S2DateUtil.isValidDate("11:30 오후", "hh:mm a", false));
+            assertFalse(S2DateUtil.isValidDate("13:30 PM", "hh:mm a", false));
+            assertEquals(LocalDate.of(2024, 1, 31), S2DateUtil.parseToLocalDate("31 Jan 2024", "dd MMM yyyy", false));
+            assertNull(S2DateUtil.parseToLocalDate("30 Feb 2024", "dd MMM yyyy", false));
+            // 따옴표 안의 문자는 문자형 필드가 아니다
+            assertTrue(S2DateUtil.isValidDate("2024-01-31 at", "yyyy-MM-dd 'at'", false));
+        } finally {
+            Locale.setDefault(original);
+        }
+    }
+
+    @Test
+    void toJsonEscapesHtmlSensitiveCharacters() {
+        String json = S2JsonUtil.toJson(Map.of("k", "</script><b>&"));
+        assertFalse(json.contains("<") || json.contains(">") || json.contains("&"), json);
+        assertEquals(Map.of("k", "</script><b>&"), S2JsonUtil.parse(json));
+    }
 }
