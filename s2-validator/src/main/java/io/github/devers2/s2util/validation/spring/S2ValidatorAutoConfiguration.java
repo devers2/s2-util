@@ -20,6 +20,9 @@
  */
 package io.github.devers2.s2util.validation.spring;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.beans.factory.DisposableBean;
@@ -134,29 +137,69 @@ public class S2ValidatorAutoConfiguration {
             this.messageSource = messageSource;
         }
 
+        // 이 컨텍스트가 적용할 값(설정하지 않은 항목은 null)
+        private String bundle;
+        private Locale locale;
+        private S2MessageResolver resolver;
+
+        // 한 JVM 에 살아 있는 컨텍스트들(만든 순서). 전역 값은 항목마다 "그 값을 설정한 가장 최근의 살아 있는 컨텍스트" 것으로
+        // 맞추고, 없으면 기본값으로 되돌린다 — 시험 컨텍스트 캐시·부모/자식처럼 컨텍스트가 여럿이어도 서로의 값을 지우지 않는다
+        private static final List<Settings> LIVE = new ArrayList<>();
+
         @Override
         public void afterPropertiesSet() {
             if (properties.getBundle() != null && !properties.getBundle().isBlank()) {
-                S2Validator.setValidationBundle(properties.getBundle().trim());
+                bundle = properties.getBundle().trim();
             }
-            if (properties.getDefaultLocale() != null) {
-                S2Validator.setDefaultLocale(properties.getDefaultLocale());
-            }
+            locale = properties.getDefaultLocale();
             if (messageSource != null) {
-                S2Validator.setMessageResolver(messageSourceResolver(messageSource));
+                resolver = messageSourceResolver(messageSource);
+            }
+            synchronized (LIVE) {
+                LIVE.add(this);
+                apply(this);
             }
         }
 
         @Override
         public void destroy() {
-            if (properties.getBundle() != null && !properties.getBundle().isBlank()) {
-                S2Validator.resetValidationBundle();
+            synchronized (LIVE) {
+                if (LIVE.remove(this)) {
+                    apply(this);
+                }
             }
-            if (properties.getDefaultLocale() != null) {
-                S2Validator.resetDefaultLocale();
+        }
+
+        // changed 가 설정한 항목만 다시 맞춘다(설정하지 않은 항목은 건드리지 않음 — 앱이 직접 설정한 값을 지우지 않도록)
+        private static void apply(Settings changed) {
+            String latestBundle = null;
+            Locale latestLocale = null;
+            S2MessageResolver latestResolver = null;
+            for (Settings settings : LIVE) {
+                latestBundle = settings.bundle != null ? settings.bundle : latestBundle;
+                latestLocale = settings.locale != null ? settings.locale : latestLocale;
+                latestResolver = settings.resolver != null ? settings.resolver : latestResolver;
             }
-            if (messageSource != null) {
-                S2Validator.resetMessageResolver();
+            if (changed.bundle != null) {
+                if (latestBundle != null) {
+                    S2Validator.setValidationBundle(latestBundle);
+                } else {
+                    S2Validator.resetValidationBundle();
+                }
+            }
+            if (changed.locale != null) {
+                if (latestLocale != null) {
+                    S2Validator.setDefaultLocale(latestLocale);
+                } else {
+                    S2Validator.resetDefaultLocale();
+                }
+            }
+            if (changed.resolver != null) {
+                if (latestResolver != null) {
+                    S2Validator.setMessageResolver(latestResolver);
+                } else {
+                    S2Validator.resetMessageResolver();
+                }
             }
         }
 

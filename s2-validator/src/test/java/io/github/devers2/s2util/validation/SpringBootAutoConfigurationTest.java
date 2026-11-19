@@ -68,6 +68,36 @@ public class SpringBootAutoConfigurationTest {
     }
 
     @Test
+    void closingOneContextKeepsTheSettingsOfAnotherLiveContext() {
+        // 한 JVM 에 컨텍스트가 여럿(시험 컨텍스트 캐시·부모/자식)일 때, 먼저 만든 컨텍스트를 닫아도
+        // 나중 컨텍스트가 설정한 전역 값은 지워지지 않아야 한다
+        AnnotationConfigApplicationContext first = context(Map.of("s2.validator.default-locale", "en",
+                "s2.validator.bundle", "first_messages"), null);
+        AnnotationConfigApplicationContext second = context(Map.of("s2.validator.default-locale", "ja",
+                "s2.validator.bundle", "second_messages"), koreanRequiredMessage());
+
+        first.close();
+        Assertions.assertEquals(Locale.JAPANESE, S2Validator.getDefaultLocale());
+        Assertions.assertEquals("second_messages", S2Validator.getValidationBundle());
+        Assertions.assertEquals(List.of("이름을 꼭 입력하세요."), messages(Locale.KOREAN));
+
+        second.close();
+        Assertions.assertEquals(Locale.getDefault(), S2Validator.getDefaultLocale(), "no live context → defaults");
+        Assertions.assertNull(S2Validator.getValidationBundle());
+        Assertions.assertEquals(List.of("이름은 필수 입력 항목입니다."), messages(Locale.KOREAN));
+    }
+
+    @Test
+    void contextDoesNotTouchSettingsItDoesNotConfigure() {
+        // 앱이 직접 설정한 번들은 번들을 설정하지 않는 컨텍스트가 열고 닫혀도 그대로
+        S2Validator.setValidationBundle("app_messages");
+        try (AnnotationConfigApplicationContext ignored = context(Map.of("s2.validator.default-locale", "en"), null)) {
+            Assertions.assertEquals("app_messages", S2Validator.getValidationBundle());
+        }
+        Assertions.assertEquals("app_messages", S2Validator.getValidationBundle());
+    }
+
+    @Test
     void propertiesSetTheDefaultLocale() {
         try (AnnotationConfigApplicationContext ignored = context(Map.of("s2.validator.default-locale", "en"), null)) {
             Assertions.assertEquals(Locale.ENGLISH, S2Validator.getDefaultLocale());

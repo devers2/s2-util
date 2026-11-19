@@ -30,6 +30,8 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -368,20 +370,15 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             case MIN_SIZE -> sizeOf(value) >= toIntCriterion(checkValue);
             case MAX_SIZE -> sizeOf(value) <= toIntCriterion(checkValue);
             case MIN_VALUE -> {
-                Double numVal = toDouble(value);
-                Double numCheck = toDouble(checkValue);
-                if (numVal != null && numCheck != null) {
-                    yield numVal >= numCheck;
-                }
-                yield false;
+                // 정확한 십진 비교(double 은 유효숫자 15~16자리를 넘으면 다른 값을 같게 봄) — 브라우저도 같은 방식
+                BigDecimal numVal = toDecimal(value);
+                BigDecimal numCheck = toDecimal(checkValue);
+                yield numVal != null && numCheck != null && numVal.compareTo(numCheck) >= 0;
             }
             case MAX_VALUE -> {
-                Double numVal = toDouble(value);
-                Double numCheck = toDouble(checkValue);
-                if (numVal != null && numCheck != null) {
-                    yield numVal <= numCheck;
-                }
-                yield false;
+                BigDecimal numVal = toDecimal(value);
+                BigDecimal numCheck = toDecimal(checkValue);
+                yield numVal != null && numCheck != null && numVal.compareTo(numCheck) <= 0;
             }
             case REGEX, NUMBER, TEXT_INTACT, TEXT_COMBINE, MPHONE_NO, TEL_NO, INTERNATIONAL_TEL_NO, EMAIL, ZIP,
                     LOGIN_ID, PASSWORD, PASSWORD_ANSWR, NWINO -> {
@@ -950,6 +947,53 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             return Double.parseDouble(str);
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    /**
+     * Converts a value or criterion to an exact {@link BigDecimal}, supporting {@link Number} and numeric
+     * {@link String} (plain decimal notation only, same as the client). Used for MIN_VALUE/MAX_VALUE and numeric
+     * conditions so that values beyond double precision (more than 15-16 significant digits) compare exactly;
+     * {@code s2.validator.js} compares the same way.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 값이나 기준값을 정확한 {@link BigDecimal}로 바꿉니다. {@link Number}와 숫자 {@link String}(클라이언트와 같은 일반 십진
+     * 표기만)을 지원합니다. MIN_VALUE/MAX_VALUE 와 숫자 조건에서 double 정밀도(유효숫자 15~16자리)를 넘는 값도 정확히
+     * 비교하기 위해 쓰며, {@code s2.validator.js}도 같은 방식으로 비교합니다.
+     *
+     * @param obj Value to convert | 변환할 값
+     * @return Exact decimal, or {@code null} if not a finite plain decimal number | 정확한 십진수, 유한한 일반 십진수가 아니면 null
+     */
+    static BigDecimal toDecimal(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (obj instanceof BigInteger integer) {
+            return new BigDecimal(integer);
+        }
+        if (obj instanceof Long || obj instanceof Integer || obj instanceof Short || obj instanceof Byte
+                || obj instanceof java.util.concurrent.atomic.AtomicInteger
+                || obj instanceof java.util.concurrent.atomic.AtomicLong) {
+            return BigDecimal.valueOf(((Number) obj).longValue());
+        }
+        if (obj instanceof Number number) {
+            double d = number.doubleValue();
+            // 가장 짧은 십진 표기(브라우저의 String(number) 와 같은 값)로 변환
+            return Double.isFinite(d) ? BigDecimal.valueOf(d) : null;
+        }
+        String str = S2Whitespace.trim(obj.toString());
+        if (!NUMERIC_PATTERN.matcher(str).matches()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(str);
+        } catch (NumberFormatException | ArithmeticException e) {
+            return null; // 지수가 너무 큰 경우 등
         }
     }
 

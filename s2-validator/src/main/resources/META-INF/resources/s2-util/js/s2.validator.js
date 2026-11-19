@@ -325,7 +325,7 @@ export const S2Validator = {
   validate(formSource, rulesSource, additionalData) {
     const form = typeof formSource === 'string' ? document.querySelector(formSource) : formSource;
     if (!form || !(form instanceof HTMLFormElement)) {
-      return { __system_error__: ['유효한 폼 요소를 찾을 수 없습니다.'] };
+      return { __system_error__: [systemMessage('유효한 폼 요소를 찾을 수 없습니다.', 'No valid form element was found.')] };
     }
 
     // 검증 전 이전에 생성된 임시 1px 더미 앵커 제거
@@ -386,7 +386,12 @@ export const S2Validator = {
         form
       );
       return {
-        __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
+        __system_error__: [
+          systemMessage(
+            '검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.',
+            'The validation rules (JSON) are missing or malformed.'
+          )
+        ]
       };
     }
 
@@ -456,7 +461,12 @@ export const S2Validator = {
     const rules = parseRules(rulesSource);
     if (rules.length === 0) {
       return {
-        __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
+        __system_error__: [
+          systemMessage(
+            '검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.',
+            'The validation rules (JSON) are missing or malformed.'
+          )
+        ]
       };
     }
     const flat = flattenData(data && typeof data === 'object' ? data : {});
@@ -1193,13 +1203,13 @@ const evaluateCondition = (op, actual, criterion) => {
     case 'LT':
     case 'LTE': {
       if (actual === null || Array.isArray(actual)) return false;
-      const a = toStrictNumber(actual);
-      const b = toStrictNumber(criterion);
-      if (Number.isNaN(a) || Number.isNaN(b)) return false;
-      if (op === 'GT') return a > b;
-      if (op === 'GTE') return a >= b;
-      if (op === 'LT') return a < b;
-      return a <= b;
+      // 정확한 십진 비교(서버 S2Condition 과 같은 방식)
+      const cmp = compareExactDecimal(actual, criterion);
+      if (Number.isNaN(cmp)) return false;
+      if (op === 'GT') return cmp > 0;
+      if (op === 'GTE') return cmp >= 0;
+      if (op === 'LT') return cmp < 0;
+      return cmp <= 0;
     }
     default:
       // Unknown operator (newer server): not satisfied, so conditional rules are skipped; the server still validates. | 모르는 연산자(더 새 서버): 불충족으로 보아 조건부 규칙을 건너뜀. 서버 검증은 그대로 수행됨
@@ -1523,9 +1533,10 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     case 'MAX_SIZE':
       return sizeOfValue(value) <= parseInt(rule.value);
     case 'MIN_VALUE':
-      return toStrictNumber(value) >= toStrictNumber(rule.value); // NaN 비교는 항상 false
+      // 정확한 십진 비교(서버 BigDecimal 과 같음). 숫자가 아니면 NaN 이라 항상 false
+      return compareExactDecimal(value, rule.value) >= 0;
     case 'MAX_VALUE':
-      return toStrictNumber(value) <= toStrictNumber(rule.value);
+      return compareExactDecimal(value, rule.value) <= 0;
     case 'REGEX':
     case 'NUMBER':
     case 'TEXT_INTACT':
@@ -2004,25 +2015,94 @@ const escapeRegExp = (string) => {
 };
 
 /**
+ * Picks the Korean or English text of a system message (shown to users, not from the rules JSON) by the page
+ * language: {@code <html lang>} first, then the browser language. Korean when it cannot be determined (outside a
+ * browser), as before.
+ *
+ * @function systemMessage
+ * @param {string} ko - Korean text
+ * @param {string} en - English text
+ * @returns {string} The text for the page language
+ */
+const systemMessage = (ko, en) => {
+  let lang = '';
+  try {
+    lang =
+      (typeof document !== 'undefined' && document.documentElement && document.documentElement.lang) ||
+      (typeof navigator !== 'undefined' && navigator.language) ||
+      '';
+  } catch (e) {
+    lang = '';
+  }
+  return !lang || String(lang).toLowerCase().startsWith('ko') ? ko : en;
+};
+
+/**
  * Plain decimal number notation shared with the server validator (S2Rule.NUMERIC_PATTERN).
  */
 const NUMERIC_PATTERN = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 /**
- * Converts a value to a number only when the whole string is a plain decimal number.
- * <p>
- * Mirrors the server's full-string parsing: unlike parseFloat, "25abc" and "1,000" become NaN.
- * </p>
+ * Parses a plain decimal number exactly as { sign, digits, exp } (value = sign × digits × 10^exp, digits without
+ * leading/trailing zeros), or returns null if the value is not a finite plain decimal number.
  *
- * @function toStrictNumber
- * @param {*} value - The value to convert
- * @returns {number} The parsed number, or NaN if the value is not a plain decimal number
+ * @function toExactDecimal
+ * @param {*} value - The value to parse
+ * @returns {{sign: number, digits: string, exp: number}|null} The exact decimal, or null
  */
-const toStrictNumber = (value) => {
-  if (typeof value === 'number') return value;
-  if (value === null || value === undefined) return NaN;
-  const str = String(value).trim();
-  return NUMERIC_PATTERN.test(str) ? Number(str) : NaN;
+const toExactDecimal = (value) => {
+  let str;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null;
+    str = String(value); // 가장 짧은 십진 표기(서버 BigDecimal.valueOf(double) 과 같은 값)
+  } else if (typeof value === 'bigint') {
+    str = value.toString();
+  } else {
+    if (value === null || value === undefined) return null;
+    str = String(value).trim();
+  }
+  if (!NUMERIC_PATTERN.test(str)) return null;
+  const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(str);
+  if (!m) return null;
+  const fraction = m[3] || '';
+  let exp = (m[4] ? Number(m[4]) : 0) - fraction.length;
+  // 서버 BigDecimal 이 표현할 수 없는 지수(scale 범위 초과)는 숫자가 아닌 것으로 봄
+  if (!Number.isSafeInteger(exp) || Math.abs(exp) > 2147483647) return null;
+  const all = ((m[2] || '') + fraction).replace(/^0+/, '');
+  if (all === '') return { sign: 0, digits: '', exp: 0 };
+  const digits = all.replace(/0+$/, '');
+  exp += all.length - digits.length;
+  return { sign: m[1] === '-' ? -1 : 1, digits, exp };
+};
+
+/**
+ * Compares two plain decimal numbers exactly, like the server's BigDecimal.compareTo: unlike Number, values with
+ * more than 15-16 significant digits (9007199254740993 vs 9007199254740992) are told apart.
+ *
+ * @function compareExactDecimal
+ * @param {*} a - First value
+ * @param {*} b - Second value
+ * @returns {number} -1, 0 or 1, or NaN if either value is not a finite plain decimal number
+ */
+const compareExactDecimal = (a, b) => {
+  const x = toExactDecimal(a);
+  const y = toExactDecimal(b);
+  if (!x || !y) return NaN;
+  if (x.sign !== y.sign) return x.sign < y.sign ? -1 : 1;
+  if (x.sign === 0) return 0;
+  // 크기 비교: 가장 높은 자리의 위치가 같으면 숫자열을 같은 길이로 맞춰 사전 순 비교
+  const topX = x.digits.length + x.exp;
+  const topY = y.digits.length + y.exp;
+  let magnitude;
+  if (topX !== topY) {
+    magnitude = topX < topY ? -1 : 1;
+  } else {
+    const length = Math.max(x.digits.length, y.digits.length);
+    const dx = x.digits.padEnd(length, '0');
+    const dy = y.digits.padEnd(length, '0');
+    magnitude = dx === dy ? 0 : dx < dy ? -1 : 1;
+  }
+  return x.sign > 0 ? magnitude : -magnitude;
 };
 
 /**

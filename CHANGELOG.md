@@ -37,6 +37,10 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - List validation (`EACH`) reports a circular reference when an element is the same object as an ancestor on the validation path (as `NESTED` does). It used to pass silently.
 - `S2JsonUtil.toJson` writes `java.sql.Date` as a date (`2024-02-01`) and `java.sql.Time` as a time (`09:30`). They were written as UTC instants, shifting the date by a day in Korea (`2024-01-31T15:00:00Z`). `fromJson` reads them back.
 - `S2Jpql` DEBUG logs no longer include bound parameter values, only names and types (personal data).
+- **`MIN_VALUE`/`MAX_VALUE` and numeric conditions (`GT`, `GTE`, `LT`, `LTE`) compare decimals exactly on both the server and the browser.**
+  They compared doubles, so values beyond 15-16 significant digits (e.g. `9007199254740993` vs `9007199254740992`, `0.1000000000000000001` vs `0.1`) were treated as equal.
+  The server uses `BigDecimal` and `s2.validator.js` compares decimal strings directly, so both sides still judge the same.
+- System messages shown by `s2.validator.js` (form or rules JSON errors) follow the page language (`<html lang>`, then the browser language): Korean or English. When it cannot be determined (outside a browser) they stay Korean as before.
 
 ### Added
 
@@ -51,6 +55,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - System properties `s2.thread.virtual.enabled=false` (turn off virtual threads, e.g. to avoid pinning on Java 21-23) and `s2.thread.virtual.max_concurrency` (concurrency cap of the virtual-thread common executor).
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
 - `S2Jpql.bindOrderBy(key, sortExpression, allowedFields)`: translates a sort string from the request (`name desc`) to JPQL paths in an allow list (`m.name DESC`) and drops unknown keys, so clients cannot sort by hidden columns (such as a password hash) to infer their values.
+- `S2Validator.getValidationBundle()`, `getDefaultLocale()` and `getMessageResolver()` are public (to check the current global settings).
 
 ### Performance
 
@@ -108,6 +113,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - The JSON parser accepted non-ASCII characters such as Arabic-Indic digits and fullwidth letters as hex digits in `\u` escapes.
 - `S2DateUtil` parsing read text fields such as AM/PM (`a`), month names (`MMM`) and day names (`E`) only in the default locale, so `11:30 PM` failed on a Korean JVM. English is now tried after the default locale, case-insensitively.
 - `S2JsonUtil.toJson`: a field redeclared in a subclass with the same name as a superclass field produced the key twice (now only the subclass value), and `java.sql.Timestamp` lost its nanoseconds.
+- Spring Boot auto-configuration: with several contexts in one JVM (test context cache, parent/child), closing the first context cleared the bundle, locale and `MessageSource` link set by another context.
+  Each setting now takes the value of the most recent live context that set it, or the default when none does. Settings a context does not configure are left untouched.
 
 ## [2.1.0]
 

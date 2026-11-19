@@ -195,10 +195,20 @@ public class ServerClientParityTest {
                 Arguments.of("MIN_VALUE: 소수·지수 표기 '2.5e1' >= 19 → 성공", S2RuleType.MIN_VALUE, 19, "2.5e1", true),
                 Arguments.of("MIN_VALUE: Java 전용 접미사 '25d' → 실패", S2RuleType.MIN_VALUE, 19, "25d", false),
                 Arguments.of("MIN_VALUE: 빈값 → 성공(skip)", S2RuleType.MIN_VALUE, 5, null, true),
+                // double 정밀도(유효숫자 15~16자리)를 넘는 값도 정확히 비교 — 서버 BigDecimal, 브라우저 십진 문자열 비교
+                Arguments.of("MIN_VALUE: 9007199254740992 < 9007199254740993 → 실패", S2RuleType.MIN_VALUE, "9007199254740993", "9007199254740992", false),
+                Arguments.of("MIN_VALUE: 0.1000000000000000001 >= 0.1 → 성공", S2RuleType.MIN_VALUE, "0.1", "0.1000000000000000001", true),
+                Arguments.of("MIN_VALUE: 0.0999999999999999999 < 0.1 → 실패", S2RuleType.MIN_VALUE, "0.1", "0.0999999999999999999", false),
+                Arguments.of("MIN_VALUE: 음수 -10.5 < -10.25 → 실패", S2RuleType.MIN_VALUE, "-10.25", "-10.5", false),
+                Arguments.of("MIN_VALUE: 지수 1.5e3 >= 1499.9 → 성공", S2RuleType.MIN_VALUE, "1499.9", "1.5e3", true),
+                Arguments.of("MIN_VALUE: 0.00 >= -0 → 성공", S2RuleType.MIN_VALUE, "-0", "0.00", true),
 
                 // ── MAX_VALUE ────────────────────────────────────────────
                 Arguments.of("MAX_VALUE: 3 <= 5 → 성공", S2RuleType.MAX_VALUE, 5, 3, true),
                 Arguments.of("MAX_VALUE: 10 > 5 → 실패", S2RuleType.MAX_VALUE, 5, 10, false),
+                Arguments.of("MAX_VALUE: 99999999999999999999 > 99999999999999999998 → 실패", S2RuleType.MAX_VALUE, "99999999999999999998", "99999999999999999999", false),
+                Arguments.of("MAX_VALUE: 금액 1234567890123.45 <= 1234567890123.46 → 성공", S2RuleType.MAX_VALUE, "1234567890123.46", "1234567890123.45", true),
+                Arguments.of("MAX_VALUE: 숫자 기준 0.3 vs 0.30000000000000004 → 실패", S2RuleType.MAX_VALUE, 0.3, "0.30000000000000004", false),
                 Arguments.of("MAX_VALUE: 폼 문자열 숫자 '15' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, "15", true),
                 Arguments.of("MAX_VALUE: 천 단위 쉼표 '1,000' → 실패", S2RuleType.MAX_VALUE, 100, "1,000", false),
                 Arguments.of("MAX_VALUE: 앞뒤 공백 ' 15 ' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, " 15 ", true),

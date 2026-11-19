@@ -178,10 +178,12 @@ public record S2Condition(Object fieldName, S2Operator operator, Object value) i
     private boolean compareNumber(Object actualValue) {
         if (actualValue == null || actualValue instanceof Collection<?> || actualValue instanceof Object[])
             return false;
-        Double actual = S2Rule.toDouble(actualValue);
-        if (actual == null || actual.isNaN())
+        // 정확한 십진 비교(규칙 MIN/MAX_VALUE·브라우저와 같은 방식)
+        java.math.BigDecimal actual = S2Rule.toDecimal(actualValue);
+        java.math.BigDecimal criterion = S2Rule.toDecimal(value);
+        if (actual == null || criterion == null)
             return false;
-        int cmp = Double.compare(actual, S2Rule.toDouble(value));
+        int cmp = actual.compareTo(criterion);
         return switch (operator) {
             case GT -> cmp > 0;
             case GTE -> cmp >= 0;

@@ -1813,7 +1813,7 @@ public class S2Validator<T> implements Serializable {
      *
      * @return The validation bundle base name | 현재 설정된 전역 검증 메시지 번들의 이름
      */
-    static String getValidationBundle() {
+    public static String getValidationBundle() {
         return S2Validator.validationBundle;
     }
 
@@ -1847,6 +1847,20 @@ public class S2Validator<T> implements Serializable {
      *
      * @since 2.0.0
      */
+    /**
+     * Returns the message resolver consulted before the validation bundle, or {@code null} if none is set.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 검증 번들보다 먼저 조회하는 메시지 조회기를 반환합니다. 설정하지 않았으면 {@code null}입니다.
+     *
+     * @return The current message resolver, or {@code null} | 현재 메시지 조회기 또는 {@code null}
+     */
+    public static S2MessageResolver getMessageResolver() {
+        return S2Validator.messageResolver;
+    }
+
     public static void resetMessageResolver() {
         S2Validator.messageResolver = null;
     }
@@ -1890,11 +1904,16 @@ public class S2Validator<T> implements Serializable {
     }
 
     /**
+     * Returns the default locale of the validation system.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 검증 시스템의 기본 로케일을 반환한다.
      *
-     * @return 현재 설정된 기본 로케일
+     * @return The current default locale | 현재 설정된 기본 로케일
      */
-    static Locale getDefaultLocale() {
+    public static Locale getDefaultLocale() {
         return S2Validator.defaultLocale;
     }
 
