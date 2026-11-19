@@ -35,6 +35,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `S2BindValidator` failed with `NotReadablePropertyException` for errors on paths the target cannot read (missing property, `null` intermediate path); they are now recorded as a `FieldError`.
 - Browser mismatches: a multi-select with nothing selected (empty array) was not treated as empty, failing non-required rules; `DATE` accepted values such as `"1a240101"`.
 - `TEXT_COMBINE` and `PASSWORD_ANSWR` now list their whitespace characters explicitly, so the browser no longer accepts Unicode spaces such as NBSP that the server rejects.
+- `S2Util.getValue` resolved keys with dots or brackets (`"address.zip"`) in a flat Map only as nested paths and missed them; the literal key is now used when the first path segment is not in the Map.
 - The server `DATE` rule accepted signed values such as `"+2020101"`.
 - The server did not treat Unicode spaces such as NBSP (U+00A0) and the ideographic space (U+3000) as whitespace (Java `String.trim()`), judging padded values differently from the browser; the server now uses the JavaScript `trim()` definition. Found by a differential fuzz test that feeds the same random inputs to Java and JS.
 

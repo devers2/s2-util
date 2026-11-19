@@ -280,6 +280,17 @@ public class S2Util {
             boolean isStringField = fieldName instanceof String;
             String fieldNameStr = isStringField ? (String) fieldName : String.valueOf(fieldName);
 
+            // 평면 Map 의 리터럴 키("address.zip", "items[0].name"): 경로의 첫 마디("address")가 Map 에 없을 때만 그대로 사용
+            // (첫 마디가 있으면 중첩 경로가 우선 — 정상적인 null 리프값이 같은 이름의 리터럴 키로 바뀌지 않도록)
+            if (isStringField && target instanceof Map<?, ?> flatMap) {
+                int dot = fieldNameStr.indexOf('.');
+                int bracket = fieldNameStr.indexOf('[');
+                int cut = dot < 0 ? bracket : (bracket < 0 ? dot : Math.min(dot, bracket));
+                if (cut > 0 && !flatMap.containsKey(fieldNameStr.substring(0, cut)) && flatMap.containsKey(fieldNameStr)) {
+                    return cast(flatMap.get(fieldNameStr), castClass, defaultValue);
+                }
+            }
+
             // 0. Dot Notation (Nested Access) & Bracket Notation ([0]) 처리
             if (isStringField) {
                 // 1. Bracket Notation 정규화 (S2StringUtil.replaceAll 유지)

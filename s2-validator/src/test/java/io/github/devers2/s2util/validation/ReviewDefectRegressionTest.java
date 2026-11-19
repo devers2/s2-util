@@ -207,6 +207,24 @@ class ReviewDefectRegressionTest {
     }
 
     @Test
+    @DisplayName("평면 Map 의 점(.)이 든 키는 그대로 찾고, 중첩 Map 경로도 계속 동작한다")
+    void flatMapKeyWithDot() {
+        S2Validator<java.util.Map<String, Object>> validator = S2Validator.<java.util.Map<String, Object>>builder()
+                .field("address.zip", "우편번호").rule(S2RuleType.ZIP)
+                .build();
+        java.util.Map<String, Object> flat = new java.util.HashMap<>();
+        flat.put("address.zip", "abc");
+        java.util.Map<String, Object> nested = new java.util.HashMap<>();
+        nested.put("address", java.util.Map.of("zip", "12345"));
+        List<String> invalid = new ArrayList<>();
+
+        validator.validate(flat, e -> invalid.add(e.fieldName()));
+        validator.validate(nested, e -> invalid.add("nested:" + e.fieldName()));
+
+        Assertions.assertEquals(List.of("address.zip"), invalid);
+    }
+
+    @Test
     @DisplayName("공유 S2Rule.required() 는 메시지를 바꿀 수 없다")
     void sharedRequiredRuleIsImmutable() {
         Assertions.assertThrows(UnsupportedOperationException.class, () -> S2Rule.required().storeMessage("ko", "x"));
