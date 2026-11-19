@@ -24,15 +24,17 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Added
 
+- **`S2BeanValidation`: builds S2 rules from Bean Validation annotations (`@NotBlank`, `@Size`, `@Pattern`, `@Min`, `@Valid`, ...).** Existing DTOs get browser validation unchanged, and `toBuilder()` adds S2 rules. Only constraints never stricter than Bean Validation are converted; the rest are reported by `serverOnly()` and a log line (`practical()` widens the range). Includes a test comparing against Hibernate Validator with random input. MANUAL 5-5.
+- The published POM lists Spring and `jakarta.validation-api` as optional dependencies (`<optional>true</optional>`): not transitive, but visible as what each feature needs.
 - Rules `MIN_SIZE`/`MAX_SIZE`: check the number of values (collections, arrays, checkbox groups, multi-selects; a single value counts as one). Same on server and browser; the build plugin checks their criteria.
 - `S2SpringValidator`: wraps an `S2Validator` as a Spring `SmartValidator`; registered with `@InitBinder`, it runs with Bean Validation on `@Valid`/`@Validated` and writes to the same `BindingResult` (MANUAL 2-C). No extra dependency.
 - `S2Validator.validateAll(target[, locale])` → `S2ValidationResult`: collects every error without throwing; `toMap()` has the same `{field: [messages]}` shape as `s2.validator.js` (for REST responses).
 - A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
-
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
 
 ### Fixed
 
+- In user regular expressions (`REGEX`, including converted `@Pattern`), the browser read `\s`/`\S` with JS meaning (including Unicode spaces such as NBSP), judging differently from the server; the browser now evaluates them with Java meaning. `\S` inside a character class cannot be translated and is not exported to the rules JSON (`IllegalStateException`).
 - GUIDE_JPQL referred to a nonexistent `LikeMode.EXACT`.
 - `DATE_AFTER`/`DATE_BEFORE` always passed for `java.util.Date` (and `java.sql.Date`, `Timestamp`, `Instant`) fields.
 - `DATE_AFTER`/`DATE_BEFORE` threw `ClassCastException` when comparing values of different types (e.g. a `LocalDate` field and a string).

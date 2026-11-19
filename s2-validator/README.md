@@ -26,11 +26,11 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
 | :--- | :--- | :--- |
 | **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
 | **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
-| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
+| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js`. **Also generated from existing Bean Validation annotations** (`S2BeanValidation`) |
 | **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은}` postposition auto-completion |
 | **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
 | **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
-| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
+| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` and `@Valid` (`SmartValidator`) integration; works alongside Bean Validation |
 
 ### 🧭 When to use
 
@@ -47,7 +47,8 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
 
 **Using both**
 - Both can live in one project — for example Bean Validation for API and entity constraints, s2-validator for user-facing forms whose rules are shared with the browser.
-- Validate a given form field on one side only; checking it on both sides can report the same error twice.
+- **Forms already using Bean Validation**: keep the annotations, generate browser rules with `S2BeanValidation`, and add only the rules Bean Validation lacks to the `@Valid` flow with `S2SpringValidator` ([Section 2.9](#29-using-with-bean-validation-s2beanvalidation-s2springvalidator)).
+- Check a given rule on one side only; checking the same rule on both sides can report the same error twice.
 
 ---
 
@@ -112,9 +113,16 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
 
 9. **Spring Framework Integration (Optional)**
    - `S2BindValidator` for Spring Data Binding with `BindingResult`
+   - `S2SpringValidator` (a Spring `SmartValidator`) registered with `@InitBinder` runs with Bean Validation on `@Valid`
+   - `validateAll(...).toMap()` for REST responses, in the same `{field: [messages]}` shape as the browser
    - Supplier pattern for lazy evaluation and convenient rule management
    - Unified validation rules: Same ruleset for both server and client
    - Standard Spring error handling with automatic error field binding
+
+10. **Bean Validation Bridge (Optional)**
+    - `S2BeanValidation`: converts existing annotations (`@NotBlank`, `@Size`, `@Pattern`, `@Valid`, ...) into browser rules
+    - Converts only constraints that are never stricter than Bean Validation; the rest are reported as server-only
+    - Needs `jakarta.validation-api` only for this feature (optional dependency)
 
 ---
 
@@ -179,6 +187,7 @@ plugins {
 S2Validator supports two primary execution patterns:
 1. **Standalone Backend Validation (No Client Setup)**: Immediate inline validation via `S2Validator.of(...)` — perfect for REST APIs, batch jobs, and service layers.
 2. **Full-Stack Form Synchronization (Server + Client)**: Define rules once and bind to Spring `BindingResult` + browser tooltips via `S2BindValidator` (see [Section 2.7](#27-spring-framework-integration-s2bindvalidator)).
+3. **On Top of Bean Validation**: Generate browser rules from existing annotations and add only the missing rules to the `@Valid` flow (see [Section 2.9](#29-using-with-bean-validation-s2beanvalidation-s2springvalidator)).
 
 #### 2.1. Basic Validation (Immediate Mode vs. Blueprint Mode)
 
@@ -638,6 +647,67 @@ When you add the optional **`s2-validator-plugin`** (see [Installation](#1-insta
 - Requires `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+
 
 For full plugin documentation, see the [`s2-validator-plugin` README](../s2-validator-plugin/README.md).
+
+#### 2.9. Using with Bean Validation (`S2BeanValidation`, `S2SpringValidator`)
+
+This is how to put s2-validator **on top of** forms already validated with Bean Validation. The annotations and `@Valid` stay as they are.
+
+1. **Browser validation** — `S2BeanValidation` converts the DTO's annotations into S2 rules. Attach the rules JSON to the form and `s2.validator.js` checks the same constraints.
+2. **Rules Bean Validation lacks** — Define only conditional (`when`), cross-field and Korean business rules in S2 and add them to the `@Valid` flow with `S2SpringValidator`. Errors from both end up in one `BindingResult`.
+
+```java
+public class JoinForm {
+    @NotBlank @Size(max = 20)   private String name;
+    @NotNull @Min(19)           private Integer age;
+    @Pattern(regexp = "01[016789]-\\d{3,4}-\\d{4}") private String phone;
+    @Size(min = 1, max = 3)     private List<String> interests;
+    private String type;        // vipCode is required when "VIP" — needs a class-level constraint in Bean Validation
+    private String vipCode;
+    private String bizNo;       // business number check digit — no built-in Bean Validation rule
+}
+
+@Controller
+class JoinController {
+    // Only the rules Bean Validation lacks, as S2 rules (conditional, Korean business rules)
+    private static final S2Validator<JoinForm> EXTRA = S2Validator.<JoinForm>builder()
+            .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "Business No.").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    // Browser rules: converted from the annotations + the same S2 rules
+    private static final S2Validator<JoinForm> BROWSER = S2BeanValidation.of(JoinForm.class)
+            .labels(Map.of("name", "Name", "age", "Age", "phone", "Mobile", "interests", "Interests"))
+            .toBuilder()
+            .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "Business No.").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    @InitBinder("joinForm")
+    void initBinder(WebDataBinder binder) {
+        binder.addValidators(S2SpringValidator.of(JoinForm.class, EXTRA)); // runs with Bean Validation on @Valid
+    }
+
+    @GetMapping("/join")
+    String form(Model model, Locale locale) {
+        model.addAttribute("rules", BROWSER.getRulesJson(locale)); // <form th:data-s2-rules="${rules}">
+        return "join";
+    }
+
+    @PostMapping("/join")
+    String join(@Valid @ModelAttribute JoinForm joinForm, BindingResult result) {
+        if (result.hasErrors()) {
+            return "join"; // Bean Validation and S2 errors in one BindingResult
+        }
+        return "redirect:/done";
+    }
+}
+```
+
+- Converted rules are **never stricter than Bean Validation** (the browser never blocks a value the server accepts). Constraints that cannot be converted that way, such as `@Past`, `@Digits` and plain `@Email`, stay server-only; see `serverOnly()` and the log.
+- `.practical()` also converts `@NotEmpty`, `@NotNull` on text and plain `@Email` (stricter only for unusual input such as only spaces).
+- Set labels with `.labels(Map)` or `.labelResolver(...)`; otherwise the field name is used.
+- For REST APIs, `S2Validator.validateAll(target, locale).toMap()` returns errors in the same `{field: [messages]}` shape as the browser.
+- For the full mapping table and message rules, see [MANUAL 5-5](../MANUAL.md#5-5-rules-from-bean-validation-annotations-s2beanvalidation).
 
 ---
 

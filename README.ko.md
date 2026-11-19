@@ -26,11 +26,12 @@
 `s2-util`은 표준 Bean Validation(Hibernate Validator)이 다루지 않는 **화면 검증, 짧은 조건부 규칙, 한국 업무 규칙**을 채웁니다. 대체가 아니라 함께 쓸 수 있는 보완재입니다:
 
 - **🌐 Write Once, Validate Anywhere** — Java 로 정의한 규칙을 `getRulesJson()`으로 내보내고 `s2.validator.js`를 불러오면 브라우저가 같은 규칙으로 검증합니다. 화면용 검증 코드를 따로 작성하지 않아도 됩니다.
+- **🤝 Bean Validation 위에 얹기** — 이미 쓰는 `@NotBlank`·`@Size`·`@Pattern` 을 그대로 브라우저 규칙으로 만들고(`S2BeanValidation`), `@Valid` 흐름에 조건부·한국 업무 규칙만 더합니다(`S2SpringValidator`). 서버 검증은 Bean Validation 그대로이고, 기존 코드를 바꾸지 않습니다.
 - **⚡ 짧은 조건부 검증** — "A 가 X 일 때 B 필수" 같은 규칙을 `.when(...).and(...)`로 한두 줄에 씁니다.
 - **🏎️ 성능** — 필드 접근은 MethodHandle 캐시, 메타데이터는 Caffeine(W-TinyLFU) 캐시를 씁니다. Java 21 이상이면 가상 스레드를 지원합니다(실행 환경 자동 감지).
-- **🇰🇷 31종 내장 규칙과 한국어 메시지** — 주민·사업자·외국인등록번호, 휴대폰·전화·우편번호, 바이트 길이 등 한국 업무 규칙과, 받침에 따른 조사 자동 완성(`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
+- **🇰🇷 33종 내장 규칙과 한국어 메시지** — 주민·사업자·외국인등록번호, 휴대폰·전화·우편번호, 바이트 길이 등 한국 업무 규칙과, 받침에 따른 조사 자동 완성(`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
 - **🛡️ 빌드 시점 검사** — 필드 이름을 문자열로 쓰는 방식이라 생길 수 있는 오타를, 동반 플러그인 `s2-validator-plugin`이 빌드할 때(`compileJava` 전) 경로·기준값·종단 메서드 누락까지 검사해 막습니다.
-- **🍃 Spring MVC 연동** — `S2BindValidator`가 검증 오류를 스프링 표준 `BindingResult`에 넣습니다.
+- **🍃 Spring MVC 연동** — `S2BindValidator`·`S2SpringValidator`(`@InitBinder`)가 검증 오류를 스프링 표준 `BindingResult`에 넣습니다. REST 는 `validateAll(...).toMap()`이 브라우저와 같은 `{필드: [메시지]}` 형식으로 돌려줍니다.
 
 ### 🥊 한눈에 비교: 표준 Bean Validation vs s2-validator
 
@@ -38,11 +39,11 @@
 | :--- | :--- | :--- |
 | **조건부 검증**<br>_(A 이면 B 필수)_ | 그룹, `@GroupSequenceProvider`, 클래스 단위 제약으로 구현 (코드가 길어짐) | `.when("type", "VIP").rule(REQUIRED)` |
 | **교차 필드**<br>_(비밀번호 확인, 기간)_ | 클래스 단위 제약을 만들고 `addPropertyNode`로 대상 필드에 연결 (직접 구현) | 내장 규칙 `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`. 메시지에 대상 필드의 라벨 |
-| **브라우저 검증** | 서버 전용. 화면은 JS/TS(Zod 등)로 따로 구현 | 같은 규칙을 JSON 으로 내보내 `s2.validator.js`가 검증 |
+| **브라우저 검증** | 서버 전용. 화면은 JS/TS(Zod 등)로 따로 구현 | 같은 규칙을 JSON 으로 내보내 `s2.validator.js`가 검증. **기존 Bean Validation 어노테이션에서도 생성**(`S2BeanValidation`) |
 | **한국 업무 규칙·조사** 🇰🇷 | 직접 구현 (규칙, 받침 판별 `MessageInterpolator`) | 주민·사업자·외국인등록번호, 전화·우편번호, 바이트 길이 등 내장. `{0\|은}` 조사 자동 완성 |
 | **규칙을 데이터로** | 클래스 어노테이션에 고정 | JSON 으로 읽고 쓰기(DB·설정), DTO 없이 `Map` 검증, 한 DTO 에 화면·역할별 규칙 여러 벌 |
 | **규칙 위치·필드 이름** | 필드 위 어노테이션이라 **필드 이름 오타가 생길 수 없음** | 필드 이름을 문자열로 씀. 동반 플러그인이 빌드할 때 경로·기준값을 검사해 보완 |
-| **생태계** | **표준.** 스프링 `@Valid`, 메서드 검증, JPA, OpenAPI 문서 등과 바로 연결 | 스프링 `BindingResult` 연동 |
+| **생태계** | **표준.** 스프링 `@Valid`, 메서드 검증, JPA, OpenAPI 문서 등과 바로 연결 | 스프링 `BindingResult`·`@Valid`(`SmartValidator`) 연동. Bean Validation 과 함께 동작 |
 
 > 둘 중 무엇이 맞는지, 함께 쓰는 방법은 [`s2-validator` README 의 "언제 쓰나"](./s2-validator/README.ko.md)를 참고하십시오.
 
@@ -114,6 +115,7 @@ S2Validator는 클라이언트(화면) 연동 필요 여부에 따라 두 가지
 
 - **방식 A: 백엔드 단독 즉시 검증** — UI 연동 없이 서비스 계층, 배치, 또는 REST API에서 즉시 수행하는 간결한 검증.
 - **방식 B: 풀스택 통합 검증 (서버 + 클라이언트)** — Spring `BindingResult` 연동과, 검증 코드를 따로 쓰지 않는 브라우저 검증(같은 규칙).
+- **방식 C: 이미 Bean Validation 을 쓰는 프로젝트** — 어노테이션과 `@Valid`는 그대로 두고, 브라우저 검증과 Bean Validation 에 없는 규칙만 더합니다.
 
 ---
 
@@ -280,6 +282,65 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 
 ---
 
+#### 방식 C. 이미 Bean Validation 을 쓰는 프로젝트 (얹기)
+
+DTO 의 `@NotBlank`·`@Size` 등을 다시 쓰지 않습니다. `S2BeanValidation`이 어노테이션을 브라우저 규칙으로 바꾸고, Bean Validation 에 없는 규칙(조건부·한국 업무 규칙)만 S2 로 더해 `@Valid` 흐름에 얹습니다.
+
+```java
+public class JoinForm {
+    @NotBlank @Size(max = 20)   private String name;
+    @NotNull @Min(19)           private Integer age;
+    @Pattern(regexp = "01[016789]-\\d{3,4}-\\d{4}") private String phone;
+    @Size(min = 1, max = 3)     private List<String> interests;
+    private String type;        // "VIP" 이면 vipCode 필수 — Bean Validation 으로는 클래스 단위 제약이 필요
+    private String vipCode;
+    private String bizNo;       // 사업자번호 검증번호 — Bean Validation 내장 규칙 없음
+}
+
+@Controller
+class JoinController {
+    // Bean Validation 에 없는 규칙만 S2 로 (조건부·한국 업무 규칙)
+    private static final S2Validator<JoinForm> EXTRA = S2Validator.<JoinForm>builder()
+            .field("vipCode", "VIP 코드").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "사업자번호").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    // 브라우저 규칙: 어노테이션에서 변환 + 같은 S2 규칙
+    private static final S2Validator<JoinForm> BROWSER = S2BeanValidation.of(JoinForm.class)
+            .labels(Map.of("name", "이름", "age", "나이", "phone", "휴대폰", "interests", "관심사"))
+            .toBuilder()
+            .field("vipCode", "VIP 코드").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "사업자번호").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    @InitBinder("joinForm")
+    void initBinder(WebDataBinder binder) {
+        binder.addValidators(S2SpringValidator.of(JoinForm.class, EXTRA)); // @Valid 때 Bean Validation 과 함께 실행
+    }
+
+    @GetMapping("/join")
+    String form(Model model, Locale locale) {
+        model.addAttribute("rules", BROWSER.getRulesJson(locale)); // <form th:data-s2-rules="${rules}">
+        return "join";
+    }
+
+    @PostMapping("/join")
+    String join(@Valid @ModelAttribute JoinForm joinForm, BindingResult result) {
+        if (result.hasErrors()) {
+            return "join"; // Bean Validation 오류와 S2 오류가 한 BindingResult 에
+        }
+        return "redirect:/done";
+    }
+}
+```
+
+- **엄격함 원칙**: 변환한 규칙은 Bean Validation 보다 엄격하지 않습니다. 서버가 받을 값을 브라우저가 막지 않도록, 그렇게 바꿀 수 없는 제약(`@Past`, `@Digits`, 기본 `@Email` 등)은 서버 전용으로 남기고 `serverOnly()`와 로그로 알려 줍니다. 무작위 입력으로 실제 Hibernate Validator 와 비교하는 시험이 이 원칙을 확인합니다.
+- **라벨**: Bean Validation 에는 화면 이름이 없으므로 `.labels(Map)` 또는 `.labelResolver(path -> messageSource...)`로 주십시오. 없으면 필드명이 쓰이고, 영문 필드명 뒤 조사는 `name은(는)`처럼 병기됩니다.
+- **의존성**: `jakarta.validation-api`(Spring Boot 는 `spring-boot-starter-validation`)가 필요하며, 이 기능에만 필요합니다. 없으면 `S2BeanValidation.of()`가 추가할 의존성을 알려 주는 예외를 던지고, 나머지 기능은 그대로 동작합니다.
+- 전체 대응표와 옵션(실용 모드 등)은 [MANUAL 5-5](./MANUAL.ko.md#5-5-bean-validation-어노테이션으로-규칙-만들기-s2beanvalidation)를 참고하세요.
+
+---
+
 ## 📦 핵심 모듈 (Core Modules)
 
 ### 1. **`s2-core`** — 기반 라이브러리
@@ -308,7 +369,8 @@ public String signUp(@ModelAttribute("command") UserCommand command, BindingResu
 - **고급 중첩 객체 지원**: 점 표기법 및 대괄호 인덱싱
 - **포괄적 i18n**: 로컬라이제이션 및 S2ResourceBundle 통합
 - **커스텀 및 조건부 검증**: CustomRule 인터페이스와 when()/and() 조건 로직
-- **Spring 통합** (선택사항): BindingResult를 통한 표준 Spring 에러 처리
+- **Bean Validation 연결**: 어노테이션 → 브라우저 규칙(`S2BeanValidation`), `@Valid` 흐름에 S2 규칙 얹기(`S2SpringValidator`)
+- **Spring 통합** (선택사항): BindingResult를 통한 표준 Spring 에러 처리, REST 용 `validateAll().toMap()`
 
 ---
 

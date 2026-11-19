@@ -6,7 +6,7 @@
 
 ---
 
-## 1. The 3 Strategic Patterns
+## 1. The 4 Strategic Patterns
 
 S2Validator supports four distinct usage patterns, each optimized for different scenarios. Choose the one that best fits your needs.
 
@@ -110,6 +110,28 @@ public class MemberController {
 > ```
 
 `BoundContext` only holds the validator and reads the request locale on every call, so keeping it in a field is thread-safe.
+
+### 1-4. Pattern D: On Top of Bean Validation
+
+For DTOs that already use Bean Validation (`@NotBlank`, `@Size`, ...). The annotations and `@Valid` stay as they are.
+
+```java
+// 1) Browser rules: annotations converted into S2 rules (only those never stricter than Bean Validation)
+S2Validator<JoinForm> browser = S2BeanValidation.of(JoinForm.class)
+        .labels(Map.of("name", "Name", "email", "E-mail"))
+        .build();
+model.addAttribute("rules", browser.getRulesJson(locale));
+
+// 2) Server: add only the rules Bean Validation lacks to the @Valid flow
+@InitBinder("joinForm")
+void initBinder(WebDataBinder binder) {
+    binder.addValidators(S2SpringValidator.of(JoinForm.class, EXTRA_RULES)); // e.g. required when("type", "VIP")
+}
+```
+
+- Constraints that are not converted (`@Past`, `@Digits`, plain `@Email`, ...) are listed by `serverOnly()` and validated on the server (Bean Validation) only.
+- To check the `EXTRA_RULES` in the browser too, add the same rules after `S2BeanValidation.of(...).toBuilder()`.
+- Needs `jakarta.validation-api`, for this feature only. Mapping table: [MANUAL 5-5](./MANUAL.md#5-5-rules-from-bean-validation-annotations-s2beanvalidation).
 
 ---
 
@@ -539,6 +561,18 @@ if (result.hasErrors()) {
         System.out.println(error.getDefaultMessage());
     });
 }
+```
+
+### Returning All Errors (REST)
+
+`validate(target)` throws on the first error, while `validateAll` returns every error as an `S2ValidationResult`. `toMap()` has the same `{field: [messages]}` shape as the browser `s2.validator.js`.
+
+```java
+S2ValidationResult result = RULES.validateAll(command, locale);
+if (!result.isValid()) {
+    return ResponseEntity.badRequest().body(result.toMap());
+}
+result.throwIfInvalid(); // throws S2ValidationException for the first error when you prefer exceptions
 ```
 
 ---

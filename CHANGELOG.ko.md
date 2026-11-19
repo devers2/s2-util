@@ -19,15 +19,17 @@
 
 ### 추가
 
+- **`S2BeanValidation`: Bean Validation 어노테이션(`@NotBlank`·`@Size`·`@Pattern`·`@Min`·`@Valid` 등)으로 S2 규칙을 만듭니다.** 기존 DTO 를 고치지 않고 브라우저 검증을 얻고, `toBuilder()`로 S2 규칙을 더할 수 있습니다. Bean Validation 보다 엄격하지 않은 제약만 변환하고 나머지는 `serverOnly()`·로그로 알립니다(`practical()` 로 범위 확장). Hibernate Validator 와 무작위 입력으로 비교하는 시험 포함. MANUAL 5-5.
+- 배포 POM 에 Spring·`jakarta.validation-api` 를 선택 의존성(`<optional>true</optional>`)으로 표시합니다. 프로젝트로 전이되지 않으며 어떤 기능에 무엇이 필요한지 보입니다.
 - 규칙 `MIN_SIZE`·`MAX_SIZE`: 값의 개수(컬렉션·배열·체크박스 그룹·다중 선택, 단일 값은 1개)를 검사합니다. 서버·브라우저 동일, 빌드 플러그인 기준값 검사 포함.
 - `S2SpringValidator`: `S2Validator`를 Spring `SmartValidator`로 감싸, `@InitBinder` 로 등록하면 `@Valid`/`@Validated` 때 Bean Validation 과 함께 실행되고 같은 `BindingResult`에 기록됩니다(MANUAL 2-C). 추가 의존성 없음.
 - `S2Validator.validateAll(target[, locale])` → `S2ValidationResult`: 예외 없이 모든 오류를 모으며 `toMap()`은 `s2.validator.js`와 같은 `{필드: [메시지]}` 형식입니다(REST 응답용).
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
-
 - `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
 
 ### 수정
 
+- 사용자 정규식(`REGEX`, `@Pattern` 변환 포함)의 `\s`·`\S` 를 브라우저가 JS 의미(NBSP 등 유니코드 공백 포함)로 해석해 서버와 판정이 다르던 문제 — 브라우저도 Java 의미로 평가합니다. 문자 클래스 안의 `\S` 는 같은 의미로 바꿀 수 없어 규칙 JSON 으로 내보내지 않습니다(`IllegalStateException`).
 - GUIDE_JPQL 이 없는 `LikeMode.EXACT` 를 안내하던 문서 오류.
 - `DATE_AFTER`·`DATE_BEFORE` 가 `java.util.Date`(및 `java.sql.Date`·`Timestamp`·`Instant`) 필드를 비교하지 않고 항상 통과하던 문제.
 - `DATE_AFTER`·`DATE_BEFORE` 에서 타입이 다른 값(예: `LocalDate` 필드와 문자열)을 비교하면 `ClassCastException` 이 나던 문제.

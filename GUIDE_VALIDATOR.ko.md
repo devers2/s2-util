@@ -8,7 +8,7 @@
 
 ---
 
-## 1. 3가지 전략 패턴
+## 1. 4가지 전략 패턴
 
 S2Validator는 네 가지 서로 다른 사용 패턴을 지원합니다. 상황에 가장 적합한 패턴을 선택하여 사용하세요.
 
@@ -112,6 +112,28 @@ public class MemberController {
 > ```
 
 `BoundContext`는 검증기만 들고 있고 요청 로케일은 호출할 때마다 읽으므로, 필드에 두어도 스레드에 안전합니다.
+
+### 1-4. Bean Validation 위에 얹는 패턴
+
+이미 `@NotBlank`·`@Size` 같은 Bean Validation 을 쓰는 DTO 에 맞는 방식입니다. 어노테이션과 `@Valid`는 그대로 둡니다.
+
+```java
+// 1) 브라우저 규칙: 어노테이션을 S2 규칙으로 변환 (Bean Validation 보다 엄격하지 않은 것만)
+S2Validator<JoinForm> browser = S2BeanValidation.of(JoinForm.class)
+        .labels(Map.of("name", "이름", "email", "이메일"))
+        .build();
+model.addAttribute("rules", browser.getRulesJson(locale));
+
+// 2) 서버: Bean Validation 에 없는 규칙만 @Valid 흐름에 더함
+@InitBinder("joinForm")
+void initBinder(WebDataBinder binder) {
+    binder.addValidators(S2SpringValidator.of(JoinForm.class, EXTRA_RULES)); // 예: when("type", "VIP") 조건부 필수
+}
+```
+
+- 변환하지 않은 제약(`@Past`, `@Digits`, 기본 `@Email` 등)은 `serverOnly()`로 확인할 수 있고, 서버(Bean Validation)에서만 검증됩니다.
+- `EXTRA_RULES`의 규칙을 브라우저에서도 검사하려면 `S2BeanValidation.of(...).toBuilder()`에 같은 규칙을 이어 씁니다.
+- `jakarta.validation-api`가 있어야 하며 이 기능에만 필요합니다. 대응표는 [MANUAL 5-5](./MANUAL.ko.md#5-5-bean-validation-어노테이션으로-규칙-만들기-s2beanvalidation).
 
 ---
 
@@ -534,6 +556,18 @@ if (result.hasErrors()) {
         System.out.println(error.getDefaultMessage());
     });
 }
+```
+
+### 오류를 모아 응답하기 (REST)
+
+`validate(target)`은 첫 오류에서 예외를 던지지만 `validateAll`은 모든 오류를 `S2ValidationResult`로 돌려줍니다. `toMap()`은 브라우저 `s2.validator.js`와 같은 `{필드: [메시지]}` 형식입니다.
+
+```java
+S2ValidationResult result = RULES.validateAll(command, locale);
+if (!result.isValid()) {
+    return ResponseEntity.badRequest().body(result.toMap());
+}
+result.throwIfInvalid(); // 예외 방식이 필요하면 첫 오류로 S2ValidationException
 ```
 
 ---

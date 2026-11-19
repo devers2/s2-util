@@ -31,6 +31,7 @@
    - [5-2. 재귀 및 합성 검증 (EACH, NESTED)](#5-2-재귀-및-합성-검증-each-nested)
    - [5-3. 사용자 정의 비즈니스 람다: Predicate & BiPredicate (서버 전용)](#5-3-사용자-정의-비즈니스-람다-predicate--bipredicate-서버-전용)
    - [5-4. 규칙 JSON 으로 검증기 만들기 (fromJson)](#5-4-규칙-json-으로-검증기-만들기-fromjson)
+   - [5-5. Bean Validation 어노테이션으로 규칙 만들기 (S2BeanValidation)](#5-5-bean-validation-어노테이션으로-규칙-만들기-s2beanvalidation)
 6. [서버-클라이언트 통합 동기화 (Server-Client Sync)](#6-서버-클라이언트-통합-동기화-server-client-sync)
    - [6-1. 전 과정 구현 예제 (End-to-End)](#6-1-전-과정-구현-예제-end-to-end)
    - [6-2. 기술 아키텍처 (s2.validator.js)](#6-2-기술-아키텍처-s2validatorjs)
@@ -662,6 +663,59 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // 이후는
   ```
 
 ---
+
+### 5-5. Bean Validation 어노테이션으로 규칙 만들기 (`S2BeanValidation`)
+
+이미 `@NotBlank`·`@Size`·`@Pattern` 등 Bean Validation(Jakarta Validation)을 쓰는 DTO 라면 규칙을 다시 쓰지 않고 브라우저 검증을 얻을 수 있습니다. 서버는 그대로 `@Valid`로 검증하고, 변환한 규칙은 화면용 규칙 JSON 에 씁니다.
+
+```java
+S2Validator<JoinForm> browserRules = S2BeanValidation.of(JoinForm.class)
+        .labels(Map.of("name", "이름", "address.zip", "우편번호"))   // 경로 → 라벨
+        .build();
+model.addAttribute("rules", browserRules.getRulesJson(locale));
+
+// Bean Validation 에 없는 규칙은 이어서 S2 로
+S2Validator<JoinForm> withExtra = S2BeanValidation.of(JoinForm.class)
+        .toBuilder()
+        .field("vipCode", "VIP 코드").when("type", "VIP").rule(S2RuleType.REQUIRED)
+        .build();
+```
+
+**대응표** — 변환한 규칙은 Bean Validation 보다 엄격하지 않습니다(서버가 받을 값을 브라우저가 막지 않음). 그렇게 바꿀 수 없는 제약은 서버 전용으로 남깁니다.
+
+| Bean Validation | S2 규칙 | 비고 |
+| :--- | :--- | :--- |
+| `@NotBlank` | `REQUIRED` | |
+| `@Size` (문자열) | `MIN_LENGTH` / `MAX_LENGTH` | |
+| `@Size` (컬렉션·배열·Map) | `MIN_SIZE` / `MAX_SIZE` | |
+| `@Min` `@Max`, `@DecimalMin` `@DecimalMax`(경계 포함) | `MIN_VALUE` / `MAX_VALUE` | 경계 미포함(`inclusive = false`)은 서버 전용 |
+| `@PositiveOrZero` / `@NegativeOrZero` | `MIN_VALUE 0` / `MAX_VALUE 0` | `@Positive`·`@Negative`는 서버 전용 |
+| `@Pattern` | `REGEX` | `flags`가 있거나 브라우저에서 같은 의미가 아닌 Java 전용 문법이면 서버 전용 |
+| `@Email(regexp = ...)` | `REGEX` | 기본 `@Email`은 서버 전용(실용 모드에서 `EMAIL`) |
+| `@NotNull` (숫자·날짜 등) | `REQUIRED` | 문자열·컬렉션의 `@NotNull`은 실용 모드에서만 |
+| `@NotEmpty` | `REQUIRED` | 실용 모드에서만 |
+| `@AssertTrue` | `ASSERT_TRUE` | `boolean` 이거나 `@NotNull`이 함께 있을 때만 (Bean Validation 은 `null`을 통과시킴) |
+| `@AssertFalse` | `ASSERT_FALSE` | |
+| `@Valid` 객체 / 컬렉션(`List<@Valid Item>` 포함) | `NESTED` / `EACH` | 자기 자신을 다시 참조하면 한 단계까지만 |
+| `@Past` `@Future` `@Digits` `@Null`, 클래스 단위·커스텀 제약, `List<@NotBlank String>`, getter 의 제약, 다른 그룹 | — | 서버 전용 (`serverOnly()`로 확인, 클래스당 한 번 INFO 로그) |
+
+**옵션**
+
+| 메서드 | 설명 |
+| :--- | :--- |
+| `labels(Map<String, String>)` | 필드 경로(`"name"`, `"address.zip"`, 행은 `"items.qty"`)별 라벨. Bean Validation 에는 화면 이름이 없으므로 지정을 권장합니다. |
+| `labelResolver(Function<String, String>)` | `labels`에 없을 때 경로로 라벨을 찾는 함수. 예: `path -> messageSource.getMessage("joinForm." + path, null, path, locale)`. null 이면 필드명. |
+| `practical()` | `@NotEmpty`, 문자열·컬렉션의 `@NotNull`, 기본 `@Email`도 변환합니다. 공백만 입력한 값이나 도메인에 점이 없는 이메일처럼 특이한 입력에서만 Bean Validation 보다 엄격합니다. |
+| `toBuilder()` | 변환한 필드가 들어 있는 S2 빌더. `.field(...)`로 S2 규칙을 더한 뒤 `build()`. |
+| `serverOnly()` | 변환하지 않은 제약 목록(`"birthDate @Past"` 형식). 클래스당 한 번 INFO 로그로도 남깁니다. |
+
+**메시지**: Bean Validation 기본 메시지는 S2 내장 메시지(한국어 조사 자동 완성 포함)로 바뀝니다. 어노테이션에 직접 쓴 문구(`message = "이름은 {min}자 이상"`)는 그대로 쓰고 `{min}`·`{max}`·`{value}`·`{regexp}`를 실제 값으로 바꿉니다. 메시지 키(`{custom.key}`)와 EL(`${...}`)은 S2 내장 메시지로 대신합니다.
+
+**알려진 차이**: S2 는 앞뒤 공백(NBSP·전각 공백 포함)을 뺀 값으로 필수·최소 길이·형식을 판정하므로, `"a "` 같은 값의 `@Size(min = 2)`나 NBSP 만 있는 값의 `@NotBlank`는 브라우저에서만 실패할 수 있습니다. 일반 입력에서는 차이가 없고, 무작위 입력으로 Hibernate Validator 와 비교하는 시험이 이 범위를 확인합니다.
+
+**서버 검증과 함께**: 서버는 Bean Validation 이 맡으므로 변환한 검증기로 서버를 다시 검증하지 마십시오(같은 오류가 두 번 납니다). Bean Validation 에 없는 규칙만 [`S2SpringValidator`](#bean-validation-과-함께-valid-흐름에-얹기-s2springvalidator)로 `@Valid` 흐름에 더합니다.
+
+**의존성**: `jakarta.validation:jakarta.validation-api` 3.x(Spring Boot 는 `spring-boot-starter-validation`)가 필요하며 이 기능만 씁니다. 배포 POM 에는 선택 의존성(`<optional>true</optional>`)으로 표시되어 프로젝트로 끌려오지 않습니다. 없을 때 `S2BeanValidation.of()`를 부르면 추가할 의존성을 알려 주는 `IllegalStateException`이 나고, 나머지 기능은 그대로 동작합니다. `javax.validation`(Jakarta 이전)은 지원하지 않습니다.
 
 ## 6. 서버-클라이언트 통합 동기화 (Server-Client Sync)
 

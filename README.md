@@ -26,11 +26,12 @@
 `s2-util` fills what standard Bean Validation (Hibernate Validator) leaves out — **browser validation, short conditional rules and Korean business rules**. It complements Bean Validation rather than replacing it:
 
 - **🌐 Write Once, Validate Anywhere** — Export the Java rules with `getRulesJson()` and load `s2.validator.js`; the browser checks the same rules, with no validation code to write for the UI.
+- **🤝 On top of Bean Validation** — Turn the `@NotBlank`, `@Size` and `@Pattern` you already have into browser rules (`S2BeanValidation`), and add only conditional and Korean business rules to the `@Valid` flow (`S2SpringValidator`). The server keeps validating with Bean Validation; existing code stays as is.
 - **⚡ Short conditional rules** — Rules such as "B is required when A is X" take a line or two with `.when(...).and(...)`.
 - **🏎️ Performance** — MethodHandle caching for field access, Caffeine (W-TinyLFU) caches for metadata, virtual threads on Java 21+ (detected at runtime).
-- **🇰🇷 31 built-in rules & Korean messages** — Resident, business and alien registration numbers, mobile, phone and postal codes, byte length and more, with Korean postposition auto-completion (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
+- **🇰🇷 33 built-in rules & Korean messages** — Resident, business and alien registration numbers, mobile, phone and postal codes, byte length and more, with Korean postposition auto-completion (`{0|은}`, `{0|이}`, `{0|을}`, `{0|로}`).
 - **🛡️ Build-time checks** — Field names are strings, so the companion `s2-validator-plugin` checks paths, criteria and missing terminal calls at build time (before `compileJava`).
-- **🍃 Spring MVC integration** — `S2BindValidator` puts validation errors into Spring's standard `BindingResult`.
+- **🍃 Spring MVC integration** — `S2BindValidator` and `S2SpringValidator` (`@InitBinder`) put validation errors into Spring's standard `BindingResult`. For REST, `validateAll(...).toMap()` returns errors in the same `{field: [messages]}` shape as the browser.
 
 ### 🥊 At a Glance: Standard Bean Validation vs s2-validator
 
@@ -38,11 +39,11 @@
 | :--- | :--- | :--- |
 | **Conditional rules**<br>_(B required if A)_ | Groups, `@GroupSequenceProvider` or a class-level constraint (verbose) | `.when("type", "VIP").rule(REQUIRED)` |
 | **Cross-field rules**<br>_(password confirm, date ranges)_ | Write a class-level constraint and bind it to the field with `addPropertyNode` | Built-in `EQUALS_FIELD`, `DATE_AFTER`, `DATE_BEFORE`; messages use the other field's label |
-| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js` |
+| **Browser validation** | Server only; the UI re-implements the rules in JS/TS (Zod, ...) | The same rules exported as JSON and checked by `s2.validator.js`. **Also generated from existing Bean Validation annotations** (`S2BeanValidation`) |
 | **Korean business rules & particles** 🇰🇷 | Write your own (rules, a consonant-aware `MessageInterpolator`) | Resident, business and alien registration numbers, phone and postal codes, byte length, ... built in; `{0\|은}` postposition auto-completion |
 | **Rules as data** | Fixed in class annotations | Read and write JSON (database, configuration), validate a `Map` without a DTO, several rule sets per DTO (per screen or role) |
 | **Where rules live, field names** | Annotations on the field, so **a field name cannot be misspelled** | Field names are strings; the companion plugin checks paths and criteria at build time |
-| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` integration |
+| **Ecosystem** | **The standard.** Works with Spring `@Valid`, method validation, JPA, OpenAPI docs and more | Spring `BindingResult` and `@Valid` (`SmartValidator`) integration; works alongside Bean Validation |
 
 > Which one fits, and how to use both: see "When to use" in the [`s2-validator` README](./s2-validator/README.md).
 
@@ -114,6 +115,7 @@ plugins {
 
 - **Approach A: Standalone Backend Validation** — Simple, declarative validation for services, batches, or REST APIs with zero UI setup.
 - **Approach B: Full-Stack Sync Validation** — Spring `BindingResult` integration and browser validation with the same rules, no validation code to write for the UI.
+- **Approach C: Projects already using Bean Validation** — Keep the annotations and `@Valid`; add browser validation and only the rules Bean Validation lacks.
 
 ---
 
@@ -280,6 +282,65 @@ Once `s2.validator.js` is loaded, `initS2Validator()` runs automatically — no 
 
 ---
 
+#### Approach C. Projects Already Using Bean Validation (Add On Top)
+
+No need to rewrite `@NotBlank`, `@Size` and the like. `S2BeanValidation` converts the annotations into browser rules, and only the rules Bean Validation lacks (conditional, Korean business rules) are added as S2 rules on top of the `@Valid` flow.
+
+```java
+public class JoinForm {
+    @NotBlank @Size(max = 20)   private String name;
+    @NotNull @Min(19)           private Integer age;
+    @Pattern(regexp = "01[016789]-\\d{3,4}-\\d{4}") private String phone;
+    @Size(min = 1, max = 3)     private List<String> interests;
+    private String type;        // vipCode is required when "VIP" — needs a class-level constraint in Bean Validation
+    private String vipCode;
+    private String bizNo;       // business number check digit — no built-in Bean Validation rule
+}
+
+@Controller
+class JoinController {
+    // Only the rules Bean Validation lacks, as S2 rules (conditional, Korean business rules)
+    private static final S2Validator<JoinForm> EXTRA = S2Validator.<JoinForm>builder()
+            .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "Business No.").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    // Browser rules: converted from the annotations + the same S2 rules
+    private static final S2Validator<JoinForm> BROWSER = S2BeanValidation.of(JoinForm.class)
+            .labels(Map.of("name", "Name", "age", "Age", "phone", "Mobile", "interests", "Interests"))
+            .toBuilder()
+            .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+            .field("bizNo", "Business No.").rule(S2RuleType.BIZRNO, true)
+            .build();
+
+    @InitBinder("joinForm")
+    void initBinder(WebDataBinder binder) {
+        binder.addValidators(S2SpringValidator.of(JoinForm.class, EXTRA)); // runs with Bean Validation on @Valid
+    }
+
+    @GetMapping("/join")
+    String form(Model model, Locale locale) {
+        model.addAttribute("rules", BROWSER.getRulesJson(locale)); // <form th:data-s2-rules="${rules}">
+        return "join";
+    }
+
+    @PostMapping("/join")
+    String join(@Valid @ModelAttribute JoinForm joinForm, BindingResult result) {
+        if (result.hasErrors()) {
+            return "join"; // Bean Validation and S2 errors in one BindingResult
+        }
+        return "redirect:/done";
+    }
+}
+```
+
+- **Never stricter**: converted rules are never stricter than Bean Validation. So the browser never blocks a value the server would accept, constraints that cannot be converted that way (`@Past`, `@Digits`, plain `@Email`, ...) stay server-only and are reported by `serverOnly()` and a log line. A test that compares against the real Hibernate Validator with random input checks this rule.
+- **Labels**: Bean Validation has no display names, so pass `.labels(Map)` or `.labelResolver(path -> messageSource...)`. Without them the field name is used (for Korean messages the particle after a Latin name is shown in both forms, e.g. `name은(는)`).
+- **Dependency**: needs `jakarta.validation-api` (Spring Boot: `spring-boot-starter-validation`), for this feature only. Without it, `S2BeanValidation.of()` throws an exception naming the dependency to add, and everything else keeps working.
+- For the full mapping table and options (practical mode, ...), see [MANUAL 5-5](./MANUAL.md#5-5-rules-from-bean-validation-annotations-s2beanvalidation).
+
+---
+
 ## 📦 Core Modules
 
 ### 1. **`s2-core`** — Foundation Library
@@ -308,7 +369,8 @@ A unified cross-platform validation library supporting both server and client wi
 - **Advanced Nested Object Support**: Dot notation (`user.address.street`) and bracket indexing (`items[0]`)
 - **Comprehensive i18n**: Message localization with `ko()`, `en()`, custom locales, and `S2ResourceBundle`
 - **Custom & Conditional Validation**: `CustomRule` interface and `when()`/`and()` conditional logic
-- **Spring Integration** (Optional): `S2BindValidator` with `BindingResult` for standard Spring error handling
+- **Bean Validation Bridge**: annotations → browser rules (`S2BeanValidation`); S2 rules on top of the `@Valid` flow (`S2SpringValidator`)
+- **Spring Integration** (Optional): `S2BindValidator` with `BindingResult` for standard Spring error handling; `validateAll().toMap()` for REST
 
 ---
 

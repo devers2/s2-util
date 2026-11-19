@@ -31,6 +31,7 @@
    - [5-2. Recursive & Compositional Validation (EACH, NESTED)](#5-2-recursive--compositional-validation-each-nested)
    - [5-3. Custom Logic: Predicate & BiPredicate (Server-Only)](#5-3-custom-logic-predicate--bipredicate-server-only)
    - [5-4. Building a Validator from Rules JSON (fromJson)](#5-4-building-a-validator-from-rules-json-fromjson)
+   - [5-5. Rules from Bean Validation Annotations (S2BeanValidation)](#5-5-rules-from-bean-validation-annotations-s2beanvalidation)
 6. [Unified Integration: Server-Client Synchronization](#6-unified-integration-server-client-synchronization)
    - [6-1. End-to-End Implementation Example](#6-1-end-to-end-implementation-example)
    - [6-2. Technical Architecture (s2.validator.js)](#6-2-technical-architecture-s2validatorjs)
@@ -662,6 +663,59 @@ S2BindValidator.bind(validator).validate(command, bindingResult);   // same as a
   ```
 
 ---
+
+### 5-5. Rules from Bean Validation Annotations (`S2BeanValidation`)
+
+DTOs that already use Bean Validation (Jakarta Validation) — `@NotBlank`, `@Size`, `@Pattern` and so on — get browser validation without writing the rules again. The server keeps validating with `@Valid`; the converted rules go into the rules JSON for the page.
+
+```java
+S2Validator<JoinForm> browserRules = S2BeanValidation.of(JoinForm.class)
+        .labels(Map.of("name", "Name", "address.zip", "ZIP code"))   // path → label
+        .build();
+model.addAttribute("rules", browserRules.getRulesJson(locale));
+
+// Add rules Bean Validation lacks as S2 rules
+S2Validator<JoinForm> withExtra = S2BeanValidation.of(JoinForm.class)
+        .toBuilder()
+        .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+        .build();
+```
+
+**Mapping** — converted rules are never stricter than Bean Validation (the browser never blocks a value the server accepts). Constraints that cannot be converted that way stay server-only.
+
+| Bean Validation | S2 rule | Notes |
+| :--- | :--- | :--- |
+| `@NotBlank` | `REQUIRED` | |
+| `@Size` (text) | `MIN_LENGTH` / `MAX_LENGTH` | |
+| `@Size` (collection, array, map) | `MIN_SIZE` / `MAX_SIZE` | |
+| `@Min` `@Max`, `@DecimalMin` `@DecimalMax` (inclusive) | `MIN_VALUE` / `MAX_VALUE` | Exclusive bounds (`inclusive = false`) stay server-only |
+| `@PositiveOrZero` / `@NegativeOrZero` | `MIN_VALUE 0` / `MAX_VALUE 0` | `@Positive`/`@Negative` stay server-only |
+| `@Pattern` | `REGEX` | Server-only with `flags` or Java-only syntax the browser cannot evaluate the same way |
+| `@Email(regexp = ...)` | `REGEX` | Plain `@Email` is server-only (`EMAIL` in practical mode) |
+| `@NotNull` (numbers, dates, ...) | `REQUIRED` | `@NotNull` on text or collections only in practical mode |
+| `@NotEmpty` | `REQUIRED` | Practical mode only |
+| `@AssertTrue` | `ASSERT_TRUE` | Only on `boolean` or with `@NotNull` (Bean Validation accepts `null`) |
+| `@AssertFalse` | `ASSERT_FALSE` | |
+| `@Valid` object / collection (incl. `List<@Valid Item>`) | `NESTED` / `EACH` | A self-reference is expanded one level |
+| `@Past` `@Future` `@Digits` `@Null`, class-level and custom constraints, `List<@NotBlank String>`, constraints on getters, other groups | — | Server-only (see `serverOnly()`; logged once per class at INFO) |
+
+**Options**
+
+| Method | Description |
+| :--- | :--- |
+| `labels(Map<String, String>)` | Labels by field path (`"name"`, `"address.zip"`, rows as `"items.qty"`). Bean Validation has no display names, so setting them is recommended. |
+| `labelResolver(Function<String, String>)` | Finds a label by path when `labels` has none, e.g. `path -> messageSource.getMessage("joinForm." + path, null, path, locale)`. Null falls back to the field name. |
+| `practical()` | Also converts `@NotEmpty`, `@NotNull` on text and collections, and plain `@Email`. Stricter than Bean Validation only for unusual input such as only spaces or an e-mail domain without a dot. |
+| `toBuilder()` | An S2 builder that already has the converted fields; add S2 rules with `.field(...)`, then `build()`. |
+| `serverOnly()` | The constraints that were not converted (`"birthDate @Past"`). Also logged once per class at INFO. |
+
+**Messages**: Bean Validation's default messages become the S2 built-in messages (with Korean particle auto-completion). A message written on the annotation (`message = "at least {min} characters"`) is used as is, with `{min}`, `{max}`, `{value}` and `{regexp}` replaced by the actual values. Message keys (`{custom.key}`) and EL (`${...}`) fall back to the S2 built-in message.
+
+**Known differences**: S2 judges required, minimum length and format on the value with surrounding spaces (including NBSP and the ideographic space) trimmed, so `@Size(min = 2)` on a value like `"a "`, or `@NotBlank` on a value of only NBSP, can fail in the browser only. Ordinary input behaves the same, and a test comparing against Hibernate Validator with random input checks this scope.
+
+**With server validation**: the server is validated by Bean Validation, so do not validate it again with the converted validator (the same error would appear twice). Add only the rules Bean Validation lacks to the `@Valid` flow with [`S2SpringValidator`](#adding-to-the-valid-flow-with-bean-validation-s2springvalidator).
+
+**Dependency**: needs `jakarta.validation:jakarta.validation-api` 3.x (Spring Boot: `spring-boot-starter-validation`), used by this feature only. The published POM lists it as optional (`<optional>true</optional>`), so it is not pulled into your project. Without it, `S2BeanValidation.of()` throws an `IllegalStateException` naming the dependency to add, and everything else keeps working. `javax.validation` (pre-Jakarta) is not supported.
 
 ## 6. Unified Integration: Server-Client Synchronization
 
