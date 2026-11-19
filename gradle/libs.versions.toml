@@ -29,6 +29,9 @@ spring-boot-3 = "3.5.16"
 jakarta-servlet-api = "6.1.0"
 jakarta-servlet-jsp = "4.0.0"
 jakarta-persistence-api = "3.2.0"
+jakarta-validation-api = "3.0.2"
+hibernate-validator = "8.0.6.Final"
+expressly = "5.0.0"
 
 [libraries]
 # Common
@@ -49,6 +52,9 @@ spring-boot3-autoconfigure = { group = "org.springframework.boot", name = "sprin
 jakarta-servlet-api = { group = "jakarta.servlet", name = "jakarta.servlet-api", version.ref = "jakarta-servlet-api" }
 jakarta-servlet-jsp = { group = "jakarta.servlet.jsp", name = "jakarta.servlet.jsp-api", version.ref = "jakarta-servlet-jsp" }
 jakarta-persistence-api = { group = "jakarta.persistence", name = "jakarta.persistence-api", version.ref = "jakarta-persistence-api" }
+jakarta-validation-api = { group = "jakarta.validation", name = "jakarta.validation-api", version.ref = "jakarta-validation-api" }
+hibernate-validator = { group = "org.hibernate.validator", name = "hibernate-validator", version.ref = "hibernate-validator" }
+expressly = { group = "org.glassfish.expressly", name = "expressly", version.ref = "expressly" }
 
 # Testing
 junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }

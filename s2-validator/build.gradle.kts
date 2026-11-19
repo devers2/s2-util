@@ -48,6 +48,16 @@ extra["dynamicSourceInfoMap"] = mapOf(
  */
 extra["artifactTestClassNames"] = listOf("io.github.devers2.s2util.validation.SmokeTest")
 
+// 선택 기능 정의 (Spring 연동, Bean Validation 연결) — main 소스셋을 그대로 쓰고 배포 시 optional 의존성으로 표시
+java {
+    registerFeature("springSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
+    registerFeature("beanValidationSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
+}
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
@@ -80,6 +90,17 @@ dependencies {
      */
     "compileOnlyInternal"(libs.errorprone.annotations) // @CheckReturnValue 어노테이션 (정적 분석 및 경고용)
 
+    // Bean Validation 연결(S2BeanValidation) 전용. compileOnly 라 BV 를 쓰지 않는 소비자에게 의존성이 생기지 않음
+    compileOnly(libs.jakarta.validation.api)
+
+    /**
+     * 선택 기능(feature variant): 배포 POM 에 <optional>true</optional> 로 나타나 "이 기능에 필요한 의존성"을 소비자가 볼 수 있게 함.
+     * 소비자 프로젝트로 전이되지는 않음. README 의존성 안내 블록은 s2-build-support 가 compileOnly 를 읽어 만들므로 위 compileOnly 선언도 유지
+     */
+    "springSupportImplementation"(libs.spring6.context)
+    "springSupportImplementation"(libs.spring.boot3.autoconfigure)
+    "beanValidationSupportImplementation"(libs.jakarta.validation.api)
+
     /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
      * - 테스트 코드에서 사용하는 라이브러리인 경우 이 방식을 사용
@@ -87,6 +108,8 @@ dependencies {
     testImplementation(libs.spring6.context)
     testImplementation(libs.spring.boot3.autoconfigure)
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.hibernate.validator) // S2BeanValidation 과 실제 Bean Validation 판정 비교
+    testImplementation(libs.expressly) // Hibernate Validator 메시지 보간(EL) 구현
     testImplementation(libs.graaljs.polyglot)
     testImplementation(libs.graaljs.js)
     testRuntimeOnly(libs.junit.platform.launcher)
