@@ -22,20 +22,23 @@ test.describe('basic form', () => {
     expect(await page.locator('#basic').evaluate((f) => f.noValidate)).toBe(true);
   });
 
-  test('number with comma is invalid, surrounding spaces are ignored, valid input submits', async ({ page }) => {
+  test('number with comma is invalid, spaces count toward max length but not numbers, valid input submits', async ({ page }) => {
     await ready(page, '/');
     const form = page.locator('#basic');
     await form.locator('[name="name"]').fill('홍길동');
     await form.locator('[name="email"]').fill('a@b.technology');
     await form.locator('[name="qty"]').fill('1,000');
+    // 상한 규칙은 전송될 원래 값으로 판정: ' abc ' 는 5자라 MAX_LENGTH 3 위반
     await form.locator('[name="code"]').fill(' abc ');
     await submit(page, 'basic');
 
     expect(await submitted(page, 'basic')).toBeNull();
     expect(await message(page, '#basic [name="qty"]')).not.toBe('');
-    expect(await message(page, '#basic [name="code"]')).toBe('');
+    expect(await message(page, '#basic [name="code"]')).not.toBe('');
 
+    // 숫자 규칙은 앞뒤 공백을 무시
     await form.locator('[name="qty"]').fill(' 50 ');
+    await form.locator('[name="code"]').fill('abc');
     await submit(page, 'basic');
     expect(await submitted(page, 'basic')).toBe('1');
   });

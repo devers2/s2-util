@@ -4,6 +4,27 @@
 
 All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-validator-plugin` are recorded here.
 
+## [Unreleased]
+
+### ⚠️ Behavior changes
+
+- **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) judge the original value including surrounding spaces.** Previously the
+  trimmed value was judged, so a value padded with spaces could pass the limit and be stored as is. Both the server and
+  `s2.validator.js` changed; the browser now reads form values without trimming.
+- **`DATE_AFTER`/`DATE_BEFORE`**: a value that is not a readable date now passes in the browser too (same as the server).
+  Previously only the browser failed it, blocking values the server accepts.
+
+### Fixed
+
+- `DATE_AFTER`/`DATE_BEFORE` always passed for `java.util.Date` (and `java.sql.Date`, `Timestamp`, `Instant`) fields.
+- `DATE_AFTER`/`DATE_BEFORE` threw `ClassCastException` when comparing values of different types (e.g. a `LocalDate` field and a string).
+- `<input type="datetime-local">` values (`2024-01-01T09:00`) were not compared on the server and always failed in the browser; both now compare including the time.
+- A `BiPredicate` on a wildcard row (`items[].qty`) received the row instead of the root object as its second argument and always failed.
+- `S2BindValidator` failed with `NotReadablePropertyException` for errors on paths the target cannot read (missing property, `null` intermediate path); they are now recorded as a `FieldError`.
+- Browser mismatches: a multi-select with nothing selected (empty array) was not treated as empty, failing non-required rules; `DATE` accepted values such as `"1a240101"`.
+- `TEXT_COMBINE` and `PASSWORD_ANSWR` now list their whitespace characters explicitly, so the browser no longer accepts Unicode spaces such as NBSP that the server rejects.
+- The server `DATE` rule accepted signed values such as `"+2020101"`.
+
 ## [2.1.0]
 
 - **Korean Postposition Auto-Completion**:

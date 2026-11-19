@@ -108,7 +108,7 @@ public enum S2RuleType {
 
     /** 텍스트 형식 체크 (특문 제외) ^[가-힣a-zA-Z0-9\s\-\(\)\,\.]*$ */
     TEXT_COMBINE("valid.err.textcombine", "{0|은} 텍스트만 입력 가능합니다.", "{0} must contain only text and numbers.",
-            "^[가-힣a-zA-Z0-9\\s\\-\\(\\)\\,\\.]*$"),
+            "^[가-힣a-zA-Z0-9 \\t\\n\\x0B\\f\\r\\-\\(\\)\\,\\.]*$"),
 
     /** 휴대폰 번호 형식 체크 ({0}: 필드설명) */
     MPHONE_NO("valid.err.mphone", "{0|은} 휴대폰 번호 형식이 올바르지 않습니다.", "Invalid mobile phone format for {0}.",
@@ -177,7 +177,7 @@ public enum S2RuleType {
 
     /** 비밀번호 찾기 질문 답변 형식 체크 ({0}: 필드설명) */
     PASSWORD_ANSWR("valid.err.passwordanswr", "{0} 형식이 올바르지 않습니다.", "Invalid password answer format for {0}.",
-            "^[가-힣a-zA-Z0-9\\s]{10,80}$"), // 10~80자리
+            "^[가-힣a-zA-Z0-9 \\t\\n\\x0B\\f\\r]{10,80}$"), // 10~80자리
 
     /**
      * Business registration number ({0}: field label).

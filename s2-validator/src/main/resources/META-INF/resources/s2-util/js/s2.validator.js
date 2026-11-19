@@ -1316,8 +1316,9 @@ const getFieldValue = (elements) => {
     return values;
   } else {
     // text, password, email, number, tel, select-one 등 일반 입력 필드
-    const val = elements[0].value?.trim();
-    return val !== undefined && val !== '' ? val : null;
+    // 전송되는 원래 값을 유지 (상한 규칙이 공백 포함 길이로 판정하도록). 공백만이면 빈 값
+    const val = elements[0].value;
+    return val !== undefined && val !== null && val.trim() !== '' ? val : null;
   }
 };
 
@@ -1436,13 +1437,16 @@ const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldNa
  */
 const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   // Trim string values before judging, matching the server (S2Rule.trimIfString). | 서버(S2Rule.trimIfString)와 같도록 판정 전 문자열 값의 앞뒤 공백 제거
+  // 상한 규칙(LENGTH·MAX_LENGTH·MAX_BYTE)은 서버와 같이 전송될 원래 값으로 판정
+  const rawValue = value;
   if (typeof value === 'string') {
     value = value.trim();
   }
 
   // ASSERT_TRUE, ASSERT_FALSE는 null이나 빈 값이어도 검증을 수행해야 함 (체크 안 된 상태를 잡아야 하므로)
+  // 빈 배열(아무것도 고르지 않은 다중 선택)도 서버(S2Util.isEmpty)와 같이 빈 값
   if (
-    (value === null || value === '' || value === undefined) &&
+    (value === null || value === '' || value === undefined || (Array.isArray(value) && value.length === 0)) &&
     rule.type !== 'ASSERT_TRUE' &&
     rule.type !== 'ASSERT_FALSE'
   ) {
@@ -1488,15 +1492,15 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       }
       return false;
     case 'LENGTH':
-      return String(value).length === parseInt(rule.value);
+      return String(rawValue).length === parseInt(rule.value);
     case 'MIN_LENGTH':
       return String(value).length >= parseInt(rule.value);
     case 'MAX_LENGTH':
-      return String(value).length <= parseInt(rule.value);
+      return String(rawValue).length <= parseInt(rule.value);
     case 'MIN_BYTE':
       return new Blob([String(value)]).size >= parseInt(rule.value);
     case 'MAX_BYTE':
-      return new Blob([String(value)]).size <= parseInt(rule.value);
+      return new Blob([String(rawValue)]).size <= parseInt(rule.value);
     case 'MIN_VALUE':
       return toStrictNumber(value) >= toStrictNumber(rule.value); // NaN 비교는 항상 false
     case 'MAX_VALUE':
@@ -1543,15 +1547,18 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       const afterRaw = getTargetFieldValue(rule.value, formData, prefix, fieldName);
       if (!afterRaw) return true;
       const date1 = parseDate(value);
-      const date2 = parseDate(Array.isArray(afterRaw) ? afterRaw[0] : afterRaw);
-      return date1 && date2 && date1 >= date2;
+      const date2 = parseDate(afterRaw);
+      // 날짜로 볼 수 없으면 서버와 같이 형식 검사(DATE)에 맡기고 통과
+      if (!date1 || !date2) return true;
+      return date1 >= date2;
     }
     case 'DATE_BEFORE': {
       const beforeRaw = getTargetFieldValue(rule.value, formData, prefix, fieldName);
       if (!beforeRaw) return true;
       const date3 = parseDate(value);
-      const date4 = parseDate(Array.isArray(beforeRaw) ? beforeRaw[0] : beforeRaw);
-      return date3 && date4 && date3 <= date4;
+      const date4 = parseDate(beforeRaw);
+      if (!date3 || !date4) return true;
+      return date3 <= date4;
     }
     case 'EQUALS_FIELD': {
       const eqValue = getTargetFieldValue(rule.value, formData, prefix, fieldName);
@@ -1732,7 +1739,7 @@ const validateJumin = (jumin, checksumEnabled = false) => {
 const validateDate = (value) => {
   if (typeof value === 'string') {
     value = value.replace(/[-.]/g, '');
-    if (value.length !== 8) return false;
+    if (!/^\d{8}$/.test(value)) return false;
     const year = parseInt(value.substring(0, 4));
     const month = parseInt(value.substring(4, 6));
     const day = parseInt(value.substring(6, 8));
@@ -1755,19 +1762,21 @@ const validateDate = (value) => {
 };
 
 /**
- * Date parsing (yyyy-MM-dd or yyyyMMdd to Date).
+ * Date parsing for DATE_AFTER/DATE_BEFORE (yyyyMMdd with optional '-'/'.' separators, optionally followed by
+ * 'T' or a space and HH:mm[:ss[.fraction]], e.g. a datetime-local value).
  * <p>
- * Converts string date formats or Date objects into standardized Date objects.
+ * Converts string date formats or Date objects into standardized Date objects, the same way as the server
+ * (S2Rule.toComparableDateTime). A date without time is midnight; the fraction is ignored.
  * Returns null if the input cannot be parsed.
  * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 날짜 파싱 (yyyy-MM-dd or yyyyMMdd to Date).
+ * DATE_AFTER/DATE_BEFORE 용 날짜 파싱 (yyyyMMdd, '-'/'.' 구분자 선택, 뒤에 'T' 또는 공백과 HH:mm[:ss[.소수]] 선택 — 예: datetime-local 값).
  * <p>
- * 문자열 날짜 형식 또는 Date 객체를 표준화된 Date 객체로 변환합니다.
- * 입력을 파싱할 수 없는 경우 null을 반환합니다.
+ * 문자열 날짜 형식 또는 Date 객체를 서버(S2Rule.toComparableDateTime)와 같은 방식으로 Date 객체로 변환합니다.
+ * 시간이 없으면 0시, 소수 초는 무시합니다. 입력을 파싱할 수 없는 경우 null을 반환합니다.
  * </p>
  *
  * @function parseDate
@@ -1776,26 +1785,27 @@ const validateDate = (value) => {
  */
 const parseDate = (value) => {
   if (typeof value === 'string') {
-    value = value.replace(/[-.]/g, '');
-    if (value.length !== 8) return null;
-    const year = parseInt(value.substring(0, 4));
-    const month = parseInt(value.substring(4, 6));
-    const day = parseInt(value.substring(6, 8));
-    if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
-    // validateDate()와 동일하게 굴러간(rolled-over) 날짜는 null로 걸러냄
-    const parsed = new Date(year, month - 1, day);
-    if (
-      parsed.getFullYear() !== year ||
-      parsed.getMonth() !== month - 1 ||
-      parsed.getDate() !== day
-    )
+    const m = DATE_TIME_TEXT.exec(value.trim());
+    if (!m) return null;
+    const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const [hour, minute, second] = [Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0)];
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    // setFullYear 는 0~99년을 그대로 둠 (new Date(50, 0, 1)은 1950년). 굴러간(rolled-over) 날짜는 되짚어 걸러냄
+    const parsed = new Date(2000, 0, 1);
+    parsed.setFullYear(year, month - 1, day);
+    parsed.setHours(hour, minute, second, 0);
+    if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
       return null;
+    }
     return parsed;
   } else if (value instanceof Date) {
-    return value;
+    return isNaN(value.getTime()) ? null : value;
   }
   return null;
 };
+
+// 날짜·일시 문자열: yyyyMMdd(구분자 '-'/'.' 선택) + 선택적 (T|공백)HH:mm[:ss[.소수]] — 서버 S2Rule.DATE_TIME_TEXT 와 같음
+const DATE_TIME_TEXT = /^(\d{4})[-.]?(\d{2})[-.]?(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,9})?)?)?$/;
 
 /**
  * Shows a validation message for a field using the browser's native constraint validation UI.

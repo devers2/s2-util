@@ -23,7 +23,12 @@ package io.github.devers2.s2util.validation;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.Temporal;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,10 +36,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.github.devers2.s2util.core.S2Cache;
-import io.github.devers2.s2util.core.S2DateUtil;
 import io.github.devers2.s2util.core.S2StringUtil;
 import io.github.devers2.s2util.core.S2Util;
 
@@ -278,12 +283,11 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return {@code true} if valid | 유효하면 true
      */
     boolean isValidIn(Object value, Object target, List<Object> outerTargets) {
-        // Trim string values before judging, matching the client which trims form values on extraction. | 클라이언트가 폼 값 추출 시 공백을 제거하므로 판정 전 문자열 값의 앞뒤 공백 제거
-        return evaluate(trimIfString(value), target, outerTargets);
+        // 앞뒤 공백을 뺀 값으로 판정하되, 상한 규칙(LENGTH·MAX_LENGTH·MAX_BYTE)은 실제로 저장될 원래 값으로 판정 (공백으로 상한 우회 방지)
+        return evaluate(trimIfString(value), value, target, outerTargets);
     }
 
-    @SuppressWarnings("unchecked")
-    private boolean evaluate(Object value, Object target, List<Object> outerTargets) {
+    private boolean evaluate(Object value, Object rawValue, Object target, List<Object> outerTargets) {
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
@@ -300,7 +304,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             case ASSERT_TRUE -> isTrue(value);
             case ASSERT_FALSE -> isFalse(value);
             case LENGTH -> {
-                var targetValue = String.valueOf(value);
+                var targetValue = String.valueOf(rawValue);
                 var length = toIntCriterion(checkValue);
                 yield targetValue.length() == length;
             }
@@ -310,7 +314,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield targetValue.length() >= minLength;
             }
             case MAX_LENGTH -> {
-                var targetValue = String.valueOf(value);
+                var targetValue = String.valueOf(rawValue);
                 var maxLength = toIntCriterion(checkValue);
                 yield targetValue.length() <= maxLength;
             }
@@ -321,7 +325,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 yield targetValue.getBytes(StandardCharsets.UTF_8).length >= minByte;
             }
             case MAX_BYTE -> {
-                var targetValue = String.valueOf(value);
+                var targetValue = String.valueOf(rawValue);
                 var maxByte = toIntCriterion(checkValue);
                 yield targetValue.getBytes(StandardCharsets.UTF_8).length <= maxByte;
             }
@@ -371,7 +375,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 if (value instanceof String dateString) {
                     // 날짜 문자열에서 특수문자를 제거
                     dateString = S2StringUtil.removeChars(dateString, '-', '.');
-                    if (dateString.length() != 8) {
+                    // 숫자 8자리만 (Integer.parseInt 가 '+202' 같은 부호를 받아들이지 않도록, 클라이언트와 같은 기준)
+                    if (!EIGHT_DIGITS.matcher(dateString).matches()) {
                         yield false;
                     }
                     try {
@@ -392,25 +397,25 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 if (S2Util.isEmpty(targetValue))
                     yield true; // 타겟 empty 시 무시 (optional 의미)
 
-                // value/targetValue를 LocalDate로 변환 후 비교
-                Temporal temporal1 = toMaxPrecisionTemporal(value);
-                Temporal temporal2 = toMaxPrecisionTemporal(targetValue);
-                if (temporal1 == null || temporal2 == null) {
+                // 타입이 달라도 비교되도록 양쪽을 LocalDateTime 으로 바꿈. 날짜로 볼 수 없으면 형식 검사(DATE)에 맡기고 통과
+                LocalDateTime dateTime1 = toComparableDateTime(value);
+                LocalDateTime dateTime2 = toComparableDateTime(targetValue);
+                if (dateTime1 == null || dateTime2 == null) {
                     yield true;
                 }
-                yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) >= 0;
+                yield !dateTime1.isBefore(dateTime2);
             }
             case DATE_BEFORE -> {
                 Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
                 if (S2Util.isEmpty(targetValue))
                     yield true;
 
-                Temporal temporal1 = toMaxPrecisionTemporal(value);
-                Temporal temporal2 = toMaxPrecisionTemporal(targetValue);
-                if (temporal1 == null || temporal2 == null) {
+                LocalDateTime dateTime1 = toComparableDateTime(value);
+                LocalDateTime dateTime2 = toComparableDateTime(targetValue);
+                if (dateTime1 == null || dateTime2 == null) {
                     yield true;
                 }
-                yield ((Comparable<Temporal>) temporal1).compareTo(temporal2) <= 0;
+                yield !dateTime1.isAfter(dateTime2);
             }
             case EQUALS_FIELD -> {
                 Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
@@ -592,32 +597,72 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         return null;
     }
 
+    /** Eight ASCII digits (yyyyMMdd) | ASCII 숫자 8자리 (yyyyMMdd) */
+    private static final Pattern EIGHT_DIGITS = Pattern.compile("\\d{8}");
+
+    /** Date or date-time text: yyyyMMdd with optional '-'/'.' separators, then optional (T| )HH:mm[:ss[.fraction]] | 날짜·일시 문자열 형식 */
+    private static final Pattern DATE_TIME_TEXT = Pattern
+            .compile("(\\d{4})[-.]?(\\d{2})[-.]?(\\d{2})(?:[T ](\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.\\d{1,9})?)?)?");
+
     /**
-     * Converts an input (String or Temporal) into a high-precision Temporal for comparison.
-     * <p>
-     * Priority: {@code OffsetDateTime} &gt; {@code LocalDateTime} &gt; {@code LocalDate}.
-     * </p>
+     * Converts a date value into a {@link LocalDateTime} for DATE_AFTER/DATE_BEFORE comparison, so values of different
+     * types compare correctly. A date without time is the start of the day; zoned values and {@code java.util.Date}
+     * are converted to the system time zone. Text accepts {@code yyyyMMdd} (with optional {@code -}/{@code .}
+     * separators) and an optional time ({@code T} or space, {@code HH:mm[:ss[.fraction]]}, the fraction is ignored),
+     * the same as the client.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 입력값(문자열 또는 Temporal)을 정밀도가 가장 높은 시간 객체로 변환합니다.
-     * <p>
-     * 우선순위: OffsetDateTime &gt; LocalDateTime &gt; LocalDate 순으로 파싱을 시도합니다.
-     * </p>
+     * DATE_AFTER/DATE_BEFORE 비교를 위해 날짜 값을 {@link LocalDateTime}으로 바꿉니다. 타입이 서로 달라도 올바르게 비교됩니다. 시간이 없는
+     * 날짜는 그날 0시, 시간대가 있는 값과 {@code java.util.Date}는 시스템 시간대로 바꿉니다. 문자열은 {@code yyyyMMdd}({@code -}/{@code .}
+     * 구분자 선택)와 선택적 시간({@code T} 또는 공백 뒤 {@code HH:mm[:ss[.소수]]}, 소수 무시)을 받으며 클라이언트와 같습니다.
      *
      * @param value The value to convert | 변환할 값
-     * @return High-precision Temporal object, or null on failure | 고정밀 Temporal 객체 (실패 시 null)
+     * @return The date-time, or null if the value is not a recognizable date | 일시 (날짜로 볼 수 없으면 null)
      */
-    private static Temporal toMaxPrecisionTemporal(Object value) {
-        return S2DateUtil.toMaxPrecisionTemporal(value, (val) -> {
-            if (val instanceof String dateString) {
-                dateString = S2StringUtil.removeChars(dateString, '-', '.');
-                if (dateString.length() == 8)
-                    return S2DateUtil.parseToLocalDate(dateString, "yyyyMMdd");
+    static LocalDateTime toComparableDateTime(Object value) {
+        if (value instanceof LocalDateTime ldt) {
+            return ldt;
+        }
+        if (value instanceof LocalDate ld) {
+            return ld.atStartOfDay();
+        }
+        if (value instanceof ZonedDateTime zdt) {
+            return zdt.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        }
+        if (value instanceof OffsetDateTime odt) {
+            return odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        }
+        if (value instanceof Instant instant) {
+            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        }
+        if (value instanceof java.sql.Date sqlDate) {
+            // java.sql.Date.toInstant()는 UnsupportedOperationException 을 던지므로 toLocalDate() 사용
+            return sqlDate.toLocalDate().atStartOfDay();
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime();
+        }
+        if (value instanceof java.util.Date date) {
+            return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+        }
+        if (value instanceof String text) {
+            Matcher m = DATE_TIME_TEXT.matcher(text.trim());
+            if (!m.matches()) {
+                return null;
             }
-            return null;
-        });
+            try {
+                return LocalDateTime.of(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)),
+                        Integer.parseInt(m.group(3)),
+                        m.group(4) != null ? Integer.parseInt(m.group(4)) : 0,
+                        m.group(5) != null ? Integer.parseInt(m.group(5)) : 0,
+                        m.group(6) != null ? Integer.parseInt(m.group(6)) : 0);
+            } catch (DateTimeException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**

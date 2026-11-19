@@ -4,6 +4,25 @@
 
 `s2-util`(`s2-core`, `s2-validator`, `s2-jpa`)과 `s2-validator-plugin`의 주요 변경 사항을 기록합니다.
 
+## [Unreleased]
+
+### ⚠️ 동작 변경
+
+- **상한 규칙(`LENGTH`·`MAX_LENGTH`·`MAX_BYTE`)은 앞뒤 공백을 포함한 원래 값으로 판정합니다.** 이전에는 공백을 뺀 값으로 판정해 공백을 덧붙인 값이
+  길이 제한을 통과한 뒤 그대로 저장될 수 있었습니다. 서버와 `s2.validator.js` 모두 바뀌었고, 브라우저는 폼 값을 공백을 빼지 않고 읽습니다.
+- **`DATE_AFTER`·`DATE_BEFORE`**: 날짜로 읽을 수 없는 값은 브라우저에서도 통과합니다(서버와 동일). 이전에는 브라우저만 실패시켜 서버가 받는 값을 막았습니다.
+
+### 수정
+
+- `DATE_AFTER`·`DATE_BEFORE` 가 `java.util.Date`(및 `java.sql.Date`·`Timestamp`·`Instant`) 필드를 비교하지 않고 항상 통과하던 문제.
+- `DATE_AFTER`·`DATE_BEFORE` 에서 타입이 다른 값(예: `LocalDate` 필드와 문자열)을 비교하면 `ClassCastException` 이 나던 문제.
+- `<input type="datetime-local">` 값(`2024-01-01T09:00`)을 서버는 비교하지 않고, 브라우저는 항상 실패시키던 문제 — 이제 양쪽 모두 시간까지 비교.
+- 와일드카드 행(`items[].qty`)의 `BiPredicate` 가 두 번째 인자로 루트 객체 대신 행 객체를 받아 항상 실패하던 문제.
+- `S2BindValidator` 가 대상 객체에서 읽을 수 없는 경로(없는 속성, `null` 중간 경로)의 오류를 기록할 때 `NotReadablePropertyException` 으로 실패하던 문제 — `FieldError` 로 기록.
+- 브라우저 판정 불일치: 아무것도 고르지 않은 다중 선택(빈 배열)을 빈 값으로 보지 않아 필수 외 규칙이 실패하던 문제, `DATE` 가 `"1a240101"` 같은 값을 통과시키던 문제.
+- `TEXT_COMBINE`·`PASSWORD_ANSWR` 의 공백 문자를 명시해, 브라우저가 NBSP 등 유니코드 공백을 서버와 달리 허용하던 문제.
+- 서버 `DATE` 가 `"+2020101"` 처럼 부호가 섞인 값을 날짜로 받던 문제.
+
 ## [2.1.0]
 
 - **한국어 조사 자동 완성 (Smart Postposition Auto-Completion)**:

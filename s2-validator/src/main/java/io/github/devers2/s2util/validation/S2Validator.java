@@ -1452,7 +1452,8 @@ public class S2Validator<T> implements Serializable {
                     S2CustomRule<Object, Object> typedCheck = (S2CustomRule<Object, Object>) customCheck;
                     boolean invalid;
                     try {
-                        invalid = typedCheck.isInvalid(fieldValue, item);
+                        // BiPredicate 의 두 번째 인자는 행이 아니라 루트 객체 (선언 타입 BiPredicate<V, T> 와 MANUAL 5-3)
+                        invalid = typedCheck.isInvalid(fieldValue, target);
                     } catch (S2RuleExecutionException e) {
                         // Re-throw with the concrete row path (items[0].qty) instead of the declared name (items[].qty). | 선언 이름(items[].qty) 대신 실제 행 경로(items[0].qty)로 다시 던짐
                         throw new S2RuleExecutionException(errorPath, e.getCause());

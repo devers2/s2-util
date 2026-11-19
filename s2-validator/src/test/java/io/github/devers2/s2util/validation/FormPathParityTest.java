@@ -19,6 +19,8 @@ import org.graalvm.polyglot.Value;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -192,6 +194,15 @@ public class FormPathParityTest {
                 c("DATE_AFTER 최상위, 종료 < 시작",
                         () -> b().field("start", "시작일").field("end", "종료일").rule(S2RuleType.DATE_AFTER, "start").build(),
                         F.text("start", "2024-01-05"), F.text("end", "2024-01-01")),
+                c("DATE_AFTER 일시(datetime-local), 종료 < 시작",
+                        () -> b().field("start", "시작").field("end", "종료").rule(S2RuleType.DATE_AFTER, "start").build(),
+                        F.text("start", "2024-01-01T09:00"), F.text("end", "2024-01-01T08:00")),
+                c("DATE_AFTER 일시(datetime-local), 종료 > 시작",
+                        () -> b().field("start", "시작").field("end", "종료").rule(S2RuleType.DATE_AFTER, "start").build(),
+                        F.text("start", "2024-01-01T09:00"), F.text("end", "2024-01-02T08:00")),
+                c("DATE_AFTER 날짜로 볼 수 없는 값",
+                        () -> b().field("start", "시작일").field("end", "종료일").rule(S2RuleType.DATE_AFTER, "start").build(),
+                        F.text("start", "2024-01-05"), F.text("end", "abc")),
 
                 // ── 와일드카드 행 ──
                 c("행 필수, 2행 중 1행 빈 값",
@@ -482,6 +493,26 @@ public class FormPathParityTest {
 
         Assertions.assertEquals(serverInvalid, new TreeSet<>(errors.getMemberKeys()),
                 "[check() 판정 불일치] " + description + " — 데이터: " + dataJson);
+    }
+
+    @Test
+    @DisplayName("빈 배열(아무것도 고르지 않은 다중 선택)은 서버·check() 모두 빈 값으로 보고 필수 외 규칙을 건너뛴다")
+    void emptyArrayIsEmptyValueOnBothSides() {
+        S2Validator<Map<String, Object>> validator = b()
+                .field("tags", "태그").rule(S2RuleType.REGEX, "[a-z]+")
+                .field("qty", "수량").rule(S2RuleType.MIN_VALUE, 1)
+                .field("codes", "코드").rule(S2RuleType.REQUIRED)
+                .build();
+        String dataJson = "{\"tags\":[],\"qty\":[],\"codes\":[]}";
+        Map<String, Object> target = io.github.devers2.s2util.json.S2JsonUtil.parseObject(dataJson);
+
+        Set<String> serverInvalid = new TreeSet<>();
+        validator.validate(target, error -> serverInvalid.add(error.fieldName()), Locale.KOREAN);
+        Value errors = jsContext.eval("js", "(r, d) => __S2Validator.check(r, JSON.parse(d))")
+                .execute(validator.getRulesJson(Locale.KOREAN), dataJson);
+
+        Assertions.assertEquals(Set.of("codes"), serverInvalid, "서버: 빈 배열은 REQUIRED 만 실패");
+        Assertions.assertEquals(serverInvalid, new TreeSet<>(errors.getMemberKeys()), "check() 판정 불일치");
     }
 
     private static Set<String> clientInvalidFields(String rulesJson, List<F> fields) {

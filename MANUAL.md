@@ -349,6 +349,13 @@ S2Validator.check(order.isPayable())
   - Empty values (an unchecked checkbox is not submitted) are judged too, so `ASSERT_TRUE` alone is enough for a required consent checkbox.
   - Adding `REQUIRED` as well produces two messages (required + must be checked) when unchecked.
   - The strings `true`/`on` (checked) and `false`/`off`/empty (unchecked) are recognized, so `Map` binding works as well.
+- **Surrounding spaces and upper limits (`LENGTH` / `MAX_LENGTH` / `MAX_BYTE`)**:
+  - Rules judge the value with surrounding spaces trimmed, but upper-limit rules judge the original value that is actually submitted and stored. This rejects values padded past the limit (`"ab"` + 1,000 spaces).
+  - A value of only spaces is empty, and `MIN_LENGTH`/`MIN_BYTE` judge the trimmed content (spaces cannot fill a minimum).
+- **`DATE_AFTER` / `DATE_BEFORE` (date comparison)**:
+  - `LocalDate`, `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime`, `Instant`, `java.util.Date`, `java.sql.Date`, `Timestamp` and strings can be compared with each other. A date without time is midnight; zoned values use the system time zone.
+  - Strings accept `yyyyMMdd` (optional `-`/`.` separators) with an optional time (`T` or a space, then `HH:mm[:ss]`), so `<input type="datetime-local">` values are compared too.
+  - If either side is not a readable date, the comparison is skipped and passes (same on server and browser). Add the `DATE` rule for format checks.
 - **`PASSWORD` (Modern Standard Compliance)**:
   - Requires a 3-way combination: English letters (`a-zA-Z`), numbers (`0-9`), and special characters (`!@#$%^&*()_+-=[]{};':"\|,.<>/?~```).
   - Length: **8 to 64 characters** (aligned with KISA and modern security guidelines).

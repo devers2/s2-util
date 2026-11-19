@@ -22,8 +22,10 @@ package io.github.devers2.s2util.validation.spring;
 
 import java.util.Locale;
 
+import org.springframework.beans.InvalidPropertyException;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 
 import io.github.devers2.s2util.validation.S2Validator;
 
@@ -263,13 +265,19 @@ public final class S2BindValidator {
         public void validate(T target, BindingResult bindingResult) {
             validator.validate(
                     target,
-                    (error -> {
-                        bindingResult.rejectValue(
-                                error.fieldName(),
-                                error.errorCode() != null ? error.errorCode() : "",
-                                error.errorArgs(),
-                                error.defaultMessage());
-                    }), LocaleContextHolder.getLocale());
+                    (error -> reject(bindingResult, error)), LocaleContextHolder.getLocale());
+        }
+
+        private static void reject(BindingResult bindingResult, S2Validator.S2ValidationError error) {
+            String errorCode = error.errorCode() != null ? error.errorCode() : "";
+            try {
+                bindingResult.rejectValue(error.fieldName(), errorCode, error.errorArgs(), error.defaultMessage());
+            } catch (InvalidPropertyException e) {
+                // 대상 객체에서 읽을 수 없는 경로(없는 속성, null 중간 경로 등)는 rejectValue 가 예외를 던지므로 FieldError 를 직접 추가
+                bindingResult.addError(new FieldError(bindingResult.getObjectName(), error.fieldName(), null, false,
+                        bindingResult.resolveMessageCodes(errorCode, error.fieldName()), error.errorArgs(),
+                        error.defaultMessage()));
+            }
         }
 
         /**

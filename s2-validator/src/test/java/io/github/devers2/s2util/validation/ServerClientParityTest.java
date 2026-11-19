@@ -146,6 +146,7 @@ public class ServerClientParityTest {
                 // ── LENGTH ───────────────────────────────────────────────
                 Arguments.of("LENGTH: 정확히 5자 → 성공", S2RuleType.LENGTH, 5, "hello", true),
                 Arguments.of("LENGTH: 4자 → 실패", S2RuleType.LENGTH, 5, "hell", false),
+                Arguments.of("LENGTH: 끝 공백도 길이에 포함('12345 ' 5자) → 실패", S2RuleType.LENGTH, 5, "12345 ", false),
                 Arguments.of("LENGTH: 빈값 → 성공(skip)", S2RuleType.LENGTH, 5, null, true),
 
                 // ── MIN_LENGTH ───────────────────────────────────────────
@@ -157,7 +158,8 @@ public class ServerClientParityTest {
                 // ── MAX_LENGTH ───────────────────────────────────────────
                 Arguments.of("MAX_LENGTH: 3자 이하 → 성공", S2RuleType.MAX_LENGTH, 5, "hi", true),
                 Arguments.of("MAX_LENGTH: 6자 → 실패", S2RuleType.MAX_LENGTH, 5, "toolong", false),
-                Arguments.of("MAX_LENGTH: 끝 공백은 길이에서 제외('abc ' 최대 3) → 성공", S2RuleType.MAX_LENGTH, 3, "abc ", true),
+                Arguments.of("MAX_LENGTH: 끝 공백도 길이에 포함('abc ' 최대 3) → 실패", S2RuleType.MAX_LENGTH, 3, "abc ", false),
+                Arguments.of("MAX_LENGTH: 공백 1000자 덧붙여 상한 우회 → 실패", S2RuleType.MAX_LENGTH, 3, "ab" + " ".repeat(1000), false),
                 Arguments.of("MAX_LENGTH: 공백 포함 문자열 기준값(' 5 ') → 6자 실패", S2RuleType.MAX_LENGTH, " 5 ", "toolng", false),
                 Arguments.of("MAX_LENGTH: 공백 포함 문자열 기준값(' 5 ') → 5자 성공", S2RuleType.MAX_LENGTH, " 5 ", "hello", true),
                 Arguments.of("MAX_LENGTH: 빈값 → 성공(skip)", S2RuleType.MAX_LENGTH, 5, null, true),
@@ -170,6 +172,7 @@ public class ServerClientParityTest {
                 // ── MAX_BYTE ─────────────────────────────────────────────
                 Arguments.of("MAX_BYTE: ASCII 2바이트 → 성공", S2RuleType.MAX_BYTE, 5, "ab", true),
                 Arguments.of("MAX_BYTE: 한글 2자(6바이트) → 실패", S2RuleType.MAX_BYTE, 5, "가나", false),
+                Arguments.of("MAX_BYTE: 끝 공백도 바이트에 포함('abc ' 최대 3) → 실패", S2RuleType.MAX_BYTE, 3, "abc ", false),
                 Arguments.of("MAX_BYTE: 빈값 → 성공(skip)", S2RuleType.MAX_BYTE, 5, null, true),
 
                 // ── MIN_VALUE ────────────────────────────────────────────
@@ -300,10 +303,14 @@ public class ServerClientParityTest {
                 Arguments.of("DATE: 윤년 2월 29일(2024) → 성공", S2RuleType.DATE, null, "2024-02-29", true),
                 Arguments.of("DATE: 평년 2월 29일(2023) → 실패", S2RuleType.DATE, null, "2023-02-29", false),
                 Arguments.of("DATE: 빈값 → 성공(skip)", S2RuleType.DATE, null, null, true),
+                Arguments.of("DATE: 숫자가 아닌 문자 섞임('1a240101') → 실패", S2RuleType.DATE, null, "1a240101", false),
+                Arguments.of("DATE: 부호 섞임('+2020101') → 실패", S2RuleType.DATE, null, "+2020101", false),
 
                 // ── TEXT_COMBINE ──────────────────────────────────────────
                 Arguments.of("TEXT_COMBINE: 한글+숫자 → 성공", S2RuleType.TEXT_COMBINE, null, "홍길동123", true),
-                Arguments.of("TEXT_COMBINE: 특수문자 → 실패", S2RuleType.TEXT_COMBINE, null, "홍길동@#$", false)
+                Arguments.of("TEXT_COMBINE: 특수문자 → 실패", S2RuleType.TEXT_COMBINE, null, "홍길동@#$", false),
+                Arguments.of("TEXT_COMBINE: 일반 공백 → 성공", S2RuleType.TEXT_COMBINE, null, "홍 길동", true),
+                Arguments.of("TEXT_COMBINE: NBSP(\\u00a0)는 공백이 아님 → 실패", S2RuleType.TEXT_COMBINE, null, "홍\u00a0길동", false)
         );
     }
 
@@ -400,6 +407,17 @@ public class ServerClientParityTest {
         assertCrossFieldParity(S2RuleType.DATE_BEFORE, "endDate", "2024-01-01", data, true);
         // DATE_BEFORE: 2024-01-05 <= pastDate(2023-12-31) → 실패
         assertCrossFieldParity(S2RuleType.DATE_BEFORE, "pastDate", "2024-01-05", data, false);
+
+        // datetime-local 값(시간 포함)도 시간까지 비교
+        data.put("startAt", "2024-01-01T09:00");
+        assertCrossFieldParity(S2RuleType.DATE_AFTER, "startAt", "2024-01-01T10:30", data, true);
+        assertCrossFieldParity(S2RuleType.DATE_AFTER, "startAt", "2024-01-01T08:59", data, false);
+        // 날짜만 있는 값은 그날 0시
+        assertCrossFieldParity(S2RuleType.DATE_AFTER, "startAt", "2024-01-01", data, false);
+        // 날짜로 볼 수 없는 값은 형식 검사(DATE)에 맡기고 통과 (양쪽 모두)
+        assertCrossFieldParity(S2RuleType.DATE_AFTER, "startDate", "abc", data, true);
+        data.put("badDate", "2024-13-45");
+        assertCrossFieldParity(S2RuleType.DATE_BEFORE, "badDate", "2024-01-01", data, true);
     }
 
     private void assertCrossFieldParity(S2RuleType ruleType, String targetField, Object value,
