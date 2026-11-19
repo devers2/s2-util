@@ -22,6 +22,8 @@ package io.github.devers2.s2util.core;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -270,6 +272,30 @@ public class S2Util {
      */
     @SuppressWarnings("null")
     private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue) {
+        return getValue(target, fieldName, castClass, defaultValue, false);
+    }
+
+    /**
+     * Reads a value as is, without the empty-to-default conversion of {@link #cast}: an empty string or an
+     * empty collection is returned unchanged instead of {@code null}. Used by {@link S2Copier} so copies keep
+     * the original values.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@link #cast}의 "빈 값 → 기본값" 변환 없이 값을 그대로 읽습니다. 빈 문자열·빈 컬렉션을 {@code null}로 바꾸지 않고
+     * 그대로 돌려주므로, {@link S2Copier}가 원래 값을 그대로 복사할 때 씁니다.
+     *
+     * @param target    The object to query | 조회 대상 객체
+     * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
+     * @return The value as stored, or {@code null} if not found | 저장된 값 그대로, 없으면 {@code null}
+     */
+    static Object getRawValue(Object target, Object fieldName) {
+        return getValue(target, fieldName, null, null, true);
+    }
+
+    @SuppressWarnings({ "null", "unchecked" })
+    private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue, boolean raw) {
         if (target == null || fieldName == null) {
             return defaultValue;
         }
@@ -287,7 +313,8 @@ public class S2Util {
                 int bracket = fieldNameStr.indexOf('[');
                 int cut = dot < 0 ? bracket : (bracket < 0 ? dot : Math.min(dot, bracket));
                 if (cut > 0 && !flatMap.containsKey(fieldNameStr.substring(0, cut)) && flatMap.containsKey(fieldNameStr)) {
-                    return cast(flatMap.get(fieldNameStr), castClass, defaultValue);
+                    Object literal = flatMap.get(fieldNameStr);
+                    return raw ? (R) literal : cast(literal, castClass, defaultValue);
                 }
             }
 
@@ -320,7 +347,7 @@ public class S2Util {
                                 ? fieldNameStr.substring(start, dotIndex)
                                 : fieldNameStr.substring(start);
 
-                        current = getValue(current, part, Object.class, null);
+                        current = getValue(current, part, Object.class, null, raw);
 
                         // 더 이상 진행할 점(.)이 없으면 루프 종료
                         if (dotIndex == -1)
@@ -487,7 +514,7 @@ public class S2Util {
             return defaultValue; // 실패 시 defaultValue 반환으로 변경 (원본은 value가 null이면 cast에서 처리되지만, 여기서 일관성 위해 직접 반환)
         }
 
-        return cast(value, castClass, defaultValue);
+        return raw ? (R) value : cast(value, castClass, defaultValue);
     }
 
     /**
@@ -711,9 +738,14 @@ public class S2Util {
 
             // setterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
             if (methodHandle.isEmpty() && !setterName.equals(fieldNameStr)) {
+                // 필드명과 같은 이름의 메서드(예: name(String))만 받는다 — BOTH 가 돌려주는 필드 읽기 핸들은 값을 쓸 수 없음
                 methodHandle = S2Cache.getMethodHandle(
                         new MethodKey(clazz, fieldNameStr, fieldNameStr, new Class<?>[] { pType }),
-                        LookupType.BOTH);
+                        LookupType.BOTH).filter(h -> h.type().parameterCount() == 2);
+                // 그래도 없으면 필드에 직접 쓴다(static·final 필드 제외)
+                if (methodHandle.isEmpty()) {
+                    methodHandle = S2Cache.getMethodHandle(new MethodKey(clazz, fieldNameStr), LookupType.FIELD_SETTER);
+                }
             }
 
             if (methodHandle.isPresent()) {
@@ -913,12 +945,14 @@ public class S2Util {
             String name = method.getName();
             String fieldName = null;
 
-            // Getter 패턴 매칭 (getXXX, isXXX)
-            if (name.startsWith("get") && name.length() > 3 && method.getParameterCount() == 0
+            // Getter 패턴 매칭 (getXxx, boolean 을 돌려주는 isXxx) — issue(), getaway() 처럼 접두사 뒤가 소문자인 이름은 제외
+            if (method.getParameterCount() == 0 && method.getReturnType() != void.class && isGetter(name)
                     && !name.equals("getClass")) {
-                fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
-            } else if (name.startsWith("is") && name.length() > 2 && method.getParameterCount() == 0) {
-                fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
+                if (name.charAt(0) == 'g') {
+                    fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
+                } else if (method.getReturnType() == boolean.class || method.getReturnType() == Boolean.class) {
+                    fieldName = Character.toLowerCase(name.charAt(2)) + name.substring(3);
+                }
             }
 
             if (fieldName != null) {
@@ -1419,24 +1453,52 @@ public class S2Util {
      * @param <V2>     서수(분모)의 타입
      * @param cardinal (기수, 분자)
      * @param ordinal  (서수, 분모)
-     * @param digits   (소수점이하 자리수)
-     * @return 백분율
+     * @param digits   (소수점이하 자리수, 반올림(HALF_UP). null 이면 계산 정밀도(유효숫자 16자리)대로)
+     * @return 백분율 (인자가 null 이거나 분모가 0 이면 빈 문자열)
      */
     public static <V1, V2> String getPercentage(V1 cardinal, V2 ordinal, Integer digits) {
         String percentage = "";
 
         if (cardinal != null && ordinal != null) {
-            BigDecimal percent = new BigDecimal(cardinal.toString()).divide(new BigDecimal(ordinal.toString()))
-                    .multiply(new BigDecimal(100));
-            if (digits != null) {
-                percent = percent.setScale(digits);
+            BigDecimal denominator = new BigDecimal(ordinal.toString());
+            if (denominator.signum() == 0) {
+                return percentage;
             }
-            percentage = percent.toString();
+            // 나누어떨어지지 않는 비율(1/3 등)도 예외 없이 계산하도록 정밀도를 지정하고, 자리수는 반올림한다
+            BigDecimal percent = new BigDecimal(cardinal.toString())
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(denominator, MathContext.DECIMAL64);
+            if (digits != null) {
+                percent = percent.setScale(digits, RoundingMode.HALF_UP);
+            }
+            percentage = percent.toPlainString();
         }
 
         return percentage;
     }
 
+    /**
+     * Checks a password derived from the current time ({@code HHmm}) with a fixed rule.
+     * <p>
+     * <b>Deprecated, do not use:</b> the rule is public in this open-source library, so anyone can compute the
+     * password at any time. Using it to bypass authentication is effectively a backdoor. It will be removed.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 현재 시각({@code HHmm})으로 고정 규칙에 따라 만든 비밀번호인지 확인합니다.
+     * <p>
+     * <b>사용 중단, 쓰지 마십시오:</b> 규칙이 오픈소스로 공개되어 있어 누구나 언제든 비밀번호를 계산할 수 있습니다.
+     * 인증 우회에 쓰면 사실상 뒷문이 됩니다. 이후 버전에서 제거됩니다.
+     * </p>
+     *
+     * @param password Password to check | 확인할 비밀번호
+     * @param pwPrefix Prefix of the password | 비밀번호 접두사
+     * @return Whether it matches | 일치 여부
+     * @deprecated Security risk (publicly computable password); will be removed | 보안 위험(누구나 계산 가능한 비밀번호), 제거 예정
+     */
+    @Deprecated(since = "2.2.0", forRemoval = true)
     public static boolean chkSuPw(String password, String pwPrefix) {
         String[] p = { ")", "!", "@", "#", "$", "%", "^", "&", "*", "(" };
         String hm = new SimpleDateFormat("HHmm").format(new Date());

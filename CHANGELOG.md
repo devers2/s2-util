@@ -24,6 +24,13 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **`S2ThreadUtil.newExecutor(maxThreads)`: a positive `maxThreads` now limits concurrency on virtual threads (Java 21+) too.**
   It was honored only on Java 17 (platform pool) and ignored on Java 21+, so upgrading Java alone could exceed a database pool or external API limit.
   Each task still gets its own virtual thread, and a semaphore lets at most `maxThreads` run at once. Values of 0 or less stay unbounded on virtual threads.
+- **`S2DateUtil` parsing and validation (`isValidDate`, `parseToLocalDate`, `parseToLocalDateTime`, `compareDates`, ...) reject nonexistent dates.**
+  They used to adjust `2024-02-30` or `2023-02-29` to the last day of the month, so `isValidDate` returned `true` (the JDK default SMART resolution). They now resolve STRICTly.
+- **The fallback console logger (used without SLF4J) logs from INFO.** DEBUG was always on, so every debug log was printed in production too.
+  Change it with `-Ds2.log.level=DEBUG`; WARN and ERROR go to standard error (`System.err`).
+- **`S2Copier` copies inherited fields and keeps empty strings and empty collections instead of turning them into `null`.** Static fields are not copied.
+- **`S2Template.render()` no longer re-expands `{{=…}}` inside binding values.** They used to be replaced by other bindings or removed, with results depending on binding order.
+- `S2StringUtil.clearNewline` escapes backslashes too. Before, a `\'` in the input closed the JS string and allowed script injection.
 
 ### Added
 
@@ -47,6 +54,12 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   method handles are cached per class (guards against memory growth from member names taken from external input).
 - The Caffeine backend uses Caffeine's default executor for maintenance. It used the `S2ThreadUtil` common executor before,
   so every cache write logged a `RejectedExecutionException` warning after `S2ThreadUtil.shutdownCommonExecutor()`.
+- `S2StringUtil.replaceChars` / `removeChars` no longer allocate a 64 KB array per call, only up to the largest target character (the validator's `DATE` and resident number rules call them every time).
+- `S2DateUtil` caches parsing formatters per pattern.
+
+### Deprecated
+
+- `S2Util.chkSuPw`: it builds a password from the current time with a fixed rule that is public, so anyone can compute it; using it to bypass authentication is a backdoor. `@Deprecated(forRemoval = true)`, to be removed in a later version.
 
 ### Docs & examples
 
@@ -76,6 +89,14 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   (looking up `BOTH` first made the public-only `METHOD` lookup return a private method; the reverse made `BOTH` miss private members).
 - s2-core log messages (cache engine notice, virtual thread notice) contained ANSI color codes, leaving control characters in log files and log collectors.
 - Lightweight cache statistics (`-Ds2.cache.stats.enabled=true`) looked up the cache twice per call and used contended counters. They now look up once and count with `LongAdder`.
+- `S2Copier.deep()`: fields of JDK value types such as `LocalDate` and `BigDecimal` were dropped instead of copied, and arrays were shared with the source. `Date` is now cloned,
+  `TreeSet`/`TreeMap` keep their ordering, `LinkedHashMap` keeps insertion order, and objects with a `protected` constructor (e.g. JPA entities) are deep-copied.
+- `S2Util.setValue`: the fallback that writes a field directly when there is no setter always failed (it tried to write through a field read handle). Static and final fields are not written.
+- `S2Util.getPercentage`: non-terminating ratios (1/3, ...) threw `ArithmeticException`. Digits are rounded HALF_UP, and a zero denominator returns an empty string.
+- `S2Util.getValueAll`: methods such as `issue()` and `getaway()` were read as properties `sue` and `away`.
+- `S2StringUtil.substringByBytes`: 4-byte characters such as emoji were counted as 6 bytes and could be cut in half, returning a broken string.
+- `S2StringUtil` case conversion (`toCamelCase`, `toSnakeCase`, ...) followed the system locale and produced `userİd` under Turkish.
+- The JSON parser accepted non-ASCII characters such as Arabic-Indic digits and fullwidth letters as hex digits in `\u` escapes.
 
 ## [2.1.0]
 

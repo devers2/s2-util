@@ -933,7 +933,7 @@ public final class S2JsonUtil {
                         case 'u' -> {
                             int code = 0;
                             for (int i = 1; i <= 4; i++) {
-                                int digit = pos + i < json.length() ? Character.digit(json.charAt(pos + i), 16) : -1;
+                                int digit = pos + i < json.length() ? hexDigit(json.charAt(pos + i)) : -1;
                                 if (digit < 0) {
                                     throw error("Invalid unicode escape");
                                 }
@@ -983,7 +983,7 @@ public final class S2JsonUtil {
                 case 'x' -> {
                     int code = 0;
                     for (int i = 1; i <= 2; i++) {
-                        int digit = pos + i < json.length() ? Character.digit(json.charAt(pos + i), 16) : -1;
+                        int digit = pos + i < json.length() ? hexDigit(json.charAt(pos + i)) : -1;
                         if (digit < 0) {
                             throw error("Invalid hex escape");
                         }
@@ -1087,7 +1087,7 @@ public final class S2JsonUtil {
         private Number parseHex(int start) {
             pos += 2; // 0x
             int hexStart = pos;
-            while (pos < json.length() && Character.digit(json.charAt(pos), 16) >= 0) {
+            while (pos < json.length() && hexDigit(json.charAt(pos)) >= 0) {
                 pos++;
             }
             if (pos == hexStart) {
@@ -1109,6 +1109,20 @@ public final class S2JsonUtil {
                 pos++;
             }
             return pos - start;
+        }
+
+        // JSON 16진수는 ASCII 만 허용(Character.digit 은 아라비아 숫자·전각 문자도 16진수로 받아들임)
+        private static int hexDigit(char c) {
+            if (c >= '0' && c <= '9') {
+                return c - '0';
+            }
+            if (c >= 'a' && c <= 'f') {
+                return c - 'a' + 10;
+            }
+            if (c >= 'A' && c <= 'F') {
+                return c - 'A' + 10;
+            }
+            return -1;
         }
 
         private char peek() {

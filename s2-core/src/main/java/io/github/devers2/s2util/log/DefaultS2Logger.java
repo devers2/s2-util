@@ -31,6 +31,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link System#out} and {@link System#err}. It features rich ANSI coloring
  * for better readability in terminals.
  * </p>
+ * <p>
+ * DEBUG and INFO go to {@link System#out}, WARN and ERROR to {@link System#err}. The minimum level is INFO by
+ * default; set system property {@code s2.log.level} ({@code DEBUG}, {@code INFO}, {@code WARN}, {@code ERROR}) to
+ * change it.
+ * </p>
  *
  * <p>
  * <b>[한국어 설명]</b>
@@ -41,6 +46,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@link System#err}를 통해 직접 로그를 출력합니다. 터미널 가독성을 높이기 위한 ANSI 컬러링
  * 기능을 포함합니다.
  * </p>
+ * <p>
+ * DEBUG·INFO 는 {@link System#out}, WARN·ERROR 는 {@link System#err}로 출력합니다. 최소 레벨은 기본 INFO 이며,
+ * 시스템 속성 {@code s2.log.level}({@code DEBUG}, {@code INFO}, {@code WARN}, {@code ERROR})로 바꿀 수 있습니다.
+ * </p>
  *
  * @author devers2
  * @version 1.5
@@ -50,6 +59,21 @@ public class DefaultS2Logger implements S2Logger {
 
     private final String name;
     private static final AtomicBoolean NOTICE_PRINTED = new AtomicBoolean(false);
+
+    // 출력할 최소 레벨(DEBUG=0, INFO=1, WARN=2, ERROR=3). 기본 INFO — 운영에서 DEBUG 로그가 모두 찍히지 않도록
+    private static final int MIN_LEVEL = levelOf(System.getProperty("s2.log.level", "INFO"));
+
+    private static int levelOf(String level) {
+        if (level == null) {
+            return 1;
+        }
+        return switch (level.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "DEBUG", "TRACE" -> 0;
+            case "WARN" -> 2;
+            case "ERROR" -> 3;
+            default -> 1;
+        };
+    }
 
     /**
      * Constructs a new DefaultS2Logger with the specified name.
@@ -62,22 +86,26 @@ public class DefaultS2Logger implements S2Logger {
 
     @Override
     public void log(String level, String message, Object[] args) {
-        handleLog(level, System.out, message, args);
+        int severity = levelOf(level);
+        if (severity < MIN_LEVEL) {
+            return;
+        }
+        handleLog(level, severity >= 2 ? System.err : System.out, message, args);
     }
 
     @Override
     public boolean isDebugEnabled() {
-        return true;
+        return MIN_LEVEL <= 0;
     }
 
     @Override
     public boolean isInfoEnabled() {
-        return true;
+        return MIN_LEVEL <= 1;
     }
 
     @Override
     public boolean isWarnEnabled() {
-        return true;
+        return MIN_LEVEL <= 2;
     }
 
     @Override

@@ -1003,7 +1003,12 @@ public class S2Cache {
             /** 필드만 검색 */
             FIELD,
             /** 메서드와 필드 모두 검색 */
-            BOTH
+            BOTH,
+            /**
+             * Field write handle for writing a field directly when no setter exists (static and final fields
+             * excluded) | 필드 쓰기 핸들 — setter 가 없을 때 필드에 직접 값을 쓴다(static·final 필드 제외)
+             */
+            FIELD_SETTER
         }
 
         /** Map GET MethodHandle 키 */
@@ -1332,7 +1337,7 @@ public class S2Cache {
                 return Optional.empty();
 
             // 캐시 접근 전 즉시 반환 가능한 핸들이 있는지 확인
-            MethodHandle fastHandle = getFastHandle(key);
+            MethodHandle fastHandle = type == LookupType.FIELD_SETTER ? null : getFastHandle(key);
             if (fastHandle != null)
                 return Optional.of(fastHandle);
 
@@ -1346,11 +1351,12 @@ public class S2Cache {
             final boolean isNotField = (type != LookupType.FIELD);
             final boolean isNotMethod = (type != LookupType.METHOD);
             final boolean allowPrivate = isNotMethod; // METHOD 타입이 아니면 private 허용
+            final boolean fieldSetter = (type == LookupType.FIELD_SETTER);
 
             ConcurrentHashMap<ResolveKey, Optional<MethodHandle>> perClass = CACHE.get(refinedKey.targetClass());
             ResolveKey resolveKey = new ResolveKey(refinedKey, type);
             if (perClass == USE_SHARED_CACHE) {
-                return SHARED_CACHE.get(resolveKey, rk -> lookup(rk.key(), isNotField, isNotMethod, allowPrivate));
+                return SHARED_CACHE.get(resolveKey, rk -> lookup(rk.key(), isNotField, isNotMethod, allowPrivate, fieldSetter));
             }
             Optional<MethodHandle> cached = perClass.get(resolveKey);
             if (cached != null) {
@@ -1364,7 +1370,7 @@ public class S2Cache {
             }
 
             // 락 밖에서 조회한다(동시에 같은 키를 조회하면 중복 계산될 수 있으나 결과는 같다)
-            Optional<MethodHandle> resolved = lookup(refinedKey, isNotField, isNotMethod, allowPrivate);
+            Optional<MethodHandle> resolved = lookup(refinedKey, isNotField, isNotMethod, allowPrivate, fieldSetter);
             if (perClass.size() < MAX_KEYS_PER_CLASS) {
                 Optional<MethodHandle> previous = perClass.putIfAbsent(resolveKey, resolved);
                 if (previous != null) {
@@ -1383,7 +1389,10 @@ public class S2Cache {
          * 조회 플래그에 따라 메서드·필드를 탐색합니다.
          */
         private static Optional<MethodHandle> lookup(MethodKey k, boolean isNotField, boolean isNotMethod,
-                boolean allowPrivate) {
+                boolean allowPrivate, boolean fieldSetter) {
+            if (fieldSetter) {
+                return Optional.ofNullable(scanFieldSetter(k));
+            }
             // 메서드 → 필드 순으로 탐색
             if (isNotField) {
                 MethodHandle methodHandle = scanMethod(k, allowPrivate);
@@ -1650,6 +1659,41 @@ public class S2Cache {
                 } catch (NoSuchFieldException e) {
                     // 현재 클래스에 없으면 부모 클래스로 이동
                     current = current.getSuperclass();
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Finds an instance field (not static, not final) by traversing the class hierarchy and returns a
+         * write handle {@code (target, value)}.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스 계층을 따라 인스턴스 필드(static·final 제외)를 찾아 쓰기 핸들 {@code (대상, 값)}을 반환합니다.
+         *
+         * @param key Field identification info (methodName is the field name) | 필드 식별 정보(methodName 이 필드명)
+         * @return Setter MethodHandle for the field, or null if not found or not writable | 필드 쓰기 핸들, 없거나 쓸 수 없으면 null
+         */
+        private static MethodHandle scanFieldSetter(MethodKey key) {
+            for (Class<?> current = key.targetClass(); current != null && current != Object.class; current = current
+                    .getSuperclass()) {
+                Field f;
+                try {
+                    f = current.getDeclaredField(key.methodName());
+                } catch (NoSuchFieldException e) {
+                    continue;
+                }
+                int modifiers = f.getModifiers();
+                if (java.lang.reflect.Modifier.isStatic(modifiers) || java.lang.reflect.Modifier.isFinal(modifiers)) {
+                    return null;
+                }
+                try {
+                    f.setAccessible(true);
+                    return MethodHandles.privateLookupIn(current, MethodHandles.lookup()).unreflectSetter(f);
+                } catch (Exception e) {
+                    return null;
                 }
             }
             return null;

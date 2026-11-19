@@ -19,6 +19,13 @@
 - **`S2ThreadUtil.newExecutor(maxThreads)`: 양수 `maxThreads` 는 가상 스레드(Java 21+)에서도 동시 실행 수를 제한합니다.**
   이전에는 Java 17(플랫폼 풀)에서만 제한되고 Java 21+ 에서는 무시되어, Java 버전만 올려도 DB 연결 풀·외부 API 한도를 넘을 수 있었습니다.
   작업마다 가상 스레드를 만들고 세마포어로 동시에 `maxThreads` 개만 실행합니다. 0 이하는 지금처럼 가상 스레드에서 제한이 없습니다.
+- **`S2DateUtil` 의 파싱·검증 함수(`isValidDate`·`parseToLocalDate`·`parseToLocalDateTime`·`compareDates` 등)는 없는 날짜를 거부합니다.**
+  이전에는 `2024-02-30`·`2023-02-29` 를 그 달의 마지막 날로 고쳐 받아들여 `isValidDate` 가 `true` 를 돌려줬습니다(JDK 기본 SMART 해석). 이제 STRICT 로 해석합니다.
+- **SLF4J 가 없을 때 쓰는 기본 콘솔 로거는 INFO 부터 출력합니다.** 이전에는 DEBUG 를 항상 켜 두어 운영에서도 디버그 로그가 모두 찍혔습니다.
+  `-Ds2.log.level=DEBUG` 로 바꿀 수 있고, WARN·ERROR 는 표준 오류(`System.err`)로 나갑니다.
+- **`S2Copier`: 상속받은 필드도 복사하고, 빈 문자열·빈 컬렉션을 `null` 로 바꾸지 않고 그대로 복사합니다.** static 필드는 복사하지 않습니다.
+- **`S2Template.render()`: 바인딩 값 안의 `{{=…}}` 를 다시 치환하지 않습니다.** 이전에는 다른 바인딩으로 바뀌거나 지워졌고, 결과가 바인딩 순서에 따라 달랐습니다.
+- `S2StringUtil.clearNewline` 은 역슬래시도 이스케이프합니다. 이전에는 입력의 `\'` 가 JS 문자열을 닫아 스크립트가 주입될 수 있었습니다.
 
 ### 추가
 
@@ -42,6 +49,12 @@
   `s2.cache.method.max_per_class`(기본 512)개까지만 캐싱합니다(외부 입력 이름으로 인한 메모리 증가 방지).
 - Caffeine 백엔드의 유지보수 작업은 Caffeine 기본 실행기를 씁니다. 이전에는 `S2ThreadUtil` 공용 실행기를 써서,
   `S2ThreadUtil.shutdownCommonExecutor()` 이후 캐시에 쓸 때마다 `RejectedExecutionException` 경고가 찍혔습니다.
+- `S2StringUtil.replaceChars`·`removeChars` 가 호출마다 64KB 배열을 만들던 것을 대상 문자 크기만큼만 만듭니다(검증기 `DATE`·주민번호 규칙이 매번 호출).
+- `S2DateUtil` 파싱 포맷터를 패턴별로 캐시합니다.
+
+### 사용 중단
+
+- `S2Util.chkSuPw`: 현재 시각으로 고정 규칙의 비밀번호를 만드는 메서드로, 규칙이 공개되어 누구나 계산할 수 있어 인증 우회에 쓰면 뒷문이 됩니다. `@Deprecated(forRemoval = true)`, 이후 버전에서 제거합니다.
 
 ### 문서·예제
 
@@ -71,6 +84,14 @@
   (`BOTH` 를 먼저 조회하면 public 만 찾는 `METHOD` 조회가 private 메서드를 돌려주고, 반대면 `BOTH` 가 private 멤버를 못 찾음).
 - s2-core 로그 메시지(캐시 엔진 안내, 가상 스레드 안내)에 ANSI 색 코드가 들어 있어 로그 파일·로그 수집기에 제어 문자가 남던 문제.
 - 경량 캐시 통계(`-Ds2.cache.stats.enabled=true`)가 조회마다 캐시를 두 번 찾고 경합이 큰 카운터를 쓰던 문제. 이제 한 번만 찾고 `LongAdder` 로 셉니다.
+- `S2Copier.deep()`: `LocalDate`·`BigDecimal` 등 JDK 값 타입 필드가 복사되지 않고 빠지던 문제, 배열이 원본과 공유되던 문제. `Date` 는 복제하고,
+  `TreeSet`·`TreeMap` 은 같은 정렬 기준으로, `LinkedHashMap` 은 순서를 유지해 복사하며, JPA 엔티티처럼 생성자가 `protected` 여도 깊은 복사합니다.
+- `S2Util.setValue`: setter 가 없을 때 필드에 직접 쓰는 폴백이 항상 실패하던 문제(필드 읽기 핸들로 쓰려 했음). static·final 필드는 쓰지 않습니다.
+- `S2Util.getPercentage`: 나누어떨어지지 않는 비율(1/3 등)에서 `ArithmeticException` 이 나던 문제. 자리수는 반올림(HALF_UP), 분모가 0 이면 빈 문자열.
+- `S2Util.getValueAll`: `issue()`·`getaway()` 같은 메서드를 `sue`·`away` 속성으로 잘못 읽던 문제.
+- `S2StringUtil.substringByBytes`: 이모지 등 4바이트 문자를 6바이트로 세고 반으로 잘라 깨진 문자열을 돌려주던 문제.
+- `S2StringUtil` 의 대소문자 변환(`toCamelCase`·`toSnakeCase` 등)이 시스템 로케일을 따라 터키어 환경에서 `userİd` 처럼 바뀌던 문제.
+- JSON 파서가 `\u` 이스케이프에 아라비아 숫자·전각 문자 등 비ASCII 문자를 16진수로 받아들이던 문제.
 
 ## [2.1.0]
 

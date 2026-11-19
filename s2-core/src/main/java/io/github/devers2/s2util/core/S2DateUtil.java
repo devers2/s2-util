@@ -29,12 +29,16 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.time.temporal.ChronoField;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -83,6 +87,39 @@ public class S2DateUtil {
     private static final S2Logger logger = S2LogManager.getLogger(S2DateUtil.class);
 
     /**
+     * Returns a strict, cached formatter for parsing.
+     * <p>
+     * {@link ResolverStyle#STRICT} rejects nonexistent dates such as {@code 2024-02-30} or {@code 2023-02-29}
+     * instead of silently adjusting them to the last day of the month (the default {@code SMART} behavior).
+     * Because {@code yyyy} (year-of-era) resolves under {@code STRICT} only with an era, the era defaults to CE.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 파싱용 엄격한 포맷터를 캐시하여 반환합니다.
+     * <p>
+     * {@link ResolverStyle#STRICT}는 {@code 2024-02-30}, {@code 2023-02-29} 같은 없는 날짜를 그 달의 마지막 날로 조용히
+     * 바꾸지 않고(기본값 {@code SMART}의 동작) 거부합니다. {@code STRICT}에서 {@code yyyy}(연호 기준 연도)는 연호가 있어야
+     * 해석되므로 연호를 서기(CE)로 기본 지정합니다.
+     * </p>
+     *
+     * @param pattern Date/time pattern | 날짜/시간 패턴
+     * @return Strict formatter | 엄격한 포맷터
+     * @throws IllegalArgumentException if the pattern is invalid | 패턴이 잘못된 경우
+     */
+    private static DateTimeFormatter parsingFormatter(String pattern) {
+        return S2Cache.resolve("s2.cache.date_parsing_formatter", pattern, String.class, DateTimeFormatter.class, 256,
+                p -> {
+                    var builder = new DateTimeFormatterBuilder().appendPattern(p);
+                    if (p.indexOf('y') >= 0) {
+                        builder.parseDefaulting(ChronoField.ERA, 1);
+                    }
+                    return Optional.of(builder.toFormatter().withResolverStyle(ResolverStyle.STRICT));
+                }).orElseThrow();
+    }
+
+    /**
      * Parses a date string into a {@link LocalDate} using the specified pattern.
      *
      * <p>
@@ -122,7 +159,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
+            var formatter = parsingFormatter(pattern);
             result = LocalDate.parse(dateString, formatter);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
@@ -179,7 +216,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
+            var formatter = parsingFormatter(pattern);
             result = LocalDateTime.parse(dateTimeString, formatter);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (logger.isDebugEnabled()) {
@@ -232,7 +269,7 @@ public class S2DateUtil {
         var result = false;
         if (dateTimeString != null && !dateTimeString.isBlank() && pattern != null && !pattern.isBlank()) {
             try {
-                var formatter = DateTimeFormatter.ofPattern(pattern);
+                var formatter = parsingFormatter(pattern);
                 formatter.parse(dateTimeString);
                 result = true;
             } catch (DateTimeParseException | IllegalArgumentException e) {
@@ -273,7 +310,7 @@ public class S2DateUtil {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
-        var formatter = DateTimeFormatter.ofPattern(pattern);
+        var formatter = parsingFormatter(pattern);
 
         // 기준 일시 문자열을 LocalDate 객체로 파싱
         var referenceDate = LocalDateTime.parse(referenceDateTimeString, formatter);
@@ -302,7 +339,7 @@ public class S2DateUtil {
             throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
         }
 
-        var formatter = DateTimeFormatter.ofPattern(pattern);
+        var formatter = parsingFormatter(pattern);
 
         // 일시 문자열을 LocalDate 객체로 파싱
         var dateToCompare = LocalDateTime.parse(dateTimeString, formatter);
@@ -395,7 +432,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
+            var formatter = parsingFormatter(pattern);
             result = OffsetDateTime.parse(dateTimeString, formatter);
         } catch (DateTimeParseException | IllegalArgumentException e) {
             if (isThrowException) {
@@ -589,7 +626,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
+            var formatter = parsingFormatter(pattern);
             var date = LocalDate.parse(dateString, formatter);
 
             // 대상 날짜가 최대 허용 날짜 이전이라면 대상 날짜, 이후라면 최대 허용 날짜를 반환한다.
@@ -677,7 +714,7 @@ public class S2DateUtil {
         }
 
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
+            var formatter = parsingFormatter(pattern);
             var zoneId = (zoneIdStr == null || zoneIdStr.isBlank()) ? ZoneId.systemDefault() : ZoneId.of(zoneIdStr);
 
             // 패턴에 지역 정보(V)나 오프셋 정보가 포함되어 있는지 확인하여 파싱함

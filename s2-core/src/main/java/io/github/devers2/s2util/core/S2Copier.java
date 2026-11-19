@@ -20,13 +20,27 @@
  */
 package io.github.devers2.s2util.core;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+import io.github.devers2.s2util.log.S2LogManager;
+import io.github.devers2.s2util.log.S2Logger;
 
 /**
  * High-performance object copy utility leveraging {@link S2Util}'s efficient data access mechanisms.
@@ -66,6 +80,8 @@ import java.util.Set;
  * @see S2Cache
  */
 public class S2Copier<S> {
+
+    private static final S2Logger logger = S2LogManager.getLogger(S2Copier.class);
 
     private final S source;
     private final Map<String, String> fieldMapping = new HashMap<>();
@@ -295,13 +311,8 @@ public class S2Copier<S> {
             return toMap((Map<String, Object>) target);
         }
 
-        // 일반 객체 타겟: target의 필드를 기준으로 복사 (기존 방식)
-        var optionalFields = S2Cache.getFields(target.getClass());
-        if (optionalFields.isEmpty()) {
-            return target;
-        }
-
-        var fields = optionalFields.get();
+        // 일반 객체 타겟: target의 필드(상속 필드 포함)를 기준으로 복사
+        var fields = copyFields(S2Cache.getRealClass(target));
         // Create a new visited map for deep copy tracking
         var visited = new IdentityHashMap<Object, Object>();
 
@@ -317,8 +328,8 @@ public class S2Copier<S> {
             var sourceFieldName = fieldMapping.getOrDefault(targetFieldName, targetFieldName);
 
             try {
-                // 3. Source에서 값을 가져온다.
-                var value = S2Util.getValue(source, sourceFieldName);
+                // 3. Source에서 값을 그대로 가져온다(빈 문자열·빈 컬렉션을 null 로 바꾸지 않음).
+                var value = S2Util.getRawValue(source, sourceFieldName);
                 // 4. Null 무시 설정 체크
                 if (value == null && ignoreNulls) {
                     continue;
@@ -330,9 +341,12 @@ public class S2Copier<S> {
                 }
 
                 // 6. Target에 값을 설정한다.
-                S2Util.setValue(target, targetFieldName, null, value);
+                if (!S2Util.setValue(target, targetFieldName, null, value)) {
+                    logSkipped(targetFieldName, null);
+                }
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
+                logSkipped(targetFieldName, e);
                 continue;
             }
         }
@@ -362,17 +376,24 @@ public class S2Copier<S> {
      */
     @SuppressWarnings("unchecked")
     private <T> T toMap(Map<String, Object> targetMap) {
-        var optionalFields = S2Cache.getFields(source.getClass());
-        if (optionalFields.isEmpty()) {
-            return (T) targetMap;
-        }
-
         // Create a new visited map for deep copy tracking
         var visited = new IdentityHashMap<Object, Object>();
 
-        var fields = optionalFields.get();
-        for (var field : fields) {
-            var sourceFieldName = field.getName();
+        // 원본이 Map 이면 항목을, 아니면 원본의 필드(상속 필드 포함)를 기준으로 복사
+        List<String> sourceNames = new ArrayList<>();
+        Map<String, Class<?>> sourceTypes = new HashMap<>();
+        if (source instanceof Map<?, ?> sourceMap) {
+            for (var key : sourceMap.keySet()) {
+                sourceNames.add(String.valueOf(key));
+            }
+        } else {
+            for (var field : copyFields(S2Cache.getRealClass(source))) {
+                sourceNames.add(field.getName());
+                sourceTypes.put(field.getName(), field.getType());
+            }
+        }
+
+        for (var sourceFieldName : sourceNames) {
 
             // 1. 제외 목록에 포함된 필드인지 확인
             if (excludedFields.contains(sourceFieldName)) {
@@ -391,8 +412,8 @@ public class S2Copier<S> {
             }
 
             try {
-                // 3. Source에서 값을 가져온다.
-                var value = S2Util.getValue(source, sourceFieldName);
+                // 3. Source에서 값을 그대로 가져온다(빈 문자열·빈 컬렉션을 null 로 바꾸지 않음).
+                var value = S2Util.getRawValue(source, sourceFieldName);
                 // 4. Null 무시 설정 체크
                 if (value == null && ignoreNulls) {
                     continue;
@@ -400,13 +421,14 @@ public class S2Copier<S> {
 
                 // 5. Deep copy 필요 여부 확인
                 if (value != null && (deepCopyAll || deepCopyFields.contains(sourceFieldName))) {
-                    value = deepCopyValue(value, field.getType(), visited, 0);
+                    value = deepCopyValue(value, sourceTypes.getOrDefault(sourceFieldName, value.getClass()), visited, 0);
                 }
 
                 // 6. Map에 값을 저장한다.
                 targetMap.put(mapKey, value);
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
+                logSkipped(sourceFieldName, e);
                 continue;
             }
         }
@@ -441,8 +463,7 @@ public class S2Copier<S> {
             throw new IllegalArgumentException("Target class cannot be null.");
         }
         try {
-            T target = targetClass.getDeclaredConstructor().newInstance();
-            return to(target);
+            return to(newInstance(targetClass));
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to instantiate target class: " + targetClass.getName() + " (한국어: 대상 클래스 인스턴스 생성 실패)",
@@ -521,10 +542,35 @@ public class S2Copier<S> {
             return source;
         }
 
-        // Handle List/ArrayList
+        // 배열: 새 배열에 요소를 복사(원시 타입 배열은 그대로 복제, 객체 배열은 요소도 깊은 복사)
+        if (sourceClass.isArray()) {
+            int length = java.lang.reflect.Array.getLength(source);
+            var componentType = sourceClass.getComponentType();
+            var copiedArray = java.lang.reflect.Array.newInstance(componentType, length);
+            visited.put(source, copiedArray);
+            if (componentType.isPrimitive()) {
+                System.arraycopy(source, 0, copiedArray, 0, length);
+            } else {
+                for (int i = 0; i < length; i++) {
+                    var element = java.lang.reflect.Array.get(source, i);
+                    java.lang.reflect.Array.set(copiedArray, i,
+                            element != null ? deepCopyValue(element, element.getClass(), visited, depth + 1) : null);
+                }
+            }
+            return copiedArray;
+        }
+
+        // java.util.Date 계열(가변): 복제
+        if (source instanceof java.util.Date date) {
+            var copiedDate = (java.util.Date) date.clone();
+            visited.put(source, copiedDate);
+            return copiedDate;
+        }
+
+        // Handle List/ArrayList (LinkedList 는 그대로 LinkedList 로)
         if (source instanceof List) {
             var sourceList = (List<?>) source;
-            var copiedList = new ArrayList<>(sourceList.size());
+            List<Object> copiedList = source instanceof LinkedList ? new LinkedList<>() : new ArrayList<>(sourceList.size());
             visited.put(source, copiedList);
 
             for (var element : sourceList) {
@@ -542,9 +588,12 @@ public class S2Copier<S> {
         // Handles Set explicitly (as a LinkedHashSet) so it isn't left to fall through to the
         // generic "custom object" branch below, which would reflect into a HashSet's internal
         // backing HashMap field instead of actually copying the set's elements.
+        // 정렬된 Set(TreeSet 등)은 같은 비교 기준의 TreeSet 으로 복사해 정렬을 유지함
         if (source instanceof Set) {
             var sourceSet = (Set<?>) source;
-            var copiedSet = new java.util.LinkedHashSet<>(sourceSet.size());
+            Set<Object> copiedSet = source instanceof SortedSet<?> sorted
+                    ? new TreeSet<>(castComparator(sorted.comparator()))
+                    : new LinkedHashSet<>(sourceSet.size());
             visited.put(source, copiedSet);
 
             for (var element : sourceSet) {
@@ -557,10 +606,12 @@ public class S2Copier<S> {
             return copiedSet;
         }
 
-        // Handle Map/HashMap
+        // Handle Map (순서 유지: LinkedHashMap, 정렬된 Map 은 같은 비교 기준의 TreeMap)
         if (source instanceof Map) {
             var sourceMap = (Map<?, ?>) source;
-            var copiedMap = new HashMap<>(sourceMap.size());
+            Map<Object, Object> copiedMap = source instanceof SortedMap<?, ?> sorted
+                    ? new TreeMap<>(castComparator(sorted.comparator()))
+                    : new LinkedHashMap<>(Math.max(16, (int) (sourceMap.size() / 0.75f) + 1));
             visited.put(source, copiedMap);
 
             for (var entry : sourceMap.entrySet()) {
@@ -572,39 +623,88 @@ public class S2Copier<S> {
             return copiedMap;
         }
 
-        // Handle custom objects
-        var optionalFields = S2Cache.getFields(sourceClass);
-        if (optionalFields.isPresent()) {
-            try {
-                // Try to create a new instance
-                var copiedObject = sourceClass.getDeclaredConstructor().newInstance();
-                visited.put(source, copiedObject);
-
-                var fields = optionalFields.get();
-                for (var field : fields) {
-                    var fieldName = field.getName();
-                    try {
-                        var fieldValue = S2Util.getValue(source, fieldName);
-                        if (fieldValue != null) {
-                            var copiedFieldValue = deepCopyValue(fieldValue, field.getType(), visited, depth + 1);
-                            S2Util.setValue(copiedObject, fieldName, null, copiedFieldValue);
-                        } else {
-                            S2Util.setValue(copiedObject, fieldName, null, null);
-                        }
-                    } catch (Exception e) {
-                        // Skip problematic fields
-                        continue;
-                    }
-                }
-                return copiedObject;
-            } catch (Exception e) {
-                // If instantiation fails, return the original object
-                return source;
-            }
+        // JDK 값 타입(LocalDate·BigDecimal·UUID·enum 등): 불변이므로 그대로 공유
+        // (내부 필드에 접근할 수 없어 복사를 시도하면 값이 통째로 빠지던 문제 방지)
+        if (sourceClass.isEnum() || sourceClass.getClassLoader() == null) {
+            return source;
         }
 
-        // For objects without fields information, return the original
-        return source;
+        // Handle custom objects (상속 필드 포함)
+        try {
+            // Try to create a new instance (protected·private 기본 생성자 포함, 예: JPA 엔티티)
+            var copiedObject = newInstance(sourceClass);
+            visited.put(source, copiedObject);
+
+            for (var field : copyFields(sourceClass)) {
+                var fieldName = field.getName();
+                try {
+                    var fieldValue = S2Util.getRawValue(source, fieldName);
+                    var copiedFieldValue = fieldValue != null
+                            ? deepCopyValue(fieldValue, field.getType(), visited, depth + 1)
+                            : null;
+                    S2Util.setValue(copiedObject, fieldName, null, copiedFieldValue);
+                } catch (Exception e) {
+                    // Skip problematic fields
+                    logSkipped(fieldName, e);
+                    continue;
+                }
+            }
+            return copiedObject;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // If instantiation fails, return the original object
+            visited.remove(source);
+            return source;
+        }
+    }
+
+    /**
+     * Fields to copy for a class: instance fields of the class and its superclasses (subclass first, a
+     * subclass field hides a superclass field of the same name), excluding static and synthetic fields.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 복사할 필드 목록입니다. 클래스와 상위 클래스의 인스턴스 필드(하위 클래스 먼저, 같은 이름이면 하위 클래스 필드가
+     * 가림)이며 static·합성 필드는 제외합니다.
+     */
+    private static final ClassValue<Field[]> COPY_FIELDS = new ClassValue<>() {
+        @Override
+        protected Field[] computeValue(Class<?> type) {
+            Map<String, Field> fields = new LinkedHashMap<>();
+            for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (Field f : c.getDeclaredFields()) {
+                    if (!Modifier.isStatic(f.getModifiers()) && !f.isSynthetic()) {
+                        fields.putIfAbsent(f.getName(), f);
+                    }
+                }
+            }
+            return fields.values().toArray(new Field[0]);
+        }
+    };
+
+    private static Field[] copyFields(Class<?> type) {
+        return COPY_FIELDS.get(type);
+    }
+
+    /** 기본 생성자로 인스턴스를 만든다. public 이 아닌 생성자(예: JPA 엔티티의 protected 생성자)도 허용한다. */
+    private static <T> T newInstance(Class<T> type) throws ReflectiveOperationException {
+        Constructor<T> constructor = type.getDeclaredConstructor();
+        if (!Modifier.isPublic(constructor.getModifiers()) || !Modifier.isPublic(type.getModifiers())) {
+            constructor.setAccessible(true);
+        }
+        return constructor.newInstance();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Comparator<Object> castComparator(Comparator<?> comparator) {
+        return (Comparator<Object>) comparator;
+    }
+
+    /** 복사하지 못한 필드를 디버그 로그로 남긴다(복사는 계속 진행). */
+    private static void logSkipped(String fieldName, Exception e) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("[S2Copier] Field '{}' was not copied: {}", fieldName, e != null ? e.toString() : "no setter or field to write");
+        }
     }
 
     /**

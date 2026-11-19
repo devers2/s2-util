@@ -20,6 +20,7 @@
  */
 package io.github.devers2.s2util.core;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -125,8 +126,14 @@ public class S2StringUtil {
         }
 
         // 1. 빠른 조회를 위한 Lookup Table 생성 (유니코드 대응)
-        // 메모리 점유율을 줄이고 싶다면 BitSet 사용을 고려할 수 있으나 성능 면에서는 boolean 배열이 가장 빠르다.
-        boolean[] targetMap = new boolean[65536];
+        // 호출마다 64KB 를 할당하지 않도록 대상 문자 중 가장 큰 값까지만 만든다(대부분 ASCII 라 128 이하).
+        char maxTarget = 0;
+        for (char t : targets) {
+            if (t > maxTarget) {
+                maxTarget = t;
+            }
+        }
+        boolean[] targetMap = new boolean[maxTarget + 1];
         for (char t : targets) {
             targetMap[t] = true;
         }
@@ -138,7 +145,7 @@ public class S2StringUtil {
         // 2. 단일 순회 치환 로직
         for (int i = 0; i < len; i++) {
             char c = source.charAt(i);
-            if (targetMap[c]) {
+            if (c <= maxTarget && targetMap[c]) {
                 if (replacement != null && !replacement.isBlank()) {
                     sb.append(replacement);
                 }
@@ -189,8 +196,8 @@ public class S2StringUtil {
         if (str == null || str.isBlank())
             return str;
         if (str.length() == 1)
-            return str.toUpperCase();
-        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
+            return str.toUpperCase(Locale.ROOT);
+        return str.substring(0, 1).toUpperCase(Locale.ROOT) + str.substring(1).toLowerCase(Locale.ROOT);
     }
 
     /**
@@ -246,7 +253,7 @@ public class S2StringUtil {
         if (pascalCase.isBlank())
             return "";
         if (pascalCase.length() == 1)
-            return pascalCase.toLowerCase();
+            return pascalCase.toLowerCase(Locale.ROOT);
 
         return Character.toLowerCase(pascalCase.charAt(0)) + pascalCase.substring(1);
     }
@@ -280,7 +287,7 @@ public class S2StringUtil {
                 if (!first) {
                     result.append("_");
                 }
-                result.append(part.toLowerCase());
+                result.append(part.toLowerCase(Locale.ROOT));
                 first = false;
             }
         }
@@ -317,7 +324,7 @@ public class S2StringUtil {
                 if (!first) {
                     result.append("-");
                 }
-                result.append(part.toLowerCase());
+                result.append(part.toLowerCase(Locale.ROOT));
                 first = false;
             }
         }
@@ -893,10 +900,17 @@ public class S2StringUtil {
     }
 
     /**
-     * NewLine 제거
+     * Removes line breaks and escapes backslashes and single quotes, so the value can be placed inside a
+     * single-quoted JavaScript string literal.
      *
-     * @param value 문자열
-     * @return NewLine 제거 문자열
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 줄바꿈을 제거하고 역슬래시와 작은따옴표를 이스케이프하여, 작은따옴표로 감싼 JavaScript 문자열 안에 넣을 수 있게 합니다.
+     * 역슬래시를 이스케이프하지 않으면 입력의 {@code \'} 가 따옴표를 닫아 스크립트가 주입될 수 있습니다.
+     *
+     * @param value String | 문자열
+     * @return String without line breaks, with backslashes and single quotes escaped | 줄바꿈을 제거하고 역슬래시·작은따옴표를 이스케이프한 문자열
      */
     public static String clearNewline(String value) {
         if (value == null || value.isBlank()) {
@@ -917,6 +931,10 @@ public class S2StringUtil {
                     break;
                 case '\'':
                     sb.append("\\'"); // 이스케이프 치환
+                    modified = true;
+                    break;
+                case '\\':
+                    sb.append("\\\\"); // 역슬래시도 이스케이프(그렇지 않으면 입력의 \' 가 따옴표를 닫음)
                     modified = true;
                     break;
                 default:
@@ -954,20 +972,24 @@ public class S2StringUtil {
         var endIndex = 0;
         var curBytes = 0;
 
-        for (int i = 0; i < len; i++) {
-            var c = stringValue.charAt(i);
+        for (int i = 0; i < len;) {
+            int c = stringValue.codePointAt(i);
+            int charCount = Character.charCount(c);
             int charByteSize;
 
             // [성능 최적화] getBytes().length 대신 유니코드 범위로 바이트 수 계산
             // 0x00 ~ 0x7F (0 ~ 127) : 1 Byte (ASCII)
             // 0x80 ~ 0x7FF (128 ~ 2047) : 2 Byte
-            // 0x800 ~ (2048 ~ ) : 3 Byte (한글 등 대부분의 다국어)
+            // 0x800 ~ 0xFFFF : 3 Byte (한글 등 대부분의 다국어)
+            // 0x10000 ~ : 4 Byte (이모지 등 보충 문자 — 두 char 를 한 문자로 세어 반으로 자르지 않음)
             if (c < 0x80) {
                 charByteSize = 1;
             } else if (c < 0x800) {
                 charByteSize = 2;
-            } else {
+            } else if (c < 0x10000) {
                 charByteSize = 3;
+            } else {
+                charByteSize = 4;
             }
 
             curBytes += charByteSize;
@@ -981,8 +1003,9 @@ public class S2StringUtil {
             if (curBytes > endBytes) {
                 break;
             } else {
-                endIndex = i + 1;
+                endIndex = i + charCount;
             }
+            i += charCount;
         }
 
         // 시작 위치를 찾지 못한 경우(문자열이 너무 짧은 경우 등)

@@ -853,26 +853,29 @@ public class S2Template {
      * @return Final result string in cleaned form | 정리된 형태의 최종 결과 문자열
      */
     public String render() {
-        StringBuilder resultBuilder = new StringBuilder(template);
-
-        // 1. 등록된 바인딩 치환
-        for (Map.Entry<String, String> entry : bindings.entrySet()) {
-            String target = "{{=" + entry.getKey() + "}}";
-            String replacement = entry.getValue();
-            int index = resultBuilder.indexOf(target);
-            while (index != -1) {
-                resultBuilder.replace(index, index + target.length(), replacement);
-                index = resultBuilder.indexOf(target, index + replacement.length());
+        // 1. 템플릿을 한 번만 훑으며 {{=키}} 를 바인딩 값으로 바꾸고, 바인딩이 없는 토큰은 제거한다 (JS 스타일 호환).
+        //    바인딩 값은 다시 훑지 않으므로 값 안의 "{{=...}}" 가 다른 바인딩으로 바뀌거나 지워지지 않고,
+        //    결과가 바인딩 순서(HashMap 순서)와 무관하게 같다. 키에 줄바꿈이 있어도 토큰으로 본다(기존 DOTALL 과 동일).
+        StringBuilder resultBuilder = new StringBuilder(template.length() + 64);
+        int pos = 0;
+        while (true) {
+            int start = template.indexOf("{{=", pos);
+            int end = start < 0 ? -1 : template.indexOf("}}", start + 3);
+            if (end < 0) {
+                resultBuilder.append(template, pos, template.length());
+                break;
             }
+            resultBuilder.append(template, pos, start);
+            String replacement = bindings.get(template.substring(start + 3, end));
+            if (replacement != null) {
+                resultBuilder.append(replacement);
+            }
+            pos = end + 2;
         }
 
         String result = resultBuilder.toString();
 
-        // 2. 미치환된 {{=...}} 패턴 제거 (JS 스타일 호환)
-        // DOTALL 플래그를 사용하여 . 메타문자가 줄바꿈 문자도 매칭하도록 함 (리눅스/Windows 환경 호환)
-        result = S2StringUtil.replaceAll(result, "(?s)\\{\\{=.*?\\}\\}", "");
-
-        // 3. 디테일 정리: 빈 줄 제거 및 줄 끝 공백 정리
+        // 2. 디테일 정리: 빈 줄 제거 및 줄 끝 공백 정리
         return result.lines()
                 .filter(line -> !line.isBlank())
                 .map(String::stripTrailing)
