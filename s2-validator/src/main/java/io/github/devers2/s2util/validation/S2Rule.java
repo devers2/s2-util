@@ -63,12 +63,20 @@ import io.github.devers2.s2util.core.S2Util;
  * <h3>Message Resolution Priority (메시지 결정 우선순위)</h3>
  * When a validation failure occurs, the error message is resolved in the following order:
  * <ol>
- * <li><b>Global Bundle:</b> If {@link S2Validator#setValidationBundle(String)} is set and contains the key.</li>
+ * <li><b>Explicit Key:</b> A key given with {@code rule(type, value, key)}, found in the message resolver or
+ * {@link S2Validator#setValidationBundle(String) bundle}.</li>
  * <li><b>Local Template:</b> A template set for the request language ({@code message(template, locale)}, {@code ko}, {@code en}).</li>
  * <li><b>Default Template:</b> A language-independent template set with {@code message(template)}.</li>
  * <li><b>Default Locale Template:</b> A template set for the default locale's language.</li>
+ * <li><b>Built-in Key:</b> The rule type's key ({@code valid.err.required} etc.) found in the message resolver or bundle.</li>
  * <li><b>System Default:</b> The built-in template defined in {@link S2RuleType}.</li>
  * </ol>
+ * A template set on the rule wins over the built-in key, so an application-wide {@code valid.err.*} message does not
+ * override per-rule messages.
+ * <p>
+ * 우선순위: 명시 키(번들) → 요청 언어 템플릿 → 언어 무관 템플릿 → 기본 로케일 템플릿 → 내장 키(번들) → 내장 템플릿. 규칙에 직접 단 메시지가
+ * 내장 키보다 우선하므로 앱 전체의 {@code valid.err.*} 메시지가 규칙별 메시지를 덮지 않습니다.
+ * </p>
  *
  * @author devers2
  * @version 1.5
@@ -99,6 +107,14 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
 
     /** Static singleton instance for mandatory input checks (reused to reduce GC) */
     private static final S2Rule REQUIRED = new S2Rule(S2RuleType.REQUIRED);
+
+    static {
+        // 공유 싱글턴이므로 메시지를 바꿀 수 없게 함 (한 번의 storeMessage 가 JVM 전체의 암묵 필수 메시지를 바꾸던 문제)
+        REQUIRED.shared = true;
+    }
+
+    /** Whether this is the shared {@link #required()} instance, which must not be modified | 수정하면 안 되는 공유 {@link #required()} 인스턴스인지 */
+    private transient boolean shared;
 
     /**
      * Constructs a new rule with the specified type.
@@ -180,6 +196,10 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      */
     @Override
     public S2RuleMessageStep storeMessage(String language, String template) {
+        if (shared) {
+            throw new UnsupportedOperationException(
+                    "S2Rule.required() is shared and cannot be modified; create new S2Rule(S2RuleType.REQUIRED) instead.");
+        }
         if (language != null && !language.isBlank() && template != null) {
             this.messageTemplates.put(language, template);
         }
@@ -200,6 +220,10 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * <p>
      * 빈번하게 발생하는 필수 체크 작업 시 객체 생성 오버헤드를 제거하기 위해 정적 싱글톤 인스턴스를 재사용합니다.
      * </p>
+     *
+     * The instance is shared, so {@code storeMessage} on it throws {@link UnsupportedOperationException}; create a new
+     * rule to customize messages. | 공유 인스턴스라 {@code storeMessage}를 호출하면 {@link UnsupportedOperationException}이 발생합니다. 메시지를
+     * 바꾸려면 새 규칙을 만드십시오.
      *
      * @return The singleton {@link S2RuleType#REQUIRED} rule | 필수 입력 검증용 싱글톤 규칙 인스턴스
      */
@@ -729,20 +753,26 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return The resolved message template | 결정된 메시지 템플릿
      */
     public String getErrorMessageTemplate(Locale locale) {
-        return S2Validator.findMessage(errorMessageKey, locale).orElseGet(() -> {
-            String template = messageTemplates.get(locale.getLanguage());
-            if (template == null || template.isBlank()) {
-                template = messageTemplates.get(ANY_LANGUAGE);
+        boolean explicitKey = !errorMessageKey.equals(ruleType.getErrorMessageKey());
+        if (explicitKey) {
+            java.util.Optional<String> found = S2Validator.findMessage(errorMessageKey, locale);
+            if (found.isPresent()) {
+                return found.get();
             }
-            if (template == null || template.isBlank()) {
-                template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
-            }
-            if (template == null || template.isBlank()) {
-                // 직접 설정한 템플릿이 없으면 S2RuleType의 기본값 사용
-                template = ruleType.getErrorMessageTemplate(locale);
-            }
+        }
+        String template = messageTemplates.get(locale.getLanguage());
+        if (template == null || template.isBlank()) {
+            template = messageTemplates.get(ANY_LANGUAGE);
+        }
+        if (template == null || template.isBlank()) {
+            template = messageTemplates.get(S2Validator.getDefaultLocale().getLanguage());
+        }
+        if (template != null && !template.isBlank()) {
             return template;
-        });
+        }
+        // 규칙에 단 메시지가 없을 때만 내장 키(valid.err.*)를 번들에서 찾고, 없으면 S2RuleType 의 기본값
+        return S2Validator.findMessage(ruleType.getErrorMessageKey(), locale)
+                .orElseGet(() -> ruleType.getErrorMessageTemplate(locale));
     }
 
     /**

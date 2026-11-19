@@ -179,7 +179,7 @@ s2:
   valid.err.required={0|을} 꼭 입력하세요.
   ```
 - **요청 언어:** `S2BindValidator`가 `LocaleContextHolder`를 읽으므로 Spring MVC 의 `LocaleResolver`(Accept-Language, 쿠키, 세션)를 그대로 따릅니다.
-- 조회 순서: `MessageSource` → `bundle` → 규칙에 지정한 메시지 → 내장 메시지.
+- 조회 순서: 명시 키(`.rule(type, value, key)`)를 `MessageSource` → `bundle` 에서 → 규칙에 지정한 메시지 → 내장 키(`valid.err.*`)를 `MessageSource` → `bundle` 에서 → 내장 메시지. 그래서 `valid.err.*` 는 규칙에 메시지를 달지 않은 규칙의 기본 문구만 바꿉니다.
 - 설정은 검증기의 전역 설정이며, 컨텍스트가 시작될 때 적용되고 닫힐 때 초기화됩니다.
 - Spring Boot 없이 다른 출처(DB 등)를 쓰려면 `S2Validator.setMessageResolver((key, locale) -> …)`로 직접 연결합니다.
 
@@ -471,11 +471,12 @@ S2Validator.<RegisterDTO>builder()
 
 **조회 순서** (요청 로케일 기준):
 
-1. 규칙 키에 해당하는 번들 메시지 (`setValidationBundle` + 키)
+1. 규칙에 명시한 키(`.rule(타입, 기준값, 키)`)의 번들 메시지 (`setValidationBundle` + 키)
 2. 요청 언어의 메시지 (`.message(문구, 로케일)`, `.ko`, `.en`)
 3. 기본 메시지 (`.message(문구)`)
 4. 기본 로케일 언어의 메시지 (`S2Validator.setDefaultLocale`)
-5. 규칙의 내장 메시지 (한국어/영어)
+5. 규칙 타입의 내장 키(`valid.err.required` 등)의 번들 메시지
+6. 규칙의 내장 메시지 (한국어/영어)
 
 치환자: `{0}`은 필드 라벨, `{1}`은 규칙 기준값입니다(예: `19`, `EQUALS_FIELD`는 대상 필드의 라벨). 메시지는 서버에서 만들어지므로 브라우저로 보내는 규칙 JSON 에는 요청 로케일의 문구가 이미 들어 있습니다.
 

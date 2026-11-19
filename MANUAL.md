@@ -179,7 +179,7 @@ s2:
   valid.err.required={0|을} 꼭 입력하세요.
   ```
 - **Request language:** `S2BindValidator` reads `LocaleContextHolder`, so it follows Spring MVC's `LocaleResolver` (Accept-Language, cookie, session).
-- Lookup order: `MessageSource` → `bundle` → message set on the rule → built-in message.
+- Lookup order: an explicit key (`.rule(type, value, key)`) in `MessageSource` → `bundle`, then the message set on the rule, then the built-in key (`valid.err.*`) in `MessageSource` → `bundle`, then the built-in message. So `valid.err.*` only changes the default text of rules without their own message.
 - The settings are the validator's global settings; they apply when the context starts and are reset when it closes.
 - To use another source (a database, for example) without Spring Boot, plug it in with `S2Validator.setMessageResolver((key, locale) -> …)`.
 
@@ -471,11 +471,12 @@ Attach messages right after a rule in the builder chain. Each call applies to th
 
 **Lookup order** (for the request locale):
 
-1. Bundle message for the rule's key (`setValidationBundle` + key)
+1. Bundle message for a key given on the rule (`.rule(type, value, key)`) (`setValidationBundle` + key)
 2. Message for the request language (`.message(template, locale)`, `.ko`, `.en`)
 3. Default message (`.message(template)`)
 4. Message for the default locale's language (`S2Validator.setDefaultLocale`)
-5. Built-in message of the rule (Korean/English)
+5. Bundle message for the rule type's built-in key (`valid.err.required` etc.)
+6. Built-in message of the rule (Korean/English)
 
 Placeholders: `{0}` is the field label and `{1}` the rule criterion (e.g. `19`, or the target field's label for `EQUALS_FIELD`). Messages are rendered on the server, so the rules JSON sent to the browser already contains the text for the request locale.
 

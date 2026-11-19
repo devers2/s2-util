@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,6 +82,11 @@ class ReviewDefectRegressionTest {
         }
     }
 
+    @AfterEach
+    void resetGlobalState() {
+        S2Validator.resetAll();
+    }
+
     private static List<String> invalidFields(S2Validator<Period> validator, Period period) {
         List<String> fields = new ArrayList<>();
         validator.validate(period, e -> fields.add(e.fieldName()), Locale.KOREAN);
@@ -152,6 +158,39 @@ class ReviewDefectRegressionTest {
         validator.validate(params, e -> invalid.add(e.fieldName()));
 
         Assertions.assertEquals(List.of("tags", "codes"), invalid);
+    }
+
+    @Test
+    @DisplayName("메시지 우선순위: 명시 키 번들 > 규칙에 단 메시지 > 내장 키 번들 > 내장 메시지")
+    void ruleMessageWinsOverBuiltInKey() {
+        S2Validator.setMessageResolver((key, locale) -> switch (key) {
+            case "valid.err.required" -> java.util.Optional.of("공통: {0|을} 입력하세요.");
+            case "member.name.required" -> java.util.Optional.of("명시 키: {0|을} 입력하세요.");
+            default -> java.util.Optional.empty();
+        });
+        S2Validator<Member> validator = S2Validator.<Member>builder()
+                .field("name", "이름").rule(S2RuleType.REQUIRED).ko("규칙 메시지: {0|은} 필수")
+                .build();
+        S2Validator<Member> builtIn = S2Validator.<Member>builder().field("name", "이름").rule(S2RuleType.REQUIRED).build();
+        S2Validator<Member> explicit = S2Validator.<Member>builder()
+                .field("name", "이름").rule(S2RuleType.REQUIRED, null, "member.name.required").ko("규칙 메시지")
+                .build();
+
+        Assertions.assertEquals("규칙 메시지: 이름은 필수", firstMessage(validator));
+        Assertions.assertEquals("공통: 이름을 입력하세요.", firstMessage(builtIn));
+        Assertions.assertEquals("명시 키: 이름을 입력하세요.", firstMessage(explicit));
+    }
+
+    private static String firstMessage(S2Validator<Member> validator) {
+        List<String> messages = new ArrayList<>();
+        validator.validate(new Member(), e -> messages.add(e.defaultMessage()), Locale.KOREAN);
+        return messages.get(0);
+    }
+
+    @Test
+    @DisplayName("공유 S2Rule.required() 는 메시지를 바꿀 수 없다")
+    void sharedRequiredRuleIsImmutable() {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> S2Rule.required().storeMessage("ko", "x"));
     }
 
     @Test

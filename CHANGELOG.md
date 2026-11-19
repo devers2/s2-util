@@ -14,6 +14,11 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **Multiple values (collections, arrays, checkbox groups, multi-selects) are judged per element.** Previously the server judged
   `toString()` (`"[a, b]"`, `"[Ljava.lang.String;@…"`) and the browser `"a,b"`, so length and format rules misbehaved for `String[]`
   parameter maps. `REQUIRED` fails when every element is empty (`["", " "]`).
+- **Message priority: a message set on the rule (`.ko()`, `.en()`, `.message()`) now wins over the bundle/`MessageSource` message for the
+  built-in key (`valid.err.*`).** Previously an application-wide key such as `valid.err.required` in `messages.properties` overrode every
+  per-rule message. A key given with `.rule(type, value, key)` is still looked up first.
+- Calling `storeMessage()` on the shared `S2Rule.required()` instance throws `UnsupportedOperationException`. Previously it changed the
+  implicit required message for the whole JVM.
 - **`DATE_AFTER`/`DATE_BEFORE`**: a value that is not a readable date now passes in the browser too (same as the server).
   Previously only the browser failed it, blocking values the server accepts.
 

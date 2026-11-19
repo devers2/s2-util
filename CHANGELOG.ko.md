@@ -12,6 +12,9 @@
   길이 제한을 통과한 뒤 그대로 저장될 수 있었습니다. 서버와 `s2.validator.js` 모두 바뀌었고, 브라우저는 폼 값을 공백을 빼지 않고 읽습니다.
 - **여러 값(컬렉션·배열·체크박스 그룹·다중 선택)은 요소별로 판정합니다.** 이전에는 서버가 `toString()`(`"[a, b]"`, `"[Ljava.lang.String;@…"`),
   브라우저가 `"a,b"` 문자열로 판정해 `String[]` 파라미터 맵의 길이·형식 규칙이 오작동했습니다. `REQUIRED` 는 빈 요소만 있으면(`["", " "]`) 실패합니다.
+- **메시지 우선순위: 규칙에 단 메시지(`.ko()`·`.en()`·`.message()`)가 내장 키(`valid.err.*`)의 번들·`MessageSource` 메시지보다 우선합니다.**
+  이전에는 `messages.properties` 에 `valid.err.required` 같은 공통 키가 있으면 규칙별 메시지가 모두 무시됐습니다. `.rule(type, value, key)`로 명시한 키는 지금처럼 가장 먼저 찾습니다.
+- `S2Rule.required()` 공유 인스턴스에 `storeMessage()` 를 호출하면 `UnsupportedOperationException` 이 납니다. 이전에는 JVM 전체의 암묵 필수 메시지가 바뀌었습니다.
 - **`DATE_AFTER`·`DATE_BEFORE`**: 날짜로 읽을 수 없는 값은 브라우저에서도 통과합니다(서버와 동일). 이전에는 브라우저만 실패시켜 서버가 받는 값을 막았습니다.
 
 ### 수정
