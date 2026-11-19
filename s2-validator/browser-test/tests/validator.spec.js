@@ -172,3 +172,21 @@ test.describe('custom renderer', () => {
     expect(await submitted(page, 'renderer')).toBe('1');
   });
 });
+
+test.describe('field names', () => {
+  test('a name with quotes or a backslash does not break validation', async ({ page }) => {
+    await ready(page, '/');
+    const errors = await page.evaluate(() => {
+      // 따옴표·역슬래시가 든 name 은 이스케이프 없이 선택자를 만들면 SyntaxError 로 검증이 중단됐음
+      const name = 'a"b\\c';
+      const form = document.createElement('form');
+      const input = document.createElement('input');
+      input.name = name;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      const rules = { schemaVersion: 1, fields: [{ name, label: '항목', rules: [{ type: 'REQUIRED', message: '필수' }] }] };
+      return Object.keys(window.S2Validator.validate(form, JSON.stringify(rules)));
+    });
+    expect(errors).toEqual(['a"b\\c']);
+  });
+});

@@ -340,7 +340,7 @@ export const S2Validator = {
         el.setCustomValidity('');
 
         // 커스텀 에러 엘리먼트 초기화
-        const errorEl = form.querySelector(`[name="${el.name}_error"]`);
+        const errorEl = form.querySelector(`[name="${cssAttr(el.name + '_error')}"]`);
         if (errorEl) {
           if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
           errorEl.textContent = '';
@@ -356,13 +356,13 @@ export const S2Validator = {
             }
             if (el.type === 'radio' || el.type === 'checkbox') {
               // 라디오/체크박스는 그룹 전체의 에러를 해제해야 함
-              const group = form.querySelectorAll(`[name="${el.name}"]`);
+              const group = form.querySelectorAll(`[name="${cssAttr(el.name)}"]`);
               group.forEach((groupEl) => groupEl.setCustomValidity(''));
             } else {
               el.setCustomValidity('');
             }
             // 커스텀 에러 엘리먼트 및 임시 더미 앵커 초기화
-            const errorEl = form.querySelector(`[name="${el.name}_error"]`);
+            const errorEl = form.querySelector(`[name="${cssAttr(el.name + '_error')}"]`);
             if (errorEl) {
               if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
               errorEl.textContent = '';
@@ -379,6 +379,12 @@ export const S2Validator = {
 
     const rules = readRules(form, rulesSource);
     if (rules.length === 0) {
+      // 제출은 계속 막되(fail-closed) 화면에 아무 표시가 없으므로 원인을 콘솔에 남김
+      console.error(
+        '[S2Validator] 검증 규칙 JSON 이 없거나 올바르지 않아 제출을 막았습니다. data-s2-rules 값을 확인하세요. | ' +
+          'Submission blocked: the rules JSON is missing or invalid. Check the data-s2-rules value.',
+        form
+      );
       return {
         __system_error__: ['검증 규칙 데이터(JSON) 형식이 올바르지 않거나 존재하지 않습니다.']
       };
@@ -393,7 +399,7 @@ export const S2Validator = {
     // Native UI: attach the first message of each field, in validation order (anchors keep field order) | 기본 UI: 필드마다 첫 메시지를 검증 순서대로 설정 (앵커가 필드 순서를 유지)
     if (!activeRenderer) {
       Object.entries(errors).forEach(([name, messages]) => {
-        applyFieldError(form, name, form.querySelectorAll(`[name="${name}"]`), messages[0]);
+        applyFieldError(form, name, form.querySelectorAll(`[name="${cssAttr(name)}"]`), messages[0]);
       });
     }
     // Fields with errors are re-checked while typing in live "blur" mode | 오류가 난 필드는 실시간 "blur" 모드에서 입력 중에도 다시 검사
@@ -582,15 +588,15 @@ export const S2Validator = {
    * S2Validator.setRenderer(S2Validator.classRenderer({ invalidClass: 'is-invalid' }));
    */
   classRenderer({ invalidClass = 'is-invalid', messageAttribute = 'data-s2-error-for', focus = true } = {}) {
-    const messageElements = (form, name) => form.querySelectorAll(`[${messageAttribute}="${name}"]`);
+    const messageElements = (form, name) => form.querySelectorAll(`[${messageAttribute}="${cssAttr(name)}"]`);
     const clearField = (form, name) => {
-      form.querySelectorAll(`[name="${name}"]`).forEach((el) => el.classList?.remove(invalidClass));
+      form.querySelectorAll(`[name="${cssAttr(name)}"]`).forEach((el) => el.classList?.remove(invalidClass));
       messageElements(form, name).forEach((el) => {
         el.textContent = '';
       });
     };
     const showField = (form, name, messages) => {
-      const fields = form.querySelectorAll(`[name="${name}"]`);
+      const fields = form.querySelectorAll(`[name="${cssAttr(name)}"]`);
       fields.forEach((el) => el.classList?.add(invalidClass));
       messageElements(form, name).forEach((el) => {
         el.textContent = messages[0];
@@ -761,7 +767,7 @@ const formFieldReader = (form, additionalData) => (name) => {
   if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, name)) {
     return { present: true, value: additionalData[name] };
   }
-  const elements = form.querySelectorAll(`[name="${name}"]`);
+  const elements = form.querySelectorAll(`[name="${cssAttr(name)}"]`);
   return elements.length === 0 ? { present: false } : { present: true, value: getFieldValue(Array.from(elements)) };
 };
 
@@ -992,10 +998,10 @@ const validateLiveField = (form, name) => {
     }
   } else {
     const message = messages ? messages[0] : '';
-    form.querySelectorAll(`[name="${name}"]`).forEach((el) => {
+    form.querySelectorAll(`[name="${cssAttr(name)}"]`).forEach((el) => {
       if (typeof el.setCustomValidity === 'function') el.setCustomValidity(message);
     });
-    const proxy = form.querySelector(`[name="${name}_error"]`);
+    const proxy = form.querySelector(`[name="${cssAttr(name + '_error')}"]`);
     if (proxy) {
       if (typeof proxy.setCustomValidity === 'function') proxy.setCustomValidity(message);
       else proxy.textContent = message;
@@ -1057,7 +1063,7 @@ const getFormData = (form) => {
   for (let i = 0; i < elements.length; i++) {
     const name = elements[i].name;
     if (name && !processedNames.has(name)) {
-      const fieldElements = form.querySelectorAll(`[name="${name}"]`);
+      const fieldElements = form.querySelectorAll(`[name="${cssAttr(name)}"]`);
       data[name] = getFieldValue(Array.from(fieldElements));
       processedNames.add(name);
     }
@@ -1595,6 +1601,12 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   }
 };
 
+// CSS 속성 선택자 값(따옴표 안)으로 쓸 수 있게 이스케이프 — name 에 따옴표·역슬래시가 있으면 선택자 오류로 submit 처리가 중단되던 문제
+const cssAttr = (value) =>
+  typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(String(value))
+    : String(value).replace(/["\\]/g, '\\$&');
+
 // 여러 값이면 요소마다 판정하는 규칙 (서버 S2Rule.ELEMENT_WISE 와 같음)
 const ELEMENT_WISE_RULES = new Set([
   'LENGTH', 'MIN_LENGTH', 'MAX_LENGTH', 'MIN_BYTE', 'MAX_BYTE', 'MIN_VALUE', 'MAX_VALUE', 'DATE', 'REGEX', 'NUMBER',
@@ -1856,7 +1868,7 @@ const DATE_TIME_TEXT = /^(\d{4})[-.]?(\d{2})[-.]?(\d{2})(?:[T ](\d{2}):(\d{2})(?
  * @param {string} message - The message to show | 표시할 메시지
  */
 const applyFieldError = (form, fieldName, fieldElements, message) => {
-  const errorEl = form.querySelector(`[name="${fieldName}_error"]`);
+  const errorEl = form.querySelector(`[name="${cssAttr(fieldName + '_error')}"]`);
   if (errorEl) {
     if (typeof errorEl.setCustomValidity === 'function') {
       errorEl.setCustomValidity(message);

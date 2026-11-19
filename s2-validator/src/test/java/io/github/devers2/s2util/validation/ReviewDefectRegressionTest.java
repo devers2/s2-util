@@ -225,6 +225,17 @@ class ReviewDefectRegressionTest {
     }
 
     @Test
+    @DisplayName("규칙 JSON 은 <·>·& 를 이스케이프해 <script> 안에서도 태그가 닫히지 않고, 다시 읽으면 같은 값이다")
+    void rulesJsonEscapesHtml() {
+        S2Validator<Member> validator = S2Validator.<Member>builder().field("name", "</script><b>&").build();
+
+        String json = validator.getRulesJson(Locale.KOREAN);
+
+        Assertions.assertFalse(json.contains("<") || json.contains(">") || json.contains("&"), json);
+        Assertions.assertEquals("</script><b>&", S2Validator.fromJson(json).getFields().get(0).getLabel());
+    }
+
+    @Test
     @DisplayName("공유 S2Rule.required() 는 메시지를 바꿀 수 없다")
     void sharedRequiredRuleIsImmutable() {
         Assertions.assertThrows(UnsupportedOperationException.class, () -> S2Rule.required().storeMessage("ko", "x"));

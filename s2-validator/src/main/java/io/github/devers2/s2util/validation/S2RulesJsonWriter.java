@@ -70,12 +70,14 @@ final class S2RulesJsonWriter {
     }
 
     /**
-     * Serializes the validator's rules to JSON.
+     * Serializes the validator's rules to JSON. {@code <}, {@code >} and {@code &} are escaped (e.g. {@code \\u003c}),
+     * so the JSON can be placed inside an HTML {@code <script>} as is (the JSON value is the same).
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 검증기의 규칙을 JSON 으로 직렬화합니다.
+     * 검증기의 규칙을 JSON 으로 직렬화합니다. {@code <}, {@code >}, {@code &}는 {@code \\u003c} 등으로 이스케이프하므로 HTML
+     * {@code <script>} 안에 그대로 넣어도 태그가 닫히지 않습니다(같은 JSON 값).
      *
      * @param validator The validator to export | 내보낼 검증기
      * @param locale    The locale for error messages | 오류 메시지 로케일
@@ -84,7 +86,24 @@ final class S2RulesJsonWriter {
     static String write(S2Validator<?> validator, Locale locale) {
         StringBuilder sb = new StringBuilder("{\"schemaVersion\":").append(SCHEMA_VERSION).append(",\"fields\":");
         appendRulesJson(sb, validator, locale, List.of());
-        return sb.append('}').toString();
+        return escapeForHtml(sb.append('}').toString());
+    }
+
+    /**
+     * Escapes {@code <}, {@code >} and {@code &} as Unicode escapes. They can only appear inside JSON strings, so the
+     * JSON value is unchanged, but a label or message such as {@code </script>} can no longer end a script block.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * {@code <}, {@code >}, {@code &}를 유니코드 이스케이프로 바꿉니다. JSON 문자열 안에만 나올 수 있어 JSON 값은 같고,
+     * {@code </script>} 같은 라벨·메시지가 스크립트 블록을 끝내지 못합니다.
+     *
+     * @param json The JSON | JSON
+     * @return The escaped JSON | 이스케이프한 JSON
+     */
+    private static String escapeForHtml(String json) {
+        return json.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026");
     }
 
     /**
