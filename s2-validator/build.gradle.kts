@@ -142,8 +142,19 @@ tasks.register<JavaExec>("writeBrowserDemoRules") {
     workingDir = projectDir
 }
 
+// 공개 데모 사이트(browser-test/site, GitHub Pages)의 규칙을 실제 서버 검증기로 생성
+tasks.register<JavaExec>("writePublicDemoRules") {
+    group = "verification"
+    description = "Writes browser-test/site/rules.json from the server validators (PublicDemoRules)."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("io.github.devers2.s2util.validation.PublicDemoRules")
+    workingDir = projectDir
+}
+
 // Re-run tests when the committed browser demo rules change (BrowserDemoRulesTest checks they are up to date). | 커밋된 브라우저 데모 규칙이 바뀌면 시험 재실행 (BrowserDemoRulesTest 가 최신 여부 확인)
 tasks.named<Test>("test") {
     inputs.file(layout.projectDirectory.file("browser-test/demo/rules.json"))
         .withPropertyName("browserDemoRules").optional()
+    inputs.file(layout.projectDirectory.file("browser-test/site/rules.json"))
+        .withPropertyName("publicDemoRules").optional()
 }

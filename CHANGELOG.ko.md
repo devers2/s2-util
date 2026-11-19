@@ -27,6 +27,11 @@
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
 - `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
 
+### 문서·예제
+
+- 공개 데모 사이트(GitHub Pages, `s2-validator/browser-test/site`): 서버 검증기로 만든 규칙으로 회원가입·주문 행·Bean Validation 변환·`check()` 플레이그라운드를 한국어/영어로 시연. Playwright 시험 포함.
+- 예제 앱 `examples/spring-boot-thymeleaf`: `./gradlew -p examples/spring-boot-thymeleaf bootRun` 한 번으로 실행. S2 규칙 방식과 Bean Validation 에 얹는 방식, REST 오류 응답. CI 에서 시험.
+
 ### 수정
 
 - 사용자 정규식(`REGEX`, `@Pattern` 변환 포함)의 `\s`·`\S` 를 브라우저가 JS 의미(NBSP 등 유니코드 공백 포함)로 해석해 서버와 판정이 다르던 문제 — 브라우저도 Java 의미로 평가합니다. 문자 클래스 안의 `\S` 는 같은 의미로 바꿀 수 없어 규칙 JSON 으로 내보내지 않습니다(`IllegalStateException`).

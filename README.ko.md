@@ -9,6 +9,8 @@
 
 > **"Write Once, Validate Anywhere."**
 > **(Java & JavaScript) 한 번의 작성**으로 **서버와 클라이언트 모두를 검증**하는 가장 스마트한 방법.
+> ▶️ **[라이브 데모](https://devers2.github.io/s2-util/?lang=ko)** — 브라우저에서 바로 검증해 보기 · **[예제 앱](./examples/spring-boot-thymeleaf/README.ko.md)** — Spring Boot + Thymeleaf, `bootRun` 한 번으로 실행
+>
 > 📖 상세 아키텍처 및 종합 개발자 가이드: **[개발자 매뉴얼 (MANUAL.ko.md)](./MANUAL.ko.md)**
 >
 > 📝 릴리스 노트와 업그레이드 안내: **[변경 이력 (CHANGELOG.ko.md)](./CHANGELOG.ko.md)**

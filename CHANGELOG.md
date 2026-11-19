@@ -32,6 +32,11 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
 
+### Docs & examples
+
+- Public demo site (GitHub Pages, `s2-validator/browser-test/site`): sign-up, order rows, Bean Validation conversion and a `check()` playground in Korean/English, with rules made by the server validators. Covered by Playwright tests.
+- Example app `examples/spring-boot-thymeleaf`: runs with one `./gradlew -p examples/spring-boot-thymeleaf bootRun`; S2 rules, Bean Validation on top, REST error responses. Tested in CI.
+
 ### Fixed
 
 - In user regular expressions (`REGEX`, including converted `@Pattern`), the browser read `\s`/`\S` with JS meaning (including Unicode spaces such as NBSP), judging differently from the server; the browser now evaluates them with Java meaning. `\S` inside a character class cannot be translated and is not exported to the rules JSON (`IllegalStateException`).

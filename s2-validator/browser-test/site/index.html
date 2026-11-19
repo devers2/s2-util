@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>s2-validator demo</title>
+  <meta name="description" content="Server (Java) and browser (JavaScript) validated with the same rules — live demo of s2-validator." />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">s2-validator <span class="badge">demo</span></div>
+      <nav>
+        <a href="https://github.com/devers2/s2-util">GitHub</a>
+        <a href="https://github.com/devers2/s2-util/blob/main/MANUAL.md" data-ko-href="https://github.com/devers2/s2-util/blob/main/MANUAL.ko.md">Manual</a>
+        <button type="button" id="lang" aria-label="Language">English</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1 data-ko="한 번 정의한 규칙으로 서버와 브라우저를 함께 검증" data-en="One set of rules validates both the server and the browser"></h1>
+      <p data-ko="아래 폼의 규칙은 모두 Java(<code>S2Validator</code>)로 정의한 것입니다. 서버가 <code>getRulesJson()</code>으로 내보낸 JSON 을 <code>s2.validator.js</code>가 읽어, 화면용 검증 코드 없이 같은 규칙으로 검사합니다."
+         data-en="Every rule on this page is defined in Java (<code>S2Validator</code>). The browser reads the JSON exported by <code>getRulesJson()</code> and <code>s2.validator.js</code> checks the same rules — no validation code written for the UI."></p>
+      <p class="hint" data-ko="빈 칸으로 제출해 보거나, 칸을 벗어날 때 나오는 실시간 오류를 확인해 보세요. 메시지 언어는 오른쪽 위에서 바꿀 수 있습니다."
+         data-en="Try submitting empty fields, or leave a field to see live errors. Switch the message language at the top right."></p>
+    </section>
+
+    <!-- 1. 회원가입 -->
+    <section class="card">
+      <h2><span class="num">1</span><span data-ko="회원가입 — 조건부·한국 업무 규칙·필드 비교" data-en="Sign-up — conditional, Korean business rules, cross-field"></span></h2>
+      <form id="join" data-rules-key="join" data-s2-live="blur" novalidate>
+        <div class="grid">
+          <label><span data-ko="이름" data-en="Name"></span><input name="name" autocomplete="off" /><small data-s2-error-for="name"></small></label>
+          <label><span data-ko="이메일" data-en="E-mail"></span><input name="email" autocomplete="off" /><small data-s2-error-for="email"></small></label>
+          <label><span data-ko="휴대폰 번호" data-en="Mobile"></span><input name="mobile" placeholder="010-1234-5678" autocomplete="off" /><small data-s2-error-for="mobile"></small></label>
+          <label><span data-ko="회원 유형" data-en="Member type"></span>
+            <select name="memberType">
+              <option value="" data-ko="선택" data-en="Select"></option>
+              <option value="PERSONAL" data-ko="개인" data-en="Personal"></option>
+              <option value="BUSINESS" data-ko="사업자" data-en="Business"></option>
+            </select><small data-s2-error-for="memberType"></small></label>
+          <label><span data-ko="비밀번호" data-en="Password"></span><input name="password" type="password" autocomplete="new-password" /><small data-s2-error-for="password"></small></label>
+          <label><span data-ko="비밀번호 확인" data-en="Password confirmation"></span><input name="passwordConfirm" type="password" autocomplete="new-password" /><small data-s2-error-for="passwordConfirm"></small></label>
+          <label class="biz"><span data-ko="사업자등록번호 (사업자만 필수)" data-en="Business No. (business only)"></span><input name="bizNo" placeholder="123-45-67890" autocomplete="off" /><small data-s2-error-for="bizNo"></small></label>
+        </div>
+        <fieldset>
+          <legend data-ko="관심사 (1~3개)" data-en="Interests (1 to 3)"></legend>
+          <label class="inline"><input type="checkbox" name="interests" value="java" /> Java</label>
+          <label class="inline"><input type="checkbox" name="interests" value="spring" /> Spring</label>
+          <label class="inline"><input type="checkbox" name="interests" value="js" /> JavaScript</label>
+          <label class="inline"><input type="checkbox" name="interests" value="db" /> Database</label>
+          <small data-s2-error-for="interests"></small>
+        </fieldset>
+        <label class="inline"><input type="checkbox" name="agree" value="true" /> <span data-ko="이용약관에 동의합니다" data-en="I agree to the terms"></span></label>
+        <small data-s2-error-for="agree"></small>
+        <div class="actions"><button data-ko="가입" data-en="Sign up"></button><span class="result" data-result></span></div>
+      </form>
+      <details><summary data-ko="서버 코드 (Java)" data-en="Server code (Java)"></summary>
+<pre><code>S2Validator&lt;JoinForm&gt; JOIN = S2Validator.&lt;JoinForm&gt;builder()
+    .field("name", "이름").rule(REQUIRED).rule(MAX_LENGTH, 20)
+    .field("email", "이메일").rule(REQUIRED).rule(EMAIL)
+    .field("mobile", "휴대폰 번호").rule(REQUIRED).rule(MPHONE_NO)
+    .field("password", "비밀번호").rule(REQUIRED).rule(PASSWORD)
+    .field("passwordConfirm", "비밀번호 확인").rule(REQUIRED).rule(EQUALS_FIELD, "password")
+    .field("memberType", "회원 유형").rule(REQUIRED)
+    .field("bizNo", "사업자등록번호").when("memberType", "BUSINESS")
+        .rule(REQUIRED).rule(BIZRNO, true)                 // 사업자일 때만, 검증번호까지
+    .field("interests", "관심사").rule(MIN_SIZE, 1).rule(MAX_SIZE, 3)
+    .field("agree", "이용약관 동의").rule(ASSERT_TRUE)
+    .build();
+
+model.addAttribute("rules", JOIN.getRulesJson(locale));    // &lt;form th:data-s2-rules="${rules}"&gt;
+S2BindValidator.bind(JOIN).validate(form, bindingResult);  // POST: 같은 규칙으로 서버 검증</code></pre>
+      </details>
+      <details><summary data-ko="브라우저가 받은 규칙 JSON" data-en="Rules JSON received by the browser"></summary><pre><code data-rules-view="join"></code></pre></details>
+    </section>
+
+    <!-- 2. 주문 -->
+    <section class="card">
+      <h2><span class="num">2</span><span data-ko="주문 — 목록 행 규칙·날짜 비교" data-en="Order — list row rules, date comparison"></span></h2>
+      <form id="order" data-rules-key="order" data-s2-live="blur" novalidate>
+        <div data-rows>
+          <div class="row" data-row>
+            <label><span data-ko="품목명" data-en="Item"></span><input name="items[0].name" value="노트북" /><small data-s2-error-for="items[0].name"></small></label>
+            <label><span data-ko="수량" data-en="Quantity"></span><input name="items[0].qty" value="1" inputmode="numeric" /><small data-s2-error-for="items[0].qty"></small></label>
+            <button type="button" class="ghost" data-delete-row data-ko="삭제" data-en="Delete"></button>
+          </div>
+          <div class="row" data-row>
+            <label><span data-ko="품목명" data-en="Item"></span><input name="items[1].name" /><small data-s2-error-for="items[1].name"></small></label>
+            <label><span data-ko="수량" data-en="Quantity"></span><input name="items[1].qty" value="0" inputmode="numeric" /><small data-s2-error-for="items[1].qty"></small></label>
+            <button type="button" class="ghost" data-delete-row data-ko="삭제" data-en="Delete"></button>
+          </div>
+        </div>
+        <button type="button" class="ghost" data-add-row data-ko="+ 행 추가" data-en="+ Add row"></button>
+        <div class="grid">
+          <label><span data-ko="시작일" data-en="Start date"></span><input name="startDate" type="date" value="2026-12-10" /><small data-s2-error-for="startDate"></small></label>
+          <label><span data-ko="종료일" data-en="End date"></span><input name="endDate" type="date" value="2026-12-01" /><small data-s2-error-for="endDate"></small></label>
+        </div>
+        <div class="actions"><button data-ko="주문" data-en="Order"></button><span class="result" data-result></span></div>
+      </form>
+      <details><summary data-ko="서버 코드 (Java)" data-en="Server code (Java)"></summary>
+<pre><code>S2Validator&lt;OrderForm&gt; ORDER = S2Validator.&lt;OrderForm&gt;builder()
+    .field("items[].name", "품목명").rule(REQUIRED)               // 모든 행에 적용
+    .field("items[].qty", "수량").rule(REQUIRED).rule(MIN_VALUE, 1).rule(MAX_VALUE, 99)
+    .field("startDate", "시작일").rule(REQUIRED).rule(DATE)
+    .field("endDate", "종료일").rule(REQUIRED).rule(DATE).rule(DATE_AFTER, "startDate")
+    .build();
+
+// 행을 지우면 이름의 인덱스를 다시 매김: S2Validator.reindex(form, 'items')</code></pre>
+      </details>
+    </section>
+
+    <!-- 3. Bean Validation -->
+    <section class="card">
+      <h2><span class="num">3</span><span data-ko="Bean Validation 위에 얹기 — 어노테이션을 그대로 브라우저 규칙으로" data-en="On top of Bean Validation — annotations become browser rules"></span></h2>
+      <p data-ko="이미 쓰는 <code>@NotBlank</code>·<code>@Size</code>·<code>@Pattern</code>을 <code>S2BeanValidation</code>이 S2 규칙으로 바꿉니다. 서버는 그대로 <code>@Valid</code>로 검증합니다. 브라우저에서 같은 의미로 검사할 수 없는 제약은 서버 전용으로 남습니다."
+         data-en="<code>S2BeanValidation</code> converts the <code>@NotBlank</code>, <code>@Size</code> and <code>@Pattern</code> you already have into S2 rules; the server keeps validating with <code>@Valid</code>. Constraints the browser cannot check the same way stay server-only."></p>
+      <form id="profile" data-rules-key="profile" data-s2-live="blur" novalidate>
+        <div class="grid">
+          <label><span data-ko="닉네임" data-en="Nickname"></span><input name="nickname" autocomplete="off" /><small data-s2-error-for="nickname"></small></label>
+          <label><span data-ko="나이" data-en="Age"></span><input name="age" inputmode="numeric" /><small data-s2-error-for="age"></small></label>
+          <label><span data-ko="우편번호" data-en="ZIP code"></span><input name="zip" placeholder="12345" /><small data-s2-error-for="zip"></small></label>
+          <label><span data-ko="생년월일 (서버 전용: @Past)" data-en="Birth date (server-only: @Past)"></span><input name="birthDate" type="date" /></label>
+        </div>
+        <fieldset>
+          <legend data-ko="태그 (1~2개)" data-en="Tags (1 to 2)"></legend>
+          <label class="inline"><input type="checkbox" name="tags" value="a" /> A</label>
+          <label class="inline"><input type="checkbox" name="tags" value="b" /> B</label>
+          <label class="inline"><input type="checkbox" name="tags" value="c" /> C</label>
+          <small data-s2-error-for="tags"></small>
+        </fieldset>
+        <div class="actions"><button data-ko="저장" data-en="Save"></button><span class="result" data-result></span></div>
+        <p class="hint"><span data-ko="서버 전용으로 남은 제약:" data-en="Server-only constraints:"></span> <code data-server-only></code></p>
+      </form>
+      <details open><summary data-ko="서버 코드 (Java)" data-en="Server code (Java)"></summary>
+<pre><code>public class ProfileForm {
+    @NotBlank @Size(max = 10)  private String nickname;
+    @NotNull @Min(14) @Max(120) private Integer age;
+    @Pattern(regexp = "[0-9]{5}") private String zip;
+    @Size(min = 1, max = 2)     private List&lt;String&gt; tags;
+    @Past                       private LocalDate birthDate;   // 서버 전용
+}
+
+S2Validator&lt;ProfileForm&gt; rules = S2BeanValidation.of(ProfileForm.class)
+    .labels(Map.of("nickname", "닉네임", "age", "나이", "zip", "우편번호", "tags", "태그"))
+    .build();
+model.addAttribute("rules", rules.getRulesJson(locale));   // 서버는 @Valid 그대로</code></pre>
+      </details>
+    </section>
+
+    <!-- 4. Playground -->
+    <section class="card">
+      <h2><span class="num">4</span><span data-ko="직접 해 보기 — 규칙 JSON 과 데이터로 check()" data-en="Playground — check() with rules JSON and data"></span></h2>
+      <p data-ko="폼 없이도 <code>S2Validator.check(rules, data)</code>로 검사할 수 있습니다(SPA·Node). 규칙이나 데이터를 고쳐 보세요."
+         data-en="Validate without a form using <code>S2Validator.check(rules, data)</code> (SPA, Node). Edit the rules or the data."></p>
+      <div class="play">
+        <label><span data-ko="규칙 JSON" data-en="Rules JSON"></span><textarea id="playRules" spellcheck="false"></textarea></label>
+        <label><span data-ko="데이터 JSON" data-en="Data JSON"></span><textarea id="playData" spellcheck="false"></textarea></label>
+      </div>
+      <div class="actions"><button type="button" id="playRun">check()</button></div>
+      <pre class="output" id="playOut"></pre>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <span>s2-util · Apache-2.0</span>
+    <a href="https://central.sonatype.com/artifact/io.github.devers2/s2-validator">Maven Central</a>
+  </footer>
+
+  <script type="module" src="./site.js"></script>
+</body>
+</html>

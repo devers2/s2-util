@@ -1,0 +1,50 @@
+name: Demo site (GitHub Pages)
+
+# 공개 데모(https://devers2.github.io/s2-util/)를 배포한다. main 은 배포본과 같으므로 main 에 반영될 때만 배포해
+# 데모가 Maven Central 에 올라간 버전의 기능만 보여 주게 한다. 페이지·규칙·스크립트는 같은 커밋에서 가져온다.
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "s2-validator/browser-test/site/**"
+      - "s2-validator/src/main/resources/META-INF/resources/s2-util/js/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      # 페이지(site/)와 jar 에 들어가는 s2.validator.js 를 한 폴더로 모음 (페이지는 ./s2.validator.js 를 읽음)
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r s2-validator/browser-test/site/. _site/
+          cp s2-validator/src/main/resources/META-INF/resources/s2-util/js/s2.validator.js _site/
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

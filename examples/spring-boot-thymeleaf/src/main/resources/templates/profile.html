@@ -1,0 +1,29 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{fragments :: head('프로필 — s2-validator')}"></head>
+<body>
+  <nav th:replace="~{fragments :: nav}"></nav>
+  <h1>프로필 (Bean Validation 에 얹기)</h1>
+  <p><code>ProfileForm</code> 의 <code>@NotBlank</code>·<code>@Size</code>·<code>@Pattern</code> 은 그대로입니다.
+     브라우저 규칙은 <code>S2BeanValidation</code> 이 어노테이션에서 만들고, 조건부 규칙(VIP 코드)만 S2 로 더했습니다.
+     <code>@Past</code>(생년월일)는 서버에서만 검증합니다.</p>
+
+  <form th:action="@{/profile}" th:object="${profileForm}" method="post" th:attr="data-s2-rules=${rules}" data-s2-live="blur">
+    <label>닉네임</label><input th:field="*{nickname}" /><small data-s2-error-for="nickname"><span th:errors="*{nickname}"></span></small>
+    <label>나이</label><input th:field="*{age}" inputmode="numeric" /><small data-s2-error-for="age"><span th:errors="*{age}"></span></small>
+    <label>우편번호</label><input th:field="*{zip}" placeholder="12345" /><small data-s2-error-for="zip"><span th:errors="*{zip}"></span></small>
+    <label>생년월일 (서버 전용: @Past)</label><input type="date" th:field="*{birthDate}" /><small><span th:errors="*{birthDate}"></span></small>
+    <label>태그 (1~2개)</label>
+    <span class="inline"><input type="checkbox" th:field="*{tags}" value="a" /> A</span>
+    <span class="inline"><input type="checkbox" th:field="*{tags}" value="b" /> B</span>
+    <span class="inline"><input type="checkbox" th:field="*{tags}" value="c" /> C</span>
+    <small data-s2-error-for="tags"><span th:errors="*{tags}"></span></small>
+    <label>회원 등급</label>
+    <select th:field="*{type}"><option value="">일반</option><option value="VIP">VIP</option></select>
+    <label>VIP 코드 (VIP 일 때 필수)</label><input th:field="*{vipCode}" /><small data-s2-error-for="vipCode"><span th:errors="*{vipCode}"></span></small>
+    <button>저장</button>
+  </form>
+
+  <script th:replace="~{fragments :: validator}"></script>
+</body>
+</html>

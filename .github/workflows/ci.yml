@@ -39,6 +39,12 @@ jobs:
           set -o pipefail
           # Keep the full output in build.log; the log view shows the last 150 lines | 전체 출력은 build.log 에 두고 로그 화면에는 마지막 150줄만 표시
           ./gradlew build --stacktrace 2>&1 | tee build.log | tail -150
+      # 예제 앱(examples/spring-boot-thymeleaf)이 현재 소스로 계속 동작하는지 (Spring Boot 시험, 한 JDK 에서만)
+      - name: Example app
+        if: matrix.java == '17'
+        run: |
+          set -o pipefail
+          ./gradlew -p examples/spring-boot-thymeleaf test --stacktrace 2>&1 | tee example.log | tail -80
       - name: Show failed tests
         if: failure()
         shell: bash
@@ -66,5 +72,6 @@ jobs:
             **/build/reports/tests/
             **/build/test-results/
             build.log
+            example.log
           retention-days: 7
           if-no-files-found: ignore

@@ -1,0 +1,27 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title th:text="${title}">s2-validator example</title>
+  <style>
+    body { font: 15px/1.6 system-ui, "Malgun Gothic", sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; color: #1d2330; }
+    nav a { margin-right: 12px; }
+    label { display: block; margin: 12px 0 4px; color: #5b6474; }
+    input:not([type=checkbox]), select { width: 100%; padding: 8px; border: 1px solid #dfe3ea; border-radius: 6px; font: inherit; box-sizing: border-box; }
+    .is-invalid { border-color: #c62f3d !important; }
+    small { color: #c62f3d; display: block; min-height: 1em; }
+    button { margin-top: 16px; padding: 9px 18px; border: 0; border-radius: 6px; background: #2f6fde; color: #fff; font: inherit; cursor: pointer; }
+    .inline { display: inline-flex; gap: 4px; margin-right: 12px; color: #1d2330; }
+  </style>
+</head>
+<body>
+  <nav th:fragment="nav"><a th:href="@{/join}">1. S2 규칙 (회원가입)</a><a th:href="@{/profile}">2. Bean Validation 에 얹기 (프로필)</a></nav>
+
+  <!-- s2.validator.js: 브라우저 검증 (jar 의 META-INF/resources 에서 바로 제공됨). 오류는 data-s2-error-for 요소에 표시 -->
+  <script th:fragment="validator" type="module" th:inline="javascript">
+    const { S2Validator } = await import(/*[[@{/s2-util/js/s2.validator.js}]]*/ '/s2-util/js/s2.validator.js');
+    S2Validator.setRenderer(S2Validator.classRenderer());
+  </script>
+</body>
+</html>

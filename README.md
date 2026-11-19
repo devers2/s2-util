@@ -9,6 +9,8 @@
 
 > **"Write Once, Validate Anywhere."**
 > The smartest way to validate both **Server (Java)** and **Client (JavaScript)** with a **single configuration**.
+> ▶️ **[Live demo](https://devers2.github.io/s2-util/?lang=en)** — try the validation in your browser · **[Example app](./examples/spring-boot-thymeleaf/README.md)** — Spring Boot + Thymeleaf, runs with one `bootRun`
+>
 > 📖 Comprehensive developer guide and architecture: **[Developer Manual (MANUAL.md)](./MANUAL.md)**
 >
 > 📝 Release notes and upgrade notes: **[CHANGELOG.md](./CHANGELOG.md)**

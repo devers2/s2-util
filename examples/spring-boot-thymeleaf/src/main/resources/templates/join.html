@@ -1,0 +1,36 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head th:replace="~{fragments :: head('회원가입 — s2-validator')}"></head>
+<body>
+  <nav th:replace="~{fragments :: nav}"></nav>
+  <h1>회원가입</h1>
+  <p>규칙은 <code>JoinController.RULES</code> 하나입니다. 브라우저는 그 규칙 JSON 으로, 서버는 같은 규칙으로 검증합니다.</p>
+
+  <!-- data-s2-rules 가 있는 폼은 제출할 때 자동으로 검증됨. 안쪽 th:errors 는 서버 검증 오류(오류가 없으면 th:errors 태그는 출력되지 않으므로 바깥 small 은 남김) -->
+  <form th:action="@{/join}" th:object="${joinForm}" method="post" th:attr="data-s2-rules=${rules}" data-s2-live="blur">
+    <label>이름</label><input th:field="*{name}" /><small data-s2-error-for="name"><span th:errors="*{name}"></span></small>
+    <label>이메일</label><input th:field="*{email}" /><small data-s2-error-for="email"><span th:errors="*{email}"></span></small>
+    <label>휴대폰 번호</label><input th:field="*{mobile}" placeholder="010-1234-5678" /><small data-s2-error-for="mobile"><span th:errors="*{mobile}"></span></small>
+    <label>비밀번호</label><input type="password" th:field="*{password}" /><small data-s2-error-for="password"><span th:errors="*{password}"></span></small>
+    <label>비밀번호 확인</label><input type="password" th:field="*{passwordConfirm}" /><small data-s2-error-for="passwordConfirm"><span th:errors="*{passwordConfirm}"></span></small>
+    <label>회원 유형</label>
+    <select th:field="*{memberType}">
+      <option value="">선택</option>
+      <option value="PERSONAL">개인</option>
+      <option value="BUSINESS">사업자</option>
+    </select><small data-s2-error-for="memberType"><span th:errors="*{memberType}"></span></small>
+    <label>사업자등록번호 (사업자일 때 필수)</label><input th:field="*{bizNo}" placeholder="123-45-67890" /><small data-s2-error-for="bizNo"><span th:errors="*{bizNo}"></span></small>
+    <label>관심사 (1~3개)</label>
+    <span class="inline"><input type="checkbox" th:field="*{interests}" value="java" /> Java</span>
+    <span class="inline"><input type="checkbox" th:field="*{interests}" value="spring" /> Spring</span>
+    <span class="inline"><input type="checkbox" th:field="*{interests}" value="js" /> JavaScript</span>
+    <span class="inline"><input type="checkbox" th:field="*{interests}" value="db" /> Database</span>
+    <small data-s2-error-for="interests"><span th:errors="*{interests}"></span></small>
+    <label class="inline"><input type="checkbox" th:field="*{agree}" /> 이용약관에 동의합니다</label>
+    <small data-s2-error-for="agree"><span th:errors="*{agree}"></span></small>
+    <button>가입</button>
+  </form>
+
+  <script th:replace="~{fragments :: validator}"></script>
+</body>
+</html>
