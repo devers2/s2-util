@@ -72,7 +72,8 @@ Java 소스 코드, JavaScript 검증기(`s2.validator.js`), Gradle 설정, 문�
    - 빌드 플러그인(`S2BuildUtils`)이 `./gradlew test` 실행 시 모든 `README`, `GUIDE`, `MANUAL`의 버전 및 의존성 코드 블록을 자동으로 동기화합니다.
 2. **배포 안전성**:
    - 사용자가 명시적으로 배포를 요청하지 않는 한 임의로 배포 태스크(`publish`, `publishToCentralPortal` 등)를 실행하지 마십시오.
-   - 평상시에는 `git commit` 및 `git push`만 수행합니다.
+   - 평상시에는 `develop` 브랜치에서 `git commit` 및 `git push`만 수행합니다.
+   - `main` 은 Maven Central 배포본과 같아야 합니다. 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 답니다.
 
 ---
 
