@@ -23,9 +23,13 @@ package io.github.devers2.s2util.core;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -324,6 +328,17 @@ public class S2ThreadUtil {
      * Returns a Virtual Thread Per-Task Executor if supported. Otherwise, returns a Fixed Platform
      * Thread Pool with the specified size.
      * </p>
+     * <p>
+     * A positive {@code maxThreads} limits concurrency in both cases: with virtual threads, each task still
+     * gets its own virtual thread, but at most {@code maxThreads} tasks run at once (the rest wait on a
+     * semaphore, as recommended by JEP 444), so code that limits concurrency for a database pool or an
+     * external API behaves the same on Java 17 and Java 21+. With {@code maxThreads} &le; 0, virtual threads
+     * are unbounded and the platform pool uses the default maximum size.
+     * </p>
+     * <p>
+     * On a bounded virtual-thread executor, {@code shutdownNow()} interrupts tasks that are still waiting for
+     * a permit; they end without running and are not included in the returned list.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
@@ -333,14 +348,26 @@ public class S2ThreadUtil {
      * 가상 스레드 지원 시 '태스크당 가상 스레드 실행기'를 반환하며, 미지원 시 지정된 크기의
      * 고정 플랫폼 스레드 풀을 생성합니다.
      * </p>
+     * <p>
+     * {@code maxThreads}가 양수이면 두 경우 모두 동시 실행 수를 제한합니다. 가상 스레드에서도 작업마다 가상 스레드를
+     * 만들되 동시에 최대 {@code maxThreads}개만 실행하고 나머지는 세마포어에서 기다리므로(JEP 444 권장 방식),
+     * DB 연결 풀이나 외부 API 한도에 맞춰 동시 실행 수를 제한한 코드가 Java 17과 Java 21+에서 같게 동작합니다.
+     * {@code maxThreads}가 0 이하이면 가상 스레드는 제한이 없고 플랫폼 풀은 기본 최대 크기를 씁니다.
+     * </p>
+     * <p>
+     * 제한된 가상 스레드 실행기에서 {@code shutdownNow()}는 허가를 기다리던 작업을 인터럽트하며, 그 작업은 실행되지 않고
+     * 끝나고 반환 목록에도 포함되지 않습니다.
+     * </p>
      *
-     * @param maxThreads Maximum threads if platform pool is used (uses default if &le; 0) | 플랫폼 풀 사용 시 최대 스레드 수 (0 이하 시 기본값 사용)
+     * @param maxThreads Maximum number of concurrently running tasks (&le; 0: unbounded virtual threads, or the default
+     *                   platform pool size) | 동시에 실행할 최대 작업 수 (0 이하: 가상 스레드는 제한 없음, 플랫폼 풀은 기본 크기)
      * @return A new {@link ExecutorService} instance | 새로운 ExecutorService 인스턴스
      */
     public static ExecutorService newExecutor(int maxThreads) {
         if (isVirtualSupported()) {
             try {
-                return (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
+                ExecutorService virtualExecutor = (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
+                return maxThreads > 0 ? new BoundedVirtualExecutor(virtualExecutor, maxThreads) : virtualExecutor;
             } catch (Throwable t) {
                 if (S2Util.isKorean()) {
                     logger.warn("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.");
@@ -352,6 +379,71 @@ public class S2ThreadUtil {
         }
         int effectiveMax = maxThreads > 0 ? maxThreads : MAX_POOL_SIZE;
         return Executors.newFixedThreadPool(effectiveMax, PLATFORM_FACTORY);
+    }
+
+    /**
+     * Virtual-thread-per-task executor that runs at most a fixed number of tasks at once. Each task gets its own
+     * virtual thread and waits for a semaphore permit before running (JEP 444's recommended way to limit
+     * concurrency, instead of pooling virtual threads).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 동시에 정해진 수의 작업만 실행하는 '태스크당 가상 스레드' 실행기입니다. 작업마다 가상 스레드를 만들고 실행 전에
+     * 세마포어 허가를 받습니다(가상 스레드를 풀로 재사용하는 대신 JEP 444가 권장하는 동시성 제한 방식).
+     */
+    private static final class BoundedVirtualExecutor extends AbstractExecutorService {
+        private final ExecutorService delegate;
+        private final Semaphore permits;
+
+        BoundedVirtualExecutor(ExecutorService delegate, int maxConcurrency) {
+            this.delegate = delegate;
+            this.permits = new Semaphore(maxConcurrency);
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            Objects.requireNonNull(command, "command");
+            delegate.execute(() -> {
+                try {
+                    permits.acquire();
+                } catch (InterruptedException e) {
+                    // 허가를 기다리다 shutdownNow 등으로 인터럽트되면 실행하지 않고 끝낸다
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    command.run();
+                } finally {
+                    permits.release();
+                }
+            });
+        }
+
+        @Override
+        public void shutdown() {
+            delegate.shutdown();
+        }
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return delegate.shutdownNow();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return delegate.isShutdown();
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return delegate.isTerminated();
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+            return delegate.awaitTermination(timeout, unit);
+        }
     }
 
     /**

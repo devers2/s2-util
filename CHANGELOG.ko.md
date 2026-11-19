@@ -16,6 +16,9 @@
   이전에는 `messages.properties` 에 `valid.err.required` 같은 공통 키가 있으면 규칙별 메시지가 모두 무시됐습니다. `.rule(type, value, key)`로 명시한 키는 지금처럼 가장 먼저 찾습니다.
 - `S2Rule.required()` 공유 인스턴스에 `storeMessage()` 를 호출하면 `UnsupportedOperationException` 이 납니다. 이전에는 JVM 전체의 암묵 필수 메시지가 바뀌었습니다.
 - **`DATE_AFTER`·`DATE_BEFORE`**: 날짜로 읽을 수 없는 값은 브라우저에서도 통과합니다(서버와 동일). 이전에는 브라우저만 실패시켜 서버가 받는 값을 막았습니다.
+- **`S2ThreadUtil.newExecutor(maxThreads)`: 양수 `maxThreads` 는 가상 스레드(Java 21+)에서도 동시 실행 수를 제한합니다.**
+  이전에는 Java 17(플랫폼 풀)에서만 제한되고 Java 21+ 에서는 무시되어, Java 버전만 올려도 DB 연결 풀·외부 API 한도를 넘을 수 있었습니다.
+  작업마다 가상 스레드를 만들고 세마포어로 동시에 `maxThreads` 개만 실행합니다. 0 이하는 지금처럼 가상 스레드에서 제한이 없습니다.
 
 ### 추가
 

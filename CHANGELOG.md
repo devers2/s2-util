@@ -21,6 +21,9 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   implicit required message for the whole JVM.
 - **`DATE_AFTER`/`DATE_BEFORE`**: a value that is not a readable date now passes in the browser too (same as the server).
   Previously only the browser failed it, blocking values the server accepts.
+- **`S2ThreadUtil.newExecutor(maxThreads)`: a positive `maxThreads` now limits concurrency on virtual threads (Java 21+) too.**
+  It was honored only on Java 17 (platform pool) and ignored on Java 21+, so upgrading Java alone could exceed a database pool or external API limit.
+  Each task still gets its own virtual thread, and a semaphore lets at most `maxThreads` run at once. Values of 0 or less stay unbounded on virtual threads.
 
 ### Added
 
