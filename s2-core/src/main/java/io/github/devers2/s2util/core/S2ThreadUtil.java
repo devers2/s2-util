@@ -147,11 +147,6 @@ public class S2ThreadUtil {
     /** 제출 대기 중 실행기 종료 여부를 확인하는 간격(ms). */
     private static final long ADMISSION_POLL_MILLIS = 100L;
 
-    // 로그 가독성을 위한 컬러 코드
-    private static final String ANSI_RESET = "\u001B[0m";
-    private static final String ANSI_YELLOW = "\u001B[33m";
-    private static final String ANSI_GREEN = "\u001B[32m";
-
     static {
         /**
          * 초기화 시점에 환경을 분석하고 팩토리와 가상 스레드 지원 여부만 확인한다.
@@ -234,12 +229,10 @@ public class S2ThreadUtil {
                 if (Runtime.version().feature() < 24) {
                     if (S2Util.isKorean()) {
                         logger.info(
-                                "{}[CAUTION_SYNCHRONIZED]{} 가이드: Java 21~23 에서는 {}synchronized{} 안에서 블로킹(I/O 등)하면 실행 스레드가 묶여(pinning) 전체가 멈출 수 있습니다. {}ReentrantLock{} 사용 또는 Java 24+ 를 권장하며, 문제가 있으면 -Ds2.thread.virtual.enabled=false 로 플랫폼 스레드를 쓸 수 있습니다.",
-                                ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                                "[CAUTION_SYNCHRONIZED] 가이드: Java 21~23 에서는 synchronized 안에서 블로킹(I/O 등)하면 실행 스레드가 묶여(pinning) 전체가 멈출 수 있습니다. ReentrantLock 사용 또는 Java 24+ 를 권장하며, 문제가 있으면 -Ds2.thread.virtual.enabled=false 로 플랫폼 스레드를 쓸 수 있습니다.");
                     } else {
                         logger.info(
-                                "{}[CAUTION_SYNCHRONIZED]{} Guide: On Java 21-23, blocking (I/O etc.) inside {}synchronized{} pins carrier threads and can stall all virtual threads. Prefer {}ReentrantLock{} or Java 24+; use -Ds2.thread.virtual.enabled=false to fall back to platform threads.",
-                                ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                                "[CAUTION_SYNCHRONIZED] Guide: On Java 21-23, blocking (I/O etc.) inside synchronized pins carrier threads and can stall all virtual threads. Prefer ReentrantLock or Java 24+; use -Ds2.thread.virtual.enabled=false to fall back to platform threads.");
                     }
                 }
                 return VIRTUAL_MAX_CONCURRENCY > 0 ? new LimitedExecutor(executor, VIRTUAL_MAX_CONCURRENCY, 0) : executor;

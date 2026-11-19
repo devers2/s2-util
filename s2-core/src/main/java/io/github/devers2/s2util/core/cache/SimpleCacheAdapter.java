@@ -20,7 +20,7 @@
  */
 package io.github.devers2.s2util.core.cache;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
 /**
@@ -47,8 +47,9 @@ import java.util.function.Function;
 public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
 
     private final S2OptimisticCache<K, V> cache;
-    private final AtomicLong hitCount = new AtomicLong(0);
-    private final AtomicLong missCount = new AtomicLong(0);
+    // 여러 스레드가 동시에 올려도 경합이 적은 LongAdder 사용
+    private final LongAdder requestCount = new LongAdder();
+    private final LongAdder missCount = new LongAdder();
     private final boolean statsEnabled;
 
     /**
@@ -81,21 +82,17 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
      */
     @Override
     public V get(K key, Function<K, V> loader) {
-        // containsKey()로 히트/미스를 먼저 판별한다. getIfPresent()의 반환값(null 언래핑됨)만으로는
-        // "캐시에 없음"과 "null로 음성 캐싱됨"을 구분할 수 없어 negative-cache 히트가 항상 미스로
-        // 잘못 집계되던 문제를 막는다 | Determines hit/miss via containsKey() first — using
-        // getIfPresent()'s unwrapped return alone can't distinguish "not cached" from "cached as
-        // null", which previously mis-counted every negative-cache hit as a miss.
-        if (statsEnabled) {
-            if (cache.containsKey(key)) {
-                hitCount.incrementAndGet();
-            } else {
-                missCount.incrementAndGet();
-            }
+        if (!statsEnabled) {
+            // Null-safe: result can be null from Optional loaders (or a negatively-cached entry)
+            return cache.get(key, loader);
         }
 
-        // Null-safe: result can be null from Optional loaders (or a negatively-cached entry)
-        return cache.get(key, loader);
+        // 조회는 한 번만 한다. loader 가 실행되면 미스, 아니면 히트(null 로 음성 캐싱된 항목도 loader 를 부르지 않으므로 히트)
+        requestCount.increment();
+        return cache.get(key, k -> {
+            missCount.increment();
+            return loader.apply(k);
+        });
     }
 
     /**
@@ -114,9 +111,9 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
             return "Stats disabled";
         }
 
-        long hits = hitCount.get();
-        long misses = missCount.get();
-        long total = hits + misses;
+        long total = requestCount.sum();
+        long misses = Math.min(missCount.sum(), total);
+        long hits = total - misses;
         double hitRate = total > 0 ? (double) hits / total : 0.0;
 
         return String.format(
@@ -139,8 +136,8 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
     public void clear() {
         cache.clear();
         if (statsEnabled) {
-            hitCount.set(0);
-            missCount.set(0);
+            requestCount.reset();
+            missCount.reset();
         }
     }
 

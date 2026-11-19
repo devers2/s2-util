@@ -74,6 +74,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - A burst of distinct keys (all misses) outran eviction and the cache kept growing far past its bound. New values are now returned without caching once the cache holds twice its maximum size.
 - `S2Cache.getMethodHandle` did not include the lookup type (`LookupType`) in its cache key, so whichever type was looked up first stuck
   (looking up `BOTH` first made the public-only `METHOD` lookup return a private method; the reverse made `BOTH` miss private members).
+- s2-core log messages (cache engine notice, virtual thread notice) contained ANSI color codes, leaving control characters in log files and log collectors.
+- Lightweight cache statistics (`-Ds2.cache.stats.enabled=true`) looked up the cache twice per call and used contended counters. They now look up once and count with `LongAdder`.
 
 ## [2.1.0]
 

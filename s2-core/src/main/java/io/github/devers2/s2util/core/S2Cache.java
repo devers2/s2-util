@@ -318,15 +318,15 @@ public class S2Cache {
     private static void logCacheBackend(boolean caffeineAvailable) {
         if (caffeineAvailable) {
             if (S2Util.isKorean()) {
-                logger.info("\u001B[38;5;221mCaffeine 캐시 사용 중 (고성능)\u001B[0m");
+                logger.info("Caffeine 캐시 사용 중 (고성능)");
             } else {
-                logger.info("\u001B[38;5;221mUsing Caffeine Cache (High Performance)\u001B[0m");
+                logger.info("Using Caffeine Cache (High Performance)");
             }
         } else {
             if (S2Util.isKorean()) {
-                logger.info("\u001B[38;5;221m경량 캐시 사용 중 (ConcurrentHashMap)\u001B[0m");
+                logger.info("경량 캐시 사용 중 (ConcurrentHashMap)");
             } else {
-                logger.info("\u001B[38;5;221mUsing Lightweight Cache (ConcurrentHashMap)\u001B[0m");
+                logger.info("Using Lightweight Cache (ConcurrentHashMap)");
             }
         }
     }
