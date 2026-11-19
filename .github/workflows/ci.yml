@@ -34,11 +34,34 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build and Test
+        env:
+          # Java 17 작업은 컴파일(툴체인 JDK 21, --release 17)은 그대로 두고 시험만 JDK 17 에서 실행한다.
+          # JDK 21 이 나중에 설치되어 JAVA_HOME 을 덮어쓰므로, 이 설정이 없으면 시험이 JDK 21 로 돈다.
+          # JAVA_HOME_17_X64 는 setup-java 가 내보내는 JDK 17 경로 — Gradle 이 다운로드 없이 찾게 한다.
+          TEST_JAVA_ARGS: ${{ matrix.java == '17' && '-Ps2.testJavaVersion=17 -Porg.gradle.java.installations.fromEnv=JAVA_HOME_17_X64' || '' }}
         run: |
           # Propagate the Gradle exit code through the pipe so tail's success does not hide build failures. | 파이프를 거쳐도 Gradle 종료코드를 전달하여 tail 의 성공이 빌드 실패를 가리지 않도록 함
           set -o pipefail
           # Keep the full output in build.log; the log view shows the last 150 lines | 전체 출력은 build.log 에 두고 로그 화면에는 마지막 150줄만 표시
-          ./gradlew build --stacktrace 2>&1 | tee build.log | tail -150
+          ./gradlew build --stacktrace $TEST_JAVA_ARGS 2>&1 | tee build.log | tail -150
+      # Java 17 작업의 시험이 실제로 JDK 17 에서 돌았는지 확인한다. 가상 스레드 전용 시험은 JDK 17 에서 건너뛰어지므로,
+      # 건너뛰지 않았다면 시험이 JDK 21 로 돈 것이다(위 TEST_JAVA_ARGS 가 무력화된 경우).
+      - name: Verify tests ran on JDK 17
+        if: matrix.java == '17'
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET, sys
+          path = "s2-core/build/test-results/test/TEST-io.github.devers2.s2util.core.S2ThreadUtilTest.xml"
+          for case in ET.parse(path).getroot().iter("testcase"):
+              if case.get("name") == "nonPositiveMaxThreadsIsUnboundedOnVirtualThreads()":
+                  if case.find("skipped") is None:
+                      print("::error title=Wrong test JDK::Java 17 job ran tests on a JDK with virtual threads (not JDK 17)")
+                      sys.exit(1)
+                  print("Tests ran on JDK 17 (virtual-thread-only test was skipped).")
+                  sys.exit(0)
+          print("::error title=Missing test::virtual-thread-only test not found in " + path)
+          sys.exit(1)
+          PY
       # 예제 앱(examples/spring-boot-thymeleaf)이 현재 소스로 계속 동작하는지 (Spring Boot 시험, 한 JDK 에서만)
       - name: Example app
         if: matrix.java == '17'

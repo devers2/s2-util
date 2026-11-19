@@ -383,3 +383,20 @@ S2BuildUtils.updateReadmeWithVersionAndDependencies(project, "^(README|MANUAL)(\
 tasks.named("check") {
     dependsOn(gradle.includedBuild("s2-validator-plugin").task(":check"))
 }
+
+// --------------------------------------------------------------------------------------
+// 시험 실행 JDK 지정: -Ps2.testJavaVersion=17 이면 컴파일(툴체인 JDK 21, --release 17)은 그대로 두고
+// 시험만 해당 JDK 에서 실행한다. CI 의 Java 17 작업이 Java 17 실행 경로(플랫폼 스레드 등)를 실제로 시험하도록 쓴다.
+// 이 저장소의 포함 빌드(s2-validator-plugin)는 Gradle 플러그인이라 대상이 아니다.
+// --------------------------------------------------------------------------------------
+providers.gradleProperty("s2.testJavaVersion").orNull?.let { testJavaVersion ->
+    allprojects {
+        tasks.withType<Test>().configureEach {
+            javaLauncher.set(
+                project.extensions.getByType<JavaToolchainService>().launcherFor {
+                    languageVersion.set(JavaLanguageVersion.of(testJavaVersion))
+                }
+            )
+        }
+    }
+}
