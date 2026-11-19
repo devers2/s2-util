@@ -2,18 +2,24 @@ package io.github.devers2.s2util.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
@@ -100,4 +106,124 @@ class S2ThreadUtilTest {
         assertTrue(executor.isShutdown() && executor.isTerminated());
         assertFalse(secondRan.get());
     }
+
+    @Test
+    void pendingLimitBlocksSubmitterUntilTasksFinish() throws Exception {
+        ExecutorService executor = S2ThreadUtil.newExecutor(2, 3);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger active = new AtomicInteger();
+        AtomicInteger peak = new AtomicInteger();
+        AtomicInteger done = new AtomicInteger();
+        Runnable task = () -> {
+            peak.accumulateAndGet(active.incrementAndGet(), Math::max);
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            active.decrementAndGet();
+            done.incrementAndGet();
+        };
+        for (int i = 0; i < 5; i++) {
+            executor.execute(task); // 실행 2 + 대기 3 = 한도까지는 바로 들어간다
+        }
+        Thread submitter = new Thread(() -> executor.execute(task));
+        submitter.start();
+        submitter.join(300);
+        assertTrue(submitter.isAlive(), "6th submission should wait while 5 tasks are in flight");
+
+        release.countDown();
+        submitter.join(5000);
+        assertFalse(submitter.isAlive());
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        assertEquals(6, done.get());
+        assertTrue(peak.get() <= 2, "peak=" + peak.get());
+    }
+
+    @Test
+    void blockedSubmitterIsRejectedWhenExecutorShutsDown() throws Exception {
+        ExecutorService executor = S2ThreadUtil.newExecutor(1, 0);
+        CountDownLatch started = new CountDownLatch(1);
+        executor.execute(() -> {
+            started.countDown();
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(started.await(5, TimeUnit.SECONDS));
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        Thread submitter = new Thread(() -> {
+            try {
+                executor.execute(() -> { });
+            } catch (Throwable e) {
+                thrown.set(e);
+            }
+        });
+        submitter.start();
+        submitter.join(200);
+        assertTrue(submitter.isAlive());
+
+        executor.shutdownNow();
+        submitter.join(5000);
+        assertFalse(submitter.isAlive(), "blocked submitter was not released by shutdown");
+        assertTrue(thrown.get() instanceof RejectedExecutionException, "thrown=" + thrown.get());
+    }
+
+    @Test
+    void invalidLimitsAreRejected() {
+        assertThrows(IllegalArgumentException.class, () -> S2ThreadUtil.newExecutor(0, 10));
+        assertThrows(IllegalArgumentException.class, () -> S2ThreadUtil.newExecutor(2, -1));
+    }
+
+    /** 시스템 속성으로 시작한 별도 JVM 에서 실행되는 진입점. 결과를 한 줄로 출력한다. */
+    public static class PropertiesMain {
+        public static void main(String[] args) throws Exception {
+            ExecutorService common = S2ThreadUtil.getCommonExecutor();
+            AtomicInteger active = new AtomicInteger();
+            AtomicInteger peak = new AtomicInteger();
+            List<Callable<Object>> tasks = new ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                tasks.add(() -> {
+                    peak.accumulateAndGet(active.incrementAndGet(), Math::max);
+                    Thread.sleep(30);
+                    active.decrementAndGet();
+                    return null;
+                });
+            }
+            common.invokeAll(tasks);
+            System.out.println("RESULT virtual=" + S2ThreadUtil.isVirtualSupported() + " peak=" + peak.get());
+            System.exit(0);
+        }
+    }
+
+    private static String runWithProperty(String property) throws Exception {
+        String classPath = Path.of(S2ThreadUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                + File.pathSeparator
+                + Path.of(S2ThreadUtilTest.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        Process process = new ProcessBuilder(java, property, "-cp", classPath, PropertiesMain.class.getName())
+                .redirectErrorStream(true).start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertTrue(process.waitFor(30, TimeUnit.SECONDS));
+        return output.lines().filter(l -> l.startsWith("RESULT ")).findFirst()
+                .orElseThrow(() -> new AssertionError("no result: " + output));
+    }
+
+    @Test
+    void virtualThreadsCanBeDisabledByProperty() throws Exception {
+        assertEquals("RESULT virtual=false", runWithProperty("-Ds2.thread.virtual.enabled=false").replaceAll(" peak=.*", ""));
+    }
+
+    @Test
+    void commonExecutorConcurrencyCanBeLimitedByProperty() throws Exception {
+        assumeTrue(S2ThreadUtil.isVirtualSupported());
+        String result = runWithProperty("-Ds2.thread.virtual.max_concurrency=2");
+        assertTrue(result.startsWith("RESULT virtual=true"), result);
+        int peak = Integer.parseInt(result.replaceAll(".* peak=", ""));
+        assertTrue(peak >= 1 && peak <= 2, result);
+    }
 }
+

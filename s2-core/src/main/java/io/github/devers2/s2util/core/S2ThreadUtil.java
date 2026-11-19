@@ -29,6 +29,7 @@ import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -123,6 +124,29 @@ public class S2ThreadUtil {
      */
     private static final int QUEUE_CAPACITY = Integer.getInteger("s2.thread.queue_capacity", 1000);
 
+    /**
+     * Whether virtual threads are used when the JVM supports them. Set system property
+     * {@code s2.thread.virtual.enabled=false} to force platform threads (e.g. to avoid virtual thread pinning
+     * on Java 21-23) without code changes.
+     * <p>
+     * JVM 이 지원할 때 가상 스레드를 쓸지 여부입니다. 시스템 속성 {@code s2.thread.virtual.enabled=false}로 코드 수정 없이
+     * 플랫폼 스레드를 강제할 수 있습니다(예: Java 21~23 의 가상 스레드 pinning 회피).
+     */
+    private static final boolean VIRTUAL_ENABLED = Boolean
+            .parseBoolean(System.getProperty("s2.thread.virtual.enabled", "true"));
+
+    /**
+     * Maximum number of tasks the virtual-thread common executor runs at once ({@code &le; 0}: unbounded, the
+     * default). Configurable via system property {@code s2.thread.virtual.max_concurrency}.
+     * <p>
+     * 가상 스레드 공용 실행기가 동시에 실행하는 최대 작업 수입니다(0 이하: 제한 없음, 기본값).
+     * 시스템 속성 {@code s2.thread.virtual.max_concurrency}로 설정합니다.
+     */
+    private static final int VIRTUAL_MAX_CONCURRENCY = Integer.getInteger("s2.thread.virtual.max_concurrency", 0);
+
+    /** 제출 대기 중 실행기 종료 여부를 확인하는 간격(ms). */
+    private static final long ADMISSION_POLL_MILLIS = 100L;
+
     // 로그 가독성을 위한 컬러 코드
     private static final String ANSI_RESET = "\u001B[0m";
     private static final String ANSI_YELLOW = "\u001B[33m";
@@ -144,35 +168,40 @@ public class S2ThreadUtil {
             return thread;
         };
 
-        try {
-            // 가상 스레드 지원 여부 확인한다.
-            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
-            Class<?> builderClass = Class.forName("java.lang.Thread$Builder$OfVirtual");
-            MethodHandle ofVirtual = lookup.findStatic(Thread.class, "ofVirtual", MethodType.methodType(builderClass));
-            MethodHandle factoryMethod = lookup.findVirtual(builderClass, "factory",
-                    MethodType.methodType(ThreadFactory.class));
-
-            // 가상 스레드 팩토리 생성
-            defaultFactory = (ThreadFactory) factoryMethod.invoke(ofVirtual.invoke());
-
-            // 가상 스레드 실행기 생성용 핸들 확보함
-            virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor",
-                    MethodType.methodType(ExecutorService.class));
-
-        } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
-            // Java 21 미만 환경 처리
+        if (!VIRTUAL_ENABLED) {
+            // s2.thread.virtual.enabled=false: 가상 스레드를 쓰지 않고 플랫폼 스레드로 동작
             defaultFactory = platformFactory;
-        } catch (Throwable t) {
-            defaultFactory = platformFactory;
-            String javaVersion = System.getProperty("java.version");
-            if (S2Util.isKorean()) {
-                logger.error(
-                        "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 플랫폼 팩토리로 대체합니다.",
-                        javaVersion, t);
-            } else {
-                logger.error(
-                        "[INIT_ERROR] An unexpected initialization error occurred. (Java Version: {}) Falling back to platform factory.",
-                        javaVersion, t);
+        } else {
+            try {
+                // 가상 스레드 지원 여부 확인한다.
+                MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+                Class<?> builderClass = Class.forName("java.lang.Thread$Builder$OfVirtual");
+                MethodHandle ofVirtual = lookup.findStatic(Thread.class, "ofVirtual", MethodType.methodType(builderClass));
+                MethodHandle factoryMethod = lookup.findVirtual(builderClass, "factory",
+                        MethodType.methodType(ThreadFactory.class));
+
+                // 가상 스레드 팩토리 생성
+                defaultFactory = (ThreadFactory) factoryMethod.invoke(ofVirtual.invoke());
+
+                // 가상 스레드 실행기 생성용 핸들 확보함
+                virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor",
+                        MethodType.methodType(ExecutorService.class));
+
+            } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
+                // Java 21 미만 환경 처리
+                defaultFactory = platformFactory;
+            } catch (Throwable t) {
+                defaultFactory = platformFactory;
+                String javaVersion = System.getProperty("java.version");
+                if (S2Util.isKorean()) {
+                    logger.error(
+                            "[INIT_ERROR] 예상치 못한 초기화 오류가 발생하였습니다. (Java Version: {}) 플랫폼 팩토리로 대체합니다.",
+                            javaVersion, t);
+                } else {
+                    logger.error(
+                            "[INIT_ERROR] An unexpected initialization error occurred. (Java Version: {}) Falling back to platform factory.",
+                            javaVersion, t);
+                }
             }
         }
 
@@ -194,18 +223,26 @@ public class S2ThreadUtil {
             try {
                 ExecutorService executor = (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
                 if (S2Util.isKorean()) {
-                    logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다.");
-                    logger.info(
-                            "{}[CAUTION_SYNCHRONIZED]{} 가이드: 성능 저하 방지를 위해 {}synchronized{} 대신 {}java.util.concurrent.locks.ReentrantLock{} 사용을 권장합니다.",
-                            ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                    logger.info("[VIRTUAL_THREAD] 가상 스레드 환경을 감지하였습니다. 공용 실행기를 가상 스레드로 설정합니다. (동시 실행 상한: {})",
+                            VIRTUAL_MAX_CONCURRENCY > 0 ? VIRTUAL_MAX_CONCURRENCY : "없음");
                 } else {
                     logger.info(
-                            "[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads.");
-                    logger.info(
-                            "{}[CAUTION_SYNCHRONIZED]{} Guide: To prevent performance degradation, consider using {}java.util.concurrent.locks.ReentrantLock{} instead of {}synchronized{}.",
-                            ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                            "[VIRTUAL_THREAD] Virtual thread environment detected. Setting common executor to virtual threads. (Max concurrency: {})",
+                            VIRTUAL_MAX_CONCURRENCY > 0 ? VIRTUAL_MAX_CONCURRENCY : "unbounded");
                 }
-                return executor;
+                // Java 24(JEP 491)부터는 synchronized 블로킹이 실행 스레드를 묶지 않으므로 안내는 21~23 에서만
+                if (Runtime.version().feature() < 24) {
+                    if (S2Util.isKorean()) {
+                        logger.info(
+                                "{}[CAUTION_SYNCHRONIZED]{} 가이드: Java 21~23 에서는 {}synchronized{} 안에서 블로킹(I/O 등)하면 실행 스레드가 묶여(pinning) 전체가 멈출 수 있습니다. {}ReentrantLock{} 사용 또는 Java 24+ 를 권장하며, 문제가 있으면 -Ds2.thread.virtual.enabled=false 로 플랫폼 스레드를 쓸 수 있습니다.",
+                                ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                    } else {
+                        logger.info(
+                                "{}[CAUTION_SYNCHRONIZED]{} Guide: On Java 21-23, blocking (I/O etc.) inside {}synchronized{} pins carrier threads and can stall all virtual threads. Prefer {}ReentrantLock{} or Java 24+; use -Ds2.thread.virtual.enabled=false to fall back to platform threads.",
+                                ANSI_YELLOW, ANSI_RESET, ANSI_GREEN, ANSI_RESET, ANSI_GREEN, ANSI_RESET);
+                    }
+                }
+                return VIRTUAL_MAX_CONCURRENCY > 0 ? new LimitedExecutor(executor, VIRTUAL_MAX_CONCURRENCY, 0) : executor;
             } catch (Throwable t) {
                 if (S2Util.isKorean()) {
                     logger.error("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.", t);
@@ -217,7 +254,19 @@ public class S2ThreadUtil {
 
         // 플랫폼 스레드 풀 생성
         String javaVersion = System.getProperty("java.version");
-        if (S2Util.isKorean()) {
+        if (!VIRTUAL_ENABLED) {
+            if (S2Util.isKorean()) {
+                logger.info("[PLATFORM_THREAD] s2.thread.virtual.enabled=false 설정으로 가상 스레드를 사용하지 않습니다. (Java Version: {})",
+                        javaVersion);
+                logger.info("[PLATFORM_THREAD] 공용 실행기를 제한적인 플랫폼 스레드로 설정합니다. (Core: {}, Max: {}, Queue: {})",
+                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
+            } else {
+                logger.info("[PLATFORM_THREAD] Virtual threads disabled by s2.thread.virtual.enabled=false. (Java Version: {})",
+                        javaVersion);
+                logger.info("[PLATFORM_THREAD] Setting common executor to limited platform threads. (Core: {}, Max: {}, Queue: {})",
+                        CORE_POOL_SIZE, MAX_POOL_SIZE, QUEUE_CAPACITY);
+            }
+        } else if (S2Util.isKorean()) {
             logger.info(
                     "[PLATFORM_THREAD] 가상 스레드를 지원하지 않는 환경입니다. (Java Version: {})",
                     javaVersion);
@@ -244,14 +293,15 @@ public class S2ThreadUtil {
     }
 
     /**
-     * Checks if the current JVM supports Virtual Threads.
+     * Checks if virtual threads are used: the JVM supports them and they are not disabled by
+     * {@code s2.thread.virtual.enabled=false}.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 현재 실행 환경(JVM)이 가상 스레드를 지원하는지 여부를 확인합니다.
+     * 가상 스레드를 사용하는지 확인합니다. JVM 이 지원하고 {@code s2.thread.virtual.enabled=false}로 끄지 않았으면 true 입니다.
      *
-     * @return {@code true} if virtual threads are supported | 가상 스레드 지원 시 true
+     * @return {@code true} if virtual threads are used | 가상 스레드를 사용하면 true
      */
     public static boolean isVirtualSupported() {
         return VIRTUAL_EXECUTOR_MH != null;
@@ -336,6 +386,10 @@ public class S2ThreadUtil {
      * are unbounded and the platform pool uses the default maximum size.
      * </p>
      * <p>
+     * Waiting tasks are not bounded: if tasks are submitted faster than they finish for a long time, waiting
+     * tasks accumulate until memory runs out. Use {@link #newExecutor(int, int)} to bound them.
+     * </p>
+     * <p>
      * On a bounded virtual-thread executor, {@code shutdownNow()} interrupts tasks that are still waiting for
      * a permit; they end without running and are not included in the returned list.
      * </p>
@@ -355,6 +409,10 @@ public class S2ThreadUtil {
      * {@code maxThreads}가 0 이하이면 가상 스레드는 제한이 없고 플랫폼 풀은 기본 최대 크기를 씁니다.
      * </p>
      * <p>
+     * 대기 작업 수에는 제한이 없습니다. 처리보다 빠른 제출이 오래 이어지면 대기 작업이 메모리가 바닥날 때까지 쌓이므로,
+     * 제한이 필요하면 {@link #newExecutor(int, int)}를 쓰십시오.
+     * </p>
+     * <p>
      * 제한된 가상 스레드 실행기에서 {@code shutdownNow()}는 허가를 기다리던 작업을 인터럽트하며, 그 작업은 실행되지 않고
      * 끝나고 반환 목록에도 포함되지 않습니다.
      * </p>
@@ -364,60 +422,162 @@ public class S2ThreadUtil {
      * @return A new {@link ExecutorService} instance | 새로운 ExecutorService 인스턴스
      */
     public static ExecutorService newExecutor(int maxThreads) {
-        if (isVirtualSupported()) {
-            try {
-                ExecutorService virtualExecutor = (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
-                return maxThreads > 0 ? new BoundedVirtualExecutor(virtualExecutor, maxThreads) : virtualExecutor;
-            } catch (Throwable t) {
-                if (S2Util.isKorean()) {
-                    logger.warn("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.");
-                } else {
-                    logger.warn(
-                            "[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.");
-                }
-            }
+        ExecutorService virtualExecutor = newVirtualPerTaskExecutor();
+        if (virtualExecutor != null) {
+            return maxThreads > 0 ? new LimitedExecutor(virtualExecutor, maxThreads, 0) : virtualExecutor;
         }
         int effectiveMax = maxThreads > 0 ? maxThreads : MAX_POOL_SIZE;
         return Executors.newFixedThreadPool(effectiveMax, PLATFORM_FACTORY);
     }
 
     /**
-     * Virtual-thread-per-task executor that runs at most a fixed number of tasks at once. Each task gets its own
-     * virtual thread and waits for a semaphore permit before running (JEP 444's recommended way to limit
-     * concurrency, instead of pooling virtual threads).
+     * Creates a new {@link ExecutorService} that limits both running and waiting tasks, so overload cannot
+     * exhaust memory.
+     * <p>
+     * At most {@code maxThreads} tasks run at once (virtual threads: one virtual thread per task, limited by a
+     * semaphore; platform: a fixed pool of {@code maxThreads}). At most {@code maxPending} more tasks may wait.
+     * When {@code maxThreads + maxPending} tasks are in flight, {@code execute}/{@code submit} <b>blocks the
+     * submitting thread</b> until a task finishes (backpressure). A submitter blocked when the executor is shut
+     * down, or interrupted while waiting, gets a {@link RejectedExecutionException}.
+     * </p>
+     * <p>
+     * <b>Caution:</b> a task that submits subtasks to the same executor and waits for their results can
+     * deadlock when the executor is full. Submit such subtasks to a different executor.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 동시에 정해진 수의 작업만 실행하는 '태스크당 가상 스레드' 실행기입니다. 작업마다 가상 스레드를 만들고 실행 전에
-     * 세마포어 허가를 받습니다(가상 스레드를 풀로 재사용하는 대신 JEP 444가 권장하는 동시성 제한 방식).
+     * 실행 중인 작업과 대기 작업 수를 모두 제한하여 과부하로 메모리가 바닥나지 않는 실행기를 생성합니다.
+     * <p>
+     * 동시에 최대 {@code maxThreads}개를 실행하고(가상 스레드: 작업마다 가상 스레드 + 세마포어 제한, 플랫폼:
+     * {@code maxThreads}개 고정 풀), 최대 {@code maxPending}개가 더 대기할 수 있습니다. 합계
+     * {@code maxThreads + maxPending}개가 처리 중이면 {@code execute}/{@code submit}은 작업이 끝날 때까지
+     * <b>제출하는 스레드를 기다리게 합니다</b>(역압). 기다리는 중 실행기가 종료되거나 인터럽트되면
+     * {@link RejectedExecutionException}이 발생합니다.
+     * </p>
+     * <p>
+     * <b>주의:</b> 작업 안에서 같은 실행기에 하위 작업을 제출하고 그 결과를 기다리면, 실행기가 가득 찼을 때 교착 상태가
+     * 될 수 있습니다. 그런 하위 작업은 다른 실행기에 제출하십시오.
+     * </p>
+     *
+     * @param maxThreads Maximum number of concurrently running tasks (must be positive) | 동시에 실행할 최대 작업 수 (양수)
+     * @param maxPending Maximum number of tasks waiting to start (0 or more) | 시작을 기다릴 수 있는 최대 작업 수 (0 이상)
+     * @return A new {@link ExecutorService} instance | 새로운 ExecutorService 인스턴스
+     * @throws IllegalArgumentException if {@code maxThreads} &le; 0 or {@code maxPending} &lt; 0 | 인자가 범위를 벗어난 경우
      */
-    private static final class BoundedVirtualExecutor extends AbstractExecutorService {
-        private final ExecutorService delegate;
-        private final Semaphore permits;
+    public static ExecutorService newExecutor(int maxThreads, int maxPending) {
+        if (maxThreads <= 0) {
+            throw new IllegalArgumentException("maxThreads must be positive: " + maxThreads);
+        }
+        if (maxPending < 0) {
+            throw new IllegalArgumentException("maxPending must not be negative: " + maxPending);
+        }
+        int inFlightLimit = (int) Math.min(Integer.MAX_VALUE, (long) maxThreads + maxPending);
+        ExecutorService virtualExecutor = newVirtualPerTaskExecutor();
+        if (virtualExecutor != null) {
+            return new LimitedExecutor(virtualExecutor, maxThreads, inFlightLimit);
+        }
+        return new LimitedExecutor(Executors.newFixedThreadPool(maxThreads, PLATFORM_FACTORY), 0, inFlightLimit);
+    }
 
-        BoundedVirtualExecutor(ExecutorService delegate, int maxConcurrency) {
+    /**
+     * Creates a virtual-thread-per-task executor, or returns {@code null} when virtual threads are not used.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 태스크당 가상 스레드 실행기를 만들고, 가상 스레드를 쓰지 않는 환경이면 {@code null}을 반환합니다.
+     */
+    private static ExecutorService newVirtualPerTaskExecutor() {
+        if (!isVirtualSupported()) {
+            return null;
+        }
+        try {
+            return (ExecutorService) VIRTUAL_EXECUTOR_MH.invokeExact();
+        } catch (Throwable t) {
+            if (S2Util.isKorean()) {
+                logger.warn("[VIRTUAL_ERROR] 가상 스레드 실행기 생성에 실패하였습니다. 플랫폼 풀로 대체합니다.");
+            } else {
+                logger.warn(
+                        "[VIRTUAL_ERROR] Failed to create virtual thread executor. Falling back to platform pool.");
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Executor wrapper that optionally limits running tasks (a semaphore inside each task, for virtual threads)
+     * and in-flight tasks (a semaphore the submitter must acquire, for backpressure).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 실행 중인 작업 수(가상 스레드용: 각 작업 안의 세마포어)와 처리 중인 작업 수(역압용: 제출자가 얻어야 하는 세마포어)를
+     * 선택적으로 제한하는 실행기 래퍼입니다. 가상 스레드를 풀로 재사용하는 대신 JEP 444가 권장하는 세마포어 방식을 씁니다.
+     */
+    private static final class LimitedExecutor extends AbstractExecutorService {
+        private final ExecutorService delegate;
+        private final Semaphore running;
+        private final Semaphore inFlight;
+
+        LimitedExecutor(ExecutorService delegate, int maxRunning, int maxInFlight) {
             this.delegate = delegate;
-            this.permits = new Semaphore(maxConcurrency);
+            this.running = maxRunning > 0 ? new Semaphore(maxRunning) : null;
+            this.inFlight = maxInFlight > 0 ? new Semaphore(maxInFlight) : null;
         }
 
         @Override
         public void execute(Runnable command) {
             Objects.requireNonNull(command, "command");
-            delegate.execute(() -> {
-                try {
-                    permits.acquire();
-                } catch (InterruptedException e) {
-                    // 허가를 기다리다 shutdownNow 등으로 인터럽트되면 실행하지 않고 끝낸다
-                    Thread.currentThread().interrupt();
-                    return;
+            if (inFlight != null) {
+                acquireInFlight();
+            }
+            try {
+                delegate.execute(() -> {
+                    try {
+                        if (running != null) {
+                            try {
+                                running.acquire();
+                            } catch (InterruptedException e) {
+                                // 허가를 기다리다 shutdownNow 등으로 인터럽트되면 실행하지 않고 끝낸다
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                        }
+                        try {
+                            command.run();
+                        } finally {
+                            if (running != null) {
+                                running.release();
+                            }
+                        }
+                    } finally {
+                        if (inFlight != null) {
+                            inFlight.release();
+                        }
+                    }
+                });
+            } catch (RuntimeException e) {
+                if (inFlight != null) {
+                    inFlight.release();
                 }
-                try {
-                    command.run();
-                } finally {
-                    permits.release();
+                throw e;
+            }
+        }
+
+        /** 처리 중인 작업이 한도에 이르면 제출 스레드를 기다리게 한다(종료·인터럽트 시 거부). */
+        private void acquireInFlight() {
+            try {
+                while (!inFlight.tryAcquire(ADMISSION_POLL_MILLIS, TimeUnit.MILLISECONDS)) {
+                    if (delegate.isShutdown()) {
+                        throw new RejectedExecutionException("Executor has been shut down");
+                    }
                 }
-            });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RejectedExecutionException("Interrupted while waiting to submit a task", e);
+            }
         }
 
         @Override

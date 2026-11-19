@@ -970,6 +970,33 @@ S2Util.setValue(user, "address.city", "Seoul");
 - **Java 17**: Automatically provisions optimized platform thread pools.
 - **Unified API**: `S2ThreadUtil.getCommonExecutor()` or `S2ThreadUtil.newExecutor(maxThreads)`.
 
+| API | Java 21+ (virtual threads) | Java 17 (platform) |
+|---|---|---|
+| `getCommonExecutor()` | Unbounded concurrency (cap with `s2.thread.virtual.max_concurrency`) | cores to cores×2 threads, queue of 1,000; when full, the submitting thread runs the task |
+| `newExecutor(n)` | n tasks at once (&le; 0: unbounded) | Fixed pool of n (&le; 0: default size) |
+| `newExecutor(n, maxPending)` | n tasks at once, at most maxPending waiting | Same |
+
+**Overload protection**
+
+- `newExecutor(n)` does not bound waiting tasks. If tasks are submitted faster than they finish for a long time, waiting tasks pile up until memory runs out (virtual and platform alike).
+  Where request volume is not under your control, use `newExecutor(n, maxPending)`: once n running + maxPending waiting tasks are in flight, **the submitting thread waits** (backpressure).
+  A task that submits subtasks to the same executor and waits for them can deadlock when it is full, so submit subtasks to a different executor.
+- For work bound by a limited resource (database pool, external API), use `newExecutor(n[, maxPending])` instead of `getCommonExecutor()` to match its concurrency.
+- The Java 17 common executor runs tasks on the submitting thread when its queue is full. Memory stays safe but the submitter slows down, and tasks submitted after shutdown are silently discarded.
+
+**Virtual thread pinning (Java 21-23)**
+
+- On Java 21-23, blocking (I/O etc.) inside a `synchronized` block pins the virtual thread to its carrier; once all carriers are pinned, other virtual threads stall too.
+  Java 24+ (JEP 491) fixes this, so **Java 24 or later is recommended** for virtual threads. On 21-23, prefer `ReentrantLock` over `synchronized` and keep JDBC drivers and similar libraries up to date.
+
+**System properties**
+
+| Property | Default | Description |
+|---|---|---|
+| `s2.thread.virtual.enabled` | `true` | `false` runs on platform threads instead of virtual threads (to avoid pinning issues in production) |
+| `s2.thread.virtual.max_concurrency` | `0` (unbounded) | Concurrency cap of the virtual-thread common executor |
+| `s2.thread.core_pool_size` / `max_pool_size` / `queue_capacity` | cores / ×2 / 1000 | Platform common executor settings |
+
 ### 9-4. Optimized String Utilities (`S2StringUtil`)
 
 - **Pattern Caching**: `S2StringUtil.replaceAll()` caches compiled regex patterns to eliminate repeated `Pattern.compile()` overhead.

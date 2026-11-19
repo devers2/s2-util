@@ -970,6 +970,33 @@ S2Util.setValue(user, "address.city", "대전");
 - **Java 17 환경**: 최적화된 플랫폼 스레드 풀로 자동 폴백(Fallback)됩니다.
 - **공용 실행기**: `S2ThreadUtil.getCommonExecutor()` 또는 `S2ThreadUtil.newExecutor(maxThreads)`.
 
+| API | Java 21+ (가상 스레드) | Java 17 (플랫폼) |
+|---|---|---|
+| `getCommonExecutor()` | 동시 실행 제한 없음 (`s2.thread.virtual.max_concurrency` 로 상한 지정 가능) | 코어 수~코어 수×2 스레드, 대기열 1,000. 가득 차면 제출한 스레드가 직접 실행 |
+| `newExecutor(n)` | 동시에 n개 실행 (0 이하: 제한 없음) | n개 고정 풀 (0 이하: 기본 크기) |
+| `newExecutor(n, maxPending)` | 동시에 n개 실행, 대기 최대 maxPending개 | 같음 |
+
+**과부하 대비**
+
+- `newExecutor(n)` 은 대기 작업 수에 제한이 없습니다. 처리보다 빠른 제출이 오래 이어지면 대기 작업이 쌓여 메모리가 바닥날 수 있습니다(가상·플랫폼 모두).
+  요청량을 통제할 수 없는 곳에는 `newExecutor(n, maxPending)` 을 쓰십시오. 실행 중 n개 + 대기 maxPending개가 차면 **제출하는 스레드가 기다립니다**(역압).
+  작업 안에서 같은 실행기에 하위 작업을 넣고 결과를 기다리면 가득 찼을 때 교착 상태가 될 수 있으므로, 하위 작업은 다른 실행기에 넣으십시오.
+- DB 연결 풀·외부 API 처럼 한도가 있는 작업은 `getCommonExecutor()` 대신 `newExecutor(n[, maxPending])` 으로 동시 실행 수를 맞추십시오.
+- 공용 실행기(Java 17)는 대기열이 차면 제출한 스레드가 작업을 직접 실행합니다. 메모리는 안전하지만 제출한 쪽이 느려지고, 실행기가 종료된 뒤 들어온 작업은 실행되지 않고 버려집니다.
+
+**가상 스레드 pinning (Java 21~23)**
+
+- Java 21~23 에서는 `synchronized` 블록 안에서 I/O 등으로 블로킹하면 가상 스레드가 실행 스레드에 묶여(pinning), 실행 스레드가 모두 묶이면 다른 가상 스레드까지 멈춥니다.
+  Java 24 이상(JEP 491)에서는 해결되었으므로 가상 스레드는 **Java 24 이상을 권장**합니다. 21~23 에서는 `synchronized` 대신 `ReentrantLock` 을 쓰고, JDBC 드라이버 등은 최신 버전을 쓰십시오.
+
+**시스템 속성**
+
+| 속성 | 기본값 | 설명 |
+|---|---|---|
+| `s2.thread.virtual.enabled` | `true` | `false` 면 가상 스레드를 쓰지 않고 플랫폼 스레드로 동작(운영 중 pinning 문제 회피용) |
+| `s2.thread.virtual.max_concurrency` | `0` (제한 없음) | 가상 스레드 공용 실행기의 동시 실행 상한 |
+| `s2.thread.core_pool_size` / `max_pool_size` / `queue_capacity` | 코어 수 / ×2 / 1000 | 플랫폼 공용 실행기 설정 |
+
 ### 9-4. 최적화된 문자열 유틸리티 (`S2StringUtil`)
 
 - **정규식 패턴 캐싱**: `S2StringUtil.replaceAll()`은 컴파일된 정규식 패턴을 캐싱하여 반복적인 `Pattern.compile()` 오버헤드를 제거합니다.

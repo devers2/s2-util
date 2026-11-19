@@ -28,6 +28,9 @@
 - `S2SpringValidator`: `S2Validator`를 Spring `SmartValidator`로 감싸, `@InitBinder` 로 등록하면 `@Valid`/`@Validated` 때 Bean Validation 과 함께 실행되고 같은 `BindingResult`에 기록됩니다(MANUAL 2-C). 추가 의존성 없음.
 - `S2Validator.validateAll(target[, locale])` → `S2ValidationResult`: 예외 없이 모든 오류를 모으며 `toMap()`은 `s2.validator.js`와 같은 `{필드: [메시지]}` 형식입니다(REST 응답용).
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
+- `S2ThreadUtil.newExecutor(maxThreads, maxPending)`: 대기 작업 수까지 제한하는 실행기. 실행 중 + 대기가 한도에 이르면 제출하는 스레드가 기다려(역압),
+  처리보다 빠른 제출이 이어져도 메모리가 바닥나지 않습니다. 가상 스레드·플랫폼 모두 같게 동작합니다(MANUAL 9-3).
+- 시스템 속성 `s2.thread.virtual.enabled=false`(가상 스레드 끄기, Java 21~23 pinning 회피용)와 `s2.thread.virtual.max_concurrency`(가상 스레드 공용 실행기 동시 실행 상한).
 - `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
 
 ### 성능
