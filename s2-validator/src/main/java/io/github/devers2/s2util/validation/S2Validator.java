@@ -1559,6 +1559,45 @@ public class S2Validator<T> implements Serializable {
     }
 
     /**
+     * Validates and returns all errors instead of throwing, using the default locale.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 예외를 던지지 않고 모든 오류를 모아 반환합니다. 기본 로케일을 사용합니다.
+     *
+     * @param target The object to validate | 검증 대상
+     * @return The result with all errors | 모든 오류를 담은 결과
+     * @throws S2RuleExecutionException If a custom rule throws | 커스텀 규칙에서 예외가 발생한 경우
+     * @since 2.2.0
+     */
+    public S2ValidationResult validateAll(T target) {
+        return validateAll(target, null);
+    }
+
+    /**
+     * Validates and returns all errors instead of throwing. {@link S2ValidationResult#toMap()} has the same shape as
+     * {@code s2.validator.js}, so it can be returned as a JSON error response.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 예외를 던지지 않고 모든 오류를 모아 반환합니다. {@link S2ValidationResult#toMap()}은 {@code s2.validator.js}와 같은 형식이라 JSON 오류
+     * 응답으로 그대로 보낼 수 있습니다.
+     *
+     * @param target The object to validate | 검증 대상
+     * @param locale The locale for messages (null means the default locale) | 메시지 로케일 (null 이면 기본 로케일)
+     * @return The result with all errors | 모든 오류를 담은 결과
+     * @throws S2RuleExecutionException If a custom rule throws | 커스텀 규칙에서 예외가 발생한 경우
+     * @since 2.2.0
+     */
+    public S2ValidationResult validateAll(T target, Locale locale) {
+        List<S2ValidationError> errors = new ArrayList<>();
+        validate(target, errors::add, locale);
+        return new S2ValidationResult(errors);
+    }
+
+    /**
      * Builds a validator from rules JSON, so rules can be kept in a database or configuration and changed without a
      * redeploy. It reads the same shape {@link #getRulesJson()} writes, plus definition-only keys.
      *

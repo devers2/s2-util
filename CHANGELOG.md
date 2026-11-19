@@ -24,6 +24,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Added
 
+- `S2SpringValidator`: wraps an `S2Validator` as a Spring `SmartValidator`; registered with `@InitBinder`, it runs with Bean Validation on `@Valid`/`@Validated` and writes to the same `BindingResult` (MANUAL 2-C). No extra dependency.
+- `S2Validator.validateAll(target[, locale])` → `S2ValidationResult`: collects every error without throwing; `toMap()` has the same `{field: [messages]}` shape as `s2.validator.js` (for REST responses).
 - A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
 
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).

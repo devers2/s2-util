@@ -301,6 +301,38 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 
 `BoundContext`는 검증기만 들고 있고 요청 로케일은 호출할 때마다 읽으므로, 필드에 두어도 스레드에 안전합니다.
 
+#### Bean Validation 과 함께 `@Valid` 흐름에 얹기 (`S2SpringValidator`)
+
+이미 `@NotBlank` 등 Bean Validation 을 쓰고 있다면 컨트롤러 코드를 바꾸지 않고 S2 규칙을 더할 수 있습니다. `S2SpringValidator`는 Spring `SmartValidator`라 `@InitBinder`로 등록하면 `@Valid`/`@Validated` 때 Bean Validation 과 함께 실행되고, 두 결과가 같은 `BindingResult`에 모입니다. 추가 의존성은 없습니다(`spring-context`).
+
+```java
+private static final S2Validator<JoinForm> JOIN_RULES = S2Validator.<JoinForm>builder()
+    .field("bizNo", "사업자번호").rule(S2RuleType.BIZRNO, true)
+    .field("vipCode", "VIP 코드").when("type", "VIP").rule(S2RuleType.REQUIRED)
+    .build();
+
+@InitBinder("joinForm")
+void initBinder(WebDataBinder binder) {
+    binder.addValidators(S2SpringValidator.of(JoinForm.class, JOIN_RULES)); // 기존 Bean Validation 은 그대로
+}
+
+@PostMapping("/join")
+String join(@Valid @ModelAttribute JoinForm joinForm, BindingResult result) { ... } // 두 검증 오류가 함께
+```
+
+메시지는 요청 로케일을 쓰고, 검증 그룹(힌트)은 무시합니다(역할별 규칙은 `when` 조건). 화면용 규칙 JSON 은 `adapter.getValidator().getRulesJson(locale)`.
+
+#### 오류를 모아 반환하기 (`validateAll` — REST/JSON)
+
+`validate(target)`은 첫 오류에서 예외를 던지지만, `validateAll`은 모든 오류를 `S2ValidationResult`로 돌려줍니다. `toMap()`은 브라우저 `s2.validator.js`의 반환값과 같은 `{필드: [메시지]}` 형식이라 그대로 응답할 수 있습니다.
+
+```java
+S2ValidationResult result = USER_RULES.validateAll(user, locale);
+if (!result.isValid()) {
+    return ResponseEntity.badRequest().body(result.toMap()); // {"email": ["이메일 형식이 올바르지 않습니다."]}
+}
+```
+
 ### D. 단일 값 및 독립 조건 검증 패턴 (Single Value & Condition Check Mode)
 
 **사용법:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`

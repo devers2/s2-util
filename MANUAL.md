@@ -301,6 +301,38 @@ public String join(@ModelAttribute UserDTO user, BindingResult result) {
 
 `BoundContext` only holds the validator and reads the request locale on every call, so keeping it in a field is thread-safe.
 
+#### Adding to the `@Valid` flow with Bean Validation (`S2SpringValidator`)
+
+If you already use Bean Validation (`@NotBlank` etc.), you can add S2 rules without changing controller code. `S2SpringValidator` is a Spring `SmartValidator`: register it with `@InitBinder` and it runs with Bean Validation on `@Valid`/`@Validated`, and both write to the same `BindingResult`. No extra dependency (`spring-context`).
+
+```java
+private static final S2Validator<JoinForm> JOIN_RULES = S2Validator.<JoinForm>builder()
+    .field("bizNo", "Business No.").rule(S2RuleType.BIZRNO, true)
+    .field("vipCode", "VIP code").when("type", "VIP").rule(S2RuleType.REQUIRED)
+    .build();
+
+@InitBinder("joinForm")
+void initBinder(WebDataBinder binder) {
+    binder.addValidators(S2SpringValidator.of(JoinForm.class, JOIN_RULES)); // Bean Validation stays as is
+}
+
+@PostMapping("/join")
+String join(@Valid @ModelAttribute JoinForm joinForm, BindingResult result) { ... } // errors from both
+```
+
+Messages use the request locale, and validation groups (hints) are ignored (use `when` conditions for role-specific rules). For the page's rules JSON use `adapter.getValidator().getRulesJson(locale)`.
+
+#### Collecting errors (`validateAll` — REST/JSON)
+
+`validate(target)` throws on the first error, while `validateAll` returns every error as an `S2ValidationResult`. `toMap()` has the same `{field: [messages]}` shape as the browser `s2.validator.js` returns, so it can be sent as is.
+
+```java
+S2ValidationResult result = USER_RULES.validateAll(user, locale);
+if (!result.isValid()) {
+    return ResponseEntity.badRequest().body(result.toMap()); // {"email": ["Invalid email format for email."]}
+}
+```
+
 ### D. Pattern: Single Value & Condition Check Mode
 
 **Usage:** `S2Validator.check(value, [label])` / `S2Validator.check(condition, [errorCode])`

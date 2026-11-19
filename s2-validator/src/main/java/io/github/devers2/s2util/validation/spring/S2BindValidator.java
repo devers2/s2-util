@@ -25,6 +25,7 @@ import java.util.Locale;
 import org.springframework.beans.InvalidPropertyException;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.Errors;
 import org.springframework.validation.FieldError;
 
 import io.github.devers2.s2util.validation.S2Validator;
@@ -234,6 +235,33 @@ public final class S2BindValidator {
     }
 
     /**
+     * Records an S2 validation error in Spring {@link Errors} as a field error.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * S2 검증 오류를 Spring {@link Errors}에 필드 오류로 기록합니다.
+     *
+     * @param errors The Spring errors | Spring 오류 객체
+     * @param error  The S2 validation error | S2 검증 오류
+     */
+    static void reject(Errors errors, S2Validator.S2ValidationError error) {
+        String errorCode = error.errorCode() != null ? error.errorCode() : "";
+        try {
+            errors.rejectValue(error.fieldName(), errorCode, error.errorArgs(), error.defaultMessage());
+        } catch (InvalidPropertyException e) {
+            // 대상 객체에서 읽을 수 없는 경로(없는 속성, null 중간 경로 등)는 rejectValue 가 예외를 던지므로 FieldError 를 직접 추가
+            if (errors instanceof BindingResult bindingResult) {
+                bindingResult.addError(new FieldError(bindingResult.getObjectName(), error.fieldName(), null, false,
+                        bindingResult.resolveMessageCodes(errorCode, error.fieldName()), error.errorArgs(),
+                        error.defaultMessage()));
+            } else {
+                errors.reject(errorCode, error.errorArgs(), error.defaultMessage());
+            }
+        }
+    }
+
+    /**
      * Contextual wrapper that binds a validator to the current Spring environment.
      *
      * <p>
@@ -265,19 +293,7 @@ public final class S2BindValidator {
         public void validate(T target, BindingResult bindingResult) {
             validator.validate(
                     target,
-                    (error -> reject(bindingResult, error)), LocaleContextHolder.getLocale());
-        }
-
-        private static void reject(BindingResult bindingResult, S2Validator.S2ValidationError error) {
-            String errorCode = error.errorCode() != null ? error.errorCode() : "";
-            try {
-                bindingResult.rejectValue(error.fieldName(), errorCode, error.errorArgs(), error.defaultMessage());
-            } catch (InvalidPropertyException e) {
-                // 대상 객체에서 읽을 수 없는 경로(없는 속성, null 중간 경로 등)는 rejectValue 가 예외를 던지므로 FieldError 를 직접 추가
-                bindingResult.addError(new FieldError(bindingResult.getObjectName(), error.fieldName(), null, false,
-                        bindingResult.resolveMessageCodes(errorCode, error.fieldName()), error.errorArgs(),
-                        error.defaultMessage()));
-            }
+                    (error -> S2BindValidator.reject(bindingResult, error)), LocaleContextHolder.getLocale());
         }
 
         /**
