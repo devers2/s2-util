@@ -520,6 +520,9 @@ public class S2ThreadUtil {
         private final ExecutorService delegate;
         private final Semaphore running;
         private final Semaphore inFlight;
+        // shutdownNow 가 인터럽트를 보내기 전에 세운다. 먼저 인터럽트된 작업이 반납한 허가를 아직 인터럽트되지 않은
+        // 대기 작업이 가져가더라도 이 표시를 보고 실행하지 않는다(인터럽트 순서와 무관하게 대기 작업이 실행되지 않음)
+        private volatile boolean stopped;
 
         LimitedExecutor(ExecutorService delegate, int maxRunning, int maxInFlight) {
             this.delegate = delegate;
@@ -546,7 +549,9 @@ public class S2ThreadUtil {
                             }
                         }
                         try {
-                            command.run();
+                            if (!stopped) {
+                                command.run();
+                            }
                         } finally {
                             if (running != null) {
                                 running.release();
@@ -587,6 +592,7 @@ public class S2ThreadUtil {
 
         @Override
         public List<Runnable> shutdownNow() {
+            stopped = true;
             return delegate.shutdownNow();
         }
 

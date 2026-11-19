@@ -85,26 +85,29 @@ class S2ThreadUtilTest {
 
     @Test
     void shutdownNowStopsTasksWaitingForPermit() throws Exception {
-        ExecutorService executor = S2ThreadUtil.newExecutor(1);
-        CountDownLatch firstStarted = new CountDownLatch(1);
-        AtomicBoolean secondRan = new AtomicBoolean();
-        executor.execute(() -> {
-            firstStarted.countDown();
-            try {
-                new CountDownLatch(1).await(); // 인터럽트될 때까지 대기
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-        assertTrue(firstStarted.await(5, TimeUnit.SECONDS));
-        executor.execute(() -> secondRan.set(true));
-        Thread.sleep(50); // 두 번째 작업이 허가를 기다리는 상태가 되도록
+        // 첫 작업이 인터럽트로 끝나며 허가를 반납하는 순간과 대기 작업의 인터럽트가 경쟁하므로 여러 번 반복해 확인한다
+        for (int round = 0; round < 50; round++) {
+            ExecutorService executor = S2ThreadUtil.newExecutor(1);
+            CountDownLatch firstStarted = new CountDownLatch(1);
+            AtomicBoolean secondRan = new AtomicBoolean();
+            executor.execute(() -> {
+                firstStarted.countDown();
+                try {
+                    new CountDownLatch(1).await(); // 인터럽트될 때까지 대기
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue(firstStarted.await(5, TimeUnit.SECONDS));
+            executor.execute(() -> secondRan.set(true));
+            Thread.sleep(5); // 두 번째 작업이 허가를 기다리는 상태가 되도록
 
-        executor.shutdownNow();
+            executor.shutdownNow();
 
-        assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
-        assertTrue(executor.isShutdown() && executor.isTerminated());
-        assertFalse(secondRan.get());
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+            assertTrue(executor.isShutdown() && executor.isTerminated());
+            assertFalse(secondRan.get(), "task waiting for a permit ran after shutdownNow (round " + round + ")");
+        }
     }
 
     @Test
