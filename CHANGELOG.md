@@ -53,6 +53,11 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `s2.validator.js` stopped validating on fields whose name contains a quote or backslash (CSS selector error), and blocked submission without any sign when the rules JSON was missing or invalid (a console error is now logged).
 - The server `DATE` rule accepted signed values such as `"+2020101"`.
 - The server did not treat Unicode spaces such as NBSP (U+00A0) and the ideographic space (U+3000) as whitespace (Java `String.trim()`), judging padded values differently from the browser; the server now uses the JavaScript `trim()` definition. Found by a differential fuzz test that feeds the same random inputs to Java and JS.
+- s2-core lightweight cache (`S2OptimisticCache`, used when Caffeine is absent): when eviction overlapped with reads at capacity,
+  values changed during sorting and `IllegalArgumentException: Comparison method violates its general contract!` was thrown, reaching callers of `get()`.
+- A burst of distinct keys (all misses) outran eviction and the cache kept growing far past its bound. New values are now returned without caching once the cache holds twice its maximum size.
+- `S2Cache.getMethodHandle` did not include the lookup type (`LookupType`) in its cache key, so whichever type was looked up first stuck
+  (looking up `BOTH` first made the public-only `METHOD` lookup return a private method; the reverse made `BOTH` miss private members).
 
 ## [2.1.0]
 

@@ -20,13 +20,12 @@
  */
 package io.github.devers2.s2util.core.cache;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -52,8 +51,9 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * executors, see {@link MaintenanceExecutorHolder}) to prevent blocking the main thread and
  * to keep eviction timely even when the application saturates its own executors. Instead of
  * clearing the entire cache, it gradually removes only the oldest 50% of entries to maintain
- * a high hit rate. A CAS-guarded synchronous fallback bounds growth in the rare case where
- * eviction cannot keep up.</li>
+ * a high hit rate. If eviction cannot keep up (e.g. a burst of distinct keys), new values beyond
+ * twice the maximum size are returned without being cached, so growth stays bounded and callers
+ * never run eviction themselves.</li>
  * </ul>
  *
  * <h3>Philosophical Considerations and Guardrails</h3>
@@ -85,8 +85,8 @@ import io.github.devers2.s2util.core.S2ThreadUtil;
  * <li><b>비동기 점진적 삭제:</b> 최대 크기에 도달하면 메인 스레드를 블로킹하지 않고, 애플리케이션이 쓰는
  * 실행기와 분리된 전용 유지보수 스레드({@link MaintenanceExecutorHolder})에서 삭제 작업을 수행하여
  * 애플리케이션 부하와 무관하게 축출이 지연되지 않도록 합니다. 전체를 비우는 대신 오래된 순으로 50%만
- * 삭제하여 캐시 적중률을 안정적으로 유지하며, 축출이 따라가지 못하는 드문 상황에는 CAS로 보호된 동기
- * 폴백이 무한 증가를 막습니다.</li>
+ * 삭제하여 캐시 적중률을 안정적으로 유지하며, 축출이 따라가지 못하는 상황(서로 다른 키가 몰릴 때 등)에는
+ * 최대 크기의 2배를 넘는 새 값을 캐싱하지 않고 반환만 하여 무한 증가를 막고 호출자가 축출을 떠안지 않게 합니다.</li>
  * </ul>
  *
  * <h3>기술적 고려사항 및 방어 기제</h3>
@@ -154,18 +154,20 @@ public class S2OptimisticCache<K, V> {
     private static final Object NULL_HOLDER = new Object();
 
     /**
-     * Overshoot multiplier that triggers the synchronous eviction fallback, guarding against
-     * unbounded growth if the maintenance executor is starved. | 유지보수 실행기가 정체되었을 때 무한
-     * 증가를 막기 위해 동기 축출로 전환하는 초과 배수
+     * Hard-limit multiplier: once the cache holds this many times {@code maxEntries} (eviction cannot
+     * keep up, e.g. a burst of distinct keys), new values are returned without being cached, so the
+     * cache never grows unbounded and callers never run eviction themselves. | 하드 리밋 배수: 축출이
+     * 따라가지 못해(서로 다른 키가 몰릴 때 등) {@code maxEntries}의 이 배수에 이르면 새 값은 캐싱하지 않고
+     * 반환만 하여, 캐시가 무한히 커지지 않고 호출자가 직접 축출을 떠안지도 않도록 합니다.
      */
-    private static final int SYNC_FALLBACK_MULTIPLIER = 2;
+    private static final int HARD_LIMIT_MULTIPLIER = 2;
 
     private final ConcurrentHashMap<K, CacheEntry<V>> cache = new ConcurrentHashMap<>();
     private final int maxEntries;
+    private final long hardLimit;
     private final AtomicInteger size = new AtomicInteger(0);
     private final AtomicLong sequenceGenerator = new AtomicLong(0);
     private final AtomicBoolean evicting = new AtomicBoolean(false);
-    private final AtomicBoolean syncEvicting = new AtomicBoolean(false);
 
     /**
      * Constructs a new S2OptimisticCache.
@@ -179,6 +181,7 @@ public class S2OptimisticCache<K, V> {
      */
     public S2OptimisticCache(int maxEntries) {
         this.maxEntries = maxEntries;
+        this.hardLimit = Math.max(1L, (long) maxEntries * HARD_LIMIT_MULTIPLIER);
     }
 
     /**
@@ -250,38 +253,20 @@ public class S2OptimisticCache<K, V> {
         // Use sentinel for null to support negative caching
         V valueToCache = (newValue == null) ? (V) NULL_HOLDER : newValue;
 
+        // 하드 리밋: 축출이 따라가지 못해 상한의 배수에 이르면 캐싱하지 않고 값만 반환한다(무한 증가 방지)
+        if (size.get() >= hardLimit) {
+            scheduleEviction();
+            return newValue;
+        }
+
         // 3. Atomic registration (first-come, first-served)
         CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, sequenceGenerator.incrementAndGet());
         CacheEntry<V> existingEntry = cache.putIfAbsent(key, newEntry);
 
         if (existingEntry == null) {
-            // Check and manage size for the successful registerer
+            // 등록에 성공한 스레드만 크기를 세고, 상한을 넘으면 비동기 축출을 예약한다(호출 스레드는 막지 않음)
             if (size.incrementAndGet() > maxEntries) {
-                // Start asynchronous eviction (doesn't block the main thread!)
-                if (evicting.compareAndSet(false, true)) {
-                    MaintenanceExecutorHolder.INSTANCE.execute(() -> {
-                        try {
-                            evictOldEntries();
-                        } finally {
-                            evicting.set(false);
-                        }
-                    });
-                } else if (size.get() > (long) maxEntries * SYNC_FALLBACK_MULTIPLIER
-                        && syncEvicting.compareAndSet(false, true)) {
-                    /*
-                     * Safety valve: reached only when async eviction is already running yet the cache
-                     * has grown well past its bound (maintenance executor likely starved). CAS-guarded
-                     * so a single caller thread absorbs the one-off cost; normal load never reaches here.
-                     * 안전장치: 비동기 축출이 이미 진행 중인데도 한계치를 크게 초과했을 때만(유지보수 실행기
-                     * 정체 추정) 동작하며, CAS로 단일 스레드만 일회성 비용을 부담해 평시 성능에는 영향이 없다.
-                     */
-                    try {
-                        evictOldEntries();
-                    } finally {
-                        syncEvicting.set(false);
-                    }
-                }
-                // Skip if eviction is already in progress (will be cleaned later)
+                scheduleEviction();
             }
             return newValue;
         }
@@ -344,52 +329,94 @@ public class S2OptimisticCache<K, V> {
     }
 
     /**
-     * Synchronized method to evict old entries starting from the lowest sequence.
-     * Removes 50% of the oldest entries to provide LRU effects.
-     * Runs on a background thread to avoid blocking the caller.
+     * Schedules a background eviction on the maintenance thread unless one is already pending or running.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 설정된 임계치를 넘었을 경우 오래된 항목부터 절반을 삭제합니다.
-     * Sequence가 낮은(오래된) 항목부터 우선 삭제하여 LRU 효과를 제공합니다.
-     * 이 메서드는 백그라운드 스레드에서 실행되므로 메인 호출자를 블로킹하지 않습니다.
+     * 이미 예약되었거나 실행 중인 축출이 없으면 유지보수 스레드에 백그라운드 축출을 예약합니다.
      */
-    private void evictOldEntries() {
-        if (size.get() <= maxEntries) {
-            return; // Another thread might have already cleaned it
+    private void scheduleEviction() {
+        if (!evicting.compareAndSet(false, true)) {
+            return;
         }
-
-        // 1. Copy entries to a list
-        List<Map.Entry<K, CacheEntry<V>>> entries = new ArrayList<>(cache.entrySet());
-
-        // 2. Sort by sequence ascending (older first)
-        entries.sort(Comparator.comparingLong(e -> e.getValue().sequence));
-
-        // 3. Keep half, remove the rest
-        int targetSize = maxEntries / 2;
-        int toRemove = entries.size() - targetSize;
-        int removedCount = 0;
-
-        for (int i = 0; i < toRemove && i < entries.size(); i++) {
-            K keyToRemove = entries.get(i).getKey();
-            if (cache.remove(keyToRemove) != null) {
-                size.decrementAndGet();
-                removedCount++;
-            }
-        }
-
-        // 4. Check if eviction is still needed after cleanup (only if we actually removed something)
-        if (removedCount > 0 && size.get() > maxEntries && evicting.compareAndSet(false, true)) {
-            // If still over capacity and we removed items, schedule another eviction
+        try {
             MaintenanceExecutorHolder.INSTANCE.execute(() -> {
                 try {
-                    evictOldEntries();
+                    // 축출 중에도 삽입이 계속되므로, 상한 아래로 내려갈 때까지(진척이 있는 동안) 반복한다
+                    while (size.get() > maxEntries && evictOldEntries() > 0) {
+                        // 반복
+                    }
                 } finally {
                     evicting.set(false);
                 }
             });
+        } catch (RejectedExecutionException e) {
+            evicting.set(false);
         }
+    }
+
+    /**
+     * Evicts the least recently accessed entries until the cache is back to half of {@code maxEntries}.
+     * <p>
+     * Access sequences are copied into a primitive snapshot before ordering, because they keep changing
+     * under concurrent reads; ordering live values would break the sort contract. An entry is removed only
+     * if it is still the same instance that was snapshotted.
+     * </p>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 접근이 가장 오래된 항목부터 삭제하여 {@code maxEntries}의 절반까지 줄입니다.
+     * <p>
+     * 동시 조회 중에도 접근 순서 값이 계속 바뀌므로, 정렬 전에 원시 배열 스냅샷으로 복사합니다(살아있는 값으로
+     * 정렬하면 정렬 계약이 깨짐). 스냅샷 시점과 같은 항목 인스턴스일 때만 삭제합니다.
+     * </p>
+     *
+     * @return Number of entries removed | 삭제한 항목 수
+     */
+    @SuppressWarnings("unchecked")
+    private int evictOldEntries() {
+        if (size.get() <= maxEntries) {
+            return 0; // Another thread might have already cleaned it
+        }
+
+        // 1. 키·항목·접근 순서를 스냅샷으로 복사(이후 값이 바뀌어도 정렬에 영향 없음)
+        int capacity = cache.size() + 16;
+        Object[] keys = new Object[capacity];
+        CacheEntry<V>[] entries = new CacheEntry[capacity];
+        long[] sequences = new long[capacity];
+        int count = 0;
+        for (Map.Entry<K, CacheEntry<V>> e : cache.entrySet()) {
+            if (count == capacity) {
+                break; // 복사 중 늘어난 항목은 다음 축출에서 처리
+            }
+            CacheEntry<V> entry = e.getValue();
+            keys[count] = e.getKey();
+            entries[count] = entry;
+            sequences[count] = entry.sequence;
+            count++;
+        }
+
+        // 2. 지울 개수만큼의 경계값을 원시 배열 정렬로 구함
+        int targetSize = maxEntries / 2;
+        int toRemove = count - targetSize;
+        if (toRemove <= 0) {
+            return 0;
+        }
+        long[] sorted = Arrays.copyOf(sequences, count);
+        Arrays.sort(sorted);
+        long cutoff = sorted[toRemove - 1];
+
+        // 3. 경계값 이하(오래된) 항목을 지울 개수만큼 삭제 — 그사이 교체된 항목은 건드리지 않음
+        int removedCount = 0;
+        for (int i = 0; i < count && removedCount < toRemove; i++) {
+            if (sequences[i] <= cutoff && cache.remove((K) keys[i], entries[i])) {
+                size.decrementAndGet();
+                removedCount++;
+            }
+        }
+        return removedCount;
     }
 
     /**
@@ -401,8 +428,12 @@ public class S2OptimisticCache<K, V> {
      * 캐시를 완전히 비웁니다.
      */
     public void clear() {
-        cache.clear();
-        size.set(0);
+        // 동시 삽입과 겹쳐도 크기 카운터가 어긋나지 않도록, 실제로 지운 항목만큼만 줄인다
+        for (K key : cache.keySet()) {
+            if (cache.remove(key) != null) {
+                size.decrementAndGet();
+            }
+        }
     }
 
     /**

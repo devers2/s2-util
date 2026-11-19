@@ -48,6 +48,11 @@
 - `s2.validator.js` 가 name 에 따옴표·역슬래시가 있는 필드에서 CSS 선택자 오류로 검증을 중단하던 문제, 규칙 JSON 이 없거나 깨져 제출을 막을 때 아무 표시가 없던 문제(콘솔 오류 추가).
 - 서버 `DATE` 가 `"+2020101"` 처럼 부호가 섞인 값을 날짜로 받던 문제.
 - 서버가 NBSP(U+00A0)·전각 공백(U+3000) 등 유니코드 공백을 공백으로 보지 않아(Java `String.trim()` 기준) 브라우저와 판정이 다르던 문제 — 서버도 자바스크립트 `trim()` 과 같은 공백 정의를 씀. Java·JS 에 같은 무작위 입력을 넣어 비교하는 차분 퍼즈 시험으로 발견.
+- s2-core 경량 캐시(Caffeine 이 없을 때 쓰는 `S2OptimisticCache`): 상한에 이른 뒤 축출과 조회가 겹치면 정렬 중 값이 바뀌어
+  `IllegalArgumentException: Comparison method violates its general contract!` 가 나고, 이 예외가 `get()` 호출자에게까지 전파되던 문제.
+- 같은 캐시에서 서로 다른 키가 몰리면(전부 miss) 축출이 따라가지 못해 크기가 상한을 크게 넘어 계속 늘던 문제. 이제 상한의 2배에 이르면 새 값은 캐싱하지 않고 반환만 합니다.
+- `S2Cache.getMethodHandle` 이 조회 종류(`LookupType`)를 캐시 키에 넣지 않아, 먼저 조회한 종류의 결과가 굳던 문제
+  (`BOTH` 를 먼저 조회하면 public 만 찾는 `METHOD` 조회가 private 메서드를 돌려주고, 반대면 `BOTH` 가 private 멤버를 못 찾음).
 
 ## [2.1.0]
 

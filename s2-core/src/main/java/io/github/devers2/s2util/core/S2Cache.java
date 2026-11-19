@@ -898,14 +898,27 @@ public class S2Cache {
          * 사용 가능한 캐시 구현체를 사용하여 메모리를 효율적으로 관리합니다.
          * </p>
          */
-        private static final CacheAdapter<MethodKey, Optional<MethodHandle>> CACHE = createMethodCache();
+        private static final CacheAdapter<ResolveKey, Optional<MethodHandle>> CACHE = createMethodCache();
+
+        /**
+         * Cache key that includes the lookup type, because the same {@link MethodKey} resolves differently
+         * per type (METHOD is public-only; FIELD/BOTH allow private members and fields).
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 조회 종류를 포함한 캐시 키입니다. 같은 {@link MethodKey}라도 조회 종류에 따라 결과가 다르기 때문입니다
+         * (METHOD 는 public 만, FIELD/BOTH 는 private 멤버와 필드까지 허용).
+         */
+        private record ResolveKey(MethodKey key, LookupType type) {
+        }
 
         /**
          * Creates a cache adapter for MethodHandles.
          *
          * @return CacheAdapter instance for MethodHandles | MethodHandle 전용 캐시 어댑터 인스턴스
          */
-        private static CacheAdapter<MethodKey, Optional<MethodHandle>> createMethodCache() {
+        private static CacheAdapter<ResolveKey, Optional<MethodHandle>> createMethodCache() {
             return createCacheAdapter(10000, 0, "MethodHandleResolver");
         }
 
@@ -1267,7 +1280,8 @@ public class S2Cache {
             final boolean isNotMethod = (type != LookupType.METHOD);
             final boolean allowPrivate = isNotMethod; // METHOD 타입이 아니면 private 허용
 
-            return CACHE.get(refinedKey, k -> {
+            return CACHE.get(new ResolveKey(refinedKey, type), rk -> {
+                MethodKey k = rk.key();
                 // 캡처된 변수(isNotField, isNotMethod, allowPrivate)를 직접 사용하여 호출 스택을 줄임
                 if (isNotField) {
                     MethodHandle methodHandle = scanMethod(k, allowPrivate);
