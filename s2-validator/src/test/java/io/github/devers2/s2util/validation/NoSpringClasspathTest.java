@@ -68,6 +68,21 @@ public class NoSpringClasspathTest {
     }
 
     @Test
+    void beanValidationBridgeFailsClearlyWithoutTheApi() throws Exception {
+        try (URLClassLoader loader = isolatedLoader()) {
+            Assertions.assertThrows(ClassNotFoundException.class,
+                    () -> loader.loadClass("jakarta.validation.constraints.NotNull"), "Bean Validation must not be visible");
+            Class<?> bridge = loader.loadClass(S2BeanValidation.class.getName());
+            // 원인을 알 수 없는 NoClassDefFoundError 대신 추가할 의존성을 알려 주는 IllegalStateException
+            java.lang.reflect.InvocationTargetException e = Assertions.assertThrows(
+                    java.lang.reflect.InvocationTargetException.class,
+                    () -> bridge.getMethod("of", Class.class).invoke(null, Object.class));
+            Assertions.assertInstanceOf(IllegalStateException.class, e.getCause());
+            Assertions.assertTrue(e.getCause().getMessage().contains("jakarta.validation-api"), e.getCause().getMessage());
+        }
+    }
+
+    @Test
     void onlyTheSpringIntegrationNeedsSpring() throws Exception {
         try (URLClassLoader loader = isolatedLoader()) {
             Class<?> autoConfiguration = loader.loadClass(

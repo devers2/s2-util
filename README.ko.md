@@ -359,6 +359,7 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:caffeine:3.3.1'
     implementation 'org.springframework:spring-context:6.2.19'
     implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
 }
 ```

@@ -72,6 +72,10 @@ final class S2RegexCompatibility {
                 if (JAVA_ONLY_ESCAPES.indexOf(next) >= 0) {
                     return "Java-only escape '\\" + next + "'";
                 }
+                if (inClass && next == 'S') {
+                    // 브라우저는 \s 를 Java 의미로 바꿔 평가하는데, 문자 클래스 안의 \S 는 그렇게 바꿀 수 없음
+                    return "'\\S' inside a character class";
+                }
                 i++; // skip the escaped character | 이스케이프된 문자 건너뜀
                 continue;
             }

@@ -1543,7 +1543,7 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       if (!rawRegex) return false;
       try {
         // Always wrap to mirror Java matcher.matches(): one-sided anchors (^\d+) or anchors on a single alternative (^a|b$) would otherwise allow partial matches. | Java matcher.matches()와 같도록 항상 감쌈: 한쪽 앵커(^\d+)나 대체 한 갈래에만 걸린 앵커(^a|b$)는 부분 일치를 허용하기 때문
-        const pattern = `^(?:${String(rawRegex)})$`;
+        const pattern = `^(?:${javaWhitespace(String(rawRegex))})$`;
         return new RegExp(pattern).test(String(value));
       } catch (e) {
         console.error(
@@ -1555,7 +1555,7 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     }
     case 'BIZRNO': {
       const text = String(value);
-      if (!rule.regex || !new RegExp(`^(?:${rule.regex})$`).test(text)) return false;
+      if (!rule.regex || !new RegExp(`^(?:${javaWhitespace(rule.regex)})$`).test(text)) return false;
       // Check digit only when the rule criterion is true, same as server S2Rule.isChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isChecksumEnabled 와 동일)
       return !isChecksumEnabled(rule.value) || isBizrnoChecksumValid(text);
     }
@@ -1617,6 +1617,33 @@ const ELEMENT_WISE_RULES = new Set([
   'TEXT_INTACT', 'TEXT_COMBINE', 'MPHONE_NO', 'TEL_NO', 'INTERNATIONAL_TEL_NO', 'EMAIL', 'ZIP', 'LOGIN_ID', 'PASSWORD',
   'PASSWORD_ANSWR', 'BIZRNO', 'NWINO', 'JUMIN'
 ]);
+
+// Java 정규식의 \s 와 같은 공백 문자 (JS \s 는 NBSP 등 유니코드 공백도 포함해 서버보다 엄격·느슨해짐)
+const JAVA_SPACE = '\\t\\n\\x0B\\f\\r ';
+
+// 정규식의 \s·\S 를 Java 의미로 바꿈. 문자 클래스 안의 \S 는 서버가 내보내지 않음(S2RegexCompatibility)
+const javaWhitespace = (pattern) => {
+  let out = '';
+  let inClass = false;
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === '\\' && i + 1 < pattern.length) {
+      const next = pattern[i + 1];
+      if (next === 's') out += inClass ? JAVA_SPACE : `[${JAVA_SPACE}]`;
+      else if (next === 'S' && !inClass) out += `[^${JAVA_SPACE}]`;
+      else out += c + next;
+      i++;
+      continue;
+    }
+    if (inClass) {
+      if (c === ']') inClass = false;
+    } else if (c === '[') {
+      inClass = true;
+    }
+    out += c;
+  }
+  return out;
+};
 
 // 값의 개수: 배열은 길이, 일반 객체는 키 수, 단일 값은 1 (서버 S2Rule.sizeOf 와 같음)
 const sizeOfValue = (value) => {

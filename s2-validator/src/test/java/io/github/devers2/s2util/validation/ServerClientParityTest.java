@@ -322,6 +322,9 @@ public class ServerClientParityTest {
                 Arguments.of("TEXT_COMBINE: 한글+숫자 → 성공", S2RuleType.TEXT_COMBINE, null, "홍길동123", true),
                 Arguments.of("TEXT_COMBINE: 특수문자 → 실패", S2RuleType.TEXT_COMBINE, null, "홍길동@#$", false),
                 Arguments.of("TEXT_COMBINE: 일반 공백 → 성공", S2RuleType.TEXT_COMBINE, null, "홍 길동", true),
+                Arguments.of("REGEX: \\s 는 Java 의미(NBSP 아님) — 'a\\u00a0b' 는 a\\sb 실패", S2RuleType.REGEX, "a\\sb", "a\u00a0b", false),
+                Arguments.of("REGEX: 클래스 안 \\s — [^@\\s]+ 는 NBSP 를 허용", S2RuleType.REGEX, "[^@\\s]+", "a\u00a0b", true),
+                Arguments.of("REGEX: \\S 는 Java 의미 — NBSP 도 공백 아님", S2RuleType.REGEX, "a\\Sb", "a\u00a0b", true),
                 Arguments.of("TEXT_COMBINE: NBSP(\\u00a0)는 공백이 아님 → 실패", S2RuleType.TEXT_COMBINE, null, "홍\u00a0길동", false)
         );
     }

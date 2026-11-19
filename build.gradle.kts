@@ -212,6 +212,16 @@ sourceSets {
     }
 }
 
+// 선택 기능 정의 (Spring 연동, Bean Validation 연결) — 배포 시 optional 의존성으로 표시
+java {
+    registerFeature("springSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
+    registerFeature("beanValidationSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
+}
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
@@ -237,8 +247,14 @@ dependencies {
     // s2-validator 의존성
     compileOnly(libs.spring6.context) // Java 17 이상으로 개발하므로 Spring 6 및 Spring Boot 3 계열이 표준
     compileOnly(libs.spring.boot3.autoconfigure) // Spring Boot auto-configuration (compile-only, not in the POM) | Spring Boot 자동 설정 (컴파일 전용, POM 미포함)
+    compileOnly(libs.jakarta.validation.api) // Bean Validation 연결(S2BeanValidation) 전용
     // s2-jpa 의존성
     compileOnly(libs.jakarta.persistence.api) // JPQL
+
+    // 선택 기능(feature variant): 배포 POM 에 optional 로 표시 (s2-validator 와 같음, README 안내 블록용 compileOnly 도 유지)
+    "springSupportImplementation"(libs.spring6.context)
+    "springSupportImplementation"(libs.spring.boot3.autoconfigure)
+    "beanValidationSupportImplementation"(libs.jakarta.validation.api)
 
     /**
      * compileOnlyInternal: s2-build-support 플러그인에서 제공하는 커스텀 Configuration
