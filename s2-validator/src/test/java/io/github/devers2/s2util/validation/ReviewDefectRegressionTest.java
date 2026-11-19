@@ -187,6 +187,25 @@ class ReviewDefectRegressionTest {
         return messages.get(0);
     }
 
+    public record Point(int x, int y) {
+    }
+
+    public static class Flags extends Member {
+        public boolean isActive() {
+            return true;
+        }
+    }
+
+    @Test
+    @DisplayName("필드명 오타 경고: getter·is getter·상속 필드·record 구성요소는 있는 속성으로, 오타는 없는 속성으로 판단한다")
+    void propertyCheckFindsTypos() {
+        Assertions.assertTrue(S2PropertyCheck.hasProperty(Member.class, "name"));
+        Assertions.assertTrue(S2PropertyCheck.hasProperty(Flags.class, "active"));
+        Assertions.assertTrue(S2PropertyCheck.hasProperty(Flags.class, "name"));
+        Assertions.assertTrue(S2PropertyCheck.hasProperty(Point.class, "x"));
+        Assertions.assertFalse(S2PropertyCheck.hasProperty(Member.class, "nmae"));
+    }
+
     @Test
     @DisplayName("공유 S2Rule.required() 는 메시지를 바꿀 수 없다")
     void sharedRequiredRuleIsImmutable() {

@@ -1198,6 +1198,10 @@ public class S2Validator<T> implements Serializable {
                         continue;
 
                     var fieldValue = S2Util.getValue(target, fieldName);
+                    if (fieldValue == null) {
+                        // 대상 클래스에 없는 필드명(오타 등)은 항상 빈 값이 되므로 한 번 경고
+                        S2PropertyCheck.warnIfMissing(target, fieldName);
+                    }
                     var fieldLabel = field.getLabel();
                     var rules = field.getRules();
                     var customRules = field.getCustomRules();
