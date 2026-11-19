@@ -129,6 +129,7 @@ public class ServerClientParityTest {
                 Arguments.of("REQUIRED: null → 실패", S2RuleType.REQUIRED, null, null, false),
                 Arguments.of("REQUIRED: 빈문자열 → 실패", S2RuleType.REQUIRED, null, "", false),
                 Arguments.of("REQUIRED: 공백만 → 실패", S2RuleType.REQUIRED, null, "   ", false),
+                Arguments.of("REQUIRED: NBSP·전각 공백만 → 실패", S2RuleType.REQUIRED, null, "\u00a0\u3000", false),
                 Arguments.of("REQUIRED: 값 있음 → 성공", S2RuleType.REQUIRED, null, "hello", true),
 
                 // ── ASSERT_TRUE ──────────────────────────────────────────
@@ -191,6 +192,7 @@ public class ServerClientParityTest {
                 Arguments.of("MAX_VALUE: 폼 문자열 숫자 '15' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, "15", true),
                 Arguments.of("MAX_VALUE: 천 단위 쉼표 '1,000' → 실패", S2RuleType.MAX_VALUE, 100, "1,000", false),
                 Arguments.of("MAX_VALUE: 앞뒤 공백 ' 15 ' <= 20 → 성공", S2RuleType.MAX_VALUE, 20, " 15 ", true),
+                Arguments.of("MAX_VALUE: 앞뒤 전각 공백·NBSP 도 공백 → 성공", S2RuleType.MAX_VALUE, 20, "\u3000 15\u00a0", true),
                 Arguments.of("MAX_VALUE: 빈값 → 성공(skip)", S2RuleType.MAX_VALUE, 5, null, true),
 
                 // ── REGEX ────────────────────────────────────────────────

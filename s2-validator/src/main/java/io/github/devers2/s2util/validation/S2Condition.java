@@ -211,7 +211,7 @@ public record S2Condition(Object fieldName, S2Operator operator, Object value) i
             return null;
         }
         Object v = S2Util.getValue(source, fieldName);
-        if (v instanceof String str && str.isBlank())
+        if (v instanceof String str && S2Whitespace.isBlank(str))
             return null;
         if (v instanceof Collection<?> collection && collection.isEmpty())
             return null;
@@ -238,7 +238,7 @@ public record S2Condition(Object fieldName, S2Operator operator, Object value) i
         // instanceof 순서 최적화: 자주 나타나는 타입부터 체크
         if (val instanceof String str) {
             // String: 양쪽 공백 제거, Boolean 문자열 정규화
-            String trimmed = str.trim();
+            String trimmed = S2Whitespace.trim(str);
             if (trimmed.equalsIgnoreCase("true")) {
                 return "true";
             }

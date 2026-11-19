@@ -648,7 +648,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
         }
         if (value instanceof String text) {
-            Matcher m = DATE_TIME_TEXT.matcher(text.trim());
+            Matcher m = DATE_TIME_TEXT.matcher(S2Whitespace.trim(text));
             if (!m.matches()) {
                 return null;
             }
@@ -776,7 +776,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             return b;
         }
         if (value instanceof String str) {
-            String trimmed = str.trim();
+            String trimmed = S2Whitespace.trim(str);
             return "true".equalsIgnoreCase(trimmed) || "on".equalsIgnoreCase(trimmed);
         }
         if (value instanceof Object[] arr) {
@@ -816,7 +816,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             return !b;
         }
         if (value instanceof String str) {
-            String trimmed = str.trim();
+            String trimmed = S2Whitespace.trim(str);
             return trimmed.isEmpty() || "false".equalsIgnoreCase(trimmed) || "off".equalsIgnoreCase(trimmed);
         }
         if (value instanceof Object[] arr) {
@@ -844,7 +844,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
         if (obj instanceof Number n) {
             return n.doubleValue();
         }
-        String str = obj.toString().trim();
+        String str = S2Whitespace.trim(obj.toString());
         // Accept only plain decimal notation so the result matches the client (rejects "1,000", "25abc", "25d", "NaN"). | 클라이언트와 판정이 같도록 일반 십진 표기만 허용 ("1,000", "25abc", "25d", "NaN" 거부)
         if (!NUMERIC_PATTERN.matcher(str).matches()) {
             return null;
@@ -930,7 +930,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     }
 
     private static Object trimIfString(Object value) {
-        return value instanceof String str ? str.trim() : value;
+        return value instanceof String str ? S2Whitespace.trim(str) : value;
     }
 
     /**
@@ -940,7 +940,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
      * @return {@code true} if checksum verification is enabled | 검증번호 검사 사용 여부
      */
     private static boolean isChecksumEnabled(Object checkValue) {
-        return Boolean.TRUE.equals(checkValue) || "true".equalsIgnoreCase(String.valueOf(checkValue).trim());
+        return Boolean.TRUE.equals(checkValue) || "true".equalsIgnoreCase(S2Whitespace.trim(String.valueOf(checkValue)));
     }
 
     /** Check digit weights of the business registration number | 사업자등록번호 검증번호 가중치 */
