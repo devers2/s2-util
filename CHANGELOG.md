@@ -57,9 +57,10 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `S2StringUtil.replaceChars` / `removeChars` no longer allocate a 64 KB array per call, only up to the largest target character (the validator's `DATE` and resident number rules call them every time).
 - `S2DateUtil` caches parsing formatters per pattern.
 
-### Deprecated
+### Removed (security)
 
-- `S2Util.chkSuPw`: it builds a password from the current time with a fixed rule that is public, so anyone can compute it; using it to bypass authentication is a backdoor. `@Deprecated(forRemoval = true)`, to be removed in a later version.
+- **`S2Util.chkSuPw` has been removed.** It built a password from the current time with a fixed rule that is public in the source, so anyone can compute it.
+  Used to bypass authentication it is a backdoor, so it is removed without a replacement. Remove any code that grants access (e.g. login) through it.
 
 ### Docs & examples
 

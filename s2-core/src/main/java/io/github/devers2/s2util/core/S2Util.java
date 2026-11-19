@@ -24,10 +24,8 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -1475,42 +1473,6 @@ public class S2Util {
         }
 
         return percentage;
-    }
-
-    /**
-     * Checks a password derived from the current time ({@code HHmm}) with a fixed rule.
-     * <p>
-     * <b>Deprecated, do not use:</b> the rule is public in this open-source library, so anyone can compute the
-     * password at any time. Using it to bypass authentication is effectively a backdoor. It will be removed.
-     * </p>
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * 현재 시각({@code HHmm})으로 고정 규칙에 따라 만든 비밀번호인지 확인합니다.
-     * <p>
-     * <b>사용 중단, 쓰지 마십시오:</b> 규칙이 오픈소스로 공개되어 있어 누구나 언제든 비밀번호를 계산할 수 있습니다.
-     * 인증 우회에 쓰면 사실상 뒷문이 됩니다. 이후 버전에서 제거됩니다.
-     * </p>
-     *
-     * @param password Password to check | 확인할 비밀번호
-     * @param pwPrefix Prefix of the password | 비밀번호 접두사
-     * @return Whether it matches | 일치 여부
-     * @deprecated Security risk (publicly computable password); will be removed | 보안 위험(누구나 계산 가능한 비밀번호), 제거 예정
-     */
-    @Deprecated(since = "2.2.0", forRemoval = true)
-    public static boolean chkSuPw(String password, String pwPrefix) {
-        String[] p = { ")", "!", "@", "#", "$", "%", "^", "&", "*", "(" };
-        String hm = new SimpleDateFormat("HHmm").format(new Date());
-        char c1 = hm.charAt(0);
-        char c2 = hm.charAt(2);
-        char c3 = hm.charAt(3);
-        String chkPw = (pwPrefix != null ? pwPrefix : "") + c1 + c2 + c3 +
-                p[cast(c1, Integer.class)] +
-                p[cast(c2, Integer.class)] +
-                p[cast(c3, Integer.class)];
-
-        return chkPw.equals(password);
     }
 
     /**
