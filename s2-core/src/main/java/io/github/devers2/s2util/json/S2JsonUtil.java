@@ -473,6 +473,14 @@ public final class S2JsonUtil {
                 } else {
                     sb.append("null");
                 }
+            } else if (value instanceof java.sql.Date date) {
+                // 날짜만 담는 타입 — 시각(UTC)으로 쓰면 시간대에 따라 날짜가 밀림
+                writeString(sb, date.toLocalDate().toString());
+            } else if (value instanceof java.sql.Time time) {
+                writeString(sb, time.toLocalTime().toString());
+            } else if (value instanceof java.sql.Timestamp timestamp) {
+                // 나노초까지 보존
+                writeString(sb, timestamp.toInstant().toString());
             } else if (value instanceof Date date) {
                 writeString(sb, Instant.ofEpochMilli(date.getTime()).toString());
             } else if (value instanceof Locale locale) {
@@ -1203,6 +1211,10 @@ public final class S2JsonUtil {
         STRING_TYPES.put(UUID.class, UUID::fromString);
         STRING_TYPES.put(URI.class, URI::create);
         STRING_TYPES.put(Locale.class, Locale::forLanguageTag);
+        // java.sql 날짜 타입: 쓰기와 같은 형식(날짜, 시각, ISO 시각)으로 읽음
+        STRING_TYPES.put(java.sql.Date.class, s -> java.sql.Date.valueOf(LocalDate.parse(s)));
+        STRING_TYPES.put(java.sql.Time.class, s -> java.sql.Time.valueOf(LocalTime.parse(s)));
+        STRING_TYPES.put(java.sql.Timestamp.class, s -> java.sql.Timestamp.from(Instant.parse(s)));
     }
 
     private static final class Mapper {
@@ -1621,7 +1633,8 @@ public final class S2JsonUtil {
         for (Class<?> c = type; c != null && !isJdkType(c); c = c.getSuperclass()) {
             hierarchy.push(c);
         }
-        List<Field> fields = new ArrayList<>();
+        // 하위 클래스가 같은 이름으로 다시 선언한 필드는 하위 클래스 것만 쓴다(같은 키가 두 번 나오지 않도록, 위치는 상위 클래스 자리)
+        Map<String, Field> fields = new LinkedHashMap<>();
         for (Class<?> c : hierarchy) {
             for (Field field : c.getDeclaredFields()) {
                 int mod = field.getModifiers();
@@ -1636,10 +1649,10 @@ public final class S2JsonUtil {
                     throw new S2JsonException("Cannot access field " + c.getName() + "." + field.getName()
                             + " (open the package to io.github.devers2.s2util)", e);
                 }
-                fields.add(field);
+                fields.put(field.getName(), field);
             }
         }
-        return fields;
+        return new ArrayList<>(fields.values());
     }
 
     private static boolean isJdkType(Class<?> type) {

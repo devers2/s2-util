@@ -174,4 +174,47 @@ class S2CoreUtilFixesTest {
         assertFalse(json.contains("<") || json.contains(">") || json.contains("&"), json);
         assertEquals(Map.of("k", "</script><b>&"), S2JsonUtil.parse(json));
     }
+
+    public static class SqlDates {
+        public java.sql.Date day;
+        public java.sql.Time time;
+        public java.sql.Timestamp at;
+    }
+
+    public static class ParentBean {
+        public String name = "parent";
+    }
+
+    public static class ChildBean extends ParentBean {
+        public String name = "child";
+    }
+
+    @Test
+    void jsonWritesSqlDateTypesByTheirMeaningAndReadsThemBack() {
+        java.util.TimeZone original = java.util.TimeZone.getDefault();
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+            SqlDates value = new SqlDates();
+            value.day = java.sql.Date.valueOf("2024-02-01");
+            value.time = java.sql.Time.valueOf("09:30:00");
+            value.at = java.sql.Timestamp.valueOf("2024-02-01 09:30:00.123456789");
+
+            String json = S2JsonUtil.toJson(value);
+            assertTrue(json.contains("\"day\":\"2024-02-01\""), json);
+            assertTrue(json.contains("\"time\":\"09:30\""), json);
+            assertTrue(json.contains(".123456789Z"), json);
+
+            SqlDates back = S2JsonUtil.fromJson(json, SqlDates.class);
+            assertEquals(value.day, back.day);
+            assertEquals(value.time, back.time);
+            assertEquals(value.at, back.at);
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
+
+    @Test
+    void jsonWritesShadowedFieldOnce() {
+        assertEquals("{\"name\":\"child\"}", S2JsonUtil.toJson(new ChildBean()));
+    }
 }

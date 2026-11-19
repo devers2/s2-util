@@ -1543,8 +1543,7 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       if (!rawRegex) return false;
       try {
         // Always wrap to mirror Java matcher.matches(): one-sided anchors (^\d+) or anchors on a single alternative (^a|b$) would otherwise allow partial matches. | Java matcher.matches()와 같도록 항상 감쌈: 한쪽 앵커(^\d+)나 대체 한 갈래에만 걸린 앵커(^a|b$)는 부분 일치를 허용하기 때문
-        const pattern = `^(?:${javaWhitespace(String(rawRegex))})$`;
-        return new RegExp(pattern).test(String(value));
+        return fullMatchRegExp(String(rawRegex)).test(String(value));
       } catch (e) {
         console.error(
           `[S2Validator] 정규식 패턴 평가 중 오류가 발생했습니다: "${rawRegex}" (필드: "${fieldName}")`,
@@ -1555,7 +1554,7 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     }
     case 'BIZRNO': {
       const text = String(value);
-      if (!rule.regex || !new RegExp(`^(?:${javaWhitespace(rule.regex)})$`).test(text)) return false;
+      if (!rule.regex || !fullMatchRegExp(rule.regex).test(text)) return false;
       // Check digit only when the rule criterion is true, same as server S2Rule.isChecksumEnabled. | 검증번호 검사는 규칙 기준값이 true 일 때만 수행 (서버 S2Rule.isChecksumEnabled 와 동일)
       return !isChecksumEnabled(rule.value) || isBizrnoChecksumValid(text);
     }
@@ -1643,6 +1642,23 @@ const javaWhitespace = (pattern) => {
     out += c;
   }
   return out;
+};
+
+// 전체 일치용 RegExp 캐시: 검사할 때마다 패턴 변환·컴파일을 반복하지 않도록 원래 패턴을 키로 보관한다.
+// g 플래그가 없는 RegExp 의 test() 는 상태(lastIndex)를 남기지 않으므로 재사용해도 안전하다.
+// 규칙 수만큼만 쌓이지만, 패턴이 계속 바뀌는 비정상 상황에 대비해 상한을 넘으면 비운다.
+const FULL_MATCH_CACHE = new Map();
+const FULL_MATCH_CACHE_LIMIT = 500;
+
+const fullMatchRegExp = (rawRegex) => {
+  let regExp = FULL_MATCH_CACHE.get(rawRegex);
+  if (!regExp) {
+    // Java matcher.matches() 와 같도록 항상 전체를 감싼다(잘못된 패턴이면 SyntaxError 를 그대로 던짐 — 호출부가 처리)
+    regExp = new RegExp(`^(?:${javaWhitespace(rawRegex)})$`);
+    if (FULL_MATCH_CACHE.size >= FULL_MATCH_CACHE_LIMIT) FULL_MATCH_CACHE.clear();
+    FULL_MATCH_CACHE.set(rawRegex, regExp);
+  }
+  return regExp;
 };
 
 // 값의 개수: 배열은 길이, 일반 객체는 키 수, 단일 값은 1 (서버 S2Rule.sizeOf 와 같음)

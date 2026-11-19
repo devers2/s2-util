@@ -127,6 +127,40 @@ public class S2JpqlTest {
         org.junit.jupiter.api.Assertions.assertNull(S2Jpql.escapeLike(null));
     }
 
+    @Test
+    @DisplayName("bindOrderBy(허용 목록): 정렬 키를 JPQL 경로로 바꾸고, 목록에 없는 키·잘못된 방향은 버린다")
+    @SuppressWarnings("null")
+    void bindOrderByWithAllowedFieldsTranslatesAndDropsUnknownKeys() {
+        when(typedQuery.getParameters()).thenReturn(java.util.Set.of());
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m {{=cond_order}}")
+                .bindOrderBy("cond_order", "name desc, password, age, age drop", java.util.Map.of("name", "m.name", "age", "m.age"))
+                .build();
+
+        verify(entityManager).createQuery(sqlCaptor.capture(), eq(Member.class));
+        org.junit.jupiter.api.Assertions.assertEquals("SELECT m FROM Member m ORDER BY m.name DESC, m.age", sqlCaptor.getValue());
+    }
+
+    @Test
+    @DisplayName("bindOrderBy(허용 목록): 허용된 키가 하나도 없으면 ORDER BY 를 붙이지 않는다")
+    @SuppressWarnings("null")
+    void bindOrderByWithAllowedFieldsSkipsWhenNothingAllowed() {
+        when(typedQuery.getParameters()).thenReturn(java.util.Set.of());
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m {{=cond_order}}")
+                .bindOrderBy("cond_order", "password desc", java.util.Map.of("name", "m.name"))
+                .build();
+
+        verify(entityManager).createQuery(sqlCaptor.capture(), eq(Member.class));
+        org.junit.jupiter.api.Assertions.assertEquals("SELECT m FROM Member m", sqlCaptor.getValue());
+    }
+
     @DisplayName("S2Jpql - Fluent API 체이닝")
     @SuppressWarnings({ "null", "unchecked" })
     @Test

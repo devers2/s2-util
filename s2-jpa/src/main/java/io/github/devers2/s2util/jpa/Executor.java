@@ -1,6 +1,9 @@
 package io.github.devers2.s2util.jpa;
 
 import java.util.Collection;
+import java.util.Locale;
+import java.util.Map;
+import java.util.StringJoiner;
 import java.util.function.Supplier;
 
 import jakarta.persistence.TypedQuery;
@@ -510,6 +513,62 @@ public interface Executor<T> {
      * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
      */
     Executor<T> bindOrderBy(String key, String sortExpression);
+
+    /**
+     * Adds an ORDER BY clause from a client sort expression, allowing only the listed sort keys.
+     * <p>
+     * Use this when the sort comes from the request (e.g. {@code ?sort=name,desc}). Each key of the expression is
+     * looked up in {@code allowedFields} and replaced with its JPQL path; keys not in the map are ignored, so a client
+     * cannot sort by columns that are not meant to be sortable (sorting by a hidden column such as a password hash
+     * can leak its values through the order). Directions other than ASC/DESC are ignored as well.
+     * </p>
+     *
+     * <pre>{@code
+     * .bindOrderBy("order_clause", "name DESC, age", Map.of("name", "m.name", "age", "m.age"))
+     * // → ORDER BY m.name DESC, m.age
+     * }</pre>
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 클라이언트가 보낸 정렬 문자열로 ORDER BY 절을 추가하되, 허용한 정렬 키만 받습니다.
+     * <p>
+     * 정렬 값이 요청에서 올 때(예: {@code ?sort=name,desc}) 쓰십시오. 정렬 문자열의 각 키를 {@code allowedFields}에서 찾아
+     * JPQL 경로로 바꾸고, 목록에 없는 키는 무시하므로 정렬용이 아닌 컬럼으로 정렬할 수 없습니다(비밀번호 해시 같은 숨은 컬럼으로
+     * 정렬하면 정렬 순서로 값이 새어 나갈 수 있음). ASC/DESC 가 아닌 방향도 무시합니다.
+     * </p>
+     *
+     * @param key            Template key to be replaced (e.g., "order_clause") | 치환 대상 템플릿 키 (예: "order_clause")
+     * @param sortExpression Client sort string (e.g., "name DESC, age") | 클라이언트 정렬 문자열 (예: "name DESC, age")
+     * @param allowedFields  Allowed sort key → JPQL path (e.g., "name" → "m.name") | 허용 정렬 키 → JPQL 경로
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    default Executor<T> bindOrderBy(String key, String sortExpression, Map<String, String> allowedFields) {
+        if (sortExpression == null || sortExpression.isBlank() || allowedFields == null || allowedFields.isEmpty()) {
+            return this;
+        }
+        StringJoiner translated = new StringJoiner(", ");
+        for (String sortInfo : sortExpression.split(",")) {
+            String[] parts = sortInfo.trim().split("\\s+");
+            if (parts.length == 0 || parts.length > 2 || parts[0].isEmpty()) {
+                continue;
+            }
+            String path = allowedFields.get(parts[0]);
+            if (path == null) {
+                continue;
+            }
+            if (parts.length == 1) {
+                translated.add(path);
+            } else {
+                String direction = parts[1].toUpperCase(Locale.ROOT);
+                if (direction.equals("ASC") || direction.equals("DESC")) {
+                    translated.add(path + " " + direction);
+                }
+            }
+        }
+        // 경로는 기존 bindOrderBy 에서 식별자 형식 검사를 한 번 더 거친다
+        return bindOrderBy(key, translated.toString());
+    }
 
     /**
      * Sets pagination parameters conditionally.

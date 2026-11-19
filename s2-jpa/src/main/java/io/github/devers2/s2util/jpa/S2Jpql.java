@@ -965,6 +965,27 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
+     * Adds an ORDER BY clause from a client sort expression, allowing only the listed sort keys
+     * (see {@link Executor#bindOrderBy(String, String, java.util.Map)}).
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 클라이언트가 보낸 정렬 문자열로 ORDER BY 절을 추가하되, 허용한 정렬 키만 받습니다
+     * ({@link Executor#bindOrderBy(String, String, java.util.Map)} 참고).
+     *
+     * @param key            Template key to be replaced | 치환 대상 템플릿 키
+     * @param sortExpression Client sort string (e.g., "name DESC, age") | 클라이언트 정렬 문자열
+     * @param allowedFields  Allowed sort key → JPQL path | 허용 정렬 키 → JPQL 경로
+     * @return Current object for method chaining | 메서드 체이닝을 위한 현재 객체
+     */
+    @Override
+    public S2Jpql<T> bindOrderBy(String key, String sortExpression, java.util.Map<String, String> allowedFields) {
+        Executor.super.bindOrderBy(key, sortExpression, allowedFields);
+        return this;
+    }
+
+    /**
      * Sets pagination parameters conditionally.
      *
      * <p>
@@ -1103,12 +1124,13 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         TypedQuery<T> query = entityManager.createQuery(renderedSql, resultClass);
 
         // 2. 자동 바인딩 (S2Template의 rawValues 활용)
-        logger.debug("Parameters to bind: {}", boundParameters);
+        // 파라미터 값은 개인정보(이름·전화번호 등)일 수 있어 로그에 남기지 않고 이름과 타입만 남긴다
+        logger.debug("Parameters to bind: {}", boundParameters.keySet());
         for (Parameter<?> param : query.getParameters()) {
             String name = param.getName();
             if (name != null && boundParameters.containsKey(name)) {
                 Object value = boundParameters.get(name);
-                logger.debug("Binding parameter: {} = {}", name, value);
+                logger.debug("Binding parameter: {} ({})", name, value == null ? "null" : value.getClass().getSimpleName());
                 query.setParameter(name, value);
             }
         }

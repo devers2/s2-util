@@ -32,6 +32,11 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **`S2Template.render()` no longer re-expands `{{=…}}` inside binding values.** They used to be replaced by other bindings or removed, with results depending on binding order.
 - `S2StringUtil.clearNewline` escapes backslashes too. Before, a `\'` in the input closed the JS string and allowed script injection.
 - `S2JsonUtil.toJson` writes `<`, `>` and `&` in strings as `\u003c`, `\u003e` and `\u0026`, so the output can be placed inside an HTML `<script>` block as is without being closed by `</script>` (the parsed value is the same).
+- **A built validator can no longer be changed.** Calling `field()`, `rule()`, ... on the same builder chain after `build()` throws `IllegalStateException`.
+  Fields could silently be added to a validator already in use, and the field list was not safe across threads. Start a new `builder()` for another validator.
+- List validation (`EACH`) reports a circular reference when an element is the same object as an ancestor on the validation path (as `NESTED` does). It used to pass silently.
+- `S2JsonUtil.toJson` writes `java.sql.Date` as a date (`2024-02-01`) and `java.sql.Time` as a time (`09:30`). They were written as UTC instants, shifting the date by a day in Korea (`2024-01-31T15:00:00Z`). `fromJson` reads them back.
+- `S2Jpql` DEBUG logs no longer include bound parameter values, only names and types (personal data).
 
 ### Added
 
@@ -45,6 +50,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   so sustained over-submission cannot exhaust memory. Behaves the same on virtual and platform threads (MANUAL 9-3).
 - System properties `s2.thread.virtual.enabled=false` (turn off virtual threads, e.g. to avoid pinning on Java 21-23) and `s2.thread.virtual.max_concurrency` (concurrency cap of the virtual-thread common executor).
 - `S2Jpql.escapeLike()`: escapes LIKE wildcards (`%`, `_`) in a keyword, used with `ESCAPE '\'` in the JPQL (GUIDE_JPQL 3-2).
+- `S2Jpql.bindOrderBy(key, sortExpression, allowedFields)`: translates a sort string from the request (`name desc`) to JPQL paths in an allow list (`m.name DESC`) and drops unknown keys, so clients cannot sort by hidden columns (such as a password hash) to infer their values.
 
 ### Performance
 
@@ -57,6 +63,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   so every cache write logged a `RejectedExecutionException` warning after `S2ThreadUtil.shutdownCommonExecutor()`.
 - `S2StringUtil.replaceChars` / `removeChars` no longer allocate a 64 KB array per call, only up to the largest target character (the validator's `DATE` and resident number rules call them every time).
 - `S2DateUtil` caches parsing formatters per pattern.
+- `s2.validator.js` caches compiled regular expressions instead of converting and compiling the pattern on every check.
 
 ### Removed (security)
 
@@ -100,6 +107,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `S2StringUtil` case conversion (`toCamelCase`, `toSnakeCase`, ...) followed the system locale and produced `userİd` under Turkish.
 - The JSON parser accepted non-ASCII characters such as Arabic-Indic digits and fullwidth letters as hex digits in `\u` escapes.
 - `S2DateUtil` parsing read text fields such as AM/PM (`a`), month names (`MMM`) and day names (`E`) only in the default locale, so `11:30 PM` failed on a Korean JVM. English is now tried after the default locale, case-insensitively.
+- `S2JsonUtil.toJson`: a field redeclared in a subclass with the same name as a superclass field produced the key twice (now only the subclass value), and `java.sql.Timestamp` lost its nanoseconds.
 
 ## [2.1.0]
 

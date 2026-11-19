@@ -27,6 +27,11 @@
 - **`S2Template.render()`: 바인딩 값 안의 `{{=…}}` 를 다시 치환하지 않습니다.** 이전에는 다른 바인딩으로 바뀌거나 지워졌고, 결과가 바인딩 순서에 따라 달랐습니다.
 - `S2StringUtil.clearNewline` 은 역슬래시도 이스케이프합니다. 이전에는 입력의 `\'` 가 JS 문자열을 닫아 스크립트가 주입될 수 있었습니다.
 - `S2JsonUtil.toJson` 은 문자열 안의 `<`·`>`·`&` 를 `\u003c`·`\u003e`·`\u0026` 으로 씁니다. 출력을 HTML `<script>` 안에 그대로 넣어도 `</script>` 로 닫히지 않습니다(읽은 값은 같음).
+- **`build()` 한 검증기는 바꿀 수 없습니다.** 같은 빌더 체인으로 `build()` 뒤에 `field()`·`rule()` 등을 부르면 `IllegalStateException` 이 납니다.
+  이전에는 이미 공유 중인 검증기에 필드가 조용히 추가될 수 있었고, 필드 목록이 여러 스레드에서 안전하지 않았습니다. 다른 검증기는 새 `builder()` 로 만드십시오.
+- 목록 검증(`EACH`)에서 요소가 검증 경로의 조상과 같은 객체(순환 참조)면 순환 참조 오류를 냅니다(`NESTED` 와 같음). 이전에는 오류 없이 통과했습니다.
+- `S2JsonUtil.toJson` 은 `java.sql.Date` 를 날짜(`2024-02-01`), `java.sql.Time` 을 시각(`09:30`)으로 씁니다. 이전에는 UTC 시각으로 써서 한국 시간에서 날짜가 하루 밀렸습니다(`2024-01-31T15:00:00Z`). `fromJson` 으로 다시 읽을 수 있습니다.
+- `S2Jpql` 의 DEBUG 로그는 바인딩 파라미터의 값을 남기지 않고 이름과 타입만 남깁니다(개인정보 보호).
 
 ### 추가
 
@@ -40,6 +45,7 @@
   처리보다 빠른 제출이 이어져도 메모리가 바닥나지 않습니다. 가상 스레드·플랫폼 모두 같게 동작합니다(MANUAL 9-3).
 - 시스템 속성 `s2.thread.virtual.enabled=false`(가상 스레드 끄기, Java 21~23 pinning 회피용)와 `s2.thread.virtual.max_concurrency`(가상 스레드 공용 실행기 동시 실행 상한).
 - `S2Jpql.escapeLike()`: 검색어의 LIKE 와일드카드(`%`, `_`)를 이스케이프하는 도우미. JPQL 의 `ESCAPE '\'` 와 함께 씁니다(GUIDE_JPQL 3-2).
+- `S2Jpql.bindOrderBy(key, sortExpression, allowedFields)`: 요청에서 온 정렬 문자열(`name desc`)을 허용 목록의 JPQL 경로(`m.name DESC`)로 바꾸고, 목록에 없는 키는 버립니다. 숨은 컬럼(비밀번호 해시 등)으로 정렬해 값을 추측하는 것을 막습니다.
 
 ### 성능
 
@@ -52,6 +58,7 @@
   `S2ThreadUtil.shutdownCommonExecutor()` 이후 캐시에 쓸 때마다 `RejectedExecutionException` 경고가 찍혔습니다.
 - `S2StringUtil.replaceChars`·`removeChars` 가 호출마다 64KB 배열을 만들던 것을 대상 문자 크기만큼만 만듭니다(검증기 `DATE`·주민번호 규칙이 매번 호출).
 - `S2DateUtil` 파싱 포맷터를 패턴별로 캐시합니다.
+- `s2.validator.js` 가 정규식 규칙을 검사할 때마다 패턴 변환·`RegExp` 컴파일을 반복하던 것을 캐시합니다.
 
 ### 제거 (보안)
 
@@ -95,6 +102,7 @@
 - `S2StringUtil` 의 대소문자 변환(`toCamelCase`·`toSnakeCase` 등)이 시스템 로케일을 따라 터키어 환경에서 `userİd` 처럼 바뀌던 문제.
 - JSON 파서가 `\u` 이스케이프에 아라비아 숫자·전각 문자 등 비ASCII 문자를 16진수로 받아들이던 문제.
 - `S2DateUtil` 파싱에서 오전/오후(`a`)·월 이름(`MMM`)·요일(`E`) 같은 문자형 필드가 기본 로케일로만 읽혀, 한국어 JVM 에서 `11:30 PM` 을 읽지 못하던 문제. 기본 로케일 다음에 영어로도 시도하고 대소문자를 구분하지 않습니다.
+- `S2JsonUtil.toJson`: 하위 클래스가 상위 클래스와 같은 이름의 필드를 다시 선언하면 같은 키가 두 번 나오던 문제(이제 하위 클래스 값만), `java.sql.Timestamp` 의 나노초가 잘리던 문제.
 
 ## [2.1.0]
 

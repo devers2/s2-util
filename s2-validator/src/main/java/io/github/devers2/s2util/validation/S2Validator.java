@@ -153,8 +153,10 @@ public class S2Validator<T> implements Serializable {
     /** Default system-wide locale (defaults to {@link Locale#getDefault()}) */
     private static volatile Locale defaultLocale = Locale.getDefault();
 
-    /** List of field validation configurations */
-    private final List<S2Field<T>> fields = new ArrayList<>();
+    /** List of field validation configurations (immutable once built) */
+    private volatile List<S2Field<T>> fields = new ArrayList<>();
+    /** Whether {@code build()} has been called; the validator can no longer be changed */
+    private volatile boolean built;
     /** Whether to throw {@link S2RuntimeException} immediately on first failure */
     private boolean failFastWithException = true;
 
@@ -577,6 +579,7 @@ public class S2Validator<T> implements Serializable {
          * @param label Human-readable label for error messages | 에러 메시지에 사용될 필드 라벨
          */
         protected void doField(Object name, String label) {
+            validator.ensureNotBuilt();
             this.currentField = new S2Field<>(validator, name, label);
             validator.fields.add(this.currentField);
         }
@@ -641,6 +644,7 @@ public class S2Validator<T> implements Serializable {
          * @throws IllegalStateException If called without a prior {@code field()} call | field() 호출 없이 실행된 경우 발생
          */
         protected void ensureField() {
+            validator.ensureNotBuilt();
             if (currentField == null)
                 throw new IllegalStateException("field() must be called first. (field()를 먼저 호출해야 합니다.)");
         }
@@ -982,6 +986,7 @@ public class S2Validator<T> implements Serializable {
         // --- Terminal ---
         @Override
         public S2Validator<T> build() {
+            validator.seal();
             return validator;
         }
     }
@@ -1059,6 +1064,12 @@ public class S2Validator<T> implements Serializable {
             this.config = config;
             this.outerTargets = outerTargets != null ? outerTargets : List.of();
             this.outerValidators = outerValidators != null ? outerValidators : List.of();
+        }
+        /** 순환 참조 오류(NESTED·EACH 공통) */
+        private S2ValidationError circularReferenceError(String fieldName, String fieldLabel, Locale locale) {
+            return new S2ValidationError(fieldName, CIRCULAR_REFERENCE_KEY, new Object[] { fieldLabel },
+                    systemMessage(CIRCULAR_REFERENCE_KEY, "{0}에서 순환 참조가 감지되었습니다.",
+                            "Circular reference detected at {0}.", locale, fieldLabel));
         }
 
         /**
@@ -1230,15 +1241,7 @@ public class S2Validator<T> implements Serializable {
                                 // 동일한 객체가 이미 검증 경로에 있으면 순환 참조로 판단
                                 if (fieldValue != null && visited.contains(fieldValue)) {
                                     isAllValid = false;
-                                    if (!reportError(
-                                            errorHandler, new S2ValidationError(
-                                                    fieldName,
-                                                    CIRCULAR_REFERENCE_KEY,
-                                                    new Object[] { fieldLabel },
-                                                    systemMessage(CIRCULAR_REFERENCE_KEY,
-                                                            "{0}에서 순환 참조가 감지되었습니다.",
-                                                            "Circular reference detected at {0}.",
-                                                            currentLocale, fieldLabel)),
+                                    if (!reportError(errorHandler, circularReferenceError(fieldName, fieldLabel, currentLocale),
                                             config.failFastWithException))
                                         return false;
                                     continue;
@@ -1286,6 +1289,16 @@ public class S2Validator<T> implements Serializable {
                                                 idx++;
                                                 continue;
                                             }
+                                            // 요소가 검증 경로의 조상과 같은 객체면 순환 참조(하위 실행은 방문한 객체를 그냥 통과시키므로 여기서 보고)
+                                            if (visited.contains(item)) {
+                                                isAllValid = false;
+                                                if (!reportError(errorHandler,
+                                                        circularReferenceError(fieldName + "[" + finalIdx + "]", fieldLabel, currentLocale),
+                                                        config.failFastWithException))
+                                                    return false;
+                                                idx++;
+                                                continue;
+                                            }
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
                                                 reportError(
                                                         errorHandler, new S2ValidationError(
@@ -1307,6 +1320,14 @@ public class S2Validator<T> implements Serializable {
                                             final int finalIdx = i;
                                             Object item = java.lang.reflect.Array.get(fieldValue, i);
                                             if (item == null) {
+                                                continue;
+                                            }
+                                            if (visited.contains(item)) {
+                                                isAllValid = false;
+                                                if (!reportError(errorHandler,
+                                                        circularReferenceError(fieldName + "[" + finalIdx + "]", fieldLabel, currentLocale),
+                                                        config.failFastWithException))
+                                                    return false;
                                                 continue;
                                             }
                                             boolean subOk = subObj.run(item, (S2ValidationError err) -> {
@@ -1947,7 +1968,24 @@ public class S2Validator<T> implements Serializable {
         return Collections.unmodifiableList(fields);
     }
 
+    // build() 뒤에는 필드 목록을 바꿀 수 없는 목록으로 고정한다(공유 검증기를 실수로 바꾸지 않고, 여러 스레드가 안전하게 읽도록)
+    private void seal() {
+        if (!built) {
+            fields = List.copyOf(fields);
+            built = true;
+        }
+    }
+
+    private void ensureNotBuilt() {
+        if (built) {
+            throw new IllegalStateException(
+                    "The validator has already been built; start a new builder() to define another validator. "
+                            + "(이미 build() 된 검증기는 바꿀 수 없습니다. 새 builder() 로 만드십시오.)");
+        }
+    }
+
     protected void startField(Object name, String label) {
+        ensureNotBuilt();
         S2Field<T> field = new S2Field<>(this, name, label);
         this.fields.add(field);
     }
