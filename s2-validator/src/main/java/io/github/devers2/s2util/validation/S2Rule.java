@@ -365,6 +365,8 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                 var maxByte = toIntCriterion(checkValue);
                 yield targetValue.getBytes(StandardCharsets.UTF_8).length <= maxByte;
             }
+            case MIN_SIZE -> sizeOf(value) >= toIntCriterion(checkValue);
+            case MAX_SIZE -> sizeOf(value) <= toIntCriterion(checkValue);
             case MIN_VALUE -> {
                 Double numVal = toDouble(value);
                 Double numCheck = toDouble(checkValue);
@@ -640,6 +642,25 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             S2RuleType.TEXT_COMBINE, S2RuleType.MPHONE_NO, S2RuleType.TEL_NO, S2RuleType.INTERNATIONAL_TEL_NO,
             S2RuleType.EMAIL, S2RuleType.ZIP, S2RuleType.LOGIN_ID, S2RuleType.PASSWORD, S2RuleType.PASSWORD_ANSWR,
             S2RuleType.BIZRNO, S2RuleType.NWINO, S2RuleType.JUMIN);
+
+    /**
+     * Returns the number of values: the size of a collection, array or map, or one for a single value.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 값의 개수를 반환합니다. 컬렉션·배열·Map 은 크기, 단일 값은 1 입니다.
+     *
+     * @param value The value | 값
+     * @return The number of values | 값의 개수
+     */
+    private static int sizeOf(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return map.size();
+        }
+        List<Object> elements = multiValues(value);
+        return elements != null ? elements.size() : 1;
+    }
 
     /**
      * Returns the elements of a collection or array, or null for a single value.
@@ -969,7 +990,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
                             "[S2Rule] " + ruleType + " requires a finite number criterion, but was: " + checkValue);
                 }
             }
-            case LENGTH, MIN_LENGTH, MAX_LENGTH, MIN_BYTE, MAX_BYTE -> {
+            case LENGTH, MIN_LENGTH, MAX_LENGTH, MIN_BYTE, MAX_BYTE, MIN_SIZE, MAX_SIZE -> {
                 try {
                     toIntCriterion(checkValue);
                 } catch (NumberFormatException e) {

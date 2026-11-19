@@ -368,7 +368,7 @@ S2Validator.check(order.isPayable())
 | Category               | Available Rule Types                                                                  |
 | :--------------------- | :------------------------------------------------------------------------------------ |
 | **Basic Constraints**  | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                             |
-| **Length & Bounds**    | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`                          |
+| **Length & Bounds**    | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`, `MIN_SIZE`/`MAX_SIZE` (count)                          |
 | **Numeric Checks**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                                    |
 | **Format Validation**  | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `PASSWORD`, `REGEX`                           |
 | **Region-Specific** 🇰🇷 | `TEL_NO`, `MPHONE_NO`, `ZIP`, `BIZRNO`, `JUMIN`, `NWINO`, `PASSWORD_ANSWR`            |
@@ -387,6 +387,7 @@ S2Validator.check(order.isPayable())
 - **Multiple values (collections, arrays, checkbox groups, multi-selects)**:
   - Length, byte, numeric, format and date rules are judged per element and every element must pass (empty elements are skipped). `String[]` parameter maps are validated as is.
   - `REQUIRED` passes only if at least one element is not empty (`["", " "]` is empty).
+  - Check the count with `MIN_SIZE`/`MAX_SIZE` (e.g. pick 2 to 5 interests). A single value counts as one.
 - **`DATE_AFTER` / `DATE_BEFORE` (date comparison)**:
   - `LocalDate`, `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime`, `Instant`, `java.util.Date`, `java.sql.Date`, `Timestamp` and strings can be compared with each other. A date without time is midnight; zoned values use the system time zone.
   - Strings accept `yyyyMMdd` (optional `-`/`.` separators) with an optional time (`T` or a space, then `HH:mm[:ss]`), so `<input type="datetime-local">` values are compared too.

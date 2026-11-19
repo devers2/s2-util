@@ -1518,6 +1518,10 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       return new Blob([String(value)]).size >= parseInt(rule.value);
     case 'MAX_BYTE':
       return new Blob([String(rawValue)]).size <= parseInt(rule.value);
+    case 'MIN_SIZE':
+      return sizeOfValue(value) >= parseInt(rule.value);
+    case 'MAX_SIZE':
+      return sizeOfValue(value) <= parseInt(rule.value);
     case 'MIN_VALUE':
       return toStrictNumber(value) >= toStrictNumber(rule.value); // NaN 비교는 항상 false
     case 'MAX_VALUE':
@@ -1613,6 +1617,13 @@ const ELEMENT_WISE_RULES = new Set([
   'TEXT_INTACT', 'TEXT_COMBINE', 'MPHONE_NO', 'TEL_NO', 'INTERNATIONAL_TEL_NO', 'EMAIL', 'ZIP', 'LOGIN_ID', 'PASSWORD',
   'PASSWORD_ANSWR', 'BIZRNO', 'NWINO', 'JUMIN'
 ]);
+
+// 값의 개수: 배열은 길이, 일반 객체는 키 수, 단일 값은 1 (서버 S2Rule.sizeOf 와 같음)
+const sizeOfValue = (value) => {
+  if (Array.isArray(value)) return value.length;
+  if (isPlainObject(value)) return Object.keys(value).length;
+  return 1;
+};
 
 // 빈 요소: null·undefined·공백뿐인 문자열
 const isBlankValue = (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');

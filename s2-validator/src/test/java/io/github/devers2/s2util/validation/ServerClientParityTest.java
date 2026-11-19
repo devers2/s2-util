@@ -170,6 +170,16 @@ public class ServerClientParityTest {
                 Arguments.of("MIN_BYTE: ASCII 1바이트 → 실패", S2RuleType.MIN_BYTE, 3, "a", false),
                 Arguments.of("MIN_BYTE: 빈값 → 성공(skip)", S2RuleType.MIN_BYTE, 3, null, true),
 
+                // ── MIN_SIZE / MAX_SIZE ─────────────────────────────────
+                Arguments.of("MIN_SIZE: 2개 이상(2개) → 성공", S2RuleType.MIN_SIZE, 2, List.of("a", "b"), true),
+                Arguments.of("MIN_SIZE: 2개 이상(1개) → 실패", S2RuleType.MIN_SIZE, 2, List.of("a"), false),
+                Arguments.of("MIN_SIZE: 단일 값은 1개 → 실패", S2RuleType.MIN_SIZE, 2, "a", false),
+                Arguments.of("MIN_SIZE: 빈 목록 → 성공(skip)", S2RuleType.MIN_SIZE, 2, List.of(), true),
+                Arguments.of("MAX_SIZE: 2개 이하(3개) → 실패", S2RuleType.MAX_SIZE, 2, List.of("a", "b", "c"), false),
+                Arguments.of("MAX_SIZE: 2개 이하(2개) → 성공", S2RuleType.MAX_SIZE, 2, List.of("a", "b"), true),
+                Arguments.of("MAX_SIZE: 단일 값 → 성공", S2RuleType.MAX_SIZE, 2, "a", true),
+                Arguments.of("MAX_SIZE: 빈값 → 성공(skip)", S2RuleType.MAX_SIZE, 2, null, true),
+
                 // ── MAX_BYTE ─────────────────────────────────────────────
                 Arguments.of("MAX_BYTE: ASCII 2바이트 → 성공", S2RuleType.MAX_BYTE, 5, "ab", true),
                 Arguments.of("MAX_BYTE: 한글 2자(6바이트) → 실패", S2RuleType.MAX_BYTE, 5, "가나", false),
@@ -583,6 +593,10 @@ public class ServerClientParityTest {
         // formData (cross-field 미사용)
         Map<String, Object> formData = new HashMap<>();
 
-        return validateCheckFn.execute(testValue, jsRule, formData, "", "testField").asBoolean();
+        // 목록 값은 JS 배열로 넘김 (Java List 는 JS 에서 배열로 보이지 않음)
+        Object jsValue = testValue instanceof List<?> list
+                ? jsContext.eval("js", "JSON.parse").execute(io.github.devers2.s2util.json.S2JsonUtil.toJson(list))
+                : testValue;
+        return validateCheckFn.execute(jsValue, jsRule, formData, "", "testField").asBoolean();
     }
 }

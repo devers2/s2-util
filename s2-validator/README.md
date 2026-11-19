@@ -69,6 +69,7 @@ Standard Bean Validation (Jakarta Validation / Hibernate Validator) is strong at
    - **Basic**: REQUIRED, ASSERT_TRUE, ASSERT_FALSE, EQUALS_FIELD
    - **String**: LENGTH, MIN_LENGTH, MAX_LENGTH, REGEX
    - **Numeric**: MIN_VALUE, MAX_VALUE, NUMBER, MIN_BYTE, MAX_BYTE
+   - **Count**: MIN_SIZE, MAX_SIZE (collections, checkbox groups, multi-selects)
    - **Format**: EMAIL, INTERNATIONAL_TEL_NO, LOGIN_ID, PASSWORD
    - **Korea-specific Format** 🇰🇷: MPHONE_NO, TEL_NO, ZIP, BIZRNO, NWINO, JUMIN, PASSWORD_ANSWR
    - **Date**: DATE, DATE_AFTER, DATE_BEFORE

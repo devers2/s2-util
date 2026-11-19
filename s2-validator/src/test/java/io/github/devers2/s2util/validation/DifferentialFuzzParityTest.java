@@ -144,6 +144,7 @@ class DifferentialFuzzParityTest {
         for (S2RuleType type : S2RuleType.values()) {
             Object criterion = switch (type) {
                 case LENGTH, MAX_LENGTH, MAX_BYTE -> 5;
+                case MIN_SIZE, MAX_SIZE -> 2;
                 case MIN_LENGTH, MIN_BYTE -> 3;
                 case MIN_VALUE -> 10;
                 case MAX_VALUE -> "100";

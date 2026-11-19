@@ -559,7 +559,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                 "NWINO", "DATE")) {
             RULE_CRITERIA.put(name, CriterionKind.NONE);
         }
-        for (String name : List.of("LENGTH", "MIN_LENGTH", "MAX_LENGTH", "MIN_BYTE", "MAX_BYTE")) {
+        for (String name : List.of("LENGTH", "MIN_LENGTH", "MAX_LENGTH", "MIN_BYTE", "MAX_BYTE", "MIN_SIZE", "MAX_SIZE")) {
             RULE_CRITERIA.put(name, CriterionKind.INTEGER);
         }
         RULE_CRITERIA.put("MIN_VALUE", CriterionKind.NUMBER);

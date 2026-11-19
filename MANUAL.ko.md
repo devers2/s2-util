@@ -368,7 +368,7 @@ S2Validator.check(order.isPayable())
 | 범주                   | 지원 규칙 목록                                                                                                               |
 | :--------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
 | **기본 제약 조건**     | `REQUIRED`, `ASSERT_TRUE`, `ASSERT_FALSE`, `EQUALS_FIELD`                                                                    |
-| **문자열 길이/바이트** | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`                                                                 |
+| **문자열 길이/바이트** | `LENGTH`, `MIN_LENGTH`, `MAX_LENGTH`, `MIN_BYTE`, `MAX_BYTE`, `MIN_SIZE`·`MAX_SIZE`(값 개수)                                                                 |
 | **수치 범위 검사**     | `NUMBER`, `MIN_VALUE`, `MAX_VALUE`                                                                                           |
 | **형식 및 포맷**       | `EMAIL`, `URL`, `INTERNATIONAL_TEL_NO`, `PASSWORD`, `REGEX`                                                                 |
 | **한국 특화 포맷** 🇰🇷  | `TEL_NO`(전화번호), `MPHONE_NO`(휴대폰), `ZIP`(우편번호), `BIZRNO`(사업자번호), `JUMIN`(주민번호), `NWINO`, `PASSWORD_ANSWR` |
@@ -387,6 +387,7 @@ S2Validator.check(order.isPayable())
 - **여러 값 (컬렉션·배열·체크박스 그룹·다중 선택)**:
   - 길이·바이트·숫자·형식·날짜 규칙은 요소마다 판정하며 모든 요소가 통과해야 합니다(빈 요소는 건너뜀). `String[]` 파라미터 맵도 그대로 검증됩니다.
   - `REQUIRED` 는 빈 값이 아닌 요소가 하나 이상 있어야 통과합니다(`["", " "]` 은 빈 값).
+  - 개수는 `MIN_SIZE`·`MAX_SIZE` 로 검사합니다(예: 관심사 2~5개 선택). 단일 값은 1개로 셉니다.
 - **`DATE_AFTER` / `DATE_BEFORE` (날짜 비교)**:
   - `LocalDate`·`LocalDateTime`·`ZonedDateTime`·`OffsetDateTime`·`Instant`·`java.util.Date`·`java.sql.Date`·`Timestamp`와 문자열을 서로 섞어 비교할 수 있습니다. 시간이 없는 날짜는 그날 0시, 시간대가 있는 값은 시스템 시간대 기준입니다.
   - 문자열은 `yyyyMMdd`(`-`·`.` 구분자 선택)와 선택적 시간(`T` 또는 공백 뒤 `HH:mm[:ss]`)을 받으므로 `<input type="datetime-local">` 값도 비교됩니다.

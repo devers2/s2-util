@@ -19,6 +19,7 @@
 
 ### 추가
 
+- 규칙 `MIN_SIZE`·`MAX_SIZE`: 값의 개수(컬렉션·배열·체크박스 그룹·다중 선택, 단일 값은 1개)를 검사합니다. 서버·브라우저 동일, 빌드 플러그인 기준값 검사 포함.
 - `S2SpringValidator`: `S2Validator`를 Spring `SmartValidator`로 감싸, `@InitBinder` 로 등록하면 `@Valid`/`@Validated` 때 Bean Validation 과 함께 실행되고 같은 `BindingResult`에 기록됩니다(MANUAL 2-C). 추가 의존성 없음.
 - `S2Validator.validateAll(target[, locale])` → `S2ValidationResult`: 예외 없이 모든 오류를 모으며 `toMap()`은 `s2.validator.js`와 같은 `{필드: [메시지]}` 형식입니다(REST 응답용).
 - 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.

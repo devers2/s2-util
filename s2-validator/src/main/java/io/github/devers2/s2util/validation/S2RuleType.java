@@ -79,6 +79,12 @@ public enum S2RuleType {
     /** 최대 바이트 체크 ({0}: 필드설명, {1}: 기준값) */
     MAX_BYTE("valid.err.maxbyte", "{0|은} 최대 {1}바이트를 초과할 수 없습니다.", "{0} cannot exceed {1} bytes.", null),
 
+    /** 최소 개수 체크: 컬렉션·배열·체크박스 그룹·다중 선택의 값 개수, 단일 값은 1개 ({0}: 필드설명, {1}: 기준값) | Minimum number of values (@since 2.2.0) */
+    MIN_SIZE("valid.err.minsize", "{0|은} 최소 {1}개 이상이어야 합니다.", "{0} must have at least {1} items.", null),
+
+    /** 최대 개수 체크: 값 개수, 단일 값은 1개 ({0}: 필드설명, {1}: 기준값) | Maximum number of values (@since 2.2.0) */
+    MAX_SIZE("valid.err.maxsize", "{0|은} 최대 {1}개까지만 가능합니다.", "{0} can have at most {1} items.", null),
+
     /** 최소 값 체크 ({0}: 필드설명, {1}: 기준값) */
     MIN_VALUE("valid.err.minvalue", "{0|은} 최소 {1} 이상 입력해야 합니다.", "{0} must be at least {1}.", null),
 
