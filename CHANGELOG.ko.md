@@ -17,6 +17,10 @@
 - `S2Rule.required()` 공유 인스턴스에 `storeMessage()` 를 호출하면 `UnsupportedOperationException` 이 납니다. 이전에는 JVM 전체의 암묵 필수 메시지가 바뀌었습니다.
 - **`DATE_AFTER`·`DATE_BEFORE`**: 날짜로 읽을 수 없는 값은 브라우저에서도 통과합니다(서버와 동일). 이전에는 브라우저만 실패시켜 서버가 받는 값을 막았습니다.
 
+### 추가
+
+- 검증 필드명이 대상 클래스에 없으면(오타 등) 클래스·필드당 한 번 WARN 로그를 남깁니다. 그런 필드는 항상 빈 값이라 필수 외 규칙이 실행되지 않습니다. 판정은 바뀌지 않습니다.
+
 ### 수정
 
 - `DATE_AFTER`·`DATE_BEFORE` 가 `java.util.Date`(및 `java.sql.Date`·`Timestamp`·`Instant`) 필드를 비교하지 않고 항상 통과하던 문제.

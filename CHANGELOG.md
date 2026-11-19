@@ -22,6 +22,10 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **`DATE_AFTER`/`DATE_BEFORE`**: a value that is not a readable date now passes in the browser too (same as the server).
   Previously only the browser failed it, blocking values the server accepts.
 
+### Added
+
+- A WARN log (once per class and field) when a validated field name does not exist on the target class (e.g. a typo). Such a field always reads as empty, so its non-required rules never run. Results are unchanged.
+
 ### Fixed
 
 - `DATE_AFTER`/`DATE_BEFORE` always passed for `java.util.Date` (and `java.sql.Date`, `Timestamp`, `Instant`) fields.
