@@ -352,6 +352,9 @@ S2Validator.check(order.isPayable())
 - **앞뒤 공백과 길이 상한 (`LENGTH` / `MAX_LENGTH` / `MAX_BYTE`)**:
   - 규칙은 앞뒤 공백을 뺀 값으로 판정하지만, 상한 규칙은 실제로 전송·저장되는 원래 값으로 판정합니다. 공백을 덧붙여 길이 제한을 넘기는 값(`"ab" + 공백 1000자`)을 막습니다.
   - 공백만 있는 값은 빈 값이고, `MIN_LENGTH`·`MIN_BYTE` 는 공백을 뺀 내용으로 판정합니다(공백으로 하한을 채울 수 없음).
+- **여러 값 (컬렉션·배열·체크박스 그룹·다중 선택)**:
+  - 길이·바이트·숫자·형식·날짜 규칙은 요소마다 판정하며 모든 요소가 통과해야 합니다(빈 요소는 건너뜀). `String[]` 파라미터 맵도 그대로 검증됩니다.
+  - `REQUIRED` 는 빈 값이 아닌 요소가 하나 이상 있어야 통과합니다(`["", " "]` 은 빈 값).
 - **`DATE_AFTER` / `DATE_BEFORE` (날짜 비교)**:
   - `LocalDate`·`LocalDateTime`·`ZonedDateTime`·`OffsetDateTime`·`Instant`·`java.util.Date`·`java.sql.Date`·`Timestamp`와 문자열을 서로 섞어 비교할 수 있습니다. 시간이 없는 날짜는 그날 0시, 시간대가 있는 값은 시스템 시간대 기준입니다.
   - 문자열은 `yyyyMMdd`(`-`·`.` 구분자 선택)와 선택적 시간(`T` 또는 공백 뒤 `HH:mm[:ss]`)을 받으므로 `<input type="datetime-local">` 값도 비교됩니다.

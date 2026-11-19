@@ -136,6 +136,25 @@ class ReviewDefectRegressionTest {
     }
 
     @Test
+    @DisplayName("여러 값(String[]·List)은 toString 이 아니라 요소별로 판정하고, REQUIRED 는 빈 요소만 있으면 실패한다")
+    void multiValuesAreJudgedPerElement() {
+        S2Validator<java.util.Map<String, Object>> validator = S2Validator.<java.util.Map<String, Object>>builder()
+                .field("name", "이름").rule(S2RuleType.MAX_LENGTH, 5)
+                .field("tags", "태그").rule(S2RuleType.MAX_LENGTH, 2)
+                .field("codes", "코드").rule(S2RuleType.REQUIRED)
+                .build();
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("name", new String[] { "abc" });
+        params.put("tags", List.of("ab", "abc"));
+        params.put("codes", new String[] { "", " " });
+        List<String> invalid = new ArrayList<>();
+
+        validator.validate(params, e -> invalid.add(e.fieldName()));
+
+        Assertions.assertEquals(List.of("tags", "codes"), invalid);
+    }
+
+    @Test
     @DisplayName("S2BindValidator: 대상에 없는 경로의 오류도 예외 없이 BindingResult 에 기록한다")
     void bindValidatorRecordsUnreadablePath() {
         S2Validator<Member> validator = S2Validator.<Member>builder().field("nickname", "별명").build();

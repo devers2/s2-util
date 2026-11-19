@@ -11,6 +11,9 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) judge the original value including surrounding spaces.** Previously the
   trimmed value was judged, so a value padded with spaces could pass the limit and be stored as is. Both the server and
   `s2.validator.js` changed; the browser now reads form values without trimming.
+- **Multiple values (collections, arrays, checkbox groups, multi-selects) are judged per element.** Previously the server judged
+  `toString()` (`"[a, b]"`, `"[Ljava.lang.String;@…"`) and the browser `"a,b"`, so length and format rules misbehaved for `String[]`
+  parameter maps. `REQUIRED` fails when every element is empty (`["", " "]`).
 - **`DATE_AFTER`/`DATE_BEFORE`**: a value that is not a readable date now passes in the browser too (same as the server).
   Previously only the browser failed it, blocking values the server accepts.
 

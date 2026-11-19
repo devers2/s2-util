@@ -288,6 +288,18 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     }
 
     private boolean evaluate(Object value, Object rawValue, Object target, List<Object> outerTargets) {
+        // 여러 값(컬렉션·배열: 다중 선택, String[] 파라미터)은 toString 이 아니라 요소별로 판정 (클라이언트와 같음)
+        List<Object> elements = multiValues(value);
+        if (elements != null && ruleType != S2RuleType.ASSERT_TRUE && ruleType != S2RuleType.ASSERT_FALSE) {
+            List<Object> present = elements.stream().filter(e -> S2Util.isNotEmpty(trimIfString(e))).toList();
+            if (ruleType == S2RuleType.REQUIRED || present.isEmpty()) {
+                // 빈 값이 아닌 요소가 하나라도 있어야 값이 있는 것
+                return ruleType != S2RuleType.REQUIRED || !present.isEmpty();
+            }
+            if (ELEMENT_WISE.contains(ruleType)) {
+                return present.stream().allMatch(e -> evaluate(trimIfString(e), e, target, outerTargets));
+            }
+        }
         if (ruleType == S2RuleType.REQUIRED) {
             // 가장 자주 검사하는 필수 입력 체크 부터 한다.
             return S2Util.isNotEmpty(value);
@@ -594,6 +606,40 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
             }
         }
 
+        return null;
+    }
+
+    /** Rules judged per element for multiple values (collections, arrays) | 여러 값(컬렉션·배열)이면 요소마다 판정하는 규칙 */
+    private static final java.util.Set<S2RuleType> ELEMENT_WISE = java.util.EnumSet.of(S2RuleType.LENGTH,
+            S2RuleType.MIN_LENGTH, S2RuleType.MAX_LENGTH, S2RuleType.MIN_BYTE, S2RuleType.MAX_BYTE, S2RuleType.MIN_VALUE,
+            S2RuleType.MAX_VALUE, S2RuleType.DATE, S2RuleType.REGEX, S2RuleType.NUMBER, S2RuleType.TEXT_INTACT,
+            S2RuleType.TEXT_COMBINE, S2RuleType.MPHONE_NO, S2RuleType.TEL_NO, S2RuleType.INTERNATIONAL_TEL_NO,
+            S2RuleType.EMAIL, S2RuleType.ZIP, S2RuleType.LOGIN_ID, S2RuleType.PASSWORD, S2RuleType.PASSWORD_ANSWR,
+            S2RuleType.BIZRNO, S2RuleType.NWINO, S2RuleType.JUMIN);
+
+    /**
+     * Returns the elements of a collection or array, or null for a single value.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 컬렉션·배열이면 요소 목록을, 단일 값이면 null 을 반환합니다.
+     *
+     * @param value The value | 값
+     * @return The elements, or null | 요소 목록 (단일 값이면 null)
+     */
+    private static List<Object> multiValues(Object value) {
+        if (value instanceof Collection<?> collection) {
+            return new java.util.ArrayList<>(collection);
+        }
+        if (value != null && value.getClass().isArray()) {
+            int length = java.lang.reflect.Array.getLength(value);
+            List<Object> list = new java.util.ArrayList<>(length);
+            for (int i = 0; i < length; i++) {
+                list.add(java.lang.reflect.Array.get(value, i));
+            }
+            return list;
+        }
         return null;
     }
 

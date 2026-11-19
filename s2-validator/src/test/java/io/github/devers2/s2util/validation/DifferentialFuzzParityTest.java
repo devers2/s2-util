@@ -87,8 +87,8 @@ class DifferentialFuzzParityTest {
         }
         jsContext.eval("js", source + """
 
-                globalThis.__check = (value, ruleJson, dataJson) =>
-                  validateCheck(value, JSON.parse(ruleJson), JSON.parse(dataJson), '', 'f');
+                globalThis.__check = (valueJson, ruleJson, dataJson) =>
+                  validateCheck(JSON.parse(valueJson), JSON.parse(ruleJson), JSON.parse(dataJson), '', 'f');
                 globalThis.__cond = (ruleJson, dataJson) => isConditionSatisfied(JSON.parse(ruleJson), JSON.parse(dataJson));
                 """);
         validateCheck = jsContext.eval("js", "globalThis.__check");
@@ -126,6 +126,16 @@ class DifferentialFuzzParityTest {
             sb.append(PIECES[random.nextInt(PIECES.length)]);
         }
         return sb.toString();
+    }
+
+    /** 무작위 여러 값: 0~3개 */
+    private static List<String> randomValues(Random random) {
+        List<String> values = new ArrayList<>();
+        int size = random.nextInt(4);
+        for (int i = 0; i < size; i++) {
+            values.add(randomValue(random));
+        }
+        return values;
     }
 
     /** 비교할 규칙과 기준값 (교차 필드 규칙의 기준값은 대상 필드명 "other") */
@@ -168,12 +178,14 @@ class DifferentialFuzzParityTest {
             String ruleJson = S2JsonUtil.toJson(jsRule);
 
             for (int i = 0; i < SAMPLES; i++) {
-                String value = randomValue(random);
+                // 4건 중 1건은 여러 값(다중 선택·String[] 파라미터 같은 배열)
+                Object value = random.nextInt(4) == 0 ? randomValues(random) : randomValue(random);
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("f", value);
                 data.put("other", randomValue(random));
                 boolean server = rule.isValid(value, data);
-                boolean client = validateCheck.execute(value, ruleJson, S2JsonUtil.toJson(data)).asBoolean();
+                boolean client = validateCheck.execute(S2JsonUtil.toJson(value), ruleJson, S2JsonUtil.toJson(data))
+                        .asBoolean();
                 if (server != client) {
                     mismatches.add(config.getKey() + " value=" + S2JsonUtil.toJson(value) + " other="
                             + S2JsonUtil.toJson(data.get("other")) + " server=" + server + " client=" + client);

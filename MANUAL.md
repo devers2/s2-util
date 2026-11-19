@@ -352,6 +352,9 @@ S2Validator.check(order.isPayable())
 - **Surrounding spaces and upper limits (`LENGTH` / `MAX_LENGTH` / `MAX_BYTE`)**:
   - Rules judge the value with surrounding spaces trimmed, but upper-limit rules judge the original value that is actually submitted and stored. This rejects values padded past the limit (`"ab"` + 1,000 spaces).
   - A value of only spaces is empty, and `MIN_LENGTH`/`MIN_BYTE` judge the trimmed content (spaces cannot fill a minimum).
+- **Multiple values (collections, arrays, checkbox groups, multi-selects)**:
+  - Length, byte, numeric, format and date rules are judged per element and every element must pass (empty elements are skipped). `String[]` parameter maps are validated as is.
+  - `REQUIRED` passes only if at least one element is not empty (`["", " "]` is empty).
 - **`DATE_AFTER` / `DATE_BEFORE` (date comparison)**:
   - `LocalDate`, `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime`, `Instant`, `java.util.Date`, `java.sql.Date`, `Timestamp` and strings can be compared with each other. A date without time is midnight; zoned values use the system time zone.
   - Strings accept `yyyyMMdd` (optional `-`/`.` separators) with an optional time (`T` or a space, then `HH:mm[:ss]`), so `<input type="datetime-local">` values are compared too.

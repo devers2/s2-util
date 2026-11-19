@@ -1443,6 +1443,17 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     value = value.trim();
   }
 
+  // 여러 값(체크박스 그룹·다중 선택 등 배열)은 서버(S2Rule)와 같이 요소별로 판정. 빈 값이 아닌 요소가 있어야 값이 있는 것
+  if (Array.isArray(value) && rule.type !== 'ASSERT_TRUE' && rule.type !== 'ASSERT_FALSE') {
+    const present = value.filter((v) => !isBlankValue(v));
+    if (rule.type === 'REQUIRED' || present.length === 0) {
+      return rule.type !== 'REQUIRED' || present.length > 0;
+    }
+    if (ELEMENT_WISE_RULES.has(rule.type)) {
+      return present.every((v) => validateCheck(v, rule, formData, prefix, fieldName));
+    }
+  }
+
   // ASSERT_TRUE, ASSERT_FALSE는 null이나 빈 값이어도 검증을 수행해야 함 (체크 안 된 상태를 잡아야 하므로)
   // 빈 배열(아무것도 고르지 않은 다중 선택)도 서버(S2Util.isEmpty)와 같이 빈 값
   if (
@@ -1583,6 +1594,16 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
       return false;
   }
 };
+
+// 여러 값이면 요소마다 판정하는 규칙 (서버 S2Rule.ELEMENT_WISE 와 같음)
+const ELEMENT_WISE_RULES = new Set([
+  'LENGTH', 'MIN_LENGTH', 'MAX_LENGTH', 'MIN_BYTE', 'MAX_BYTE', 'MIN_VALUE', 'MAX_VALUE', 'DATE', 'REGEX', 'NUMBER',
+  'TEXT_INTACT', 'TEXT_COMBINE', 'MPHONE_NO', 'TEL_NO', 'INTERNATIONAL_TEL_NO', 'EMAIL', 'ZIP', 'LOGIN_ID', 'PASSWORD',
+  'PASSWORD_ANSWR', 'BIZRNO', 'NWINO', 'JUMIN'
+]);
+
+// 빈 요소: null·undefined·공백뿐인 문자열
+const isBlankValue = (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
 
 /**
  * Returns whether the check digit is requested for JUMIN/BIZRNO (true or "true"), same as server S2Rule.isChecksumEnabled.
