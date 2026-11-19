@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -721,7 +722,7 @@ public class S2Cache {
                         - MethodCache: %s
                         - PatternCache: %s
                         """.formatted(
-                        MethodHandleResolver.CACHE.getStats(),
+                        MethodHandleResolver.getStats(),
                         PatternResolver.CACHE.getStats()));
 
         DYNAMIC_CACHES.forEach((ck, entry) -> {
@@ -906,42 +907,87 @@ public class S2Cache {
     public static class MethodHandleResolver {
 
         /**
-         * Central cache for {@link MethodHandle} objects discovered via reflection.
+         * Per-class cache for {@link MethodHandle} objects discovered via reflection.
          * <p>
-         * Uses an optimized cache implementation (Caffeine or lightweight) to manage memory efficiently.
+         * Each class keeps its own map in a {@link ClassValue}, so lookups are lock-free and the cache never
+         * retains a class (or its class loader) after it is redeployed or reloaded. Classes whose loader cannot
+         * see this library (JDK classes, parent/shared loaders) use the bounded {@code SHARED_CACHE} instead:
+         * storing this library's key objects in their {@link ClassValue} would pin this library's class loader
+         * from a longer-lived class, while those classes outlive the application anyway. To bound memory when
+         * member names come from untrusted input, at most {@code s2.cache.method.max_per_class} (default 512)
+         * results are cached per class; further results are resolved on every call.
          * </p>
          *
          * <p>
          * <b>[한국어 설명]</b>
          * </p>
-         * 리플렉션을 통해 조회된 {@link MethodHandle} 객체들의 중앙 캐시입니다.
+         * 리플렉션을 통해 조회된 {@link MethodHandle} 객체들의 클래스별 캐시입니다.
          * <p>
-         * 사용 가능한 캐시 구현체를 사용하여 메모리를 효율적으로 관리합니다.
+         * 클래스마다 {@link ClassValue}에 자기 맵을 두므로 락 없이 조회하고, 재배포·재로딩된 클래스(와 그 클래스로더)를
+         * 붙잡지 않습니다. 이 라이브러리를 볼 수 없는 로더의 클래스(JDK·상위/공유 로더)는 상한이 있는 {@code SHARED_CACHE}를
+         * 씁니다. 그런 클래스의 {@link ClassValue}에 이 라이브러리의 키 객체를 넣으면 더 오래 사는 클래스가 이 라이브러리의
+         * 클래스로더를 붙잡게 되고, 반대로 그 클래스들은 어차피 애플리케이션보다 오래 살기 때문입니다. 멤버 이름이 외부 입력에서 올 때의 메모리 증가를 막기 위해 클래스당 최대
+         * {@code s2.cache.method.max_per_class}(기본 512)개까지만 캐싱하고, 그 이상은 매번 조회합니다.
          * </p>
          */
-        private static final CacheAdapter<ResolveKey, Optional<MethodHandle>> CACHE = createMethodCache();
+        private static final ClassValue<ConcurrentHashMap<ResolveKey, Optional<MethodHandle>>> CACHE = new ClassValue<>() {
+            @Override
+            protected ConcurrentHashMap<ResolveKey, Optional<MethodHandle>> computeValue(Class<?> type) {
+                return seesThisLibrary(type) ? new ConcurrentHashMap<>() : USE_SHARED_CACHE;
+            }
+        };
+
+        /** 클래스별 캐시 대신 공용 캐시를 쓰라는 표시(비어 있는 JDK 맵이라 어떤 로더도 붙잡지 않음). */
+        private static final ConcurrentHashMap<ResolveKey, Optional<MethodHandle>> USE_SHARED_CACHE = new ConcurrentHashMap<>(1);
+
+        /** JDK·상위 로더 클래스용 공용 캐시(상한 있음). */
+        private static final CacheAdapter<ResolveKey, Optional<MethodHandle>> SHARED_CACHE = createCacheAdapter(10000, 0,
+                "MethodHandleResolver");
 
         /**
-         * Cache key that includes the lookup type, because the same {@link MethodKey} resolves differently
-         * per type (METHOD is public-only; FIELD/BOTH allow private members and fields).
+         * Whether the class's loader is this library's loader or a descendant of it (it can see this library).
          *
          * <p>
          * <b>[한국어 설명]</b>
          * </p>
-         * 조회 종류를 포함한 캐시 키입니다. 같은 {@link MethodKey}라도 조회 종류에 따라 결과가 다르기 때문입니다
-         * (METHOD 는 public 만, FIELD/BOTH 는 private 멤버와 필드까지 허용).
+         * 클래스의 로더가 이 라이브러리의 로더이거나 그 자식인지(이 라이브러리를 볼 수 있는지) 확인합니다.
          */
+        private static boolean seesThisLibrary(Class<?> type) {
+            ClassLoader libraryLoader = S2Cache.class.getClassLoader();
+            for (ClassLoader l = type.getClassLoader(); l != null; l = l.getParent()) {
+                if (l == libraryLoader) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static final int MAX_KEYS_PER_CLASS = Integer.getInteger("s2.cache.method.max_per_class", 512);
+
+        private static final LongAdder HITS = new LongAdder();
+        private static final LongAdder MISSES = new LongAdder();
+
+        /**
+         * Returns hit/miss statistics of the per-class method handle cache.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 클래스별 메서드 핸들 캐시의 적중·미스 통계를 반환합니다.
+         *
+         * @return Statistics text | 통계 문자열
+         */
+        static String getStats() {
+            long hits = HITS.sum();
+            long misses = MISSES.sum();
+            long total = hits + misses;
+            return String.format("PerClass(ClassValue)[maxPerClass=%d, hits=%d, misses=%d, hitRate=%.2f%%], Shared: %s",
+                    MAX_KEYS_PER_CLASS, hits, misses, total > 0 ? 100.0 * hits / total : 0.0, SHARED_CACHE.getStats());
+        }
+
         private record ResolveKey(MethodKey key, LookupType type) {
         }
 
-        /**
-         * Creates a cache adapter for MethodHandles.
-         *
-         * @return CacheAdapter instance for MethodHandles | MethodHandle 전용 캐시 어댑터 인스턴스
-         */
-        private static CacheAdapter<ResolveKey, Optional<MethodHandle>> createMethodCache() {
-            return createCacheAdapter(10000, 0, "MethodHandleResolver");
-        }
 
         /**
          * Target lookup scope for member discovery.
@@ -1296,28 +1342,62 @@ public class S2Cache {
                     ? new MethodKey(realClass, key.methodName(), key.fieldName(), key.paramTypes())
                     : key;
 
-            // 람다 외부에서 미리 필요한 값을 확정(final)
+            // 조회 종류에 따른 탐색 플래그를 미리 확정
             final boolean isNotField = (type != LookupType.FIELD);
             final boolean isNotMethod = (type != LookupType.METHOD);
             final boolean allowPrivate = isNotMethod; // METHOD 타입이 아니면 private 허용
 
-            return CACHE.get(new ResolveKey(refinedKey, type), rk -> {
-                MethodKey k = rk.key();
-                // 캡처된 변수(isNotField, isNotMethod, allowPrivate)를 직접 사용하여 호출 스택을 줄임
-                if (isNotField) {
-                    MethodHandle methodHandle = scanMethod(k, allowPrivate);
-                    if (methodHandle != null)
-                        return Optional.of(methodHandle);
+            ConcurrentHashMap<ResolveKey, Optional<MethodHandle>> perClass = CACHE.get(refinedKey.targetClass());
+            ResolveKey resolveKey = new ResolveKey(refinedKey, type);
+            if (perClass == USE_SHARED_CACHE) {
+                return SHARED_CACHE.get(resolveKey, rk -> lookup(rk.key(), isNotField, isNotMethod, allowPrivate));
+            }
+            Optional<MethodHandle> cached = perClass.get(resolveKey);
+            if (cached != null) {
+                if (STATS_ENABLED) {
+                    HITS.increment();
                 }
+                return cached;
+            }
+            if (STATS_ENABLED) {
+                MISSES.increment();
+            }
 
-                if (isNotMethod) {
-                    MethodHandle fieldHandle = scanField(k);
-                    if (fieldHandle != null)
-                        return Optional.of(fieldHandle);
+            // 락 밖에서 조회한다(동시에 같은 키를 조회하면 중복 계산될 수 있으나 결과는 같다)
+            Optional<MethodHandle> resolved = lookup(refinedKey, isNotField, isNotMethod, allowPrivate);
+            if (perClass.size() < MAX_KEYS_PER_CLASS) {
+                Optional<MethodHandle> previous = perClass.putIfAbsent(resolveKey, resolved);
+                if (previous != null) {
+                    return previous;
                 }
+            }
+            return resolved;
+        }
 
-                return Optional.empty();
-            });
+        /**
+         * Scans methods and/or fields for the key according to the lookup flags.
+         *
+         * <p>
+         * <b>[한국어 설명]</b>
+         * </p>
+         * 조회 플래그에 따라 메서드·필드를 탐색합니다.
+         */
+        private static Optional<MethodHandle> lookup(MethodKey k, boolean isNotField, boolean isNotMethod,
+                boolean allowPrivate) {
+            // 메서드 → 필드 순으로 탐색
+            if (isNotField) {
+                MethodHandle methodHandle = scanMethod(k, allowPrivate);
+                if (methodHandle != null)
+                    return Optional.of(methodHandle);
+            }
+
+            if (isNotMethod) {
+                MethodHandle fieldHandle = scanField(k);
+                if (fieldHandle != null)
+                    return Optional.of(fieldHandle);
+            }
+
+            return Optional.empty();
         }
 
         /**

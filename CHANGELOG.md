@@ -36,7 +36,9 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 - s2-core lightweight cache (`S2OptimisticCache`): reads no longer bump a shared counter; recency is tracked as an epoch-based approximate LRU, so reads perform no shared writes
   and throughput scales with the number of cores under concurrent reads. Eviction still runs asynchronously on its dedicated platform thread and now trims to 75% of the maximum size instead of half.
-- `S2Cache.getFields` and proxy real-class resolution are cached in a `ClassValue`: faster per-class lookups, and redeployed or reloaded classes are no longer retained by a static cache.
+- `S2Cache` method handle, field (`getFields`) and proxy real-class caches moved to a per-class `ClassValue`. Previous class loaders are no longer pinned by a static cache
+  after a redeploy or DevTools restart. JDK and parent-loader classes use a bounded shared cache, and at most `s2.cache.method.max_per_class` (default 512)
+  method handles are cached per class (guards against memory growth from member names taken from external input).
 - The Caffeine backend uses Caffeine's default executor for maintenance. It used the `S2ThreadUtil` common executor before,
   so every cache write logged a `RejectedExecutionException` warning after `S2ThreadUtil.shutdownCommonExecutor()`.
 

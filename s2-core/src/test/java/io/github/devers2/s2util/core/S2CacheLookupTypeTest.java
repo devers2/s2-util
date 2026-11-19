@@ -39,4 +39,27 @@ class S2CacheLookupTypeTest {
         assertTrue(S2Cache.getMethodHandle(new MethodKey(BothFirst.class, "secret"), LookupType.BOTH).isPresent());
         assertFalse(S2Cache.getMethodHandle(new MethodKey(BothFirst.class, "secret"), LookupType.METHOD).isPresent());
     }
+
+    @Test
+    void parentLoadedClassesUseSharedCacheCorrectly() {
+        // JDK 클래스는 클래스별 캐시 대신 공용 캐시를 쓴다 — 결과는 같아야 한다(JDK 모듈의 private 필드는 원래 접근 불가라 시험하지 않음)
+        assertTrue(S2Cache.getMethodHandle(new MethodKey(java.time.LocalDate.class, "getYear"), LookupType.METHOD).isPresent());
+        assertTrue(S2Cache.getMethodHandle(new MethodKey(java.time.LocalDate.class, "getYear"), LookupType.METHOD).isPresent());
+        assertFalse(S2Cache.getMethodHandle(new MethodKey(java.time.LocalDate.class, "year"), LookupType.METHOD).isPresent());
+    }
+
+    static class ManyLookups {
+        public String getName() {
+            return "n";
+        }
+    }
+
+    @Test
+    void resultsStayCorrectBeyondPerClassLimit() {
+        // 클래스당 캐시 상한(기본 512)을 넘는 이름을 조회해도 결과는 맞아야 한다(넘는 것은 매번 조회)
+        for (int i = 0; i < 1000; i++) {
+            assertFalse(S2Cache.getMethodHandle(new MethodKey(ManyLookups.class, "missing" + i), LookupType.METHOD).isPresent());
+        }
+        assertTrue(S2Cache.getMethodHandle(new MethodKey(ManyLookups.class, "getName"), LookupType.METHOD).isPresent());
+    }
 }

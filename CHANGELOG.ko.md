@@ -31,7 +31,9 @@
 
 - s2-core 경량 캐시(`S2OptimisticCache`): 조회 때 공유 카운터를 올리던 방식을 세대(epoch) 기반 근사 LRU 로 바꿔, 조회가 공유 쓰기 없이 동작합니다.
   여러 스레드가 동시에 조회해도 처리량이 코어 수만큼 늘어납니다. 축출은 지금처럼 전용 플랫폼 스레드에서 비동기로 하며, 절반이 아닌 최대 크기의 75%까지만 지웁니다.
-- `S2Cache.getFields` 와 프록시 실제 클래스 판별을 `ClassValue` 로 캐시합니다. 클래스별 조회가 빨라지고, 재배포·재로딩된 클래스를 정적 캐시가 붙잡지 않습니다.
+- `S2Cache` 의 메서드 핸들·필드(`getFields`)·프록시 실제 클래스 캐시를 클래스별 `ClassValue` 로 옮겼습니다. 재배포·DevTools 재시작 때 이전 ClassLoader 가
+  정적 캐시에 붙잡혀 메모리에 남던 문제가 없어집니다. JDK·상위 로더 클래스는 상한이 있는 공용 캐시를 쓰고, 메서드 핸들은 클래스당 최대
+  `s2.cache.method.max_per_class`(기본 512)개까지만 캐싱합니다(외부 입력 이름으로 인한 메모리 증가 방지).
 - Caffeine 백엔드의 유지보수 작업은 Caffeine 기본 실행기를 씁니다. 이전에는 `S2ThreadUtil` 공용 실행기를 써서,
   `S2ThreadUtil.shutdownCommonExecutor()` 이후 캐시에 쓸 때마다 `RejectedExecutionException` 경고가 찍혔습니다.
 
