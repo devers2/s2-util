@@ -546,7 +546,7 @@ S2Util은 메시지 템플릿에 조사 하나만 지정하더라도(`{0|은}`, 
 
 - **점 표기법 (`.`)**: 중첩 객체 탐색 (예: `user.profile.address.zipCode`)
 - **인덱스 표기법 (`[n]`)**: 특정 순번 요소 탐색 (예: `orders[0].id`)
-- **와일드카드 (`[]`)**: 컬렉션 내 모든 요소 일괄 검증 (예: `cart.items[].price`)
+- **와일드카드 (`[]`)**: 컬렉션 내 모든 요소 일괄 검증 (예: `cart.items[].price`). 행의 하위 객체·목록도 `field("items[].address").rule(NESTED, 주소검증기)`·`rule(EACH, …)` 로 검증합니다(오류 경로 `items[0].address.zip`). 오류는 서버·브라우저 모두 필드를 선언한 순서로 나옵니다.
 
 ### 5-2. 재귀 및 합성 검증 (EACH, NESTED)
 

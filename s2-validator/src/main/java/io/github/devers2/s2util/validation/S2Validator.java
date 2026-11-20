@@ -1136,12 +1136,12 @@ public class S2Validator<T> {
             }
 
             try {
+                stopRequested = false;
                 var isAllValid = true;
                 var currentLocale = locale != null ? locale : getDefaultLocale();
 
                 // 1단계: [] 와일드카드가 포함된 필드들을 prefix별로 그룹화
                 Map<String, List<S2Field<?>>> wildcardGroups = new java.util.LinkedHashMap<>();
-                Set<String> processedFields = new java.util.HashSet<>();
 
                 for (var field : config.fields) {
                     if (field == null)
@@ -1158,231 +1158,281 @@ public class S2Validator<T> {
                     }
                 }
 
-                // 2단계: 그룹화된 와일드카드 필드들을 처리
-                for (Map.Entry<String, List<S2Field<?>>> entry : wildcardGroups.entrySet()) {
-                    String collectionPrefix = entry.getKey();
-                    List<S2Field<?>> groupFields = entry.getValue();
-
-                    // 컬렉션 값 가져오기
-                    Object collectionValue = S2Util.getValue(target, collectionPrefix);
-
-                    if (collectionValue instanceof Iterable<?> it) {
-                        int idx = 0;
-                        for (Object item : it) {
-                            // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
-                            if (item != null) {
-                                isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target,
-                                        errorHandler, currentLocale, visited, depth);
-                            }
-                            idx++;
-                        }
-                    } else if (collectionValue != null && collectionValue.getClass().isArray()) {
-                        int len = java.lang.reflect.Array.getLength(collectionValue);
-                        for (int i = 0; i < len; i++) {
-                            Object item = java.lang.reflect.Array.get(collectionValue, i);
-                            if (item == null) {
-                                continue;
-                            }
-                            isAllValid &= processWildcardItem(item, collectionPrefix, i, groupFields, target,
+                // 2단계: 선언 순서대로 처리한다 — 와일드카드 그룹은 그 그룹의 첫 필드가 선언된 위치에서 행별로 처리
+                // (이전에는 와일드카드 그룹을 일반 필드보다 먼저 처리해 오류 순서가 선언 순서와 달랐다)
+                Set<String> processedGroups = new java.util.HashSet<>();
+                for (var field : config.fields) {
+                    if (field == null)
+                        continue;
+                    String declaredName = String.valueOf(field.getName());
+                    if (declaredName.contains("[]")) {
+                        String groupPrefix = declaredName.substring(0, declaredName.indexOf("[]"));
+                        if (processedGroups.add(groupPrefix)) {
+                            isAllValid &= processWildcardGroup(groupPrefix, wildcardGroups.get(groupPrefix), target,
                                     errorHandler, currentLocale, visited, depth);
                         }
-                    }
-
-                    // 처리한 필드들을 기록
-                    for (S2Field<?> field : groupFields) {
-                        processedFields.add(String.valueOf(field.getName()));
-                    }
-                }
-
-                // 3단계: 일반 필드 처리 (와일드카드가 아닌 필드 or 이미 처리되지 않은 필드)
-                for (var field : config.fields) {
-                    if (field == null || !field.shouldValidate(target, -1, outerTargets))
                         continue;
-
-                    String fieldName = String.valueOf(field.getName());
-
-                    // 이미 와일드카드로 처리된 필드는 스킵
-                    if (processedFields.contains(fieldName))
+                    }
+                    if (!field.shouldValidate(target, -1, outerTargets))
                         continue;
-
-                    // 규칙은 저장될 원래 값으로 판정(공백만인 값의 길이 상한), 그 밖의 처리는 이전처럼 빈 값을 null 로 본다
-                    Object rawFieldValue = S2Util.getValue(target, fieldName);
-                    Object fieldValue = S2Util.isEmpty(rawFieldValue) ? null : rawFieldValue;
-                    if (rawFieldValue == null) {
-                        // 대상 클래스에 없는 필드명(오타 등)은 항상 빈 값이 되므로 한 번 경고
-                        S2PropertyCheck.warnIfMissing(target, fieldName);
-                    }
-                    var fieldLabel = field.getLabel();
-                    var rules = field.getRules();
-                    var customRules = field.getCustomRules();
-
-                    if (rules.isEmpty() && customRules.isEmpty()) {
-                        var requiredCheck = S2Rule.required();
-                        if (requiredCheck.isInvalid(fieldValue, target)) {
-                            isAllValid = false;
-                            if (!reportError(
-                                    errorHandler, new S2ValidationError(
-                                            fieldName,
-                                            requiredCheck.getErrorMessageKey(),
-                                            new Object[] { fieldLabel },
-                                            field.getErrorMessage(requiredCheck, currentLocale)),
-                                    config.failFastWithException))
-                                return false;
-                        }
-                    }
-                    for (var rule : rules) {
-                        if (rule.getRuleType() == S2RuleType.NESTED || rule.getRuleType() == S2RuleType.EACH) {
-                            if (rule.getCheckValue() instanceof S2Validator<?> sub) {
-                                @SuppressWarnings("unchecked")
-                                S2Validator<Object> subObj = (S2Validator<Object>) sub;
-
-                                // [순환 참조 체크 - Set 기반 객체 인스턴스 추적]
-                                // 동일한 객체가 이미 검증 경로에 있으면 순환 참조로 판단
-                                if (fieldValue != null && visited.contains(fieldValue)) {
-                                    isAllValid = false;
-                                    if (!reportError(errorHandler, circularReferenceError(fieldName, fieldLabel, currentLocale),
-                                            config.failFastWithException))
-                                        return false;
-                                    continue;
-                                }
-
-                                // Guard against stack overflow on very deep (acyclic) object graphs. | 매우 깊은(순환이 아닌) 객체 그래프에서 스택 오버플로를 막음
-                                if (fieldValue != null && depth >= MAX_NESTED_DEPTH) {
-                                    isAllValid = false;
-                                    if (!reportError(
-                                            errorHandler, new S2ValidationError(
-                                                    fieldName,
-                                                    MAX_DEPTH_KEY,
-                                                    new Object[] { fieldLabel, MAX_NESTED_DEPTH },
-                                                    systemMessage(MAX_DEPTH_KEY,
-                                                            "{0}의 중첩 깊이가 최대 {1}단계를 초과했습니다.",
-                                                            "{0} exceeds the maximum nesting depth of {1}.",
-                                                            currentLocale, fieldLabel, MAX_NESTED_DEPTH)),
-                                            config.failFastWithException))
-                                        return false;
-                                    continue;
-                                }
-
-                                if (rule.getRuleType() == S2RuleType.NESTED) {
-                                    if (fieldValue != null) {
-                                        boolean subOk = subObj.run(fieldValue, (S2ValidationError err) -> {
-                                            reportError(
-                                                    errorHandler, new S2ValidationError(
-                                                            fieldName + (S2Util.isEmpty(err.fieldName()) ? ""
-                                                                    : "." + err.fieldName()),
-                                                            err.errorCode(),
-                                                            err.errorArgs(),
-                                                            err.defaultMessage()),
-                                                    config.failFastWithException);
-                                        }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
-                                        if (!subOk)
-                                            isAllValid = false;
-                                    }
-                                } else { // EACH
-                                    if (fieldValue instanceof Iterable<?> it) {
-                                        int idx = 0;
-                                        for (Object item : it) {
-                                            final int finalIdx = idx;
-                                            if (item == null) {
-                                                // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
-                                                idx++;
-                                                continue;
-                                            }
-                                            // 요소가 검증 경로의 조상과 같은 객체면 순환 참조(하위 실행은 방문한 객체를 그냥 통과시키므로 여기서 보고)
-                                            if (visited.contains(item)) {
-                                                isAllValid = false;
-                                                if (!reportError(errorHandler,
-                                                        circularReferenceError(fieldName + "[" + finalIdx + "]", fieldLabel, currentLocale),
-                                                        config.failFastWithException))
-                                                    return false;
-                                                idx++;
-                                                continue;
-                                            }
-                                            boolean subOk = subObj.run(item, (S2ValidationError err) -> {
-                                                reportError(
-                                                        errorHandler, new S2ValidationError(
-                                                                fieldName + "[" + finalIdx + "]"
-                                                                        + (S2Util.isEmpty(err.fieldName()) ? ""
-                                                                                : "." + err.fieldName()),
-                                                                err.errorCode(),
-                                                                err.errorArgs(),
-                                                                err.defaultMessage()),
-                                                        config.failFastWithException);
-                                            }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
-                                            if (!subOk)
-                                                isAllValid = false;
-                                            idx++;
-                                        }
-                                    } else if (fieldValue != null && fieldValue.getClass().isArray()) {
-                                        int len = java.lang.reflect.Array.getLength(fieldValue);
-                                        for (int i = 0; i < len; i++) {
-                                            final int finalIdx = i;
-                                            Object item = java.lang.reflect.Array.get(fieldValue, i);
-                                            if (item == null) {
-                                                continue;
-                                            }
-                                            if (visited.contains(item)) {
-                                                isAllValid = false;
-                                                if (!reportError(errorHandler,
-                                                        circularReferenceError(fieldName + "[" + finalIdx + "]", fieldLabel, currentLocale),
-                                                        config.failFastWithException))
-                                                    return false;
-                                                continue;
-                                            }
-                                            boolean subOk = subObj.run(item, (S2ValidationError err) -> {
-                                                reportError(
-                                                        errorHandler, new S2ValidationError(
-                                                                fieldName + "[" + finalIdx + "]"
-                                                                        + (S2Util.isEmpty(err.fieldName()) ? ""
-                                                                                : "." + err.fieldName()),
-                                                                err.errorCode(),
-                                                                err.errorArgs(),
-                                                                err.defaultMessage()),
-                                                        config.failFastWithException);
-                                            }, currentLocale, visited, depth + 1, withOuter(target), withOuterValidator());
-                                            if (!subOk)
-                                                isAllValid = false;
-                                        }
-                                    }
-                                }
-                            }
-                            continue;
-                        }
-
-                        if (!rule.isValidIn(rawFieldValue, target, outerTargets)) {
-                            isAllValid = false;
-                            Object criterion = field.resolveMessageCriterion(rule, outerValidators);
-                            var args = S2Util.isNotEmpty(criterion)
-                                    ? new Object[] { fieldLabel, criterion }
-                                    : new Object[] { fieldLabel };
-                            if (!reportError(
-                                    errorHandler, new S2ValidationError(
-                                            fieldName,
-                                            rule.getErrorMessageKey(),
-                                            args,
-                                            field.getErrorMessage(rule, currentLocale, outerValidators)),
-                                    config.failFastWithException))
-                                return false;
-                        }
-                    }
-                    for (var customCheck : customRules) {
-                        if (customCheck.isInvalid(fieldValue, target)) {
-                            isAllValid = false;
-                            if (!reportError(
-                                    errorHandler, new S2ValidationError(
-                                            fieldName,
-                                            customCheck.getErrorMessageKey(),
-                                            null,
-                                            field.getErrorMessage(customCheck, currentLocale)),
-                                    config.failFastWithException))
-                                return false;
-                        }
+                    if (!validateField(field, target, errorHandler, currentLocale, visited, depth)) {
+                        isAllValid = false;
+                        if (stopRequested)
+                            return false;
                     }
                 }
                 return isAllValid;
             } finally {
                 visited.remove(target);
             }
+        }
+
+        /** 다음 필드로 진행하지 말아야 할 때(불리언 모드에서 첫 오류) validateField 가 세운다 */
+        private boolean stopRequested;
+
+        /** 와일드카드 그룹 하나(같은 컬렉션의 items[].a, items[].b …)를 행별로 검증 */
+        private boolean processWildcardGroup(String collectionPrefix, List<S2Field<?>> groupFields, T target,
+                Consumer<S2ValidationError> errorHandler, Locale currentLocale, java.util.Set<Object> visited, int depth) {
+            boolean isAllValid = true;
+            // 컬렉션 값 가져오기
+            Object collectionValue = S2Util.getValue(target, collectionPrefix);
+
+            if (collectionValue instanceof Iterable<?> it) {
+                int idx = 0;
+                for (Object item : it) {
+                    // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
+                    if (item != null) {
+                        isAllValid &= processWildcardItem(item, collectionPrefix, idx, groupFields, target,
+                                errorHandler, currentLocale, visited, depth);
+                    }
+                    idx++;
+                }
+            } else if (collectionValue != null && collectionValue.getClass().isArray()) {
+                int len = java.lang.reflect.Array.getLength(collectionValue);
+                for (int i = 0; i < len; i++) {
+                    Object item = java.lang.reflect.Array.get(collectionValue, i);
+                    if (item == null) {
+                        continue;
+                    }
+                    isAllValid &= processWildcardItem(item, collectionPrefix, i, groupFields, target,
+                            errorHandler, currentLocale, visited, depth);
+                }
+            }
+            return isAllValid;
+        }
+
+        /**
+         * 일반 필드(와일드카드가 아닌 필드) 하나를 검증한다. 불리언 모드(처리기 없음·예외 없음)에서 첫 오류가 나면
+         * {@link #stopRequested} 를 세워 run 이 더 진행하지 않게 한다.
+         */
+        private boolean validateField(S2Field<T> field, T target, Consumer<S2ValidationError> errorHandler,
+                Locale currentLocale, java.util.Set<Object> visited, int depth) {
+            boolean isAllValid = true;
+            String fieldName = String.valueOf(field.getName());
+
+            // 규칙은 저장될 원래 값으로 판정(공백만인 값의 길이 상한), 그 밖의 처리는 이전처럼 빈 값을 null 로 본다
+            Object rawFieldValue = S2Util.getValue(target, fieldName);
+            Object fieldValue = S2Util.isEmpty(rawFieldValue) ? null : rawFieldValue;
+            if (rawFieldValue == null) {
+                // 대상 클래스에 없는 필드명(오타 등)은 항상 빈 값이 되므로 한 번 경고
+                S2PropertyCheck.warnIfMissing(target, fieldName);
+            }
+            var fieldLabel = field.getLabel();
+            var rules = field.getRules();
+            var customRules = field.getCustomRules();
+
+            if (rules.isEmpty() && customRules.isEmpty()) {
+                var requiredCheck = S2Rule.required();
+                if (requiredCheck.isInvalid(fieldValue, target)) {
+                    isAllValid = false;
+                    if (!reportError(
+                            errorHandler, new S2ValidationError(
+                                    fieldName,
+                                    requiredCheck.getErrorMessageKey(),
+                                    new Object[] { fieldLabel },
+                                    field.getErrorMessage(requiredCheck, currentLocale)),
+                            config.failFastWithException))
+                        return stop();
+                }
+            }
+            for (var rule : rules) {
+                if (rule.getRuleType() == S2RuleType.NESTED || rule.getRuleType() == S2RuleType.EACH) {
+                    if (rule.getCheckValue() instanceof S2Validator<?> sub) {
+                        @SuppressWarnings("unchecked")
+                        S2Validator<Object> subObj = (S2Validator<Object>) sub;
+                        boolean[] stop = { false };
+                        if (!runSubValidator(rule, subObj, fieldValue, fieldName, fieldLabel, withOuter(target),
+                                errorHandler, currentLocale, visited, depth, stop)) {
+                            isAllValid = false;
+                            if (stop[0])
+                                return stop();
+                        }
+                    }
+                    continue;
+                }
+
+                if (!rule.isValidIn(rawFieldValue, target, outerTargets)) {
+                    isAllValid = false;
+                    Object criterion = field.resolveMessageCriterion(rule, outerValidators);
+                    var args = S2Util.isNotEmpty(criterion)
+                            ? new Object[] { fieldLabel, criterion }
+                            : new Object[] { fieldLabel };
+                    if (!reportError(
+                            errorHandler, new S2ValidationError(
+                                    fieldName,
+                                    rule.getErrorMessageKey(),
+                                    args,
+                                    field.getErrorMessage(rule, currentLocale, outerValidators)),
+                            config.failFastWithException))
+                        return stop();
+                }
+            }
+            for (var customCheck : customRules) {
+                if (customCheck.isInvalid(fieldValue, target)) {
+                    isAllValid = false;
+                    if (!reportError(
+                            errorHandler, new S2ValidationError(
+                                    fieldName,
+                                    customCheck.getErrorMessageKey(),
+                                    null,
+                                    field.getErrorMessage(customCheck, currentLocale)),
+                            config.failFastWithException))
+                        return stop();
+                }
+            }
+            return isAllValid;
+        }
+
+        private boolean stop() {
+            stopRequested = true;
+            return false;
+        }
+
+        /**
+         * NESTED·EACH 하위 검증기 실행(일반 필드와 와일드카드 행이 함께 쓴다). 반환은 유효 여부이며, 불리언 모드(처리기 없음·예외 없음)에서
+         * 더 진행하지 않아야 하는 오류가 나면 stop[0] 을 true 로 한다.
+         *
+         * @param path     오류 경로(items[0].address 등) | error path
+         * @param subOuter 하위 검증기가 볼 바깥 객체들(가까운 순서) | outer objects for the sub-validator
+         */
+        private boolean runSubValidator(S2Rule rule, S2Validator<Object> subObj, Object value, String path, String label,
+                List<Object> subOuter, Consumer<S2ValidationError> errorHandler, Locale locale,
+                java.util.Set<Object> visited, int depth, boolean[] stop) {
+            boolean valid = true;
+
+            // [순환 참조 체크 - Set 기반 객체 인스턴스 추적]
+            // 동일한 객체가 이미 검증 경로에 있으면 순환 참조로 판단
+            if (value != null && visited.contains(value)) {
+                if (!reportError(errorHandler, circularReferenceError(path, label, locale),
+                        config.failFastWithException))
+                    stop[0] = true;
+                return false;
+            }
+
+            // Guard against stack overflow on very deep (acyclic) object graphs. | 매우 깊은(순환이 아닌) 객체 그래프에서 스택 오버플로를 막음
+            if (value != null && depth >= MAX_NESTED_DEPTH) {
+                valid = false;
+                if (!reportError(
+                        errorHandler, new S2ValidationError(
+                                path,
+                                MAX_DEPTH_KEY,
+                                new Object[] { label, MAX_NESTED_DEPTH },
+                                systemMessage(MAX_DEPTH_KEY,
+                                        "{0}의 중첩 깊이가 최대 {1}단계를 초과했습니다.",
+                                        "{0} exceeds the maximum nesting depth of {1}.",
+                                        locale, label, MAX_NESTED_DEPTH)),
+                        config.failFastWithException))
+                    stop[0] = true;
+                return false;
+            }
+
+            if (rule.getRuleType() == S2RuleType.NESTED) {
+                if (value != null) {
+                    boolean subOk = subObj.run(value, (S2ValidationError err) -> {
+                        reportError(
+                                errorHandler, new S2ValidationError(
+                                        path + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                : "." + err.fieldName()),
+                                        err.errorCode(),
+                                        err.errorArgs(),
+                                        err.defaultMessage()),
+                                config.failFastWithException);
+                    }, locale, visited, depth + 1, subOuter, withOuterValidator());
+                    if (!subOk)
+                        valid = false;
+                }
+            } else { // EACH
+                if (value instanceof Iterable<?> it) {
+                    int idx = 0;
+                    for (Object item : it) {
+                        final int finalIdx = idx;
+                        if (item == null) {
+                            // A missing element (index gap) is not a row, like the client | 빈 요소(인덱스 빈칸)는 클라이언트와 같이 행으로 보지 않음
+                            idx++;
+                            continue;
+                        }
+                        // 요소가 검증 경로의 조상과 같은 객체면 순환 참조(하위 실행은 방문한 객체를 그냥 통과시키므로 여기서 보고)
+                        if (visited.contains(item)) {
+                            valid = false;
+                            if (!reportError(errorHandler,
+                                    circularReferenceError(path + "[" + finalIdx + "]", label, locale),
+                                    config.failFastWithException)) {
+                                stop[0] = true;
+                                return false;
+                            }
+                            idx++;
+                            continue;
+                        }
+                        boolean subOk = subObj.run(item, (S2ValidationError err) -> {
+                            reportError(
+                                    errorHandler, new S2ValidationError(
+                                            path + "[" + finalIdx + "]"
+                                                    + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                            : "." + err.fieldName()),
+                                            err.errorCode(),
+                                            err.errorArgs(),
+                                            err.defaultMessage()),
+                                    config.failFastWithException);
+                        }, locale, visited, depth + 1, subOuter, withOuterValidator());
+                        if (!subOk)
+                            valid = false;
+                        idx++;
+                    }
+                } else if (value != null && value.getClass().isArray()) {
+                    int len = java.lang.reflect.Array.getLength(value);
+                    for (int i = 0; i < len; i++) {
+                        final int finalIdx = i;
+                        Object item = java.lang.reflect.Array.get(value, i);
+                        if (item == null) {
+                            continue;
+                        }
+                        if (visited.contains(item)) {
+                            valid = false;
+                            if (!reportError(errorHandler,
+                                    circularReferenceError(path + "[" + finalIdx + "]", label, locale),
+                                    config.failFastWithException)) {
+                                stop[0] = true;
+                                return false;
+                            }
+                            continue;
+                        }
+                        boolean subOk = subObj.run(item, (S2ValidationError err) -> {
+                            reportError(
+                                    errorHandler, new S2ValidationError(
+                                            path + "[" + finalIdx + "]"
+                                                    + (S2Util.isEmpty(err.fieldName()) ? ""
+                                                            : "." + err.fieldName()),
+                                            err.errorCode(),
+                                            err.errorArgs(),
+                                            err.defaultMessage()),
+                                    config.failFastWithException);
+                        }, locale, visited, depth + 1, subOuter, withOuterValidator());
+                        if (!subOk)
+                            valid = false;
+                    }
+                }
+            }
+            return valid;
         }
 
         /**
@@ -1450,8 +1500,21 @@ public class S2Validator<T> {
 
                 // 일반 규칙 검증
                 for (S2Rule rule : rules) {
-                    // NESTED와 EACH는 와일드카드 문법에서 지원하지 않음 (이미 sub-validator 방식으로 처리 가능)
+                    // 행의 하위 객체·목록(items[].address 등)도 하위 검증기로 검증한다 — 이전에는 조용히 건너뛰었다.
+                    // 하위 검증기가 보는 바깥 객체는 행 → 루트 → 그 바깥 순서
                     if (rule.getRuleType() == S2RuleType.NESTED || rule.getRuleType() == S2RuleType.EACH) {
+                        if (rule.getCheckValue() instanceof S2Validator<?> sub) {
+                            @SuppressWarnings("unchecked")
+                            S2Validator<Object> subObj = (S2Validator<Object>) sub;
+                            List<Object> rowOuter = new ArrayList<>(outerTargets.size() + 2);
+                            rowOuter.add(item);
+                            rowOuter.add(target);
+                            rowOuter.addAll(outerTargets);
+                            if (!runSubValidator(rule, subObj, fieldValue, errorPath, fieldLabel, rowOuter, errorHandler,
+                                    locale, visited, depth, new boolean[1])) {
+                                isValid = false;
+                            }
+                        }
                         continue;
                     }
 

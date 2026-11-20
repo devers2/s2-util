@@ -14,6 +14,7 @@
 
 ### ⚠️ 동작 변경
 
+- **검증 오류가 서버·브라우저 모두 필드를 선언한 순서로 나옵니다.** 이전에는 와일드카드 필드(`items[].name`)를 일반 필드보다 먼저 처리해, 첫 오류에서 멈추는 `validate()` 가 앞에 선언한 필드 대신 행 오류를 보고하고 `validateAll().toMap()`·JS `validate()` 의 순서도 선언 순서와 달랐습니다.
 - **`S2StringUtil.substringByBytes` 의 시작 바이트를 바로잡았습니다.** 이전에는 한 글자 앞부터 잘랐습니다(`("abc", 1, 3)` → `"abc"`, `("한글", 3, 6)` → `"한글"`). 이제 시작 바이트에서 시작하는 문자부터 자르고 걸쳐 있는 문자는 넣지 않습니다(`"bc"`, `"글"`).
   `toPascalCase`·`toCamelCase`·`toSnakeCase`·`toKebabCase` 는 대문자 약어 경계를 나눕니다(`HTTPServer` → `HttpServer`, `getHTTPResponseCode` → `get_http_response_code`). `clearNewline` 은 `<` 를 `\u003C` 로 쓰고(인라인 `<script>` 를 닫지 못하게) U+2028·U+2029 를 지웁니다.
 - **`S2Copier` 는 원본에 없는 속성을 대상에서 건드리지 않습니다.** 이전에는 대상 필드마다 원본 값을 읽어, 원본에 없는 필드(`id`·`createdBy` 등)를 `null` 로 덮어써 일부 필드만 가진 DTO 로 엔티티를 갱신하면 값이 지워졌습니다.
@@ -109,6 +110,7 @@
 
 ### 수정
 
+- 와일드카드 필드에 건 `NESTED`·`EACH`(`field("items[].address").rule(NESTED, …)`)가 서버·브라우저 모두에서 조용히 무시되던 문제 — 행마다 하위 검증기로 검증합니다(하위 검증기는 행 → 루트 순서로 바깥 필드를 찾음).
 - 기본 로거(SLF4J 가 없을 때)가 레벨 앞에 ANSI 색 코드를 항상 붙여 로그 파일·Docker·CI 로그에 제어 문자가 남던 문제 — 대화형 터미널에서만 색을 씁니다(`-Ds2.log.color=true/false`, `NO_COLOR` 환경 변수 지원).
 - 리소스 번들을 라이브러리 클래스로더로만 찾아, 여러 웹앱이 라이브러리 jar 를 공유하는 배포(Tomcat `lib/` 등)에서 웹앱의 번들을 못 찾거나 다른 앱의 번들이 캐시되던 문제 — 스레드 컨텍스트 클래스로더로 찾습니다(같은 로더일 때는 이전처럼 캐시).
 - 경량 캐시(Caffeine 이 없을 때)가 `S2Cache.resolve` 의 `expiryMs` 를 무시해 값이 만료되지 않던 문제 — Caffeine 백엔드와 같이 마지막 접근 후 만료합니다(`S2OptimisticCache(int, long)`·`SimpleCacheAdapter(int, long, boolean)` 추가). 만료를 쓰지 않는 캐시의 성능은 그대로입니다.

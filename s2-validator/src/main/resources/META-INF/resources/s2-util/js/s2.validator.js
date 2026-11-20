@@ -864,54 +864,59 @@ const collectErrors = (rules, formData, readField) => {
    * @param {string} prefix - 필드명 접두사 (중첩 경로용)
    */
   const validateRules = (currentRules, prefix = '') => {
-    // 1단계: [] 와일드카드 필드 그룹화
+    // 와일드카드 필드(products[].name)를 컬렉션별로 묶는다
     const wildcardGroups = {};
-
     currentRules.forEach((rule) => {
       const fullPath = prefix + rule.name;
       if (fullPath.includes('[]')) {
-        // prefix 추출 (예: "products[].name" -> "products")
-        const bracketIndex = fullPath.indexOf('[]');
-        const collectionPrefix = fullPath.substring(0, bracketIndex);
-
-        if (!wildcardGroups[collectionPrefix]) {
-          wildcardGroups[collectionPrefix] = [];
-        }
-        wildcardGroups[collectionPrefix].push(rule);
+        const collectionPrefix = fullPath.substring(0, fullPath.indexOf('[]'));
+        (wildcardGroups[collectionPrefix] = wildcardGroups[collectionPrefix] || []).push(rule);
       }
     });
 
-    // 2단계: 그룹화된 와일드카드 필드들 처리
-    Object.entries(wildcardGroups).forEach(([collectionPrefix, groupRules]) => {
-      // 해당 컬렉션의 인덱스들 추출
+    // 폼에 있는 이 경로의 행 번호들(products[0]… → "0"…)
+    const rowIndices = (collectionPath) => {
       const indices = new Set();
-      const pattern = new RegExp(`^${escapeRegExp(collectionPrefix)}\\[(\\d+)\\]`);
+      const pattern = new RegExp(`^${escapeRegExp(collectionPath)}\\[(\\d+)\\]`);
       allFieldNames.forEach((name) => {
         const match = name.match(pattern);
         if (match) indices.add(match[1]);
       });
+      return indices;
+    };
 
-      // 각 인덱스별로 그룹 내 모든 필드 검증
-      indices.forEach((idx) => {
+    // NESTED·EACH: 하위 규칙을 이 경로 아래에서 검증(일반 필드와 와일드카드 행이 함께 씀)
+    const validateNested = (check, path) => {
+      if (check.type === 'NESTED') {
+        validateRules(check.nestedRules || [], path + '.');
+      } else {
+        rowIndices(path).forEach((idx) => validateRules(check.nestedRules || [], `${path}[${idx}].`));
+      }
+    };
+
+    // 와일드카드 그룹 하나를 행별로 검증
+    const validateWildcardGroup = (collectionPrefix, groupRules) => {
+      rowIndices(collectionPrefix).forEach((idx) => {
         groupRules.forEach((rule) => {
           // 조건 체크 (조건 필드명에 '[]'가 있으면 현재 아이템 인덱스로 치환하여 평가)
           if (!isConditionSatisfied(rule, formData, prefix, idx)) return;
 
           const fullPath = prefix + rule.name;
-          // "products[].name" -> ".name" 추출
-          const bracketIndex = fullPath.indexOf('[]');
-          const suffix = fullPath.substring(bracketIndex + 2);
-
-          // 실제 필드명: products[0].name
+          // "products[].name" -> ".name" 추출 → 실제 필드명: products[0].name
+          const suffix = fullPath.substring(fullPath.indexOf('[]') + 2);
           const actualFieldName = collectionPrefix + '[' + idx + ']' + suffix;
+
+          // 행의 하위 객체·목록(products[].address 등)도 하위 규칙으로 검증한다(서버와 같음 — 이전에는 건너뜀)
+          rule.rules.forEach((check) => {
+            if (check.type === 'NESTED' || check.type === 'EACH') validateNested(check, actualFieldName);
+          });
+
           const field = readField(actualFieldName);
           if (!field.present) return;
 
           const fieldErrors = [];
           rule.rules.forEach((check) => {
-            // 와일드카드에서는 NESTED/EACH 지원 안 함 (이미 서브 validator로 처리 가능)
             if (check.type === 'NESTED' || check.type === 'EACH') return;
-
             if (!validateCheck(field.value, check, formData, prefix, actualFieldName)) {
               fieldErrors.push(check.message);
             }
@@ -922,14 +927,21 @@ const collectErrors = (rules, formData, readField) => {
           }
         });
       });
-    });
+    };
 
-    // 3단계: 일반 필드 처리 (와일드카드가 아닌 필드)
+    // 선언 순서대로 처리한다 — 와일드카드 그룹은 그 그룹의 첫 규칙 위치에서 행별로(서버와 같은 오류 순서)
+    const processedGroups = new Set();
     currentRules.forEach((rule) => {
       const fullPath = prefix + rule.name;
 
-      // Wildcard rules are handled per row above | 와일드카드 규칙은 위에서 행별로 처리함
-      if (fullPath.includes('[]')) return;
+      if (fullPath.includes('[]')) {
+        const collectionPrefix = fullPath.substring(0, fullPath.indexOf('[]'));
+        if (!processedGroups.has(collectionPrefix)) {
+          processedGroups.add(collectionPrefix);
+          validateWildcardGroup(collectionPrefix, wildcardGroups[collectionPrefix]);
+        }
+        return;
+      }
 
       // 1. 조건부 검증 로직 가동
       if (!isConditionSatisfied(rule, formData, prefix)) return;
@@ -937,23 +949,8 @@ const collectErrors = (rules, formData, readField) => {
       const fieldErrors = [];
 
       rule.rules.forEach((check) => {
-        if (check.type === 'NESTED') {
-          // 단일 객체 중첩 검증
-          validateRules(check.nestedRules || [], fullPath + '.');
-        } else if (check.type === 'EACH') {
-          // 리스트/배열 요소 반복 검증
-          // form에 존재하는 해당 prefix 기반의 인덱스들을 추출
-          const indices = new Set();
-          const pattern = new RegExp(`^${escapeRegExp(fullPath)}\\[(\\d+)\\]`);
-          allFieldNames.forEach((name) => {
-            const match = name.match(pattern);
-            if (match) indices.add(match[1]);
-          });
-
-          // 추출된 각 인덱스별로 하위 규칙 검증 실행
-          indices.forEach((idx) => {
-            validateRules(check.nestedRules || [], `${fullPath}[${idx}].`);
-          });
+        if (check.type === 'NESTED' || check.type === 'EACH') {
+          validateNested(check, fullPath);
         } else {
           // 일반 규칙 검증
           const field = readField(fullPath);

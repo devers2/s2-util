@@ -205,6 +205,17 @@ public class FormPathParityTest {
                         F.text("start", "2024-01-05"), F.text("end", "abc")),
 
                 // ── 와일드카드 행 ──
+                c("행의 하위 객체(NESTED), 1행 우편번호 빈 값",
+                        () -> b().field("items[].name", "품목명").rule(S2RuleType.REQUIRED)
+                                .field("items[].address", "주소").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build())
+                                .build(),
+                        F.text("items[0].name", "A"), F.text("items[0].address.zip", ""),
+                        F.text("items[1].name", "B"), F.text("items[1].address.zip", "12345")),
+                c("행의 하위 목록(EACH), 1행 2번째 태그 빈 값",
+                        () -> b().field("items[].tags", "태그").rule(S2RuleType.EACH, sub().field("v", "값").rule(S2RuleType.REQUIRED).build())
+                                .build(),
+                        F.text("items[0].tags[0].v", "x"), F.text("items[0].tags[1].v", ""),
+                        F.text("items[1].tags[0].v", "y")),
                 c("행 필수, 2행 중 1행 빈 값",
                         () -> b().field("items[].name", "품목명").rule(S2RuleType.REQUIRED).build(),
                         F.text("items[0].name", "A"), F.text("items[1].name", "")),
@@ -493,6 +504,37 @@ public class FormPathParityTest {
 
         Assertions.assertEquals(serverInvalid, new TreeSet<>(errors.getMemberKeys()),
                 "[check() 판정 불일치] " + description + " — 데이터: " + dataJson);
+    }
+
+    @Test
+    void wildcardRowsValidateNestedAndEachOnBothSides() {
+        // 판정 일치만으로는 못 잡는다(예전에는 두 쪽 모두 건너뛰어 '같은' 결과) — 기대 오류를 직접 확인
+        S2Validator<Map<String, Object>> validator = b()
+                .field("items[].address", "주소").rule(S2RuleType.NESTED, sub().field("zip", "우편번호").rule(S2RuleType.REQUIRED).build())
+                .field("items[].tags", "태그").rule(S2RuleType.EACH, sub().field("v", "값").rule(S2RuleType.REQUIRED).build())
+                .build();
+        List<F> fields = List.of(F.text("items[0].address.zip", ""), F.text("items[0].tags[0].v", "x"),
+                F.text("items[0].tags[1].v", ""), F.text("items[1].address.zip", "12345"));
+        Set<String> expected = new TreeSet<>(List.of("items[0].address.zip", "items[0].tags[1].v"));
+        Set<String> server = new TreeSet<>(validator.validateAll(toServerTarget(fields), Locale.KOREAN).toMap().keySet());
+        Assertions.assertEquals(expected, server);
+        Assertions.assertEquals(expected, clientInvalidFields(validator.getRulesJson(Locale.KOREAN), fields));
+    }
+
+    @Test
+    void errorsComeInDeclarationOrderOnBothSides() {
+        // 와일드카드 그룹을 일반 필드보다 먼저 처리해 오류 순서가 선언 순서와 달랐다 — 이제 두 쪽 모두 선언 순서
+        S2Validator<Map<String, Object>> validator = b().field("title", "제목").rule(S2RuleType.REQUIRED)
+                .field("items[].name", "품목명").rule(S2RuleType.REQUIRED)
+                .field("memo", "메모").rule(S2RuleType.REQUIRED)
+                .build();
+        List<F> fields = List.of(F.text("title", ""), F.text("items[0].name", ""), F.text("memo", ""));
+        List<String> expected = List.of("title", "items[0].name", "memo");
+        Assertions.assertEquals(expected, List.copyOf(validator.validateAll(toServerTarget(fields), Locale.KOREAN).toMap().keySet()));
+        Value form = jsContext.getBindings("js").getMember("__makeForm").execute(toFieldsJson(fields));
+        Value errors = jsContext.getBindings("js").getMember("__S2Validator").invokeMember("validate", form,
+                validator.getRulesJson(Locale.KOREAN));
+        Assertions.assertEquals(expected, List.copyOf(errors.getMemberKeys()));
     }
 
     @Test

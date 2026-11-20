@@ -14,6 +14,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **Validation errors come in field declaration order on both the server and the browser.** Wildcard fields (`items[].name`) used to be processed before regular fields, so fail-fast `validate()` reported a row error instead of an earlier-declared field, and the order of `validateAll().toMap()` and JS `validate()` differed from the declarations.
 - **`S2StringUtil.substringByBytes` begins at the right byte.** It used to start one character early (`("abc", 1, 3)` → `"abc"`, `("한글", 3, 6)` → `"한글"`); it now starts at the first character beginning at or after the start byte and skips a straddling character (`"bc"`, `"글"`).
   `toPascalCase`/`toCamelCase`/`toSnakeCase`/`toKebabCase` split at the end of an uppercase acronym (`HTTPServer` → `HttpServer`, `getHTTPResponseCode` → `get_http_response_code`). `clearNewline` writes `<` as `\u003C` (so it cannot close an inline `<script>`) and removes U+2028/U+2029.
 - **`S2Copier` leaves properties that the source does not have untouched.** It used to read a source value for every target field and overwrote missing ones (`id`, `createdBy`, ...) with `null`, wiping values when updating an entity from a partial DTO.
@@ -114,6 +115,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `NESTED`/`EACH` on a wildcard field (`field("items[].address").rule(NESTED, …)`) was silently ignored on both the server and the browser — each row is now validated with the sub-validator (which looks up outer fields row first, then root).
 - The default logger (without SLF4J) always prefixed levels with ANSI color codes, leaving control characters in log files, Docker and CI logs — colors are now used only on an interactive terminal (`-Ds2.log.color=true/false` and the `NO_COLOR` environment variable are honored).
 - Resource bundles were looked up only with the library's class loader, so deployments sharing the library jar across web apps (Tomcat `lib/`, ...) could miss a web app's bundle or cache another app's — bundles are now looked up with the thread context class loader (still cached when it is the library's loader).
 - The lightweight cache (without Caffeine) ignored the `expiryMs` of `S2Cache.resolve`, so values never expired — entries now expire after the last access like the Caffeine backend (`S2OptimisticCache(int, long)` and `SimpleCacheAdapter(int, long, boolean)` added). Caches without expiry perform as before.

@@ -546,7 +546,7 @@ Navigate deeply nested DTOs and collections effortlessly:
 
 - **Dot Notation (`.`)**: Object traversal (e.g., `user.profile.address.zipCode`)
 - **Bracket Indexing (`[n]`)**: Specific collection/array item (e.g., `orders[0].id`)
-- **Wildcard (`[]`)**: Validate every item in a list (e.g., `cart.items[].price`)
+- **Wildcard (`[]`)**: Validate every item in a list (e.g., `cart.items[].price`). A row's nested object or list is validated with `field("items[].address").rule(NESTED, addressValidator)` or `rule(EACH, …)` (error path `items[0].address.zip`). Errors come in declaration order on both the server and the browser.
 
 ### 5-2. Recursive & Compositional Validation (EACH, NESTED)
 
