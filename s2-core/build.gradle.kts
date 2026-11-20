@@ -52,6 +52,25 @@ val slf4jBridgeTest: Configuration = configurations.create("slf4jBridgeTest")
 // 시험 전용: caffeineTest 태스크에만 넣는 Caffeine (기본 test 는 Caffeine 없이 경량 캐시로 돈다)
 val caffeineTestRuntime: Configuration = configurations.create("caffeineTestRuntime")
 
+
+// 선택 기능 정의 — main 소스셋을 그대로 쓰고 배포 POM 에 optional 의존성으로 표시(소비자에게 전이되지 않음)
+java {
+    registerFeature("caffeineSupport") {
+        usingSourceSet(sourceSets["main"])
+    }
+}
+
+// main 소스셋을 쓰는 선택 기능은 Gradle 이 그 의존성을 runtimeClasspath 에도 연결한다. 로컬 빌드의 Fat JAR(S2BuildUtils)가
+// runtimeClasspath 를 jar 에 합치므로, 그대로 두면 선택 의존성(Spring 등) 전체가 jar 에 들어가 소비자 클래스패스에서 중복된다
+// (2.1.0 까지는 compileOnly 라 들어가지 않았음). 배포 POM·모듈 메타데이터의 optional 표시는 *RuntimeElements 에서 오므로 영향 없음
+// 기본 test 도 Caffeine 없이(경량 캐시로) 돌아야 한다 — Gradle 은 선택 기능을 시험 클래스패스에도 연결하므로 함께 뗀다.
+// Caffeine 백엔드는 caffeineTest 태스크가 따로 시험한다
+listOf("runtimeClasspath", "testRuntimeClasspath").forEach { name ->
+    configurations.named(name) {
+        setExtendsFrom(extendsFrom.filterNot { it.name.startsWith("caffeineSupport") })
+    }
+}
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
@@ -73,6 +92,7 @@ dependencies {
      * - 소비자 프로젝트에서 Caffeine을 사용하지 않아도 S2Cache가 정상 동작함
      */
     compileOnly(libs.caffeine) // Caffeine: 고성능 로컬 캐시 라이브러리 (선택적)
+    "caffeineSupportImplementation"(libs.caffeine) // 선택 기능: 배포 POM 에 optional 로 표시(README 안내 블록용 compileOnly 도 유지)
 
     /**
      * testImplementation: 테스트 컴파일 및 런타임 시 모두 사용
@@ -117,4 +137,11 @@ val caffeineTest by tasks.registering(Test::class) {
 
 tasks.named("check") {
     dependsOn(caffeineTest)
+}
+
+// JPMS 사용자를 위한 고정 모듈 이름(없으면 jar 파일 이름에서 추론돼 파일 이름이 바뀌면 깨짐)
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes("Automatic-Module-Name" to "io.github.devers2.s2util.core")
+    }
 }

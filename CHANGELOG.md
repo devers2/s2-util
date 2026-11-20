@@ -75,6 +75,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Added
 
+- A fixed `Automatic-Module-Name` in the jar manifests (`io.github.devers2.s2util`, `.core`, `.jpa`, `.validation`), so JPMS users can `requires` the same name regardless of the jar file name.
+- The published POMs list Caffeine (s2-core) and the Jakarta Persistence API (s2-jpa) as `optional` dependencies, like Spring and Bean Validation (not transitive; shows what each feature needs).
 - `S2Util.setValue` writes literal keys of a flat `Map` (`"address.zip"`, `"items[0].name"`) by the same rule as `getValue` (the whole path is the key when its first segment is not in the map), so written values read back as is. It used to return `false` without writing.
 - **`S2BeanValidation`: builds S2 rules from Bean Validation annotations (`@NotBlank`, `@Size`, `@Pattern`, `@Min`, `@Valid`, ...).** Existing DTOs get browser validation unchanged, and `toBuilder()` adds S2 rules. Only constraints never stricter than Bean Validation are converted; the rest are reported by `serverOnly()` and a log line (`practical()` widens the range). Includes a test comparing against Hibernate Validator with random input. MANUAL 5-5.
 - The published POM lists Spring and `jakarta.validation-api` as optional dependencies (`<optional>true</optional>`): not transitive, but visible as what each feature needs.

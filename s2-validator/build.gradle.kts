@@ -59,10 +59,11 @@ java {
 }
 
 // main 소스셋을 쓰는 선택 기능은 Gradle 이 그 의존성을 runtimeClasspath 에도 연결한다. 로컬 빌드의 Fat JAR(S2BuildUtils)가
-// runtimeClasspath 를 jar 에 합치므로, 그대로 두면 Spring·Bean Validation 전체가 jar 에 들어가 소비자 클래스패스에서 중복된다
+// runtimeClasspath 를 jar 에 합치므로, 그대로 두면 선택 의존성(Spring 등) 전체가 jar 에 들어가 소비자 클래스패스에서 중복된다
 // (2.1.0 까지는 compileOnly 라 들어가지 않았음). 배포 POM·모듈 메타데이터의 optional 표시는 *RuntimeElements 에서 오므로 영향 없음
 configurations.named("runtimeClasspath") {
-    setExtendsFrom(extendsFrom.filterNot { it.name.startsWith("springSupport") || it.name.startsWith("beanValidationSupport") })
+    val optionalFeatures = listOf("springSupport", "beanValidationSupport")
+    setExtendsFrom(extendsFrom.filterNot { c -> optionalFeatures.any { c.name.startsWith(it) } })
 }
 
 dependencies {
@@ -164,4 +165,11 @@ tasks.named<Test>("test") {
         .withPropertyName("browserDemoRules").optional()
     inputs.file(layout.projectDirectory.file("browser-test/site/rules.json"))
         .withPropertyName("publicDemoRules").optional()
+}
+
+// JPMS 사용자를 위한 고정 모듈 이름(없으면 jar 파일 이름에서 추론돼 파일 이름이 바뀌면 깨짐)
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes("Automatic-Module-Name" to "io.github.devers2.s2util.validation")
+    }
 }
