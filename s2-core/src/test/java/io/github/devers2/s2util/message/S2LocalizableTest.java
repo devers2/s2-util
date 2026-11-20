@@ -73,7 +73,9 @@ class S2LocalizableTest {
 
     @Test
     void findLocalizedMessageLooksThroughWrappingExceptions() {
-        var wrapped = new S2RuntimeException("Cannot upload: a.txt", exists("a.txt"));
+        // The wrapper has its own key, but the cause is more specific | 감싼 예외도 키가 있지만 원인이 더 구체적
+        var wrapped = new S2RuntimeException("Cannot upload: a.txt", exists("a.txt"),
+                S2MessageKey.of(BASENAME, "queue.full"));
         assertEquals("a.txt은(는) 이미 있는 파일입니다.", S2Localizable.findLocalizedMessage(wrapped, Locale.KOREAN).orElseThrow());
         assertTrue(S2Localizable.findLocalizedMessage(new IllegalStateException("internal"), Locale.KOREAN).isEmpty(),
                 "no user-facing message: the caller shows a generic one");

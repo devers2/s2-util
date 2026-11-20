@@ -558,7 +558,8 @@ ResponseEntity<String> handle(Exception e, Locale locale) {
 - 찾는 순서: 애플리케이션 번들(`S2ResourceBundle.setDefaultBasename`, 문구 덮어쓰기용), 그다음 키의 번들. 각각 `_ko_KR`,
   `_ko`, 기본 파일 순서입니다. `ResourceBundle.getBundle`과 달리 **서버 기본 로케일로 대체하지 않으므로**, 한국어 서버에서도
   영어 요청에는 영어로 답합니다. 파일은 UTF-8 로 읽고 캐시합니다.
-- `findLocalizedMessage`는 감싼 예외 안쪽까지 찾고, 사용자용 문구가 없으면 빈 값을 돌려줍니다.
+- `findLocalizedMessage`는 감싼 예외 안쪽까지 찾아 가장 안쪽 문구를 씁니다(원인이 감싼 예외보다 구체적). 사용자용 문구가
+  없으면 빈 값을 돌려줍니다.
 - 비용: 키 저장은 참조 2개뿐이고, 문구는 `getLocalizedMessage`를 부를 때만 만듭니다.
 
 ---

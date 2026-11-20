@@ -82,29 +82,31 @@ public interface S2Localizable {
     }
 
     /**
-     * Finds the first user-facing message in an exception and its causes (wrapped exceptions keep the inner one's
-     * message). Empty when none has a translatable key, so the caller shows a generic message instead of internal
+     * Finds the user-facing message in an exception and its causes; the innermost one wins, since a wrapping exception
+     * is usually more general ("could not upload") than its cause ("already exists"). Empty when none has a translatable key, so the caller shows a generic message instead of internal
      * details.
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 예외와 그 원인들에서 처음 나오는 사용자용 문구를 찾습니다(감싼 예외도 안쪽 예외의 문구를 씀). 번역 가능한 키가 하나도 없으면
+     * 예외와 그 원인들에서 사용자용 문구를 찾습니다. 감싼 예외("올리지 못함")보다 원인("이미 있음")이 구체적이므로 가장 안쪽 문구를 씁니다. 번역 가능한 키가 하나도 없으면
      * 빈 값이므로, 호출 측은 내부 정보 대신 일반 문구를 보여 줍니다.
      * @param error  Exception | 예외
      * @param locale User's locale | 사용자 로케일
      * @return Message in the user's language | 사용자 언어의 문구
      */
     static Optional<String> findLocalizedMessage(Throwable error, Locale locale) {
+        // 가장 안쪽(원인에 가까운) 문구를 쓴다: 바깥 예외는 대개 "업로드 실패"처럼 일반적이고, 안쪽이 "이미 있는 파일"처럼 구체적이다
         var seen = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+        Optional<String> found = Optional.empty();
         for (var t = error; t != null && seen.add(t); t = t.getCause()) {
             if (t instanceof S2Localizable localizable && localizable.getMessageKey() != null) {
                 var message = localizable.getMessageKey().resolve(locale);
                 if (message.isPresent()) {
-                    return message;
+                    found = message;
                 }
             }
         }
-        return Optional.empty();
+        return found;
     }
 
 }

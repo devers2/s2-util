@@ -559,7 +559,8 @@ ResponseEntity<String> handle(Exception e, Locale locale) {
 - Lookup: the application bundle (`S2ResourceBundle.setDefaultBasename`, to override any text), then the key's bundle;
   `_ko_KR`, `_ko`, then the base file. It **never falls back to the server's default locale**, so an English request gets
   English even on a Korean server (unlike `ResourceBundle.getBundle`). Files are read as UTF-8 and cached.
-- `findLocalizedMessage` looks through wrapped exceptions and returns empty when nothing is user-facing.
+- `findLocalizedMessage` looks through wrapped exceptions and uses the innermost message (the cause is more specific
+  than its wrapper); it returns empty when nothing is user-facing.
 - Cost: storing the key is two references; text is rendered only when `getLocalizedMessage` is called.
 
 ---
