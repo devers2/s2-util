@@ -1,7 +1,7 @@
 # s2-util AI 에이전트 원칙
 
 ## 필수: 수정 후 전체 검증
-Java·`s2.validator.js`·Gradle 설정·문서를 수정했으면 완료 보고·커밋·push 전에 `./gradlew check` 전수 통과를 확인한다.
+Java·JS·Gradle 설정·문서를 수정했으면 완료 보고·커밋·push 전에 `./gradlew check` 전수 통과를 확인한다.
 개별 테스트만으로 끝내지 않는다(`s2-core`, `s2-jpa`, `s2-validator`, `s2-validator-plugin` 전부).
 
 ## 1. 서버·클라이언트 규칙 일치 (s2-validator)
