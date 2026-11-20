@@ -477,4 +477,37 @@ class S2CoreUtilFixesTest {
         assertEquals("A x B", S2Template.of("A {{= name }} B").bind("name", "x").render());
         assertEquals("ORDER BY 'kim'", S2Template.of("{{=o}}").bindIn("o", java.util.List.of("kim"), "ORDER BY ").render());
     }
+
+    @Test
+    void defaultLoggerWritesNoAnsiCodesWhenNotATerminal() {
+        // 시험 JVM 은 터미널이 아니므로(System.console() == null 또는 isTerminal false) 색 코드가 없어야 한다
+        java.io.PrintStream previous = System.err;
+        var buffer = new java.io.ByteArrayOutputStream();
+        System.setErr(new java.io.PrintStream(buffer, true, java.nio.charset.StandardCharsets.UTF_8));
+        try {
+            new DefaultS2Logger("probe").log("WARN", "hello {}", new Object[] { 1 });
+        } finally {
+            System.setErr(previous);
+        }
+        String out = buffer.toString(java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(out.contains("[WARN] probe - hello 1"), out);
+        assertFalse(out.contains("\u001B["), out);
+    }
+
+    @Test
+    void resourceBundleIsLookedUpWithTheContextClassLoader() throws Exception {
+        // 웹앱처럼 라이브러리와 다른 컨텍스트 클래스로더에만 있는 번들도 찾고, 다른 로더의 결과와 섞이지 않는다
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("s2bundle");
+        java.nio.file.Files.writeString(dir.resolve("s2webapp.properties"), "greet=webapp");
+        Thread thread = Thread.currentThread();
+        ClassLoader previous = thread.getContextClassLoader();
+        try (var webapp = new java.net.URLClassLoader(new java.net.URL[] { dir.toUri().toURL() }, previous)) {
+            assertTrue(S2Cache.getResourceBundle("s2webapp", Locale.ROOT).isEmpty()); // 라이브러리 로더에는 없음
+            thread.setContextClassLoader(webapp);
+            assertEquals("webapp", S2Cache.getResourceBundle("s2webapp", Locale.ROOT).map(b -> b.getString("greet")).orElse(null));
+        } finally {
+            thread.setContextClassLoader(previous);
+        }
+        assertTrue(S2Cache.getResourceBundle("s2webapp", Locale.ROOT).isEmpty()); // 원래 로더로 돌아오면 다시 없음
+    }
 }

@@ -160,7 +160,6 @@ public class S2DateUtil {
     }
 
     /** 출력용 포맷터(기본 로케일·패턴별 캐시) — 호출마다 패턴을 다시 해석하지 않는다. 잘못된 패턴은 IllegalArgumentException */
-    @SuppressWarnings("unchecked")
     private static DateTimeFormatter formatter(String pattern) {
         Locale locale = Locale.getDefault();
         String key = locale.toLanguageTag() + '\u0000' + pattern;

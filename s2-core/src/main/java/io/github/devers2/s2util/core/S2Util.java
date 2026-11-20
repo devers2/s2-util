@@ -244,7 +244,7 @@ public class S2Util {
      * 공통 구현. {@code emptyAsDefault} 가 true(기본값을 준 호출)면 빈 값(공백 문자열·빈 컬렉션 등)도 기본값으로 바꾸고,
      * false(기본값 없는 호출)면 저장된 값 그대로 돌려준다(변환 실패·없음만 null).
      */
-    @SuppressWarnings({ "null", "unchecked" })
+    @SuppressWarnings({ "null" })
     private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue, boolean emptyAsDefault) {
         if (target == null || fieldName == null) {
             return defaultValue;

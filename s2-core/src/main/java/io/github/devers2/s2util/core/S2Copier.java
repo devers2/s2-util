@@ -695,7 +695,6 @@ public class S2Copier<S> {
      * 원본과 같은 종류의 빈 컬렉션. 정렬 기준(TreeSet·PriorityQueue)은 유지하고, 그 밖은 원본 클래스의 기본 생성자,
      * 만들 수 없으면(List.of 같은 불변 컬렉션 등) List → ArrayList, Set → LinkedHashSet, 그 밖 → LinkedList.
      */
-    @SuppressWarnings("unchecked")
     private static java.util.Collection<Object> newCollectionLike(java.util.Collection<?> source) {
         if (source instanceof SortedSet<?> sorted) {
             return new TreeSet<>(castComparator(sorted.comparator()));
@@ -806,7 +805,6 @@ public class S2Copier<S> {
     /**
      * 레코드는 정식 생성자로 만든다: 구성요소마다 원본 값(매핑·제외·깊은 복사 적용), 없거나 변환할 수 없으면 null(기본형은 0·false).
      */
-    @SuppressWarnings("unchecked")
     private <T> T toRecord(Class<T> recordClass) {
         var components = recordClass.getRecordComponents();
         Class<?>[] types = new Class<?>[components.length];

@@ -1927,6 +1927,19 @@ public class S2Cache {
             }
             Locale targetLocale = locale != null ? locale : Locale.getDefault();
 
+            // 번들은 스레드 컨텍스트 클래스로더(웹앱)로 찾는다. 라이브러리 로더와 다르면(여러 웹앱이 라이브러리 jar 를 공유하는 배포)
+            // 캐시를 거치지 않고 JDK 에서 바로 찾는다 — 캐시 키에 로더가 없어 다른 앱의 번들이 쓰이거나 웹앱 번들을 못 찾지 않도록,
+            // 그리고 로더를 붙잡아 재배포 때 새지 않도록(JDK ResourceBundle 캐시는 로더별·약한 참조)
+            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+            ClassLoader libraryLoader = S2Cache.class.getClassLoader();
+            if (contextLoader != null && contextLoader != libraryLoader) {
+                try {
+                    return Optional.of(ResourceBundle.getBundle(basename, targetLocale, contextLoader));
+                } catch (MissingResourceException e) {
+                    return Optional.empty();
+                }
+            }
+
             return S2Cache.resolve(
                     RESOURCE_BUNDLE_CACHE_NAME,
                     new BundleKey(basename, targetLocale),
@@ -1938,9 +1951,13 @@ public class S2Cache {
                             return Optional.of(ResourceBundle.getBundle(key.basename(), key.locale()));
                         } catch (MissingResourceException e) {
                             if (logger.isDebugEnabled()) {
-                                logger.debug(
-                                        "[S2Cache] ResourceBundle을 찾을 수 없음: {} (locale: {}) - empty 결과 캐싱함",
-                                        key.basename(), key.locale());
+                                if (S2Util.isKorean()) {
+                                    logger.debug("[S2Cache] ResourceBundle 을 찾을 수 없음: {} (locale: {}) - empty 결과 캐싱함",
+                                            key.basename(), key.locale());
+                                } else {
+                                    logger.debug("[S2Cache] ResourceBundle not found: {} (locale: {}) - caching the empty result",
+                                            key.basename(), key.locale());
+                                }
                             }
                             return Optional.empty();
                         }

@@ -109,6 +109,8 @@
 
 ### 수정
 
+- 기본 로거(SLF4J 가 없을 때)가 레벨 앞에 ANSI 색 코드를 항상 붙여 로그 파일·Docker·CI 로그에 제어 문자가 남던 문제 — 대화형 터미널에서만 색을 씁니다(`-Ds2.log.color=true/false`, `NO_COLOR` 환경 변수 지원).
+- 리소스 번들을 라이브러리 클래스로더로만 찾아, 여러 웹앱이 라이브러리 jar 를 공유하는 배포(Tomcat `lib/` 등)에서 웹앱의 번들을 못 찾거나 다른 앱의 번들이 캐시되던 문제 — 스레드 컨텍스트 클래스로더로 찾습니다(같은 로더일 때는 이전처럼 캐시).
 - 경량 캐시(Caffeine 이 없을 때)가 `S2Cache.resolve` 의 `expiryMs` 를 무시해 값이 만료되지 않던 문제 — Caffeine 백엔드와 같이 마지막 접근 후 만료합니다(`S2OptimisticCache(int, long)`·`SimpleCacheAdapter(int, long, boolean)` 추가). 만료를 쓰지 않는 캐시의 성능은 그대로입니다.
 - `S2Template`: `{{= name }}` 처럼 키 앞뒤에 공백이 있으면 바인딩된 값이 있어도 조용히 지워지던 문제(같은 키로 봄). Javadoc 예제 바로잡기 — `bindIn` 문자열 목록은 따옴표 리터럴이 되며(`ORDER BY` 예제가 틀렸음), 값을 `String.join` 으로 쿼리에 붙이던 `bindWhen` 예제(SQL 주입 패턴)와 요청 정렬값을 그대로 넣던 예제를 파라미터·허용 목록 방식으로.
 - `S2StringUtil`: `replaceChars(…, " ", …)` 가 공백으로 바꾸지 않고 지우던 문제, 공백만 있는 원본을 `replaceChars`·`replaceAll`·`substringByBytes` 가 처리하지 않던 문제(정규식 캐시가 공백 패턴 `" "` 을 거부하던 것 포함), `decodeUnicode` 가 잘못된 `\uZZZZ` 에서 역슬래시를 두 번 쓰고 `\u-001` 같은 부호를 16진수로 받던 문제, `formatMessage` 의 int 범위를 넘는 인덱스.

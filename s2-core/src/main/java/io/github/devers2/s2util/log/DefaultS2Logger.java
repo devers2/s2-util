@@ -63,6 +63,32 @@ public class DefaultS2Logger implements S2Logger {
     // 출력할 최소 레벨(DEBUG=0, INFO=1, WARN=2, ERROR=3). 기본 INFO — 운영에서 DEBUG 로그가 모두 찍히지 않도록
     private static final int MIN_LEVEL = levelOf(System.getProperty("s2.log.level", "INFO"));
 
+    // 레벨 앞의 ANSI 색은 대화형 터미널에서만 — 파일·로그 수집기(리다이렉트, Docker, CI)에 제어 문자가 남지 않도록.
+    // -Ds2.log.color=true/false 로 직접 정할 수 있고, NO_COLOR 환경 변수를 따른다
+    private static final boolean COLOR = detectColor();
+
+    private static boolean detectColor() {
+        String forced = System.getProperty("s2.log.color");
+        if (forced != null) {
+            return Boolean.parseBoolean(forced.trim());
+        }
+        if (System.getenv("NO_COLOR") != null) {
+            return false;
+        }
+        java.io.Console console = System.console();
+        if (console == null) {
+            return false; // Java 21 이하는 리다이렉트되면 null
+        }
+        try {
+            // Java 22+ 는 리다이렉트돼도 Console 을 돌려주므로 isTerminal() 로 확인(Java 17 기준이라 리플렉션)
+            return (boolean) java.io.Console.class.getMethod("isTerminal").invoke(console);
+        } catch (NoSuchMethodException e) {
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return false;
+        }
+    }
+
     private static int levelOf(String level) {
         if (level == null) {
             return 1;
@@ -142,14 +168,14 @@ public class DefaultS2Logger implements S2Logger {
         var formattedBody = format(message, params);
 
         // 3. 레벨별 ANSI 색상 코드
-        String ansiColor = switch (level != null ? level.toUpperCase() : "") {
+        String ansiColor = !COLOR ? "" : switch (level != null ? level.toUpperCase(java.util.Locale.ROOT) : "") {
             case "DEBUG" -> ansiColor = "\u001B[90m"; // 회색
             case "INFO" -> ansiColor = "\u001B[32m"; // 초록색
             case "WARN" -> ansiColor = "\u001B[33m"; // 노란색
             case "ERROR" -> ansiColor = "\u001B[31m"; // 빨간색
             default -> ansiColor = "\u001B[0m"; // 기본값 (Reset)
         };
-        var ansiReset = "\u001B[0m";
+        var ansiReset = COLOR ? "\u001B[0m" : "";
 
         var sb = new StringBuilder();
         sb.append(ansiColor).append("[").append(level).append("] ").append(ansiReset);
