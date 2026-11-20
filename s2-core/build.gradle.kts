@@ -49,6 +49,9 @@ extra["artifactTestClassNames"] = emptyList<String>()
 // Test-only: slf4j-api for the isolated SLF4J bridge test | 시험 전용: 격리된 SLF4J 브리지 시험용 slf4j-api
 val slf4jBridgeTest: Configuration = configurations.create("slf4jBridgeTest")
 
+// 시험 전용: caffeineTest 태스크에만 넣는 Caffeine (기본 test 는 Caffeine 없이 경량 캐시로 돈다)
+val caffeineTestRuntime: Configuration = configurations.create("caffeineTestRuntime")
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
@@ -78,10 +81,10 @@ dependencies {
      */
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
-    // 테스트 시 Caffeine 기능 검증
-    // 주의: 주석 처리하더라도 compileOnly 의존성으로 인해 IDE나 기본 test 태스크에서는 Caffeine이 클래스패스에 포함될 수 있어 주의 필요
-    // 빌드 시 자동 실행되는 S2Util Core 기능 검증용 테스트에서는 확인 가능
-    // testImplementation(libs.caffeine)
+    // Caffeine 백엔드 검증: 시험 코드는 Caffeine 으로 컴파일하되(testCompileOnly), 실행은 기본 test 에서는 빼고
+    // caffeineTest 태스크에서만 넣는다. S2Cache 는 클래스패스의 Caffeine 유무로 백엔드를 고르므로 두 백엔드를 각각 시험하기 위함
+    testCompileOnly(libs.caffeine)
+    caffeineTestRuntime(libs.caffeine)
 
     slf4jBridgeTest(libs.slf4j.api)
 }
@@ -93,4 +96,25 @@ tasks.named<Test>("test") {
     jvmArgumentProviders.add(CommandLineArgumentProvider {
         listOf("-Ds2.test.slf4jApiJar=" + slf4jJars.singleFile.absolutePath)
     })
+}
+
+// 같은 시험을 Caffeine 이 클래스패스에 있는 상태로 한 번 더 실행한다(S2Cache·S2Util 의 Caffeine 백엔드 경로 검증).
+// 시험은 s2.test.cacheBackend=caffeine 으로 이 실행을 알아보고, Caffeine 전용 시험은 이때만 돈다.
+val caffeineTest by tasks.registering(Test::class) {
+    description = "Runs the s2-core tests with Caffeine on the class path (Caffeine cache backend)."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    val testSourceSet = sourceSets["test"]
+    testClassesDirs = testSourceSet.output.classesDirs
+    classpath = testSourceSet.runtimeClasspath + caffeineTestRuntime
+    systemProperty("s2.test.cacheBackend", "caffeine")
+    val slf4jJars: FileCollection = slf4jBridgeTest
+    inputs.files(slf4jJars).withPropertyName("slf4jBridgeTestJars")
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-Ds2.test.slf4jApiJar=" + slf4jJars.singleFile.absolutePath)
+    })
+    shouldRunAfter(tasks.named("test"))
+}
+
+tasks.named("check") {
+    dependsOn(caffeineTest)
 }
