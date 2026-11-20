@@ -471,4 +471,10 @@ class S2CoreUtilFixesTest {
         assertEquals("\\u-001", S2StringUtil.decodeUnicode("\\u-001"));
         assertEquals("한", S2StringUtil.decodeUnicode("\\uD55C"));
     }
+
+    @Test
+    void templateKeyIgnoresSurroundingSpaces() {
+        assertEquals("A x B", S2Template.of("A {{= name }} B").bind("name", "x").render());
+        assertEquals("ORDER BY 'kim'", S2Template.of("{{=o}}").bindIn("o", java.util.List.of("kim"), "ORDER BY ").render());
+    }
 }

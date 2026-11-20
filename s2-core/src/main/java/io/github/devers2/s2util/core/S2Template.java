@@ -344,8 +344,9 @@ public class S2Template {
      *          </p>
      *
      *          <pre>{@code
-     * .bindWhen("order", pageable != null && pageable.isSorted(), () -> pageable.getSort().toString(), "ORDER BY ")
-     * // Result: "ORDER BY id: ASC" if pageable is sorted, safely skips if null
+     * // sortClause() builds the clause from an allow-list of columns, never from raw request input | 요청 값을 그대로 쓰지 말고 허용 목록으로 만든 정렬
+     * .bindWhen("order", pageable != null && pageable.isSorted(), () -> sortClause(pageable), "ORDER BY ")
+     * // Result: "ORDER BY m.name ASC" if pageable is sorted, safely skips if null
      * }</pre>
      */
     public S2Template bindWhen(String key, boolean condition, Supplier<Object> contentSupplier, String prefix) {
@@ -491,8 +492,9 @@ public class S2Template {
      *          </p>
      *
      *          <pre>{@code
-     * .bindWhen("ids", idList, () -> String.join(", ", idList), "AND s.id IN (", ")")
-     * // Result: "AND s.id IN (id1, id2, id3)" if idList exists
+     * // The list itself is bound as a query parameter (:ids), not joined into the query | 목록 값은 쿼리에 이어 붙이지 말고 파라미터(:ids)로 바인딩
+     * .bindWhen("ids", idList, () -> ":ids", "AND s.id IN (", ")")
+     * // Result: "AND s.id IN (:ids)" if idList exists
      * }</pre>
      */
     public S2Template bindWhen(String key, Object presence, Supplier<Object> contentSupplier, String prefix,
@@ -710,7 +712,7 @@ public class S2Template {
      *
      *          <pre>{@code
      * List<Integer> ids = List.of(1, 2, 3);
-     * // Example: Generate IN clause only when active
+     * // Example: Generate IN clause only when ids is not empty
      * .bindIn("ids", ids, "AND id IN (", ")")
      * // Result: "AND id IN (1, 2, 3)" if ids has Collection value
      * }</pre>
@@ -737,10 +739,10 @@ public class S2Template {
      *          Universally used for SQL IN clause generation and conditional list string conversion.
      *
      *          <pre>{@code
-     * List<String> order = List.of("name", "age", "created_at");
-     * // Example: Generate IN clause only when active
-     * .bindIn("order", order, "ORDER BY ")
-     * // Result: "ORDER BY name, age, created_at" if order has Collection value
+     * List<String> names = List.of("kim", "lee");
+     * // Strings are quoted as literals (numbers and booleans are written as is) | 문자열은 리터럴로 감쌈(숫자·논리값은 그대로)
+     * .bindIn("names", names, "AND m.name IN (")
+     * // Result: "AND m.name IN ('kim', 'lee'" — add ")" with the suffix overload | 닫는 괄호는 suffix 오버로드로
      * }</pre>
      */
     public S2Template bindIn(String key, Collection<?> values, String prefix) {
@@ -763,10 +765,9 @@ public class S2Template {
      *          Universally used for SQL IN clause generation and conditional list string conversion.
      *
      *          <pre>{@code
-     * List<String> order = List.of("name", "age", "created_at");
-     * // Example: Generate IN clause only when active
-     * .bindIn("order", order)
-     * // Result: "name, age, created_at" if order has Collection value
+     * List<Integer> ids = List.of(1, 2, 3);
+     * .bindIn("ids", ids)
+     * // Result: "1, 2, 3" if ids has Collection value (strings would be quoted: 'a', 'b') | 문자열이면 'a', 'b' 처럼 감쌈
      * }</pre>
      */
     public S2Template bindIn(String key, Collection<?> values) {
@@ -881,7 +882,8 @@ public class S2Template {
                 break;
             }
             resultBuilder.append(template, pos, start);
-            String replacement = bindings.get(template.substring(start + 3, end));
+            // {{= name }} 처럼 키 앞뒤에 공백이 있어도 같은 키로 본다(이전에는 조용히 지워짐)
+            String replacement = bindings.get(template.substring(start + 3, end).strip());
             if (replacement != null) {
                 resultBuilder.append(replacement);
             }
