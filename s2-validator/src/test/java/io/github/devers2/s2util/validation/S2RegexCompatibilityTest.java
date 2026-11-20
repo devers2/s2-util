@@ -17,14 +17,17 @@ public class S2RegexCompatibilityTest {
 
     @ParameterizedTest
     @ValueSource(strings = { "(?i)^abc$", "(?i:abc)", "(?-i)abc", "a++b", "a*+", "a?+", "a{2}+", "(?>ab)c",
-            "\\p{Alpha}+", "\\P{Digit}", "\\Aabc\\z", "abc\\Z", "\\Qa.b\\E", "\\h+", "\\R", "[a-z&&[^aeiou]]", "[a-z[0-9]]" })
+            "\\p{Alpha}+", "\\P{Digit}", "\\Aabc\\z", "abc\\Z", "\\Qa.b\\E", "\\h+", "\\R", "[a-z&&[^aeiou]]", "[a-z[0-9]]",
+            // Java 와 JS 의 뜻이 다르거나 Java 가 컴파일하지 못하는 것(실측) | differ between Java and JS, or invalid in Java (measured)
+            "\\x{41}", "\\v", "\\N{LATIN SMALL LETTER A}", "\\b{g}", "[]a]", "[^]a]", "\\0101", "\\101", "(a)\\12", "(a)\\2",
+            "a{,3}", "\\y", "\\k<x>", "\\u{41}", "[a-\\d]" })
     void javaOnlySyntaxIsDetected(String pattern) {
         Assertions.assertNotNull(S2RegexCompatibility.findIncompatibility(pattern), pattern);
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "^\\d+$", "\\d+", "\\++", "a+?", "a*?", "(?:ab)+", "(?=x)x", "(?!y)x", "(?<=x)y", "(?<!x)y",
-            "(?<name>a)\\k<name>", "[]a]", "[^]a]", "[\\[\\]]", "\\\\p", "[+*?]+", "a{2,3}", "a{2}?", "^a|b$", "[가-힣]{2,5}" })
+            "(?<name>a)\\k<name>", "(a)\\1", "(?<n>a)(b)\\2", "[\\[\\]]", "\\\\p", "[+*?]+", "a{2,3}", "a{2}?", "^a|b$", "[가-힣]{2,5}" })
     void ecmaCompatibleSyntaxIsAccepted(String pattern) {
         Assertions.assertNull(S2RegexCompatibility.findIncompatibility(pattern), pattern);
         // Anything accepted must also compile in a flagless JS RegExp, wrapped as s2.validator.js does. | 허용한 패턴은 s2.validator.js 처럼 감싼 플래그 없는 JS RegExp 로도 컴파일되어야 함

@@ -10,9 +10,12 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 - **`S2Validator`, `S2Field`, `S2Rule` and `S2Condition` are no longer `Serializable`.** With any lambda rule, serialization always failed with `NotSerializableException` because of an internal lambda, so the contract could not be kept.
   A validator is configuration: share it as a `static final` constant (or a Spring bean) instead of serializing it into a session.
+  If an object stored in a session, or a view/session-scoped bean (JSF, Vaadin, …), holds a validator in an instance field, session persistence or replication fails with `NotSerializableException`; make that field `static final` or mark it `transient`.
 
 ### ⚠️ Behavior changes
 
+- **Server/browser verdicts for user regexes (`REGEX`, converted `@Pattern`) agree more closely.** The browser evaluates with the `u` flag when possible, so emoji and other astral characters count as one character as in Java, and `.` no longer matches U+0085 (as in Java).
+  More syntax that means different things in Java and JS is now refused for rules JSON (`IllegalStateException`; BV conversion keeps it server-only): `\x{…}`, `\v`, `\N{…}`, `\b{g}`, `]` right after `[` (`[]a]`, `[^]a]`), octal `\0…`, multi-digit or missing-group backreferences (`\12`), and patterns Java cannot compile (`a{,3}`, `\y`).
 - **`S2Util.getValue` no longer swallows exceptions thrown by the getter itself; it throws `S2PropertyAccessException` (with the property path and cause).** A missing property or a `null` along the path still yields `null` (or the default value).
   Previously a getter failure (lazy-loading failure, NPE in a computed getter, …) became an empty value, so in the validator `REQUIRED` failed with a misleading message and the other rules (`EMAIL`, `MAX_LENGTH`, …) **silently passed**.
   For the same reason `S2Copier`, `setValue` (nested paths) and `getValueAll` report getter failures too. JVM errors such as `OutOfMemoryError` are no longer swallowed.

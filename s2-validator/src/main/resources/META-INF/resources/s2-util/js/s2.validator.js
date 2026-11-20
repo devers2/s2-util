@@ -1631,7 +1631,9 @@ const ELEMENT_WISE_RULES = new Set([
 // Java 정규식의 \s 와 같은 공백 문자 (JS \s 는 NBSP 등 유니코드 공백도 포함해 서버보다 엄격·느슨해짐)
 const JAVA_SPACE = '\\t\\n\\x0B\\f\\r ';
 
-// 정규식의 \s·\S 를 Java 의미로 바꿈. 문자 클래스 안의 \S 는 서버가 내보내지 않음(S2RegexCompatibility)
+// 정규식의 \s·\S·. 를 Java 의미로 바꿈. 문자 클래스 안의 \S 는 서버가 내보내지 않음(S2RegexCompatibility)
+// Java 의 '.' 은 줄 끝 문자(\n \r U+0085 U+2028 U+2029)와 일치하지 않지만 JS 는 U+0085 와 일치하므로 클래스 밖의 '.' 을 바꿈
+const JAVA_DOT = '[^\\n\\r\\u0085\\u2028\\u2029]';
 const javaWhitespace = (pattern) => {
   let out = '';
   let inClass = false;
@@ -1649,6 +1651,9 @@ const javaWhitespace = (pattern) => {
       if (c === ']') inClass = false;
     } else if (c === '[') {
       inClass = true;
+    } else if (c === '.') {
+      out += JAVA_DOT;
+      continue;
     }
     out += c;
   }
@@ -1665,7 +1670,14 @@ const fullMatchRegExp = (rawRegex) => {
   let regExp = FULL_MATCH_CACHE.get(rawRegex);
   if (!regExp) {
     // Java matcher.matches() 와 같도록 항상 전체를 감싼다(잘못된 패턴이면 SyntaxError 를 그대로 던짐 — 호출부가 처리)
-    regExp = new RegExp(`^(?:${javaWhitespace(rawRegex)})$`);
+    const source = `^(?:${javaWhitespace(rawRegex)})$`;
+    try {
+      // u 플래그: Java 처럼 코드 포인트 단위로 본다('.' 이 이모지 한 글자와 일치, [\uD83D\uDE00] 이 한 문자)
+      regExp = new RegExp(source, 'u');
+    } catch (e) {
+      // u 에서만 문법 오류인 패턴(\- 같은 Java 가 허용하는 이스케이프)은 플래그 없이 평가한다
+      regExp = new RegExp(source);
+    }
     if (FULL_MATCH_CACHE.size >= FULL_MATCH_CACHE_LIMIT) FULL_MATCH_CACHE.clear();
     FULL_MATCH_CACHE.set(rawRegex, regExp);
   }

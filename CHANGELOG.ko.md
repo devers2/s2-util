@@ -10,9 +10,12 @@
 
 - **`S2Validator`·`S2Field`·`S2Rule`·`S2Condition` 은 더 이상 `Serializable` 이 아닙니다.** 람다 규칙이 하나라도 있으면 내부 람다 때문에 항상 `NotSerializableException` 이 나서 지킬 수 없는 계약이었습니다.
   검증기는 설정 객체이므로 세션 등에 직렬화하지 말고 `static final` 상수(또는 Spring 빈)로 공유하십시오.
+  세션에 저장되는 객체나 JSF·Vaadin 등의 view/session scope 빈이 검증기를 인스턴스 필드로 가지면 세션 저장·복제 때 `NotSerializableException` 이 나므로, 그 필드는 `static final` 로 바꾸거나 `transient` 로 표시하십시오.
 
 ### ⚠️ 동작 변경
 
+- **사용자 정규식(`REGEX`·`@Pattern` 변환)의 서버·브라우저 판정을 더 맞췄습니다.** 브라우저는 가능하면 `u` 플래그로 평가해 이모지 등을 Java 처럼 한 글자로 보고, `.` 은 Java 처럼 U+0085 와 일치하지 않습니다.
+  두 쪽 뜻이 달라 규칙 JSON 으로 내보내지 않는(`IllegalStateException`, BV 변환은 서버 전용) 문법이 늘었습니다: `\x{…}`·`\v`·`\N{…}`·`\b{g}`, `[` 바로 뒤의 `]`(`[]a]`·`[^]a]`), 8진수 `\0…`, 여러 자리·없는 그룹 역참조(`\12`), Java 가 컴파일하지 못하는 패턴(`a{,3}`·`\y`).
 - **`S2Util.getValue` 는 getter 자체가 던진 예외를 삼키지 않고 `S2PropertyAccessException`(속성 경로·원인 포함)으로 던집니다.** 없는 속성·경로 중간의 `null` 은 이전처럼 `null`(또는 기본값)입니다.
   이전에는 getter 예외(지연 로딩 실패, 계산 getter 의 NPE 등)가 빈 값이 되어, 검증기에서 `REQUIRED` 는 엉뚱한 메시지로 실패하고 나머지 규칙(`EMAIL`·`MAX_LENGTH` 등)은 **조용히 통과**했습니다.
   같은 이유로 `S2Copier`·`setValue`(중첩 경로)·`getValueAll` 도 getter 실패를 알립니다. `OutOfMemoryError` 같은 JVM 오류도 더 이상 삼키지 않습니다.
