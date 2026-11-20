@@ -104,6 +104,8 @@
 
 ### 수정
 
+- `S2Util.getValue` 가 JDK 클래스의 공개 메서드(`String.length`·`BigDecimal.scale` 등)를 읽지 못하고 `null` 과 ERROR 로그를 내던 문제 — 공개 클래스의 공개 멤버는 접근 권한을 바꾸지 않고 읽습니다. 접근할 수 없는 멤버는 WARN 으로 한 번 알립니다.
+- `S2Cache.getFields` 가 JDK 클래스(열리지 않은 모듈)에서 `InaccessibleObjectException` 을 던지던 문제. `S2Cache.resolve` 의 값 타입 검사가 DEBUG 로그일 때만 동작하던 문제(항상 검사), 예외 메시지를 영어로.
 - `S2Util.getValue` 가 Lombok 이 `Boolean isXxx` 필드에 만드는 `getIsXxx()` 와, getter 모양 이름(`is3d`)의 필드를 읽지 못하고 항상 `null` 을 돌려주던 문제. `getValueAll` 은 static getter 를 속성으로 넣지 않습니다.
 - `S2Util.checkDependency` 의 예외 메시지가 한국어로만 나오던 문제(영어로), 확인 대상 클래스를 초기화하지 않습니다.
 - `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` 에서 Supplier 가 `null` 을 돌려주면 `NullPointerException` 이 나던 문제 — 그 값은 설정하지 않습니다.

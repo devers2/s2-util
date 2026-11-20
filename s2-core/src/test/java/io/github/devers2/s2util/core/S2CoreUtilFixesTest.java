@@ -406,4 +406,19 @@ class S2CoreUtilFixesTest {
         assertEquals(Boolean.TRUE, S2Util.cast(" TRUE ", Boolean.class));
         assertEquals(Boolean.FALSE, S2Util.cast("Off", Boolean.class));
     }
+
+    @Test
+    void s2CacheReadsJdkPublicMembersAndDoesNotThrowOnClosedModules() {
+        // 공개 클래스의 공개 메서드는 모듈이 열려 있지 않아도 읽는다(이전에는 null + ERROR 로그)
+        assertEquals(3, (int) S2Util.getValue("abc", "length"));
+        assertEquals(2, (int) S2Util.getValue(new java.math.BigDecimal("1.50"), "scale"));
+        // JDK 클래스의 필드 목록도 예외 없이(접근 설정은 열린 모듈만)
+        assertTrue(S2Cache.getFields(java.util.ArrayList.class).isPresent());
+        // 동적 캐시의 값 타입 검사는 로그 수준과 무관
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+            @SuppressWarnings({ "rawtypes", "unchecked" })
+            java.util.function.Function<String, java.util.Optional<Integer>> wrong = (java.util.function.Function) (java.util.function.Function<String, java.util.Optional<String>>) k -> java.util.Optional.of("text");
+            S2Cache.resolve("s2.test.corrupted", "k", String.class, Integer.class, 10, wrong);
+        });
+    }
 }

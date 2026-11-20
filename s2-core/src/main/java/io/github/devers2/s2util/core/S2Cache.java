@@ -253,7 +253,7 @@ public class S2Cache {
     };
 
     /**
-     * Per-class cache of declared fields made accessible. Kept in a {@link ClassValue} so redeployed or
+     * Per-class cache of declared fields made accessible where the module allows it (others are left as is). Kept in a {@link ClassValue} so redeployed or
      * reloaded classes are not retained by this static cache.
      *
      * <p>
@@ -267,9 +267,9 @@ public class S2Cache {
         protected Field[] computeValue(Class<?> type) {
             Field[] fieldArray = type.getDeclaredFields();
 
-            // 모든 필드에 대해 접근 권한 부여함
+            // 모든 필드에 대해 접근 권한 부여를 시도함 — 열리지 않은 모듈(JDK 클래스 등)의 필드는 예외 없이 그대로 둔다
             for (Field field : fieldArray) {
-                field.setAccessible(true);
+                field.trySetAccessible();
             }
             return fieldArray;
         }
@@ -652,7 +652,7 @@ public class S2Cache {
         if (!keyType.isInstance(key)) {
             throw new IllegalArgumentException(
                     String.format(
-                            "[S2Cache] 타입 불일치: 캐시(%s)는 %s 타입을 요구하지만 %s 가 입력됨",
+                            "[S2Cache] Type mismatch: cache '%s' requires a key of type %s but got %s",
                             cacheName, keyType.getSimpleName(), key.getClass().getSimpleName()));
         }
 
@@ -681,11 +681,11 @@ public class S2Cache {
             return Optional.empty();
         }
 
-        if (logger.isDebugEnabled()) {
-            if (value.isPresent() && !valueType.isInstance(value.get())) {
-                DYNAMIC_CACHES.remove(cacheKey);
-                throw new IllegalStateException("[S2Cache] 캐시 데이터 오염됨: 예상 타입 " + valueType.getSimpleName());
-            }
+        // 값 타입 검사는 로그 수준과 무관하게 항상 한다(isInstance 한 번) — 이전에는 DEBUG 일 때만 해서 동작이 로그 설정에 따라 달랐다
+        if (value.isPresent() && !valueType.isInstance(value.get())) {
+            DYNAMIC_CACHES.remove(cacheKey);
+            throw new IllegalStateException("[S2Cache] Corrupted cache '" + cacheName + "': expected a value of type "
+                    + valueType.getSimpleName() + " but got " + value.get().getClass().getSimpleName());
         }
 
         return value;
@@ -840,7 +840,8 @@ public class S2Cache {
     /**
      * Retrieves all declared fields for a class, leveraging high-performance caching.
      * <p>
-     * Fields are pre-processed with {@link java.lang.reflect.Field#setAccessible(boolean)} set to true.
+     * Fields are made accessible with {@link java.lang.reflect.Field#trySetAccessible()} where the module allows it;
+     * fields of modules that are not open (e.g. JDK classes) are left as is instead of throwing.
      * The returned array is shared by all callers and must not be modified.
      * If {@code clazz} is a proxy (Hibernate/CGLIB), it is resolved to the real entity
      * class via {@link #getRealClass(Class)} first, so callers get the entity's actual
@@ -853,7 +854,8 @@ public class S2Cache {
      * </p>
      * 캐싱을 적용하여 클래스의 모든 선언된 필드(Declared Fields)를 반환합니다.
      * <p>
-     * 조회된 필드들은 즉시 접근 가능하도록 설정되어 있습니다. 반환 배열은 모든 호출자가 공유하므로 수정하면 안 됩니다.
+     * 조회된 필드들은 가능하면 접근 가능하도록 설정되어 있습니다(열리지 않은 모듈의 필드, 예: JDK 클래스는 그대로이며 예외를 내지 않음).
+     * 반환 배열은 모든 호출자가 공유하므로 수정하면 안 됩니다.
      * {@code clazz}가 프록시(Hibernate/CGLIB)라면 먼저 {@link #getRealClass(Class)}로 실제 엔티티 클래스를
      * 구해서 사용하므로, 프록시의 합성 필드가 아닌 엔티티의 실제 필드를 얻으며 어떤 프록시 서브클래스가
      * 들어와도 캐시 항목을 공유합니다.
@@ -1043,7 +1045,7 @@ public class S2Cache {
                 OPTIONAL_IS_PRESENT = lookup.findVirtual(Optional.class, "isPresent",
                         MethodType.methodType(boolean.class));
             } catch (NoSuchMethodException | IllegalAccessException e) {
-                throw new ExceptionInInitializerError("[MethodHandleResolver] 정적 초기화 실패: " + e.getMessage());
+                throw new ExceptionInInitializerError("[MethodHandleResolver] Static initialization failed: " + e.getMessage());
             }
         }
 
@@ -1275,9 +1277,9 @@ public class S2Cache {
              * 콤팩트 생성자를 통한 유효성 검사 및 방어적 복사
              */
             public MethodKey {
-                Objects.requireNonNull(targetClass, "[MethodKey] targetClass는 필수 입력 값입니다.");
+                Objects.requireNonNull(targetClass, "[MethodKey] targetClass is required");
                 if (methodName == null || methodName.isBlank()) {
-                    throw new IllegalArgumentException("[MethodKey] methodName은 필수 입력 값입니다.");
+                    throw new IllegalArgumentException("[MethodKey] methodName is required");
                 }
                 paramTypes = (paramTypes == null) ? EMPTY_TYPES : paramTypes.clone();
             }
@@ -1715,6 +1717,15 @@ public class S2Cache {
          * @return Created MethodHandle, or null if creation fails | 생성된 MethodHandle, 실패 시 null 반환
          */
         private static MethodHandle createHandle(Method method, Class<?> clazz, boolean allowPrivate) {
+            // 공개 클래스의 공개 메서드는 접근 권한을 바꾸지 않고 만든다 — JDK 클래스(String.length, BigDecimal.scale 등)는
+            // 모듈이 열려 있지 않아 privateLookupIn·setAccessible 이 막힌다
+            if (isPublicMember(method.getModifiers(), method.getDeclaringClass())) {
+                try {
+                    return MethodHandles.publicLookup().unreflect(method);
+                } catch (IllegalAccessException e) {
+                    // 내보내지 않은 패키지 등 — 아래에서 다시 시도
+                }
+            }
             try {
                 // 리플렉션 접근 권한을 강제로 허용함
                 method.setAccessible(true);
@@ -1722,8 +1733,28 @@ public class S2Cache {
                         : MethodHandles.lookup();
                 return lookup.unreflect(method);
             } catch (Exception e) {
-                logger.error("메서드 핸들 생성을 실패하였습니다: {}", method.getName());
+                warnInaccessible(clazz, method.getName(), e);
                 return null;
+            }
+        }
+
+        /**
+         * 공개 클래스의 공개 멤버인지. 바깥 클래스는 보지 않는다(getEnclosingClass 는 다른 로더로 다시 로드한 클래스에서
+         * IllegalAccessError 를 낼 수 있음) — 바깥이 비공개면 publicLookup 이 IllegalAccessException 을 내고 기존 방식으로 다시 시도한다.
+         */
+        private static boolean isPublicMember(int memberModifiers, Class<?> declaringClass) {
+            return java.lang.reflect.Modifier.isPublic(memberModifiers)
+                    && java.lang.reflect.Modifier.isPublic(declaringClass.getModifiers());
+        }
+
+        /** 멤버는 있지만 접근할 수 없을 때(열리지 않은 모듈 등) 알린다 — 결과가 빈 값으로 캐시되어 키마다 한 번만 기록됨 */
+        private static void warnInaccessible(Class<?> clazz, String member, Exception e) {
+            if (S2Util.isKorean()) {
+                logger.warn("[S2Cache] {}.{} 에 접근할 수 없어 없는 것으로 처리합니다(모듈이 열려 있지 않으면 opens 가 필요): {}",
+                        clazz.getName(), member, e.toString());
+            } else {
+                logger.warn("[S2Cache] Cannot access {}.{}; treating it as absent (open the module/package if needed): {}",
+                        clazz.getName(), member, e.toString());
             }
         }
 
@@ -1742,12 +1773,19 @@ public class S2Cache {
          * @return Getter MethodHandle, or null if creation fails | 필드 Getter 핸들, 실패 시 null 반환
          */
         private static MethodHandle createFieldHandle(Field f, Class<?> clazz) {
+            if (isPublicMember(f.getModifiers(), f.getDeclaringClass())) {
+                try {
+                    return MethodHandles.publicLookup().unreflectGetter(f);
+                } catch (IllegalAccessException e) {
+                    // 아래에서 다시 시도
+                }
+            }
             try {
                 // 필드 접근 권한을 강제로 허용함
                 f.setAccessible(true);
                 return MethodHandles.privateLookupIn(clazz, MethodHandles.lookup()).unreflectGetter(f);
             } catch (Exception e) {
-                logger.error("필드 핸들 생성을 실패하였습니다: {}", f.getName());
+                warnInaccessible(clazz, f.getName(), e);
                 return null;
             }
         }

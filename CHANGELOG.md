@@ -109,6 +109,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2Util.getValue` could not read public methods of JDK classes (`String.length`, `BigDecimal.scale`, ...), returning `null` with an ERROR log — public members of public classes are now read without changing access. Inaccessible members are reported once at WARN.
+- `S2Cache.getFields` threw `InaccessibleObjectException` for JDK classes (modules not open). `S2Cache.resolve` checked the value type only when DEBUG logging was on (now always); exception messages are in English.
 - `S2Util.getValue` could not read Lombok's `getIsXxx()` for a `Boolean isXxx` field or a field whose name looks like a getter (`is3d`), always returning `null`. `getValueAll` no longer lists static getters as properties.
 - `S2Util.checkDependency` threw a Korean-only message (now English) and no longer initializes the checked class.
 - `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` threw `NullPointerException` when a Supplier returned `null` — that value is now left unset.
