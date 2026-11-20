@@ -21,7 +21,7 @@
 package io.github.devers2.s2util.exception;
 
 /**
- * Thrown when reading a property fails because its getter itself threw an exception (for example a lazy-loading
+ * Thrown when reading (or writing) a property fails because its getter (or setter) itself threw an exception (for example a lazy-loading
  * failure or a {@code NullPointerException} inside a computed getter). A property that does not exist or whose value
  * is {@code null} is not an error; only failures of the getter are reported, so that they are not mistaken for an
  * empty value.
@@ -29,7 +29,7 @@ package io.github.devers2.s2util.exception;
  * <p>
  * <b>[한국어 설명]</b>
  * </p>
- * 속성을 읽을 때 getter 자체가 예외를 던져 실패하면 발생합니다(예: 지연 로딩 실패, 계산 getter 안의
+ * 속성을 읽을(쓸) 때 getter(setter) 자체가 예외를 던져 실패하면 발생합니다(예: 지연 로딩 실패, 계산 getter 안의
  * {@code NullPointerException}). 속성이 없거나 값이 {@code null} 인 것은 오류가 아니며, getter 의 실패만 알려
  * 빈 값으로 오인되지 않게 합니다.
  *
@@ -56,7 +56,24 @@ public class S2PropertyAccessException extends S2RuntimeException {
      * @param cause        Exception thrown by the getter | getter 가 던진 예외
      */
     public S2PropertyAccessException(String propertyPath, Class<?> targetClass, Throwable cause) {
-        super("Failed to read property '" + propertyPath + "' of "
+        this(propertyPath, targetClass, cause, false);
+    }
+
+    /**
+     * Creates the exception for the property whose getter or setter failed.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * getter 또는 setter 가 실패한 속성에 대한 예외를 생성합니다.
+     *
+     * @param propertyPath Property name or path (e.g. "address.zip") | 속성 이름 또는 경로 (예: "address.zip")
+     * @param targetClass  Class of the object accessed | 접근한 객체의 클래스
+     * @param cause        Exception thrown by the getter or setter | getter·setter 가 던진 예외
+     * @param write        {@code true} if writing (setter) failed | 쓰기(setter)가 실패했으면 {@code true}
+     */
+    public S2PropertyAccessException(String propertyPath, Class<?> targetClass, Throwable cause, boolean write) {
+        super("Failed to " + (write ? "write" : "read") + " property '" + propertyPath + "' of "
                 + (targetClass != null ? targetClass.getName() : "null") + ": " + cause, cause);
         this.propertyPath = propertyPath;
         this.targetClass = targetClass;

@@ -316,4 +316,72 @@ class S2CoreUtilFixesTest {
         // getValueAll 은 저장된 값 그대로
         assertEquals("", S2Util.getValueAll(new java.util.HashMap<>(Map.of("a", ""))).get("a"));
     }
+
+    public static class LombokBoolean {
+        private Boolean isDeleted = true;
+        private String is3d = "x";
+
+        public Boolean getIsDeleted() {
+            return isDeleted;
+        }
+
+        public void setIsDeleted(Boolean isDeleted) {
+            this.isDeleted = isDeleted;
+        }
+
+        public static String getInstanceName() {
+            return "static";
+        }
+    }
+
+    public record ThrowingRecord(String name) {
+        public String name() {
+            throw new IllegalStateException("boom");
+        }
+    }
+
+    public static class ThrowingSetter {
+        public String name;
+
+        public void setName(String name) {
+            throw new IllegalArgumentException("invalid");
+        }
+    }
+
+    public static class ThrowingCtor {
+        public ThrowingCtor() {
+            throw new IllegalStateException("ctor");
+        }
+    }
+
+    @Test
+    void s2UtilReviewFixes() {
+        var ex = io.github.devers2.s2util.exception.S2PropertyAccessException.class;
+        // Lombok 의 Boolean isXxx → getIsXxx(), getter 모양 이름의 필드, static getter 는 getValueAll 에서 제외
+        assertEquals(Boolean.TRUE, S2Util.getValue(new LombokBoolean(), "isDeleted"));
+        assertEquals("x", S2Util.getValue(new LombokBoolean(), "is3d"));
+        assertFalse(S2Util.getValueAll(new LombokBoolean()).containsKey("instanceName"));
+        // 레코드 접근자·setter·생성자 자체의 실패는 알린다(타입이 맞지 않는 값은 false)
+        org.junit.jupiter.api.Assertions.assertThrows(ex, () -> S2Util.getValue(new ThrowingRecord("a"), "name"));
+        org.junit.jupiter.api.Assertions.assertThrows(ex, () -> S2Util.setValue(new ThrowingSetter(), "name", "v"));
+        assertFalse(S2Util.setValue(new LombokBoolean(), "isDeleted", "not a boolean"));
+        org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2RuntimeException.class,
+                () -> S2Util.createInstance(ThrowingCtor.class));
+        // cast: 정수는 정확히 맞는 값만, 숫자 문자열 공백 허용, BigDecimal·enum, Boolean 은 정해진 단어만
+        assertNull(S2Util.cast(3.7, Integer.class));
+        assertNull(S2Util.cast(10_000_000_000L, Integer.class));
+        assertEquals(1, (int) S2Util.cast(1.0, Integer.class));
+        assertEquals(12, (int) S2Util.cast("12 ", Integer.class));
+        assertEquals(new java.math.BigDecimal("1000.50"), S2Util.cast("1000.50", java.math.BigDecimal.class));
+        assertEquals(java.time.DayOfWeek.MONDAY, S2Util.cast("MONDAY", java.time.DayOfWeek.class));
+        assertEquals(Boolean.TRUE, S2Util.cast("on", Boolean.class));
+        assertEquals(Boolean.TRUE, S2Util.cast("Y", Boolean.class));
+        assertEquals(Boolean.FALSE, S2Util.cast("N", Boolean.class));
+        assertNull(S2Util.cast("abc", Boolean.class));
+        assertEquals(Boolean.FALSE, S2Util.cast("abc", false));
+        // Optional: 비었거나 안의 값이 빈 값이면 빈 값
+        assertTrue(S2Util.isEmpty(java.util.Optional.empty()));
+        assertTrue(S2Util.isEmpty(java.util.Optional.of(" ")));
+        assertFalse(S2Util.isEmpty(java.util.Optional.of("a")));
+    }
 }

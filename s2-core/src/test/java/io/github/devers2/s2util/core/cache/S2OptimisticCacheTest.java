@@ -137,7 +137,8 @@ class S2OptimisticCacheTest {
     @Test
     void clearKeepsSizeCounterConsistent() throws InterruptedException {
         // clear() 가 동시 삽입과 겹쳐도 크기 카운터가 실제 항목 수와 같아야 한다(어긋나면 상한이 무너짐)
-        S2OptimisticCache<Integer, Integer> cache = new S2OptimisticCache<>(1_000_000);
+        // 상한은 넉넉히: 부하가 크면 삽입이 100만을 넘어 비동기 축출이 돌고, 축출이 끝나기 전에 세면 값이 어긋난다(이 시험의 대상이 아님)
+        S2OptimisticCache<Integer, Integer> cache = new S2OptimisticCache<>(100_000_000);
         AtomicInteger next = new AtomicInteger();
         Runnable inserter = () -> cache.get(next.incrementAndGet(), k -> k);
         Runnable clearer = cache::clear;

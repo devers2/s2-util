@@ -14,6 +14,10 @@
 
 ### ⚠️ 동작 변경
 
+- **`S2Util.cast`(와 `getValue(…, Class)`) 형변환을 정확하게 바꿨습니다.** 정수 타입은 정확히 맞는 값만 받습니다 — 이전에는 `3.7` → `3`, `10000000000` → `1410065408` 처럼 조용히 잘리거나 넘쳤고, 이제 변환 실패(기본값, 없으면 `null`)입니다.
+  숫자 문자열의 앞뒤 공백을 허용하고(`"12 "` → 12), `BigDecimal`·`BigInteger`·`Short`·`Byte`·열거형(상수 이름)을 지원합니다(이전에는 `ClassCastException`). Boolean 은 `true/1/on/yes/y`·`false/0/off/no/n` 만 인식하고 그 밖은 변환 실패입니다(이전에는 모두 `false`).
+- **setter·생성자·레코드 접근자 자체가 던진 예외를 삼키지 않습니다.** `setValue` 는 `S2PropertyAccessException`(쓰기), `createInstance` 는 `S2RuntimeException` 을 던집니다. 쓸 곳이 없거나 값 타입이 맞지 않으면 이전처럼 `false`/`null` 입니다. `S2Copier` 도 setter 실패를 알립니다.
+- `S2Util.isEmpty` 는 `Optional.empty()` 와 빈 값을 담은 `Optional` 을 빈 값으로 봅니다(검증기에서 `Optional` 필드의 `REQUIRED` 가 통과하던 문제).
 - **`S2Util.isEmpty` 의 공백 정의를 JavaScript `trim()` 과 같게 바꿨습니다.** NBSP(U+00A0)·U+2007·U+202F·BOM(U+FEFF)만 있는 문자열은 빈 값이고, 제어 문자 U+001C~U+001F 는 공백이 아닙니다(이전에는 `Character.isWhitespace` 기준으로 반대).
   이전에는 U+001F 만 든 값을 서버는 빈 값으로 보고(`EMAIL` 통과·`REQUIRED` 실패) 브라우저는 값으로 봐서 판정이 갈렸습니다.
 - **공백만 있는 값도 상한 규칙(`LENGTH`·`MAX_LENGTH`·`MAX_BYTE`)은 원래 길이로 판정합니다.** 빈 값으로 보아 건너뛰던 탓에 공백 300자가 `MAX_LENGTH 10` 을 통과해 그대로 저장될 수 있었습니다.
@@ -99,6 +103,8 @@
 
 ### 수정
 
+- `S2Util.getValue` 가 Lombok 이 `Boolean isXxx` 필드에 만드는 `getIsXxx()` 와, getter 모양 이름(`is3d`)의 필드를 읽지 못하고 항상 `null` 을 돌려주던 문제. `getValueAll` 은 static getter 를 속성으로 넣지 않습니다.
+- `S2Util.checkDependency` 의 예외 메시지가 한국어로만 나오던 문제(영어로), 확인 대상 클래스를 초기화하지 않습니다.
 - `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` 에서 Supplier 가 `null` 을 돌려주면 `NullPointerException` 이 나던 문제 — 그 값은 설정하지 않습니다.
 - `S2Jpql` 의 `LikeMode` 가 `StringBuilder` 등 `String` 이 아닌 `CharSequence` 값에는 적용되지 않던 문제.
 - `S2Template` 클래스 Javadoc 예제가 값을 그대로 넣는 `bind("name_cond", name, "AND m.name = ")` 를 안내하던 문제(SQL 주입 패턴) — 쿼리 파라미터를 쓰는 예로 바꾸고 보안 주의를 추가.

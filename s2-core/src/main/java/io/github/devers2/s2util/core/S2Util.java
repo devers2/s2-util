@@ -78,13 +78,6 @@ public class S2Util {
 
     private static final S2Logger logger = S2LogManager.getLogger(S2Util.class);
 
-    // [🔋 S2Util Core Initialization]
-    static {
-        // S2LogManager를 터치하여 라이브러리 사용 시 자동으로 경고 배너 타이머가 작동하도록 함
-        @SuppressWarnings("unused")
-        Class<?> trigger = io.github.devers2.s2util.log.S2LogManager.class;
-    }
-
     private S2Util() {
         // Prevent instantiation
     }
@@ -366,7 +359,7 @@ public class S2Util {
                     Integer index = null;
                     if (fieldName instanceof Number num) {
                         index = num.intValue();
-                    } else if (fieldName instanceof String str && str.matches("\\d+")) {
+                    } else if (fieldName instanceof String str && isDigits(str)) {
                         index = Integer.parseInt(str);
                     }
 
@@ -404,7 +397,7 @@ public class S2Util {
                         Integer index = null;
                         if (fieldName instanceof Number num) {
                             index = num.intValue();
-                        } else if (fieldName instanceof String str && str.matches("\\d+")) {
+                        } else if (fieldName instanceof String str && isDigits(str)) {
                             index = Integer.parseInt(str);
                         }
 
@@ -421,15 +414,8 @@ public class S2Util {
 
                     // 6-1. Record는 필드명과 동일한 메서드를 가짐 (METHOD 타입 즉시 조회)
                     if (clazz.isRecord()) {
-                        value = S2Cache.getMethodHandle(
-                                new MethodKey(clazz, fieldNameStr),
-                                LookupType.METHOD).map(h -> {
-                                    try {
-                                        return h.invoke(finalTarget);
-                                    } catch (Throwable t) {
-                                        return null;
-                                    }
-                                }).orElse(null);
+                        var accessor = S2Cache.getMethodHandle(new MethodKey(clazz, fieldNameStr), LookupType.METHOD);
+                        value = accessor.isPresent() ? invokeGetter(accessor.get(), finalTarget, fieldNameStr) : null;
                     }
                     // 6-2. 일반 VO는 Getter(get+Name)를 우선 탐색하고, 실패 시 필드 직접 접근(BOTH)으로 폴백한다.
                     else {
@@ -449,25 +435,23 @@ public class S2Util {
                                     LookupType.METHOD);
                         }
 
-                        // getterName과 fieldNameStr이 다를 때만 필드 직접 접근(BOTH) 시도
-                        if (methodHandle.isEmpty() && !getterName.equals(fieldNameStr)) {
+                        // 필드명이 이미 getter 모양("isDeleted")이면 그 이름 그대로 찾았으므로, Lombok 이 Boolean 래퍼에 만드는
+                        // "get" + 필드명(getIsDeleted)도 찾는다
+                        if (methodHandle.isEmpty() && isGetter(fieldNameStr)) {
+                            methodHandle = S2Cache.getMethodHandle(
+                                    new MethodKey(clazz, buildMethodName("get", fieldNameStr)),
+                                    LookupType.METHOD);
+                        }
+
+                        // 그래도 없으면 필드명과 같은 메서드·필드 직접 접근(BOTH) — getter 모양 이름("is3d")의 필드도 읽는다
+                        if (methodHandle.isEmpty()) {
                             methodHandle = S2Cache.getMethodHandle(
                                     new MethodKey(clazz, fieldNameStr),
                                     LookupType.BOTH);
                         }
 
                         if (methodHandle.isPresent()) {
-                            try {
-                                value = methodHandle.get().invoke(finalTarget);
-                            } catch (java.lang.invoke.WrongMethodTypeException e) {
-                                // 같은 이름의 static 메서드 등 호출 형태가 맞지 않는 것은 속성이 없는 것으로 본다
-                                value = null;
-                            } catch (VirtualMachineError e) {
-                                throw e;
-                            } catch (Throwable e) {
-                                // getter 자체의 실패는 빈 값으로 삼키지 않는다(검증이 조용히 통과하거나 복사 값이 빠지는 것을 막음)
-                                throw new S2PropertyAccessException(fieldNameStr, finalTarget.getClass(), e);
-                            }
+                            value = invokeGetter(methodHandle.get(), finalTarget, fieldNameStr);
                         }
                     }
                 }
@@ -537,6 +521,7 @@ public class S2Util {
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
      * @param value     The value to inject | 주입할 값
      * @return {@code true} if the value was successfully set | 값이 성공적으로 설정되었으면 {@code true}
+     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if a getter on the path or the setter itself throws (no writable target or a type mismatch returns {@code false}) | 경로의 getter 나 setter 자체가 예외를 던질 때 (쓸 곳이 없거나 타입이 맞지 않으면 false)
      */
     public static <T, F, V> boolean setValue(T target, F fieldName, V value) {
         return setValue(target, fieldName, null, value);
@@ -577,6 +562,7 @@ public class S2Util {
      * @param valueClass The Class of the value (inferred from value if null) | 값의 클래스 (null이면 value에서 추론)
      * @param value      The value to set | 설정할 값
      * @return {@code true} if the value was successfully set, {@code false} otherwise | 값이 성공적으로 설정되었으면 {@code true}, 아니면 {@code false}
+     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if a getter on the path or the setter itself throws (no writable target or a type mismatch returns {@code false}) | 경로의 getter 나 setter 자체가 예외를 던질 때 (쓸 곳이 없거나 타입이 맞지 않으면 false)
      */
     @SuppressWarnings({ "null", "unused" })
     public static <T, F, V> boolean setValue(final T target, final F fieldName, Class<V> valueClass, final V value) {
@@ -656,7 +642,7 @@ public class S2Util {
                 Integer index = null;
                 if (fieldName instanceof Number num) {
                     index = num.intValue();
-                } else if (fieldName instanceof String str && str.matches("\\d+")) {
+                } else if (fieldName instanceof String str && isDigits(str)) {
                     index = Integer.parseInt(str);
                 }
 
@@ -680,7 +666,7 @@ public class S2Util {
                 Integer index = null;
                 if (fieldName instanceof Number num) {
                     index = num.intValue();
-                } else if (fieldName instanceof String str && str.matches("\\d+")) {
+                } else if (fieldName instanceof String str && isDigits(str)) {
                     index = Integer.parseInt(str);
                 }
 
@@ -724,11 +710,22 @@ public class S2Util {
             }
 
             if (methodHandle.isPresent()) {
-                methodHandle.get().invoke(finalTargetOrigin, value);
+                var setter = methodHandle.get();
+                // 값 타입이 맞지 않으면(변환하지 않음) 쓸 수 없는 것으로 false. 맞는데 실패하면 setter 자체의 실패라 알린다
+                if (!acceptsValue(setter.type().parameterType(1), value)) {
+                    return false;
+                }
+                try {
+                    setter.invoke(finalTargetOrigin, value);
+                } catch (VirtualMachineError e) {
+                    throw e;
+                } catch (Throwable e) {
+                    throw new S2PropertyAccessException(fieldNameStr, finalTargetOrigin.getClass(), e, true);
+                }
                 return true;
             }
         } catch (S2PropertyAccessException | VirtualMachineError e) {
-            // 경로 중간을 읽는 getter 의 실패는 getValue 와 같이 알린다(쓰기 실패만 false)
+            // getter·setter 자체의 실패는 알린다(쓸 곳이 없거나 타입이 맞지 않는 것만 false)
             throw e;
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
@@ -746,6 +743,64 @@ public class S2Util {
         }
 
         return false;
+    }
+
+    /**
+     * 인덱스로 쓸 숫자 문자열인지(0-9 만, 정규식 없이). 10자리 이상이면 int 범위를 넘을 수 있어 아니라고 본다.
+     */
+    private static boolean isDigits(String str) {
+        int n = str.length();
+        if (n == 0 || n > 9) {
+            return false;
+        }
+        for (int i = 0; i < n; i++) {
+            char c = str.charAt(i);
+            if (c < '0' || c > '9') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 메서드 핸들의 파라미터 타입이 이 값을 변환 없이 받을 수 있는지. 기본형은 같은 래퍼 값만, null 은 참조형만 받는다.
+     */
+    private static boolean acceptsValue(Class<?> parameterType, Object value) {
+        if (value == null) {
+            return !parameterType.isPrimitive();
+        }
+        return wrap(parameterType).isInstance(value);
+    }
+
+    private static Class<?> wrap(Class<?> type) {
+        if (!type.isPrimitive()) {
+            return type;
+        }
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == boolean.class) return Boolean.class;
+        if (type == double.class) return Double.class;
+        if (type == float.class) return Float.class;
+        if (type == short.class) return Short.class;
+        if (type == byte.class) return Byte.class;
+        if (type == char.class) return Character.class;
+        return Void.class;
+    }
+
+    /**
+     * getter(또는 레코드 접근자·필드 읽기 핸들)를 호출한다. 같은 이름의 static 메서드처럼 호출 형태가 맞지 않으면 속성이 없는 것으로 보고,
+     * getter 자체의 실패는 빈 값으로 삼키지 않고 {@link S2PropertyAccessException} 으로 알린다(검증이 조용히 통과하거나 복사 값이 빠지는 것을 막음).
+     */
+    private static Object invokeGetter(java.lang.invoke.MethodHandle handle, Object target, String fieldName) {
+        try {
+            return handle.invoke(target);
+        } catch (java.lang.invoke.WrongMethodTypeException e) {
+            return null;
+        } catch (VirtualMachineError e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new S2PropertyAccessException(fieldName, target.getClass(), e);
+        }
     }
 
     /**
@@ -925,7 +980,7 @@ public class S2Util {
 
             // Getter 패턴 매칭 (getXxx, boolean 을 돌려주는 isXxx) — issue(), getaway() 처럼 접두사 뒤가 소문자인 이름은 제외
             if (method.getParameterCount() == 0 && method.getReturnType() != void.class && isGetter(name)
-                    && !name.equals("getClass")) {
+                    && !name.equals("getClass") && !java.lang.reflect.Modifier.isStatic(method.getModifiers())) {
                 if (name.charAt(0) == 'g') {
                     fieldName = Character.toLowerCase(name.charAt(3)) + name.substring(4);
                 } else if (method.getReturnType() == boolean.class || method.getReturnType() == Boolean.class) {
@@ -1064,6 +1119,9 @@ public class S2Util {
      * NBSP U+00A0, U+FEFF, U+2028/2029, 유니코드 공백 구분자 전체)로, 서버와 브라우저 판정이 같습니다.
      * {@link Character#isWhitespace(char)} 와 달리 제어 문자 U+001C~U+001F 는 공백이 아닙니다.
      * </p>
+     * <p>
+     * 컬렉션·맵·배열은 크기 0 이면, {@code Optional} 은 비었거나 안의 값이 빈 값이면 빈 값입니다.
+     * </p>
      *
      * <ul>
      * <li><b>String/CharSequence:</b> {@code null} or contains only whitespace. Whitespace is the set JavaScript
@@ -1072,6 +1130,7 @@ public class S2Util {
      * the control characters U+001C–U+001F are not whitespace.</li>
      * <li><b>Collection/Map:</b> {@code null} or {@code size == 0}.</li>
      * <li><b>Array:</b> {@code null} or {@code length == 0} (primitive arrays supported).</li>
+     * <li><b>Optional:</b> {@code Optional.empty()}, or an {@code Optional} whose value is empty.</li>
      * </ul>
      *
      * @param <T>   The type of the object | 객체의 타입
@@ -1096,7 +1155,11 @@ public class S2Util {
         if (value instanceof CharSequence cs)
             return isBlank(cs);
 
-        // 4. 배열 (성능 최적화 구간)
+        // 4. Optional: 비었으면 빈 값, 값이 있으면 안의 값으로 판단 (getValue 가 Optional 을 풀어 보는 것과 같음)
+        if (value instanceof Optional<?> opt)
+            return opt.isEmpty() || isEmpty(opt.get());
+
+        // 5. 배열 (성능 최적화 구간)
         if (value.getClass().isArray()) {
             if (value instanceof Object[] arr)
                 return arr.length == 0;
@@ -1298,9 +1361,17 @@ public class S2Util {
      * </p>
      *
      * <ul>
-     * <li><b>Numbers:</b> Safe conversion between different numeric types (e.g., Double &rarr; Integer).</li>
-     * <li><b>Boolean:</b> Supports {@code "true"}, {@code "1"} for truthy evaluation.</li>
+     * <li><b>Numbers:</b> Conversion between numeric types and from numeric strings (surrounding spaces allowed).
+     * Integer types ({@code Integer}, {@code Long}, {@code Short}, {@code Byte}, {@code BigInteger}) accept only values
+     * that fit exactly: a fraction ({@code 3.7}) or an out-of-range value is a conversion failure, never truncated or
+     * overflowed. {@code BigDecimal} is supported. | 숫자 타입 사이·숫자 문자열(앞뒤 공백 허용) 변환. 정수 타입은 정확히 맞는 값만
+     * 받고, 소수({@code 3.7})·범위 초과는 잘라 내거나 넘치지 않고 변환 실패.</li>
+     * <li><b>Boolean:</b> {@code true}/{@code 1}/{@code on}/{@code yes}/{@code y} and {@code false}/{@code 0}/{@code off}/{@code no}/{@code n}
+     * (case-insensitive); anything else is a conversion failure. | 그 밖의 문자열은 변환 실패.</li>
+     * <li><b>Enum:</b> by constant name. | 상수 이름으로.</li>
      * <li><b>String:</b> Universal {@code toString()} fallback for target String type.</li>
+     * <li>A conversion failure returns {@code defaultValue} ({@code null} without one). Other unrelated types throw
+     * {@link ClassCastException}. | 변환 실패는 기본값(없으면 null). 그 밖의 관계없는 타입은 ClassCastException.</li>
      * </ul>
      *
      * @param <V>          Input type
@@ -1337,41 +1408,70 @@ public class S2Util {
                 return castCls.cast(value);
             }
 
-            // Performance-Path: 숫자/프리미티브 타입 변환
+            // 정수 타입: 소수점이 있거나 범위를 넘는 값은 잘라 내거나 넘치게 하지 않고 변환 실패(기본값)로 본다 (3.7 → 3, 1e10 → 음수 방지)
             if (castCls == int.class || castCls == Integer.class) {
-                if (value instanceof Number n) {
-                    return (T) Integer.valueOf(n.intValue());
-                }
-                return (T) Integer.valueOf(value.toString());
+                Long l = toExactLong(value);
+                return l != null && l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE ? (T) Integer.valueOf(l.intValue()) : defaultValue;
             }
             if (castCls == long.class || castCls == Long.class) {
-                if (value instanceof Number n) {
-                    return (T) Long.valueOf(n.longValue());
-                }
-                return (T) Long.valueOf(value.toString());
+                Long l = toExactLong(value);
+                return l != null ? (T) l : defaultValue;
+            }
+            if (castCls == short.class || castCls == Short.class) {
+                Long l = toExactLong(value);
+                return l != null && l >= Short.MIN_VALUE && l <= Short.MAX_VALUE ? (T) Short.valueOf(l.shortValue()) : defaultValue;
+            }
+            if (castCls == byte.class || castCls == Byte.class) {
+                Long l = toExactLong(value);
+                return l != null && l >= Byte.MIN_VALUE && l <= Byte.MAX_VALUE ? (T) Byte.valueOf(l.byteValue()) : defaultValue;
             }
             if (castCls == float.class || castCls == Float.class) {
                 if (value instanceof Number n) {
                     return (T) Float.valueOf(n.floatValue());
                 }
-                return (T) Float.valueOf(value.toString());
+                return (T) Float.valueOf(value.toString().trim());
             }
             if (castCls == double.class || castCls == Double.class) {
                 if (value instanceof Number n) {
                     return (T) Double.valueOf(n.doubleValue());
                 }
-                return (T) Double.valueOf(value.toString());
+                return (T) Double.valueOf(value.toString().trim());
+            }
+            if (castCls == BigDecimal.class) {
+                BigDecimal d = toBigDecimal(value);
+                return d != null ? (T) d : defaultValue;
+            }
+            if (castCls == java.math.BigInteger.class) {
+                BigDecimal d = toBigDecimal(value);
+                try {
+                    return d != null ? (T) d.toBigIntegerExact() : defaultValue;
+                } catch (ArithmeticException e) {
+                    return defaultValue;
+                }
             }
             if (castCls == boolean.class || castCls == Boolean.class) {
                 if (value instanceof Boolean b) {
                     return (T) b;
                 }
-                String s = value.toString().trim().toLowerCase();
-                // 추가 개선: "1"/"true" -> true, "0"/"false" -> false, 나머지 false (Boolean.parseBoolean 확장)
-                boolean res = "1".equals(s) || "true".equals(s);
-                return (T) Boolean.valueOf(res);
+                // 참: true·1·on·yes·y, 거짓: false·0·off·no·n (대소문자 무시, 체크박스 "on"·Y/N 플래그 포함). 그 밖은 변환 실패
+                switch (value.toString().trim().toLowerCase(Locale.ROOT)) {
+                    case "true", "1", "on", "yes", "y":
+                        return (T) Boolean.TRUE;
+                    case "false", "0", "off", "no", "n":
+                        return (T) Boolean.FALSE;
+                    default:
+                        return defaultValue;
+                }
             }
-
+            if (castCls.isEnum() && value instanceof CharSequence name) {
+                // 열거형은 상수 이름으로 (없는 이름은 변환 실패)
+                for (T constant : castCls.getEnumConstants()) {
+                    if (((Enum<?>) constant).name().equals(name.toString().trim())) {
+                        return constant;
+                    }
+                }
+                return defaultValue;
+            }
             // Common-Path: 문자열 및 기타
             if (castCls == String.class) {
                 return (T) value.toString();
@@ -1386,12 +1486,52 @@ public class S2Util {
     }
 
     /**
+     * 정수로 정확히 바꿀 수 있으면 long, 소수점이 있거나 long 범위를 넘거나 숫자가 아니면 null.
+     */
+    private static Long toExactLong(Object value) {
+        if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
+            return ((Number) value).longValue();
+        }
+        BigDecimal d = toBigDecimal(value);
+        if (d == null) {
+            return null;
+        }
+        try {
+            return d.longValueExact();
+        } catch (ArithmeticException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 숫자·숫자 문자열(앞뒤 공백 허용)을 BigDecimal 로. NaN·무한대·숫자가 아니면 null.
+     */
+    private static BigDecimal toBigDecimal(Object value) {
+        try {
+            if (value instanceof BigDecimal d) {
+                return d;
+            }
+            if (value instanceof java.math.BigInteger i) {
+                return new BigDecimal(i);
+            }
+            if (value instanceof Double || value instanceof Float) {
+                double d = ((Number) value).doubleValue();
+                return Double.isFinite(d) ? BigDecimal.valueOf(d) : null;
+            }
+            return new BigDecimal(value.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * 클래스 타입을 기반으로 새 인스턴스를 생성한다. (MethodHandle 캐시 활용)
      *
      * @param clazz 생성할 클래스 타입
      * @param args  생성자에 전달할 인자 (전달하지 않으면 기본 생성자 호출)
      * @param <T>   반환할 인스턴스 타입
-     * @return The created instance, or {@code null} if creation fails | 생성된 인스턴스 또는 실패 시 {@code null}
+     * @return The created instance, or {@code null} if no constructor accepts the arguments | 생성된 인스턴스, 인자를 받는 생성자가 없으면 {@code null}
+     * @throws io.github.devers2.s2util.exception.S2RuntimeException if the constructor itself throws | 생성자 자체가 예외를 던질 때
      */
     @SuppressWarnings({ "unchecked", "null" })
     public static <T> T createInstance(Class<T> clazz, Object... args) {
@@ -1414,22 +1554,24 @@ public class S2Util {
 
         return (T) S2Cache.getMethodHandle(key, LookupType.METHOD)
                 .map(handle -> {
+                    // 인자 타입이 생성자와 맞지 않으면(변환하지 않음) 맞는 생성자가 없는 것으로 null
+                    Object[] actual = args == null ? new Object[0] : args;
+                    boolean compatible = handle.type().parameterCount() == actual.length;
+                    for (int i = 0; compatible && i < actual.length; i++) {
+                        compatible = acceptsValue(handle.type().parameterType(i), actual[i]);
+                    }
+                    if (!compatible) {
+                        return null;
+                    }
                     try {
                         // args가 없으면 기존처럼 invoke()로 기본 생성자 호출, 있으면 args 주입 호출
-                        return (args == null || args.length == 0) ? handle.invoke() : handle.invokeWithArguments(args);
+                        return actual.length == 0 ? handle.invoke() : handle.invokeWithArguments(actual);
+                    } catch (VirtualMachineError e) {
+                        throw e;
                     } catch (Throwable e) {
-                        if (logger.isDebugEnabled()) {
-                            if (isKorean()) {
-                                logger.debug(
-                                        "[S2Util] 인스턴스 생성 중 오류 발생. (Target: {}, Args: {}).",
-                                        clazz.getSimpleName(), Arrays.toString(args));
-                            } else {
-                                logger.debug(
-                                        "[S2Util] Error occurred during instance creation. (Target: {}, Args: {}).",
-                                        clazz.getSimpleName(), Arrays.toString(args));
-                            }
-                        }
-                        return null;
+                        // 생성자 자체의 실패는 null 로 삼키지 않고 알린다
+                        throw new io.github.devers2.s2util.exception.S2RuntimeException(
+                                "Constructor of " + clazz.getName() + " threw an exception (args: " + Arrays.toString(args) + ")", e);
                     }
                 })
                 .orElseGet(() -> {
@@ -1446,14 +1588,20 @@ public class S2Util {
     }
 
     /**
+     * Calculates {@code cardinal / ordinal} as a percentage string.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
      * 두 수의 비율을 계산하여 백분율(%)을 구함.
      *
-     * @param <V1>     기수(분자)의 타입
-     * @param <V2>     서수(분모)의 타입
-     * @param cardinal (기수, 분자)
-     * @param ordinal  (서수, 분모)
-     * @param digits   (소수점이하 자리수, 반올림(HALF_UP). null 이면 계산 정밀도(유효숫자 16자리)대로)
-     * @return 백분율 (인자가 null 이거나 분모가 0 이면 빈 문자열)
+     * @param <V1>     Numerator type | 기수(분자)의 타입
+     * @param <V2>     Denominator type | 서수(분모)의 타입
+     * @param cardinal Numerator | 기수, 분자
+     * @param ordinal  Denominator | 서수, 분모
+     * @param digits   Fraction digits, rounded HALF_UP; {@code null} keeps the computed precision (16 significant digits) | 소수점이하 자리수, 반올림(HALF_UP). null 이면 계산 정밀도(유효숫자 16자리)대로
+     * @return Percentage, or an empty string if an argument is null or the denominator is zero | 백분율 (인자가 null 이거나 분모가 0 이면 빈 문자열)
+     * @throws NumberFormatException if an argument is not a number | 인자가 숫자가 아닐 때
      */
     public static <V1, V2> String getPercentage(V1 cardinal, V2 ordinal, Integer digits) {
         String percentage = "";
@@ -1498,11 +1646,11 @@ public class S2Util {
      */
     public static void checkDependency(String featureName, String requiredClassName, String dependencyCoordinate) {
         try {
-            Class.forName(requiredClassName);
+            // 존재만 확인한다(클래스 초기화 부수효과 없이)
+            Class.forName(requiredClassName, false, S2Util.class.getClassLoader());
         } catch (ClassNotFoundException e) {
             String msg = String.format(
-                    "오류: %s 기능을 사용하기 위한 필수 의존성(%s)이 누락되었습니다.\n" +
-                            "Gradle 또는 Maven 설정에 해당 라이브러리를 implementation으로 추가해야 합니다.",
+                    "%s requires the dependency %s, which is missing from the classpath. Add it to your Gradle or Maven build.",
                     featureName,
                     dependencyCoordinate);
             throw new NoClassDefFoundError(msg);

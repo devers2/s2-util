@@ -14,6 +14,10 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **`S2Util.cast` (and `getValue(…, Class)`) converts exactly.** Integer types accept only values that fit exactly — previously `3.7` became `3` and `10000000000` became `1410065408`; now it is a conversion failure (the default, or `null`).
+  Numeric strings may have surrounding spaces (`"12 "` → 12), and `BigDecimal`, `BigInteger`, `Short`, `Byte` and enums (by constant name) are supported (previously `ClassCastException`). Booleans recognize only `true/1/on/yes/y` and `false/0/off/no/n`; anything else is a conversion failure (previously always `false`).
+- **Exceptions thrown by a setter, constructor or record accessor itself are no longer swallowed.** `setValue` throws `S2PropertyAccessException` (write) and `createInstance` throws `S2RuntimeException`; a missing target or a value of the wrong type still yields `false`/`null`. `S2Copier` reports setter failures too.
+- `S2Util.isEmpty` treats `Optional.empty()` and an `Optional` holding an empty value as empty (a `REQUIRED` rule on an `Optional` field used to pass).
 - **`S2Util.isEmpty` now uses the same whitespace as JavaScript `trim()`.** Strings of only NBSP (U+00A0), U+2007, U+202F or BOM (U+FEFF) are empty, and the control characters U+001C–U+001F are not whitespace (the opposite of the previous `Character.isWhitespace` rule).
   Previously a value of only U+001F was empty on the server (`EMAIL` passed, `REQUIRED` failed) but a value in the browser, so verdicts differed.
 - **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) also judge whitespace-only values by their original length.** Such values were skipped as empty, so 300 spaces passed `MAX_LENGTH 10` and could be stored as is.
@@ -104,6 +108,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2Util.getValue` could not read Lombok's `getIsXxx()` for a `Boolean isXxx` field or a field whose name looks like a getter (`is3d`), always returning `null`. `getValueAll` no longer lists static getters as properties.
+- `S2Util.checkDependency` threw a Korean-only message (now English) and no longer initializes the checked class.
 - `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` threw `NullPointerException` when a Supplier returned `null` — that value is now left unset.
 - `S2Jpql` `LikeMode` was not applied to `CharSequence` values other than `String` (e.g. `StringBuilder`).
 - The `S2Template` class Javadoc example inserted the value as-is (`bind("name_cond", name, "AND m.name = ")`, an SQL injection pattern) — now uses a query parameter, with a security note.
