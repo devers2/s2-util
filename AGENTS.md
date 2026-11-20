@@ -32,9 +32,12 @@ Java·`s2.validator.js`·Gradle 설정·문서를 수정했으면 완료 보고�
 - 사용자가 요청하지 않으면 배포 태스크(`publish`, `publishToCentralPortal` 등)를 실행하지 않는다.
 - 평소에는 `develop` 브랜치에서 commit·push 한다. `main` 은 Maven Central 배포본과 같아야 하므로, 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 단다.
 
-## 5. Java 버전
+## 5. Java·JS 버전
 - 기준은 Java 17(`--release 17`). Java 21+ 전용 문법·API(`Thread.ofVirtual()`, `getFirst()` 등)를 직접 쓰지 않는다.
 - 예외는 `s2-core` 의 `S2ThreadUtil` 가상 스레드뿐이며, MethodHandle/리플렉션으로 런타임에 감지하고 Java 17 용 대체 로직(플랫폼 스레드 풀)을 반드시 둔다.
+- `s2.validator.js` 는 **ES2020 까지**(Chrome·Edge 80, Firefox 74, Safari 13.1, s2-kit 과 같은 기준). 숫자 구분자(`5_000` 대신 `5 * 1000`),
+  `??=`·`||=`, `.at()`, `replaceAll`, 클래스 필드 선언(`x = 1;` — 생성자에서 초기화), `#private` 등 ES2021+ 문법·API 금지.
+  자동 검사가 없으므로 고친 뒤 ES2020 파서로 확인한다(예: acorn `ecmaVersion: 2020` 으로 parse).
 
 ## 6. 인코딩
 - 모든 소스·설정·문서는 UTF-8 NoBOM.
