@@ -458,6 +458,12 @@ public class S2Rule implements S2RuleMessageStep {
             }
             case EQUALS_FIELD -> {
                 Object targetValue = resolveTargetValue(target, checkValue, outerTargets);
+                // 여러 값(다중 선택·체크박스 그룹)은 순서와 관계없이 같은 값들인지 본다(브라우저와 같음 — 이전에는 순서까지 비교)
+                List<Object> values = multiValues(value);
+                List<Object> targets = multiValues(targetValue);
+                if (values != null && targets != null) {
+                    yield sortedTexts(values).equals(sortedTexts(targets));
+                }
                 yield Objects.equals(value, targetValue);
             }
             case JUMIN -> {
@@ -671,6 +677,11 @@ public class S2Rule implements S2RuleMessageStep {
      * @param value The value | 값
      * @return The number of values | 값의 개수
      */
+    /** 다중 값 비교용: 각 요소를 앞뒤 공백을 뺀 문자열로 바꿔 정렬(브라우저 EQUALS_FIELD 의 sort() 비교와 같음) */
+    private static List<String> sortedTexts(List<Object> values) {
+        return values.stream().map(v -> v == null ? "" : S2Whitespace.trim(String.valueOf(v))).sorted().toList();
+    }
+
     private static int sizeOf(Object value) {
         if (value instanceof Map<?, ?> map) {
             return map.size();

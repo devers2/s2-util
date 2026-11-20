@@ -1394,6 +1394,11 @@ const getFieldValue = (elements) => {
  * @param {string} currentFieldName - Full name of the field currently being validated | 현재 검증 중인 필드의 전체 이름
  * @returns {any} Target field value, or undefined if not found | 기준 필드 값 (없으면 undefined)
  */
+/** 비교 대상으로 쓸 수 없는 빈 값: null·undefined, 공백만인 문자열, 빈 배열 */
+const isEmptyTargetValue = (value) =>
+  value === null || value === undefined || (typeof value === 'string' && value.trim() === '') ||
+  (Array.isArray(value) && value.length === 0);
+
 const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName = '') => {
   // Trim the looked-up string, matching the server (S2Rule.resolveTargetValue). | 서버(S2Rule.resolveTargetValue)와 같도록 조회한 문자열 값의 앞뒤 공백 제거
   const found = lookupTargetFieldValue(targetKey, formData, prefix, currentFieldName);
@@ -1402,6 +1407,10 @@ const getTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName 
 
 const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldName = '') => {
   if (!targetKey || !formData) return undefined;
+
+  // 서버(S2Rule.lookupTargetValue)·조건 조회와 같이, 키가 있어도 값이 비어 있으면 다음(바깥) 후보로 넘어간다
+  const has = (key) =>
+    Object.prototype.hasOwnProperty.call(formData, key) && !isEmptyTargetValue(formData[key]);
 
   const keyStr = String(targetKey);
 
@@ -1421,10 +1430,10 @@ const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldNa
     if (currentIndex !== null) {
       // "items[].start" -> "items[0].start"로 치환
       const resolvedWithIndex = keyStr.replace('[]', `[${currentIndex}]`);
-      if (Object.prototype.hasOwnProperty.call(formData, resolvedWithIndex)) {
+      if (has(resolvedWithIndex)) {
         return formData[resolvedWithIndex];
       }
-      if (prefix && Object.prototype.hasOwnProperty.call(formData, prefix + resolvedWithIndex)) {
+      if (prefix && has(prefix + resolvedWithIndex)) {
         return formData[prefix + resolvedWithIndex];
       }
     }
@@ -1432,7 +1441,7 @@ const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldNa
     const bracketIndex = keyStr.indexOf('[]');
     let suffix = keyStr.substring(bracketIndex + 2);
     if (suffix.startsWith('.')) suffix = suffix.substring(1);
-    if (itemPrefix && Object.prototype.hasOwnProperty.call(formData, itemPrefix + suffix)) {
+    if (itemPrefix && has(itemPrefix + suffix)) {
       return formData[itemPrefix + suffix];
     }
   }
@@ -1450,18 +1459,21 @@ const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldNa
   for (let scope = prefix; scope; scope = parentPrefix(scope)) addScope(scope);
   addScope(itemPrefix);
   for (const scope of scopes) {
-    if (Object.prototype.hasOwnProperty.call(formData, scope + keyStr)) {
+    if (has(scope + keyStr)) {
       return formData[scope + keyStr];
     }
   }
 
   // 5. 루트 레벨 필드 직접 탐색
-  if (Object.prototype.hasOwnProperty.call(formData, keyStr)) {
+  if (has(keyStr)) {
     return formData[keyStr];
   }
 
   // 6. 폴백
-  return formData[prefix + keyStr] ?? formData[keyStr];
+  // 폴백: 일반 객체가 아닌 데이터(hasOwnProperty 가 통하지 않는 호스트 객체 등)는 직접 읽는다.
+  // 모든 후보가 비어 있으면 대상 값이 없는 것(서버와 같이 null)
+  const fallback = formData[prefix + keyStr] ?? formData[keyStr];
+  return isEmptyTargetValue(fallback) ? null : fallback;
 };
 
 /**

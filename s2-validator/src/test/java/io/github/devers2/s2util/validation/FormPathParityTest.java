@@ -226,6 +226,13 @@ public class FormPathParityTest {
                                 .build()).build(),
                         F.text("items[0].start", "2024-01-01"), F.text("items[0].period.start", "2024-03-01"),
                         F.text("items[0].period.end", "2024-02-01")),
+                c("EQUALS_FIELD 다중 선택, 순서만 다름 → 같음",
+                        () -> b().field("a", "A").field("b", "B").rule(S2RuleType.EQUALS_FIELD, "a").build(),
+                        F.checkbox("a", "x", true), F.checkbox("a", "y", true), F.checkbox("b", "y", true), F.checkbox("b", "x", true)),
+                c("행 안 비교 대상이 비면 바깥(루트) 값으로",
+                        () -> b().field("start", "전체 시작일").field("items[].start", "행 시작일")
+                                .field("items[].end", "행 종료일").rule(S2RuleType.DATE_AFTER, "start").build(),
+                        F.text("start", "2024-05-01"), F.text("items[0].start", ""), F.text("items[0].end", "2024-04-01")),
                 c("행의 하위 목록(EACH), 1행 2번째 태그 빈 값",
                         () -> b().field("items[].tags", "태그").rule(S2RuleType.EACH, sub().field("v", "값").rule(S2RuleType.REQUIRED).build())
                                 .build(),
