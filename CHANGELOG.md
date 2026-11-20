@@ -14,6 +14,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **`S2Util.isEmpty` now uses the same whitespace as JavaScript `trim()`.** Strings of only NBSP (U+00A0), U+2007, U+202F or BOM (U+FEFF) are empty, and the control characters U+001C–U+001F are not whitespace (the opposite of the previous `Character.isWhitespace` rule).
+  Previously a value of only U+001F was empty on the server (`EMAIL` passed, `REQUIRED` failed) but a value in the browser, so verdicts differed.
 - **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) also judge whitespace-only values by their original length.** Such values were skipped as empty, so 300 spaces passed `MAX_LENGTH 10` and could be stored as is.
   `LENGTH` fails only when exceeded; other rules, `REQUIRED` and lambda rules still treat the value as empty. Both the server and `s2.validator.js` changed.
 - **`S2Util.getValue(target, field)`, `getValue(target, field, Class)`, `cast(value)`, `cast(value, Class)` (no default) and `getValueAll` return the stored value as is.** Previously empty and blank strings and empty collections became `null`.

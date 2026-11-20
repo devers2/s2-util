@@ -1059,9 +1059,17 @@ public class S2Util {
      * <p>
      * 다양한 데이터 타입에 대해 지능적인 비어있음 기준을 적용합니다.
      * </p>
+     * <p>
+     * 문자열은 공백만 있으면 빈 값입니다. 공백은 JavaScript {@code String.prototype.trim()} 이 지우는 문자(탭·줄바꿈·VT·FF·스페이스,
+     * NBSP U+00A0, U+FEFF, U+2028/2029, 유니코드 공백 구분자 전체)로, 서버와 브라우저 판정이 같습니다.
+     * {@link Character#isWhitespace(char)} 와 달리 제어 문자 U+001C~U+001F 는 공백이 아닙니다.
+     * </p>
      *
      * <ul>
-     * <li><b>String/CharSequence:</b> {@code null} or contains only whitespace.</li>
+     * <li><b>String/CharSequence:</b> {@code null} or contains only whitespace. Whitespace is the set JavaScript
+     * {@code String.prototype.trim()} removes (tab, line breaks, VT, FF, space, NBSP U+00A0, U+FEFF, U+2028/2029 and all
+     * Unicode space separators), so the server and the browser agree; unlike {@link Character#isWhitespace(char)},
+     * the control characters U+001C–U+001F are not whitespace.</li>
      * <li><b>Collection/Map:</b> {@code null} or {@code size == 0}.</li>
      * <li><b>Array:</b> {@code null} or {@code length == 0} (primitive arrays supported).</li>
      * </ul>
@@ -1116,20 +1124,32 @@ public class S2Util {
     }
 
     /**
-     * Apache Commons Lang의 StringUtils.isBlank()와 동일한 로직
-     * " ", "\t\n ", "" → true
-     * 성능: String.trim().isEmpty()보다 훨씬 빠름 (trim()은 새 문자열 생성)
+     * 공백만 있는지 판단한다. " ", "\t\n ", "" → true
+     * 성능: 새 문자열을 만들지 않고 처음 공백이 아닌 문자에서 바로 끝난다(String.trim().isEmpty() 보다 빠름).
+     * 공백 정의는 JS trim() 과 같다(s2-validator 의 S2Whitespace 와 같은 집합 — 시험으로 고정).
      */
     private static boolean isBlank(CharSequence cs) {
-        if (cs == null || cs.length() == 0) {
+        if (cs == null) {
             return true;
         }
-        for (int i = 0; i < cs.length(); i++) {
-            if (!Character.isWhitespace(cs.charAt(i))) {
+        for (int i = 0, n = cs.length(); i < n; i++) {
+            if (!isJsWhitespace(cs.charAt(i))) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * JS trim() 이 지우는 공백인지. 흔한 ASCII 는 비교만으로 끝내고, 그 밖은 NBSP·BOM·줄/문단 구분자와 유니코드 공백 구분자(Zs).
+     * Character.isWhitespace 와 달리 NBSP·U+2007·U+202F·U+FEFF 는 공백, U+001C~U+001F 는 공백이 아니다.
+     */
+    private static boolean isJsWhitespace(char c) {
+        if (c < 0x80) {
+            return c == ' ' || (c >= '\t' && c <= '\r'); // \t \n VT \f \r
+        }
+        return c == '\u00A0' || c == '\uFEFF' || c == '\u2028' || c == '\u2029'
+                || Character.getType(c) == Character.SPACE_SEPARATOR;
     }
 
     /**

@@ -14,6 +14,8 @@
 
 ### ⚠️ 동작 변경
 
+- **`S2Util.isEmpty` 의 공백 정의를 JavaScript `trim()` 과 같게 바꿨습니다.** NBSP(U+00A0)·U+2007·U+202F·BOM(U+FEFF)만 있는 문자열은 빈 값이고, 제어 문자 U+001C~U+001F 는 공백이 아닙니다(이전에는 `Character.isWhitespace` 기준으로 반대).
+  이전에는 U+001F 만 든 값을 서버는 빈 값으로 보고(`EMAIL` 통과·`REQUIRED` 실패) 브라우저는 값으로 봐서 판정이 갈렸습니다.
 - **공백만 있는 값도 상한 규칙(`LENGTH`·`MAX_LENGTH`·`MAX_BYTE`)은 원래 길이로 판정합니다.** 빈 값으로 보아 건너뛰던 탓에 공백 300자가 `MAX_LENGTH 10` 을 통과해 그대로 저장될 수 있었습니다.
   `LENGTH` 는 기준을 넘을 때만 실패하고, 나머지 규칙·`REQUIRED`·람다 규칙에서는 이전처럼 빈 값입니다. 서버와 `s2.validator.js` 모두 바뀌었습니다.
 - **기본값 없는 `S2Util.getValue(target, field)`·`getValue(target, field, Class)`·`cast(value)`·`cast(value, Class)` 와 `getValueAll` 은 저장된 값을 그대로 돌려줍니다.** 이전에는 빈 문자열·공백 문자열·빈 컬렉션을 `null` 로 바꿨습니다.

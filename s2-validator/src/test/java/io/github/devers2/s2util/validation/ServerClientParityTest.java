@@ -130,6 +130,9 @@ public class ServerClientParityTest {
                 Arguments.of("REQUIRED: 빈문자열 → 실패", S2RuleType.REQUIRED, null, "", false),
                 Arguments.of("REQUIRED: 공백만 → 실패", S2RuleType.REQUIRED, null, "   ", false),
                 Arguments.of("REQUIRED: NBSP·전각 공백만 → 실패", S2RuleType.REQUIRED, null, "\u00a0\u3000", false),
+                Arguments.of("REQUIRED: 제어 문자 U+001F 만 → 성공(공백 아님, JS trim 과 같음)", S2RuleType.REQUIRED, null, "\u001f", true),
+                Arguments.of("EMAIL: 제어 문자 U+001F 만 → 실패(빈 값 아님)", S2RuleType.EMAIL, null, "\u001f", false),
+                Arguments.of("REQUIRED: BOM U+FEFF 만 → 실패", S2RuleType.REQUIRED, null, "\ufeff", false),
                 Arguments.of("REQUIRED: 값 있음 → 성공", S2RuleType.REQUIRED, null, "hello", true),
 
                 // ── ASSERT_TRUE ──────────────────────────────────────────
