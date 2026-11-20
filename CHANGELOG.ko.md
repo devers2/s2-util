@@ -14,6 +14,8 @@
 
 ### ⚠️ 동작 변경
 
+- **`S2StringUtil.substringByBytes` 의 시작 바이트를 바로잡았습니다.** 이전에는 한 글자 앞부터 잘랐습니다(`("abc", 1, 3)` → `"abc"`, `("한글", 3, 6)` → `"한글"`). 이제 시작 바이트에서 시작하는 문자부터 자르고 걸쳐 있는 문자는 넣지 않습니다(`"bc"`, `"글"`).
+  `toPascalCase`·`toCamelCase`·`toSnakeCase`·`toKebabCase` 는 대문자 약어 경계를 나눕니다(`HTTPServer` → `HttpServer`, `getHTTPResponseCode` → `get_http_response_code`). `clearNewline` 은 `<` 를 `\u003C` 로 쓰고(인라인 `<script>` 를 닫지 못하게) U+2028·U+2029 를 지웁니다.
 - **`S2Copier` 는 원본에 없는 속성을 대상에서 건드리지 않습니다.** 이전에는 대상 필드마다 원본 값을 읽어, 원본에 없는 필드(`id`·`createdBy` 등)를 `null` 로 덮어써 일부 필드만 가진 DTO 로 엔티티를 갱신하면 값이 지워졌습니다.
   값 타입이 다르면 `S2Util.cast` 로 변환해 복사합니다(`"30"` → `int`, 이전에는 건너뜀). 깊은 복사 깊이 초과(`MAX_DEPTH`)는 필드를 조용히 건너뛰지 않고 예외로 알립니다(가이드 3-5 와 같게).
 - **`S2Util.cast`(와 `getValue(…, Class)`) 형변환을 정확하게 바꿨습니다.** 정수 타입은 정확히 맞는 값만 받습니다 — 이전에는 `3.7` → `3`, `10000000000` → `1410065408` 처럼 조용히 잘리거나 넘쳤고, 이제 변환 실패(기본값, 없으면 `null`)입니다.
@@ -107,6 +109,7 @@
 
 ### 수정
 
+- `S2StringUtil`: `replaceChars(…, " ", …)` 가 공백으로 바꾸지 않고 지우던 문제, 공백만 있는 원본을 `replaceChars`·`replaceAll`·`substringByBytes` 가 처리하지 않던 문제(정규식 캐시가 공백 패턴 `" "` 을 거부하던 것 포함), `decodeUnicode` 가 잘못된 `\uZZZZ` 에서 역슬래시를 두 번 쓰고 `\u-001` 같은 부호를 16진수로 받던 문제, `formatMessage` 의 int 범위를 넘는 인덱스.
 - `S2DateUtil`: `compareDates` 가 날짜만 있는 패턴(`yyyy-MM-dd`)에서 예외를 던지던 문제(그날 00:00 으로 비교), `dateFormat(Instant)` 가 UTC 숫자를 그대로 써 시스템 시간대와 어긋나던 문제, `parseToZonedDateTime` 이 오프셋 `x`·`O` 를 놓쳐 시각이 어긋나고 따옴표 리터럴(`'z'`)을 시간대로 오인하던 문제, `toDateTimeString(OffsetDateTime, …)` 가 오프셋을 버리고 `XXX` 패턴에서 `UnsupportedTemporalTypeException` 을 던지던 문제(이제 오프셋 그대로, 값에 없는 필드는 null), `parseToLocalDate`·`parseToLocalDateTime` 이 `isThrowException=false` 인데도 빈 입력에서 예외를 던지던 문제(null). 예외 메시지를 영어로, 출력 포맷터를 캐시합니다.
 - `S2Copier` 깊은 복사가 `ConcurrentHashMap`·`CopyOnWriteArrayList`·`EnumMap`·`EnumSet` 필드를 통째로 빠뜨리고(대상 필드 타입과 맞지 않는 `LinkedHashMap`·`ArrayList` 로 만듦) `ArrayDeque` 는 복사하지 않고 공유하던 문제 — 원본과 같은 종류로 복사합니다(`PriorityQueue`·`TreeSet`·`TreeMap` 정렬 기준 유지).
 - `S2Copier.to(레코드.class)` 가 "인스턴스 생성 실패" 로 끝나던 문제 — 정식 생성자로 만듭니다. 레코드 인스턴스를 대상으로 주면 아무것도 하지 않던 것은 `IllegalArgumentException` 으로 알립니다.

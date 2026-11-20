@@ -14,6 +14,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **`S2StringUtil.substringByBytes` begins at the right byte.** It used to start one character early (`("abc", 1, 3)` → `"abc"`, `("한글", 3, 6)` → `"한글"`); it now starts at the first character beginning at or after the start byte and skips a straddling character (`"bc"`, `"글"`).
+  `toPascalCase`/`toCamelCase`/`toSnakeCase`/`toKebabCase` split at the end of an uppercase acronym (`HTTPServer` → `HttpServer`, `getHTTPResponseCode` → `get_http_response_code`). `clearNewline` writes `<` as `\u003C` (so it cannot close an inline `<script>`) and removes U+2028/U+2029.
 - **`S2Copier` leaves properties that the source does not have untouched.** It used to read a source value for every target field and overwrote missing ones (`id`, `createdBy`, ...) with `null`, wiping values when updating an entity from a partial DTO.
   Values of a different type are converted with `S2Util.cast` (`"30"` → `int`; previously skipped). Exceeding the deep-copy depth (`MAX_DEPTH`) now throws instead of silently skipping the field (as GUIDE 3-5 describes).
 - **`S2Util.cast` (and `getValue(…, Class)`) converts exactly.** Integer types accept only values that fit exactly — previously `3.7` became `3` and `10000000000` became `1410065408`; now it is a conversion failure (the default, or `null`).
@@ -112,6 +114,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2StringUtil`: `replaceChars(…, " ", …)` removed instead of replacing with a space; `replaceChars`, `replaceAll` and `substringByBytes` ignored whitespace-only input (including the regex cache rejecting the pattern `" "`); `decodeUnicode` doubled the backslash of an invalid `\uZZZZ` and accepted signs such as `\u-001`; `formatMessage` indexes beyond the int range.
 - `S2DateUtil`: `compareDates` threw for date-only patterns (`yyyy-MM-dd`; now compared at 00:00); `dateFormat(Instant)` printed the UTC digits instead of the system time zone; `parseToZonedDateTime` missed the `x`/`O` offset letters (shifting the instant) and mistook quoted literals (`'z'`) for a zone; `toDateTimeString(OffsetDateTime, …)` dropped the offset and threw `UnsupportedTemporalTypeException` for `XXX` (now formats with the offset; unsupported fields return null); `parseToLocalDate`/`parseToLocalDateTime` threw on blank input even with `isThrowException=false` (now null). Exception messages are in English and output formatters are cached.
 - `S2Copier` deep copy dropped `ConcurrentHashMap`, `CopyOnWriteArrayList`, `EnumMap` and `EnumSet` fields entirely (it built a `LinkedHashMap`/`ArrayList` that did not fit the field type) and shared `ArrayDeque` instead of copying it — collections are now copied into the same kind (`PriorityQueue`, `TreeSet`, `TreeMap` keep their comparator).
 - `S2Copier.to(Record.class)` failed with "Failed to instantiate" — records are now created with the canonical constructor. Passing a record instance as the target, which silently did nothing, now throws `IllegalArgumentException`.

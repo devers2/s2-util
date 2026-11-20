@@ -1850,7 +1850,8 @@ public class S2Cache {
          * @return Compiled Pattern object wrapped in an Optional | 컴파일된 Pattern 객체를 포함한 Optional
          */
         private static Optional<Pattern> resolve(String regex) {
-            if (regex == null || regex.isBlank()) {
+            // 공백 정규식(" ")도 유효한 패턴이다 — 빈 문자열만 없는 것으로 본다
+            if (regex == null || regex.isEmpty()) {
                 return Optional.empty();
             }
             return CACHE.get(regex, k -> {

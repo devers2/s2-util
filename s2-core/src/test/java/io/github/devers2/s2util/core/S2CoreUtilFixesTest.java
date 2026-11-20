@@ -446,4 +446,29 @@ class S2CoreUtilFixesTest {
             java.util.TimeZone.setDefault(previous);
         }
     }
+
+    @Test
+    void s2StringUtilReviewFixes() {
+        // 공백 치환 문자열은 지우지 않고 공백으로 바꾼다, 공백만 있는 원본도 처리
+        assertEquals("a b", S2StringUtil.replaceChars("a_b", " ", '_'));
+        assertEquals("___", S2StringUtil.replaceChars("   ", "_", ' '));
+        assertEquals("xxx", S2StringUtil.replaceAll("   ", " ", "x"));
+        // 대문자 약어 경계
+        assertEquals("HttpServer", S2StringUtil.toPascalCase("HTTPServer"));
+        assertEquals("get_http_response_code", S2StringUtil.toSnakeCase("getHTTPResponseCode"));
+        assertEquals("user_id", S2StringUtil.toSnakeCase("userID"));
+        assertEquals("userId", S2StringUtil.toCamelCase("user_id"));
+        // 바이트 단위 자르기: 시작 바이트에서 시작하는 문자부터(걸친 문자는 빼고)
+        assertEquals("bc", S2StringUtil.substringByBytes("abc", 1, 3));
+        assertEquals("글", S2StringUtil.substringByBytes("한글", 3, 6));
+        assertEquals("글", S2StringUtil.substringByBytes("한글", 1, 6));
+        assertEquals("한", S2StringUtil.substringByBytes("한글", 0, 4));
+        assertEquals("  ", S2StringUtil.substringByBytes("   ", 0, 2));
+        // 인라인 <script> 안에서 블록을 닫지 못하게, JS 줄 구분자 제거
+        assertEquals("a\\u003C/script>b", S2StringUtil.clearNewline("a</script>\u2028b"));
+        // 잘못된 \\u 는 그대로(역슬래시 한 번), 부호는 16진수가 아님
+        assertEquals("a\\uZZZZb", S2StringUtil.decodeUnicode("a\\uZZZZb"));
+        assertEquals("\\u-001", S2StringUtil.decodeUnicode("\\u-001"));
+        assertEquals("한", S2StringUtil.decodeUnicode("\\uD55C"));
+    }
 }

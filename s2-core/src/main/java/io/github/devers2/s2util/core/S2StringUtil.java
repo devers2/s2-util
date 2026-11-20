@@ -84,7 +84,8 @@ public class S2StringUtil {
      * @return The resulting string
      */
     public static String replaceAll(String source, String regex, String replacement) {
-        if (source == null || source.isBlank() || regex == null || regex.isBlank() || replacement == null) {
+        // 공백만 있는 원본도 처리한다(공백을 바꾸는 정규식이 있으므로 — 이전에는 isBlank 라 그대로 돌려줌)
+        if (source == null || source.isEmpty() || regex == null || regex.isEmpty() || replacement == null) {
             return source;
         }
 
@@ -121,7 +122,7 @@ public class S2StringUtil {
      * @return The modified string, or original if no modifications occurred
      */
     public static String replaceChars(String source, String replacement, char... targets) {
-        if (source == null || source.isBlank() || targets == null || targets.length == 0) {
+        if (source == null || source.isEmpty() || targets == null || targets.length == 0) {
             return source;
         }
 
@@ -146,7 +147,8 @@ public class S2StringUtil {
         for (int i = 0; i < len; i++) {
             char c = source.charAt(i);
             if (c <= maxTarget && targetMap[c]) {
-                if (replacement != null && !replacement.isBlank()) {
+                // 공백 문자열(" ")도 치환 문자열이다 — 이전에는 isBlank 라 공백으로 바꾸지 않고 지웠다
+                if (replacement != null) {
                     sb.append(replacement);
                 }
                 modified = true;
@@ -179,7 +181,8 @@ public class S2StringUtil {
         return replaceChars(source, "", targets);
     }
 
-    private static final String SPLIT_REGEX = "(?<=[a-z0-9])(?=[A-Z])|[-_\\s.]+";
+    // 단어 경계: 소문자·숫자 뒤 대문자, 대문자 약어 끝(HTTPServer → HTTP|Server), 구분자(- _ 공백 .)
+    private static final String SPLIT_REGEX = "(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[-_\\s.]+";
 
     /**
      * Capitalizes the first letter of a string and lowers the rest.
@@ -384,6 +387,9 @@ public class S2StringUtil {
         while (matcher.find()) {
             // 1. 인덱스 수동 파싱 (Integer.parseInt 보다 미세하게 빠름)
             String indexStr = matcher.group(1);
+            if (indexStr.length() > 9) {
+                continue; // int 범위를 넘는 인덱스는 인자가 없는 것으로 본다
+            }
             int index = 0;
             for (int i = 0, len = indexStr.length(); i < len; i++) {
                 index = index * 10 + (indexStr.charAt(i) - '0');
@@ -849,16 +855,14 @@ public class S2StringUtil {
             if (i < length - 1 && unicode.charAt(i) == '\\') {
                 // 유니코드 이스케이프 시퀀스 체크
                 if (i < length - 5 && unicode.charAt(i + 1) == 'u') {
-                    try {
-                        String hex = unicode.substring(i + 2, i + 6);
-                        int codePoint = Integer.parseInt(hex, 16);
-                        result.append((char) codePoint);
+                    String hex = unicode.substring(i + 2, i + 6);
+                    // 16진수 4자리만 받는다(Integer.parseInt 는 "+1A2"·"-001" 같은 부호도 받아들임)
+                    if (isHex4(hex)) {
+                        result.append((char) Integer.parseInt(hex, 16));
                         i += 5; // 다음 문자로 이동
                         continue;
-                    } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
-                        // 잘못된 유니코드 시퀀스인 경우 원래 문자 그대로 추가
-                        result.append(unicode.charAt(i));
                     }
+                    // 잘못된 유니코드 시퀀스는 원래 문자 그대로(아래에서 역슬래시를 한 번만 붙인다 — 이전에는 두 번)
                 } else {
                     // 다른 이스케이프 시퀀스 처리 (\n, \t 등)
                     switch (unicode.charAt(i + 1)) {
@@ -912,6 +916,15 @@ public class S2StringUtil {
      * @param value String | 문자열
      * @return String without line breaks, with backslashes and single quotes escaped | 줄바꿈을 제거하고 역슬래시·작은따옴표를 이스케이프한 문자열
      */
+    private static boolean isHex4(String s) {
+        for (int i = 0; i < 4; i++) {
+            if (Character.digit(s.charAt(i), 16) < 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static String clearNewline(String value) {
         if (value == null || value.isBlank()) {
             return value;
@@ -927,7 +940,14 @@ public class S2StringUtil {
             switch (c) {
                 case '\n':
                 case '\r':
+                case '\u2028': // JS 줄 구분자 — 오래된 엔진에서는 문자열 안에서도 줄바꿈
+                case '\u2029':
                     modified = true; // 제거 (아무것도 하지 않음)
+                    break;
+                case '<':
+                    // 인라인 <script> 안에서 "</script>" 가 블록을 닫지 않도록(JS 문자열 값은 같은 '<')
+                    sb.append("\\u003C");
+                    modified = true;
                     break;
                 case '\'':
                     sb.append("\\'"); // 이스케이프 치환
@@ -959,7 +979,7 @@ public class S2StringUtil {
      *          </dl>
      */
     public static String substringByBytes(String stringValue, int beginBytes, int endBytes) {
-        if (stringValue == null || stringValue.isBlank() || endBytes < 1) {
+        if (stringValue == null || stringValue.isEmpty() || endBytes < 1) {
             return "";
         }
 
@@ -992,12 +1012,13 @@ public class S2StringUtil {
                 charByteSize = 4;
             }
 
-            curBytes += charByteSize;
-
-            // 시작 인덱스 설정 (목표 바이트에 도달하거나 넘어선 순간의 인덱스)
+            // 시작 인덱스: 이 문자가 시작하는 바이트 위치가 beginBytes 이상인 첫 문자(걸쳐 있는 문자는 넣지 않음).
+            // 이전에는 문자 '끝' 위치로 비교해 한 글자 앞부터 잘랐다("abc",1,3 → "abc")
             if (beginIndex == -1 && curBytes >= beginBytes) {
                 beginIndex = i;
             }
+
+            curBytes += charByteSize;
 
             // 종료 바이트를 초과하면 중단
             if (curBytes > endBytes) {
