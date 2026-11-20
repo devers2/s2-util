@@ -63,7 +63,7 @@ Add a single dependency to access all modules (`s2-core`, `s2-validator`, and `s
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.1.0'
+    implementation 'io.github.devers2:s2-util:2.2.0'
 }
 ```
 
@@ -73,7 +73,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
@@ -94,13 +94,13 @@ For minimal footprint, declare only the specific sub-modules your application re
 ```groovy
 dependencies {
     // 1. Validation only
-    implementation 'io.github.devers2:s2-validator:2.1.0'
+    implementation 'io.github.devers2:s2-validator:2.2.0'
 
     // 2. JPA dynamic queries only
-    implementation 'io.github.devers2:s2-jpa:2.1.0'
+    implementation 'io.github.devers2:s2-jpa:2.2.0'
 
     // 3. Core utilities & copier only (lightest)
-    implementation 'io.github.devers2:s2-core:2.1.0'
+    implementation 'io.github.devers2:s2-core:2.2.0'
 }
 ```
 
@@ -1054,4 +1054,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 2.1.0 (2026-10-13)
+s2-util Version: 2.2.0 (2026-11-20)

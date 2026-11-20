@@ -63,7 +63,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.1.0'
+    implementation 'io.github.devers2:s2-util:2.2.0'
 }
 ```
 
@@ -73,7 +73,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
@@ -94,13 +94,13 @@ dependencies {
 ```groovy
 dependencies {
     // 1. 검증 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-validator:2.1.0'
+    implementation 'io.github.devers2:s2-validator:2.2.0'
 
     // 2. 동적 JPQL 기능만 필요한 경우
-    implementation 'io.github.devers2:s2-jpa:2.1.0'
+    implementation 'io.github.devers2:s2-jpa:2.2.0'
 
     // 3. 코어 유틸리티 및 객체 복사 기능만 필요한 경우 (가장 경량)
-    implementation 'io.github.devers2:s2-core:2.1.0'
+    implementation 'io.github.devers2:s2-core:2.2.0'
 }
 ```
 
@@ -1054,4 +1054,4 @@ dependencies {
 
 [//]: # 'S2_DEPS_INFO_END'
 
-s2-util Version: 2.1.0 (2026-10-13)
+s2-util Version: 2.2.0 (2026-11-20)

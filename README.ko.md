@@ -76,7 +76,7 @@
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-util:2.1.0'
+    implementation 'io.github.devers2:s2-util:2.2.0'
 }
 ```
 
@@ -86,7 +86,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-util</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 

@@ -136,7 +136,7 @@ Add the following dependency to your `build.gradle` or `pom.xml`.
 
 ```groovy
 dependencies {
-    implementation 'io.github.devers2:s2-validator:2.1.0'
+    implementation 'io.github.devers2:s2-validator:2.2.0'
 
     // (Optional) Required only when using Spring integration (S2BindValidator)
     implementation 'org.springframework:spring-context:6.2.19'
@@ -149,7 +149,7 @@ dependencies {
 <dependency>
     <groupId>io.github.devers2</groupId>
     <artifactId>s2-validator</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
@@ -728,7 +728,7 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator Version: 2.1.0 (2026-10-13)
+s2-validator Version: 2.2.0 (2026-11-20)
 
 [//]: # 'S2_DEPS_INFO_START'
 
