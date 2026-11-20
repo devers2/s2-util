@@ -32,6 +32,10 @@
 - 목록 검증(`EACH`)에서 요소가 검증 경로의 조상과 같은 객체(순환 참조)면 순환 참조 오류를 냅니다(`NESTED` 와 같음). 이전에는 오류 없이 통과했습니다.
 - `S2JsonUtil.toJson` 은 `java.sql.Date` 를 날짜(`2024-02-01`), `java.sql.Time` 을 시각(`09:30`)으로 씁니다. 이전에는 UTC 시각으로 써서 한국 시간에서 날짜가 하루 밀렸습니다(`2024-01-31T15:00:00Z`). `fromJson` 으로 다시 읽을 수 있습니다.
 - `S2Jpql` 의 DEBUG 로그는 바인딩 파라미터의 값을 남기지 않고 이름과 타입만 남깁니다(개인정보 보호).
+- **`S2Jpql` 의 Supplier `bindParameter` 는 `build()` 때, 렌더링된 JPQL 이 그 파라미터(`:name`)를 쓸 때만 실행합니다.** 이전에는 "직전 `bindClause` 의 조건"으로 정해,
+  다른 절 뒤에 부르면 포함된 절의 파라미터가 바인딩되지 않거나(실행 때 오류) 빠진 절의 Supplier 가 실행됐습니다. 이제 `bindClause` 와의 호출 순서에 상관없습니다.
+- **`S2Template.bindIn` 은 숫자·논리값만 그대로 쓰고, 그 밖의 값(날짜·enum 등)은 문자열 리터럴로 감쌉니다. 역슬래시가 든 문자열은 `IllegalArgumentException` 으로 거부합니다.**
+  이전에는 MySQL·MariaDB(기본 설정)에서 `a\'` 같은 값이 따옴표 이스케이프를 깨고 SQL 을 주입할 수 있었고, 숫자가 아닌 객체는 `toString()` 그대로 들어갔습니다. 사용자 입력은 쿼리 파라미터로 바인딩하십시오.
 - **`MIN_VALUE`·`MAX_VALUE` 와 숫자 조건(`GT`·`GTE`·`LT`·`LTE`)은 서버와 브라우저 모두 정확한 십진 비교를 합니다.**
   이전에는 double 로 비교해 유효숫자 15~16자리를 넘는 값(예: `9007199254740993` 과 `9007199254740992`, `0.1000000000000000001` 과 `0.1`)을 같게 봤습니다.
   서버는 `BigDecimal`, `s2.validator.js` 는 십진 문자열을 직접 비교하므로 두 쪽 판정은 계속 같습니다.
@@ -77,6 +81,9 @@
 
 ### 수정
 
+- `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` 에서 Supplier 가 `null` 을 돌려주면 `NullPointerException` 이 나던 문제 — 그 값은 설정하지 않습니다.
+- `S2Jpql` 의 `LikeMode` 가 `StringBuilder` 등 `String` 이 아닌 `CharSequence` 값에는 적용되지 않던 문제.
+- `S2Template` 클래스 Javadoc 예제가 값을 그대로 넣는 `bind("name_cond", name, "AND m.name = ")` 를 안내하던 문제(SQL 주입 패턴) — 쿼리 파라미터를 쓰는 예로 바꾸고 보안 주의를 추가.
 - 사용자 정규식(`REGEX`, `@Pattern` 변환 포함)의 `\s`·`\S` 를 브라우저가 JS 의미(NBSP 등 유니코드 공백 포함)로 해석해 서버와 판정이 다르던 문제 — 브라우저도 Java 의미로 평가합니다. 문자 클래스 안의 `\S` 는 같은 의미로 바꿀 수 없어 규칙 JSON 으로 내보내지 않습니다(`IllegalStateException`).
 - GUIDE_JPQL 이 없는 `LikeMode.EXACT` 를 안내하던 문서 오류.
 - `DATE_AFTER`·`DATE_BEFORE` 가 `java.util.Date`(및 `java.sql.Date`·`Timestamp`·`Instant`) 필드를 비교하지 않고 항상 통과하던 문제.

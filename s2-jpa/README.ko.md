@@ -40,7 +40,7 @@
    - 자동 파라미터 바인딩으로 TypedQuery 생성을 위한 `build()` 메서드
 
 5. **완전한 S2Template 통합**
-   - 모든 S2Template 바인딩 기능 상속 (bind, bindWhen, bindIn 등)
+   - S2Template 렌더링(`{{=key}}`) 사용: 조건부 절은 `bindClause`(S2Template 의 `bindWhen`), 값은 `bindParameter` 로 쿼리 파라미터 바인딩(쿼리 문자열에 넣지 않음)
    - 추가 JPA 특화 향상
    - `s2-util` 모듈 전반에 걸친 일관된 API
 

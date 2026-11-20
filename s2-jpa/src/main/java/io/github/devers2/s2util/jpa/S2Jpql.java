@@ -175,17 +175,17 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     /**
      * Interface for binding Supplier-based parameters after bindClause.
      * Provides Supplier-based bindParameter methods that can be chained after bindClause.
-     * The Supplier is executed only when the preceding bindClause condition is true.
+     * The Supplier is executed in build() only if the rendered JPQL references the parameter.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * bindClause 뒤에 Supplier 기반 파라미터를 바인딩하기 위한 인터페이스입니다.
-     * 직전의 bindClause 조건이 참일 때만 Supplier가 실행됩니다.
+     * Supplier 는 build() 때 렌더링된 JPQL 이 그 파라미터를 쓸 때만 실행됩니다.
      */
     public interface SupplierBindStep<T> extends Executor<T> {
         /**
-         * Binds a parameter using a Supplier, which is executed only if the preceding bindClause condition is true.
+         * Binds a parameter using a Supplier, which is executed in build() only if the rendered JPQL references the parameter.
          *
          * @param parameterName          Parameter name | 파라미터 이름
          * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
@@ -196,7 +196,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                 LikeMode likeMode);
 
         /**
-         * Binds a parameter using a Supplier, which is executed only if the preceding bindClause condition is true.
+         * Binds a parameter using a Supplier, which is executed in build() only if the rendered JPQL references the parameter.
          *
          * @param parameterName          Parameter name | 파라미터 이름
          * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
@@ -235,7 +235,11 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     private final EntityManager entityManager;
     private final Class<T> resultClass;
     private final Map<String, Object> boundParameters;
-    private boolean lastBindClauseCondition = true;
+    // Supplier 파라미터: build() 때 렌더링된 JPQL 이 그 파라미터를 쓸 때만 실행한다
+    private final Map<String, LazyParameter> lazyParameters = new HashMap<>();
+
+    private record LazyParameter(Supplier<Object> supplier, LikeMode likeMode) {
+    }
     private int offset = -1;
     private int limit = -1;
 
@@ -327,7 +331,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix, String suffix) {
         super.bindWhen(key, condition, clause, prefix, suffix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -370,7 +373,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix,
             String suffix) {
         super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -403,7 +405,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause, String prefix) {
         super.bindWhen(key, condition, clause, prefix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -444,7 +445,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier, String prefix) {
         super.bindWhen(key, condition, clauseSupplier, prefix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -476,7 +476,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, String clause) {
         super.bindWhen(key, condition, clause);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -516,7 +515,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     @Override
     public S2Jpql<T> bindClause(String key, boolean condition, Supplier<Object> clauseSupplier) {
         super.bindWhen(key, condition, clauseSupplier);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -551,7 +549,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix, String suffix) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clause, prefix, suffix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -595,7 +592,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
             String suffix) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clauseSupplier, prefix, suffix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -629,7 +625,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause, String prefix) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clause, prefix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -671,7 +666,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier, String prefix) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clauseSupplier, prefix);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -704,7 +698,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, Object conditionValue, String clause) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clause);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -745,7 +738,6 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     public S2Jpql<T> bindClause(String key, Object conditionValue, Supplier<Object> clauseSupplier) {
         boolean condition = isConditionValid(conditionValue);
         super.bindWhen(key, condition, clauseSupplier);
-        this.lastBindClauseCondition = condition;
         return this;
     }
 
@@ -770,17 +762,14 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
 
     /**
      * Sets the parameter with the specified name and Supplier value, applying the LIKE mode for wildcard handling if provided.
-     * The Supplier is executed only if the preceding bindClause condition is true.
-     *
-     * <p>
-     * <b>⚠️ IMPORTANT:</b> This method must be called immediately after {@link #bindClause(String, boolean, String, String)}
-     * or similar bindClause methods. The Supplier is executed only when the preceding bindClause condition was true.
-     * </p>
+     * The Supplier is executed in {@link #build()} only if the rendered JPQL references {@code :parameterName}
+     * (i.e. a clause using it was included), so it may be called in any order relative to bindClause.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 직전의 bindClause 조건이 참일 때만 Supplier를 실행하여 파라미터를 설정합니다.
+     * Supplier 는 {@link #build()} 때, 렌더링된 JPQL 에 {@code :파라미터이름} 이 있을 때만(그 파라미터를 쓰는 절이 포함됐을 때만)
+     * 실행하여 파라미터를 설정합니다. bindClause 와의 호출 순서에 상관없습니다.
      * LIKE 모드를 적용하여 와일드카드를 처리합니다.
      *
      * @param parameterName          Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
@@ -790,9 +779,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier, LikeMode likeMode) {
-        if (lastBindClauseCondition && parameterValueSupplier != null) {
-            putParameter(parameterName, parameterValueSupplier.get(), likeMode);
-        }
+        putLazyParameter(parameterName, parameterValueSupplier, likeMode);
         return this;
     }
 
@@ -816,17 +803,14 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
 
     /**
      * Sets the parameter with the specified name and Supplier value.
-     * The Supplier is executed only if the preceding bindClause condition is true.
-     *
-     * <p>
-     * <b>⚠️ IMPORTANT:</b> This method must be called immediately after {@link #bindClause(String, boolean, String, String)}
-     * or similar bindClause methods. The Supplier is executed only when the preceding bindClause condition was true.
-     * </p>
+     * The Supplier is executed in {@link #build()} only if the rendered JPQL references {@code :parameterName}
+     * (i.e. a clause using it was included), so it may be called in any order relative to bindClause.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 직전의 bindClause 조건이 참일 때만 Supplier를 실행하여 파라미터를 설정합니다.
+     * Supplier 는 {@link #build()} 때, 렌더링된 JPQL 에 {@code :파라미터이름} 이 있을 때만(그 파라미터를 쓰는 절이 포함됐을 때만)
+     * 실행하여 파라미터를 설정합니다. bindClause 와의 호출 순서에 상관없습니다.
      *
      * @param parameterName          Parameter name (e.g., "name") | 파라미터 이름 (예: "name")
      * @param parameterValueSupplier Supplier providing the parameter value | 파라미터 값을 제공하는 함수
@@ -834,9 +818,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
      */
     @Override
     public S2Jpql<T> bindParameter(String parameterName, Supplier<Object> parameterValueSupplier) {
-        if (lastBindClauseCondition && parameterValueSupplier != null) {
-            putParameter(parameterName, parameterValueSupplier.get(), null);
-        }
+        putLazyParameter(parameterName, parameterValueSupplier, null);
         return this;
     }
 
@@ -891,7 +873,7 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
                     if (parts.length == 1 && SAFE_SORT_FIELD_PATTERN.matcher(parts[0]).matches())
                         return parts[0];
                     if (parts.length == 2 && SAFE_SORT_FIELD_PATTERN.matcher(parts[0]).matches()) {
-                        String direction = parts[1].toUpperCase();
+                        String direction = parts[1].toUpperCase(java.util.Locale.ROOT);
                         if (direction.equals("ASC") || direction.equals("DESC")) {
                             return parts[0] + " " + direction;
                         }
@@ -1053,11 +1035,14 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
         if (!condition) {
             return this;
         }
-        if (offsetSupplier != null) {
-            this.offset = offsetSupplier.get();
+        // Supplier 가 null 을 돌려주면 언박싱 NPE 대신 그 값을 설정하지 않는다
+        Integer offsetValue = offsetSupplier != null ? offsetSupplier.get() : null;
+        if (offsetValue != null) {
+            this.offset = offsetValue;
         }
-        if (limitSupplier != null) {
-            this.limit = limitSupplier.get();
+        Integer limitValue = limitSupplier != null ? limitSupplier.get() : null;
+        if (limitValue != null) {
+            this.limit = limitValue;
         }
         return this;
     }
@@ -1080,16 +1065,50 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     private void putParameter(String name, Object value, LikeMode likeMode) {
-        Object processedValue = value;
-        if (value instanceof String && likeMode != null) {
-            String stringValue = (String) value;
-            processedValue = switch (likeMode) {
-                case ANYWHERE -> "%" + stringValue + "%";
-                case START -> stringValue + "%";
-                case END -> "%" + stringValue;
-            };
+        lazyParameters.remove(name);
+        boundParameters.put(name, applyLikeMode(value, likeMode));
+    }
+
+    private void putLazyParameter(String name, Supplier<Object> supplier, LikeMode likeMode) {
+        if (supplier == null) {
+            return;
         }
-        boundParameters.put(name, processedValue);
+        boundParameters.remove(name);
+        lazyParameters.put(name, new LazyParameter(supplier, likeMode));
+    }
+
+    private static Object applyLikeMode(Object value, LikeMode likeMode) {
+        // StringBuilder 등 CharSequence 도 문자열로 보고 와일드카드를 붙인다
+        if (!(value instanceof CharSequence) || likeMode == null) {
+            return value;
+        }
+        String stringValue = value.toString();
+        return switch (likeMode) {
+            case ANYWHERE -> "%" + stringValue + "%";
+            case START -> stringValue + "%";
+            case END -> "%" + stringValue;
+        };
+    }
+
+    /**
+     * 렌더링된 JPQL 이 이름 있는 파라미터 {@code :name} 을 쓰는지 본다(앞뒤가 식별자 문자면 다른 이름으로 본다).
+     */
+    private static boolean referencesParameter(String jpql, String name) {
+        int from = 0;
+        String token = ":" + name;
+        while (true) {
+            int i = jpql.indexOf(token, from);
+            if (i < 0) {
+                return false;
+            }
+            int after = i + token.length();
+            boolean startOk = i == 0 || !(Character.isJavaIdentifierPart(jpql.charAt(i - 1)) || jpql.charAt(i - 1) == ':');
+            boolean endOk = after >= jpql.length() || !Character.isJavaIdentifierPart(jpql.charAt(after));
+            if (startOk && endOk) {
+                return true;
+            }
+            from = i + 1;
+        }
     }
 
     /**
@@ -1125,14 +1144,23 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
 
         // 2. 자동 바인딩 (S2Template의 rawValues 활용)
         // 파라미터 값은 개인정보(이름·전화번호 등)일 수 있어 로그에 남기지 않고 이름과 타입만 남긴다
-        logger.debug("Parameters to bind: {}", boundParameters.keySet());
+        logger.debug("Parameters to bind: {} (lazy: {})", boundParameters.keySet(), lazyParameters.keySet());
         for (Parameter<?> param : query.getParameters()) {
             String name = param.getName();
-            if (name != null && boundParameters.containsKey(name)) {
-                Object value = boundParameters.get(name);
-                logger.debug("Binding parameter: {} ({})", name, value == null ? "null" : value.getClass().getSimpleName());
-                query.setParameter(name, value);
+            if (name == null) {
+                continue;
             }
+            Object value;
+            if (boundParameters.containsKey(name)) {
+                value = boundParameters.get(name);
+            } else if (lazyParameters.containsKey(name) && referencesParameter(renderedSql, name)) {
+                LazyParameter lazy = lazyParameters.get(name);
+                value = applyLikeMode(lazy.supplier().get(), lazy.likeMode());
+            } else {
+                continue;
+            }
+            logger.debug("Binding parameter: {} ({})", name, value == null ? "null" : value.getClass().getSimpleName());
+            query.setParameter(name, value);
         }
 
         // 3. 페이지네이션 적용

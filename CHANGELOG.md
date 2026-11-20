@@ -37,6 +37,10 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - List validation (`EACH`) reports a circular reference when an element is the same object as an ancestor on the validation path (as `NESTED` does). It used to pass silently.
 - `S2JsonUtil.toJson` writes `java.sql.Date` as a date (`2024-02-01`) and `java.sql.Time` as a time (`09:30`). They were written as UTC instants, shifting the date by a day in Korea (`2024-01-31T15:00:00Z`). `fromJson` reads them back.
 - `S2Jpql` DEBUG logs no longer include bound parameter values, only names and types (personal data).
+- **`S2Jpql` Supplier `bindParameter` runs in `build()`, only when the rendered JPQL references the parameter (`:name`).** It used to depend on the condition of the preceding `bindClause`,
+  so calling it after another clause could leave an included clause's parameter unbound (error at execution) or run the Supplier of an excluded clause. Call order relative to `bindClause` no longer matters.
+- **`S2Template.bindIn` writes only numbers and booleans as-is and quotes other values (dates, enums, …) as string literals. Strings containing a backslash are rejected with `IllegalArgumentException`.**
+  Previously a value such as `a\'` could break the quote escaping and inject SQL on MySQL/MariaDB (default settings), and non-numeric objects were inserted via `toString()`. Bind user input as query parameters.
 - **`MIN_VALUE`/`MAX_VALUE` and numeric conditions (`GT`, `GTE`, `LT`, `LTE`) compare decimals exactly on both the server and the browser.**
   They compared doubles, so values beyond 15-16 significant digits (e.g. `9007199254740993` vs `9007199254740992`, `0.1000000000000000001` vs `0.1`) were treated as equal.
   The server uses `BigDecimal` and `s2.validator.js` compares decimal strings directly, so both sides still judge the same.
@@ -82,6 +86,9 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2Jpql.limit(condition, offsetSupplier, limitSupplier)` threw `NullPointerException` when a Supplier returned `null` — that value is now left unset.
+- `S2Jpql` `LikeMode` was not applied to `CharSequence` values other than `String` (e.g. `StringBuilder`).
+- The `S2Template` class Javadoc example inserted the value as-is (`bind("name_cond", name, "AND m.name = ")`, an SQL injection pattern) — now uses a query parameter, with a security note.
 - In user regular expressions (`REGEX`, including converted `@Pattern`), the browser read `\s`/`\S` with JS meaning (including Unicode spaces such as NBSP), judging differently from the server; the browser now evaluates them with Java meaning. `\S` inside a character class cannot be translated and is not exported to the rules JSON (`IllegalStateException`).
 - GUIDE_JPQL referred to a nonexistent `LikeMode.EXACT`.
 - `DATE_AFTER`/`DATE_BEFORE` always passed for `java.util.Date` (and `java.sql.Date`, `Timestamp`, `Instant`) fields.

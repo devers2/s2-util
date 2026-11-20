@@ -40,7 +40,7 @@ The **s2-jpa** module provides a powerful and type-safe way to build dynamic JPQ
    - `build()` method to create TypedQuery with automatic parameter binding
 
 5. **Full S2Template Integration**
-   - Inherits all S2Template binding capabilities (bind, bindWhen, bindIn, etc.)
+   - Uses S2Template rendering (`{{=key}}`): conditional clauses via `bindClause` (S2Template `bindWhen`), values via `bindParameter` as query parameters (never inlined)
    - Additional JPA-specific enhancements
    - Consistent API across `s2-util` modules
 

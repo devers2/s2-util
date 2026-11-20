@@ -135,6 +135,20 @@ class S2CoreUtilFixesTest {
     }
 
     @Test
+    void bindInQuotesNonNumericValuesAndRejectsBackslash() {
+        // 숫자·논리값은 그대로, 날짜·enum 등은 문자열 리터럴, 따옴표는 두 번
+        assertEquals("IN (1, 2.5, 10000000000000000000, true)",
+                S2Template.of("{{=v}}").bindIn("v", java.util.List.of(1, 2.5, new java.math.BigInteger("10000000000000000000"), true), "IN (", ")").render());
+        assertEquals("IN ('2024-01-31', 'MONDAY', 'O''Brien', NULL)",
+                S2Template.of("{{=v}}").bindIn("v", java.util.Arrays.asList(LocalDate.of(2024, 1, 31), java.time.DayOfWeek.MONDAY, "O'Brien", null), "IN (", ")").render());
+        // MySQL·MariaDB 에서 a\' 가 따옴표를 닫아 구문이 주입되던 값은 거부
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> S2Template.of("{{=v}}").bindIn("v", java.util.List.of("a\\' OR 1=1 -- "), "IN (", ")"));
+        // NaN 같은 비유한 실수는 숫자 리터럴이 아니므로 문자열로
+        assertEquals("('NaN')", S2Template.of("{{=v}}").bindIn("v", java.util.List.of(Double.NaN), "(", ")").render());
+    }
+
+    @Test
     void jsonUnicodeEscapeAcceptsAsciiHexOnly() {
         assertEquals("A", S2JsonUtil.parse("\"\\u0041\""));
         org.junit.jupiter.api.Assertions.assertThrows(S2JsonException.class,

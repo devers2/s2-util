@@ -119,6 +119,77 @@ public class S2JpqlTest {
         when(entityManager.createQuery(anyString(), eq(Member.class))).thenReturn(typedQuery);
     }
 
+    @SuppressWarnings("unchecked")
+    private static Parameter<Object> namedParam(String name) {
+        Parameter<Object> p = mock(Parameter.class);
+        when(p.getName()).thenReturn(name);
+        return p;
+    }
+
+    @Test
+    @DisplayName("Supplier 파라미터: 직전 절이 아니라 렌더링된 JPQL 이 그 파라미터를 쓰는지로 실행을 정한다")
+    @SuppressWarnings("null")
+    void supplierParameterFollowsRenderedJpqlNotPrecedingClause() {
+        java.util.Set<Parameter<?>> params = java.util.Set.of(namedParam("pa"), namedParam("pb"));
+        when(typedQuery.getParameters()).thenReturn(params);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m WHERE 1=1 {{=a}} {{=b}}")
+                .bindClause("a", true, "AND m.name = :pa")
+                .bindClause("b", false, "AND m.email = :pb")
+                // 예전에는 직전 절(b)이 false 라 pa 가 바인딩되지 않았다
+                .bindParameter("pa", (java.util.function.Supplier<Object>) () -> "kim")
+                // pb 의 절은 빠졌으므로 실행되면 안 된다
+                .bindParameter("pb", (java.util.function.Supplier<Object>) () -> {
+                    throw new IllegalStateException("must not run");
+                })
+                .build();
+
+        verify(typedQuery).setParameter("pa", "kim");
+        verify(typedQuery, org.mockito.Mockito.never()).setParameter(eq("pb"), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("Supplier 파라미터: 절보다 먼저 호출해도 되고, 이름 일부만 같은 파라미터(:pax)는 쓰는 것으로 보지 않는다")
+    @SuppressWarnings("null")
+    void supplierParameterOrderIndependentAndExactName() {
+        java.util.Set<Parameter<?>> params = java.util.Set.of(namedParam("pa"), namedParam("pax"));
+        when(typedQuery.getParameters()).thenReturn(params);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m WHERE m.email = :pax {{=a}}")
+                .bindParameter("pa", (java.util.function.Supplier<Object>) () -> {
+                    throw new IllegalStateException("must not run");
+                }, LikeMode.START)
+                .bindClause("a", false, "AND m.name LIKE :pa")
+                .bindParameter("pax", "e@x")
+                .build();
+
+        verify(typedQuery).setParameter("pax", "e@x");
+        verify(typedQuery, org.mockito.Mockito.never()).setParameter(eq("pa"), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("limit(Supplier): null 을 돌려주면 NPE 없이 그 값을 설정하지 않고, LikeMode 는 CharSequence 에도 적용한다")
+    @SuppressWarnings("null")
+    void limitSupplierNullAndLikeModeCharSequence() {
+        java.util.Set<Parameter<?>> params = java.util.Set.of(namedParam("n"));
+        when(typedQuery.getParameters()).thenReturn(params);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m WHERE m.name LIKE :n")
+                .bindParameter("n", new StringBuilder("kim"), LikeMode.ANYWHERE)
+                .limit(true, () -> null, () -> 10)
+                .build();
+
+        verify(typedQuery).setParameter("n", "%kim%");
+        verify(typedQuery).setMaxResults(10);
+        verify(typedQuery, org.mockito.Mockito.never()).setFirstResult(org.mockito.ArgumentMatchers.anyInt());
+    }
+
     @Test
     @DisplayName("escapeLike: %, _, \\ 를 역슬래시로 이스케이프하고 null 은 그대로 둔다")
     void escapeLikeEscapesWildcards() {

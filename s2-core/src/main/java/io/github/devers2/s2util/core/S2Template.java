@@ -48,10 +48,17 @@ import java.util.stream.Collectors;
  *             {{=age_in}}
  *         """
  * )
- *         .bind("name_cond", name, "AND m.name = ")
+ *         .bindWhen("name_cond", name, "AND m.name = :name") // bind the value itself as a query parameter
  *         .bindIn("age_in", ageList, "AND m.age IN (", ")")
  *         .render();
  * }</pre>
+ *
+ * <p>
+ * <b>Security:</b> {@code bind}/{@code bindWhen} insert the value as-is without escaping.
+ * Never pass user input as the value or content; put a query parameter (e.g. {@code :name}) in the content
+ * and bind the value through the query API. {@code bindIn} quotes non-numeric values but rejects strings
+ * containing a backslash.
+ * </p>
  *
  * <p>
  * [한국어 설명]
@@ -61,6 +68,11 @@ import java.util.stream.Collectors;
  * <p>
  * JS 스타일의 {@code {{=key}}} 문법을 사용하며, 값이 존재할 때만 특정 구문을 포함시키는
  * 조건부 바인딩과 쿼리 전용 포맷팅 기능을 제공합니다.
+ * </p>
+ * <p>
+ * <b>보안:</b> {@code bind}/{@code bindWhen} 은 값을 이스케이프하지 않고 그대로 넣습니다.
+ * 사용자 입력을 값·내용으로 넘기지 말고, 내용에는 쿼리 파라미터(예: {@code :name})를 두고 값은 쿼리 API 로 바인딩하십시오.
+ * {@code bindIn} 은 숫자가 아닌 값을 따옴표로 감싸지만, 역슬래시가 든 문자열은 거부합니다.
  * </p>
  *
  * @author devers2
@@ -777,8 +789,11 @@ public class S2Template {
      * @param prefix    Starting phrase for result (e.g., "AND id IN (") | 결과물 시작 문구 (예: "AND id IN (")
      * @param suffix    Ending phrase for result (e.g., ")") | 결과물 종료 문구 (예: ")")
      * @return Current instance for method chaining | 메서드 체이닝을 위한 현재 인스턴스
+     * @throws IllegalArgumentException if a non-numeric value contains a backslash (prevents quote escaping bypass on MySQL/MariaDB) | 숫자가 아닌 값에 역슬래시가 있을 때 (MySQL·MariaDB 의 따옴표 이스케이프 우회 방지)
      * @apiNote
      *          Universally used for SQL IN clause generation and conditional list string conversion.
+     *          Standard numbers and booleans are written as-is; other values are quoted as string literals.
+     *          Prefer bound parameters for user input.
      *
      *          <pre>{@code
      * List<Integer> ids = List.of(1, 2, 3);
@@ -889,10 +904,23 @@ public class S2Template {
     private String formatQueryValue(Object value) {
         if (value == null)
             return "NULL";
-        if (value instanceof String s) {
-            return "'" + s.replace("'", "''") + "'";
+        // 표준 숫자·논리값만 그대로 쓴다. 그 밖의 타입은 toString 이 임의 문자열일 수 있어 문자열 리터럴로 감싼다
+        if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte
+                || value instanceof java.math.BigInteger || value instanceof java.math.BigDecimal
+                || value instanceof Boolean) {
+            return value.toString();
         }
-        return value.toString();
+        if ((value instanceof Double d && Double.isFinite(d)) || (value instanceof Float f && Float.isFinite(f))) {
+            return value.toString();
+        }
+        String s = value.toString();
+        // 역슬래시를 이스케이프 문자로 보는 DB(MySQL·MariaDB 기본 설정)에서는 a\' 가 '' 이스케이프를 깨고 따옴표를 닫아
+        // 구문이 주입된다. DB 마다 다른 이스케이프를 추측하지 않고 거부한다
+        if (s.indexOf('\\') >= 0) {
+            throw new IllegalArgumentException(
+                    "bindIn value must not contain a backslash; bind it as a query parameter instead");
+        }
+        return "'" + s.replace("'", "''") + "'";
     }
 
     /**
