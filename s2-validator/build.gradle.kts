@@ -58,6 +58,13 @@ java {
     }
 }
 
+// main 소스셋을 쓰는 선택 기능은 Gradle 이 그 의존성을 runtimeClasspath 에도 연결한다. 로컬 빌드의 Fat JAR(S2BuildUtils)가
+// runtimeClasspath 를 jar 에 합치므로, 그대로 두면 Spring·Bean Validation 전체가 jar 에 들어가 소비자 클래스패스에서 중복된다
+// (2.1.0 까지는 compileOnly 라 들어가지 않았음). 배포 POM·모듈 메타데이터의 optional 표시는 *RuntimeElements 에서 오므로 영향 없음
+configurations.named("runtimeClasspath") {
+    setExtendsFrom(extendsFrom.filterNot { it.name.startsWith("springSupport") || it.name.startsWith("beanValidationSupport") })
+}
+
 dependencies {
     /**
      * api: 컴파일 및 런타임 시 모두 사용함
