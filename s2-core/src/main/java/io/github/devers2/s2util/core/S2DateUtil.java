@@ -154,6 +154,23 @@ public class S2DateUtil {
         }).orElseThrow();
     }
 
+    /** 비교용: 시간이 있으면 그대로, 날짜만 있으면 그날 00:00 (날짜만 있는 패턴도 비교할 수 있도록) */
+    private static LocalDateTime toComparableDateTime(java.time.temporal.TemporalAccessor parsed) {
+        return parsed.isSupported(ChronoField.HOUR_OF_DAY) ? LocalDateTime.from(parsed) : LocalDate.from(parsed).atStartOfDay();
+    }
+
+    /** 출력용 포맷터(기본 로케일·패턴별 캐시) — 호출마다 패턴을 다시 해석하지 않는다. 잘못된 패턴은 IllegalArgumentException */
+    @SuppressWarnings("unchecked")
+    private static DateTimeFormatter formatter(String pattern) {
+        Locale locale = Locale.getDefault();
+        String key = locale.toLanguageTag() + '\u0000' + pattern;
+        return S2Cache.resolve("s2.cache.date_formatting_formatter", key, String.class, DateTimeFormatter.class, 256,
+                k -> Optional.of(DateTimeFormatter.ofPattern(pattern, locale))).orElseThrow();
+    }
+
+    /** 따옴표 리터럴을 뺀 패턴에 시간대·오프셋 필드(V z O X x Z)가 있는지 */
+    private static final Pattern ZONE_FIELDS = Pattern.compile("[VzOXxZ]");
+
     private static DateTimeFormatter strictFormatter(String pattern, Locale locale) {
         var builder = new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(pattern);
         if (pattern.indexOf('y') >= 0) {
@@ -198,7 +215,11 @@ public class S2DateUtil {
         LocalDate result = null;
 
         if (dateString == null || dateString.isBlank() || pattern == null || pattern.isBlank()) {
-            throw new S2RuntimeException("날짜 문자열과 패턴은 비어 있을 수 없습니다.");
+            // isThrowException=false 면 다른 실패처럼 null (parseToOffsetDateTime 과 같음)
+            if (!isThrowException) {
+                return null;
+            }
+            throw new S2RuntimeException("Date string and pattern must not be blank");
         }
 
         try {
@@ -254,9 +275,11 @@ public class S2DateUtil {
         LocalDateTime result = null;
 
         if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
-            throw new S2RuntimeException("일시 문자열과 패턴은 비어 있을 수 없습니다.");
+            if (!isThrowException) {
+                return null;
+            }
+            throw new S2RuntimeException("Date-time string and pattern must not be blank");
         }
-
         try {
             result = parseStrict(dateTimeString, pattern, LocalDateTime::from);
         } catch (DateTimeParseException | IllegalArgumentException e) {
@@ -347,11 +370,11 @@ public class S2DateUtil {
             throws DateTimeParseException {
         if (dateTimeString == null || dateTimeString.isBlank() || referenceDateTimeString == null
                 || referenceDateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
-            throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
+            throw new S2RuntimeException("Date-time string, reference and pattern must not be blank");
         }
 
         // 기준 일시 문자열을 LocalDate 객체로 파싱
-        var referenceDate = parseStrict(referenceDateTimeString, pattern, LocalDateTime::from);
+        var referenceDate = parseStrict(referenceDateTimeString, pattern, S2DateUtil::toComparableDateTime);
 
         return compareDates(dateTimeString, pattern, referenceDate);
     }
@@ -374,11 +397,11 @@ public class S2DateUtil {
             throws DateTimeParseException {
         if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank()
                 || referenceDate == null) {
-            throw new S2RuntimeException("일시 문자열, 패턴 또는 참조 일시는 null일 수 없습니다.");
+            throw new S2RuntimeException("Date-time string, reference and pattern must not be blank");
         }
 
         // 일시 문자열을 LocalDate 객체로 파싱
-        var dateToCompare = parseStrict(dateTimeString, pattern, LocalDateTime::from);
+        var dateToCompare = parseStrict(dateTimeString, pattern, S2DateUtil::toComparableDateTime);
 
         // LocalDate의 compareTo 메서드를 사용하여 비교
         return dateToCompare.compareTo(referenceDate);
@@ -453,7 +476,7 @@ public class S2DateUtil {
 
         if (dateTimeString == null || dateTimeString.isBlank() || pattern == null || pattern.isBlank()) {
             if (isThrowException) {
-                throw new S2RuntimeException("일시 문자열과 패턴은 비어 있을 수 없습니다.");
+                throw new S2RuntimeException("Date-time string and pattern must not be blank");
             } else {
                 if (logger.isDebugEnabled()) {
                     if (S2Util.isKorean()) {
@@ -555,9 +578,9 @@ public class S2DateUtil {
             return null;
         }
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
-            return localDateTime.format(formatter);
-        } catch (IllegalArgumentException | DateTimeParseException e) {
+            return localDateTime.format(formatter(pattern));
+        } catch (IllegalArgumentException | DateTimeException e) {
+            // 잘못된 패턴, 또는 값에 없는 필드(오프셋 XXX 등 — UnsupportedTemporalTypeException)
             if (logger.isDebugEnabled()) {
                 if (S2Util.isKorean()) {
                     logger.debug("LocalDateTime 문자열 변환에 실패했습니다. {}", e.getMessage());
@@ -585,8 +608,8 @@ public class S2DateUtil {
         if (Objects.isNull(offsetDateTime) || pattern == null || pattern.isBlank()) {
             return null;
         }
-
-        return toDateTimeString(toLocalDateTime(offsetDateTime), pattern);
+        // 오프셋을 버리지 않고 그대로 포맷한다(패턴에 XXX 가 있어도 동작, 없으면 이전과 같은 지역 일시 문자열)
+        return toInstantString(offsetDateTime, pattern);
     }
 
     /**
@@ -618,9 +641,8 @@ public class S2DateUtil {
             return null;
         }
         try {
-            var formatter = DateTimeFormatter.ofPattern(pattern);
-            return offsetDateTime.format(formatter);
-        } catch (IllegalArgumentException | DateTimeParseException e) {
+            return offsetDateTime.format(formatter(pattern));
+        } catch (IllegalArgumentException | DateTimeException e) {
             // 패턴 오류 처리 (주로 오프셋 기호(XXX)가 빠졌을 때 발생)
             if (logger.isDebugEnabled()) {
                 if (S2Util.isKorean()) {
@@ -653,8 +675,8 @@ public class S2DateUtil {
      * @throws NullPointerException if {@code pattern} or {@code maximumDate} is null
      */
     public static LocalDate getValidatedOrMaximumDate(String dateString, String pattern, LocalDate maximumDate) {
-        Objects.requireNonNull(pattern, "날짜 형식 패턴(pattern)은 null일 수 없습니다.");
-        Objects.requireNonNull(maximumDate, "최대 날짜(maximumDate)는 null일 수 없습니다.");
+        Objects.requireNonNull(pattern, "pattern must not be null");
+        Objects.requireNonNull(maximumDate, "maximumDate must not be null");
 
         if (dateString == null || dateString.isBlank()) {
             return maximumDate;
@@ -685,7 +707,7 @@ public class S2DateUtil {
      */
     public static String getValidatedOrMaximumDateString(String dateString, String pattern, LocalDate maximumDate) {
         var date = getValidatedOrMaximumDate(dateString, pattern, maximumDate);
-        return date.format(DateTimeFormatter.ofPattern(pattern));
+        return date.format(formatter(pattern));
     }
 
     /**
@@ -751,7 +773,8 @@ public class S2DateUtil {
             var zoneId = (zoneIdStr == null || zoneIdStr.isBlank()) ? ZoneId.systemDefault() : ZoneId.of(zoneIdStr);
 
             // 패턴에 지역 정보(V)나 오프셋 정보가 포함되어 있는지 확인하여 파싱함
-            if (pattern.contains("V") || pattern.contains("z") || pattern.contains("X") || pattern.contains("Z")) {
+            // 따옴표 리터럴('z' 등)은 빼고, 오프셋 x·O 도 시간대 정보로 본다(이전에는 x 를 놓쳐 오프셋을 버리고 zoneId 로 해석)
+            if (ZONE_FIELDS.matcher(pattern.replaceAll("'[^']*'", "")).find()) {
                 return parseStrict(dateTimeString, pattern, ZonedDateTime::from);
             } else {
                 // 시간 정보만 있는 경우 입력받은 zoneId와 결합함
@@ -788,7 +811,7 @@ public class S2DateUtil {
             return null;
         }
         try {
-            return zdt.format(DateTimeFormatter.ofPattern(pattern));
+            return zdt.format(formatter(pattern));
         } catch (Exception e) {
             if (logger.isDebugEnabled()) {
                 if (S2Util.isKorean()) {
@@ -909,9 +932,14 @@ public class S2DateUtil {
             var oriValue = String.valueOf(pValue);
 
             if (pPattern != null && !pPattern.isBlank()) {
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pPattern);
-
-                if (pValue instanceof java.time.LocalDateTime ldt) {
+                DateTimeFormatter formatter = formatter(pPattern);
+                if (pValue instanceof java.time.Instant instant) {
+                    // 시각(Instant)은 시스템 시간대의 일시로 보여 준다(이전에는 UTC 문자열의 숫자를 그대로 읽어 9시간 어긋남)
+                    result = instant.atZone(java.time.ZoneId.systemDefault()).format(formatter);
+                } else if (pValue instanceof java.time.ZonedDateTime || pValue instanceof java.time.OffsetDateTime) {
+                    // 자기 시간대·오프셋 그대로
+                    result = formatter.format((java.time.temporal.TemporalAccessor) pValue);
+                } else if (pValue instanceof java.time.LocalDateTime ldt) {
                     result = ldt.format(formatter);
                 } else if (pValue instanceof java.time.LocalDate ld) {
                     result = ld.format(formatter);

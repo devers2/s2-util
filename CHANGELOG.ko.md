@@ -107,6 +107,7 @@
 
 ### 수정
 
+- `S2DateUtil`: `compareDates` 가 날짜만 있는 패턴(`yyyy-MM-dd`)에서 예외를 던지던 문제(그날 00:00 으로 비교), `dateFormat(Instant)` 가 UTC 숫자를 그대로 써 시스템 시간대와 어긋나던 문제, `parseToZonedDateTime` 이 오프셋 `x`·`O` 를 놓쳐 시각이 어긋나고 따옴표 리터럴(`'z'`)을 시간대로 오인하던 문제, `toDateTimeString(OffsetDateTime, …)` 가 오프셋을 버리고 `XXX` 패턴에서 `UnsupportedTemporalTypeException` 을 던지던 문제(이제 오프셋 그대로, 값에 없는 필드는 null), `parseToLocalDate`·`parseToLocalDateTime` 이 `isThrowException=false` 인데도 빈 입력에서 예외를 던지던 문제(null). 예외 메시지를 영어로, 출력 포맷터를 캐시합니다.
 - `S2Copier` 깊은 복사가 `ConcurrentHashMap`·`CopyOnWriteArrayList`·`EnumMap`·`EnumSet` 필드를 통째로 빠뜨리고(대상 필드 타입과 맞지 않는 `LinkedHashMap`·`ArrayList` 로 만듦) `ArrayDeque` 는 복사하지 않고 공유하던 문제 — 원본과 같은 종류로 복사합니다(`PriorityQueue`·`TreeSet`·`TreeMap` 정렬 기준 유지).
 - `S2Copier.to(레코드.class)` 가 "인스턴스 생성 실패" 로 끝나던 문제 — 정식 생성자로 만듭니다. 레코드 인스턴스를 대상으로 주면 아무것도 하지 않던 것은 `IllegalArgumentException` 으로 알립니다.
 - `S2ThreadUtil`: Java 19·20(가상 스레드 미리보기)에서 초기화 ERROR 로그를 내던 문제 — 지원하지 않는 환경으로 처리합니다. 플랫폼 스레드에 `s2-util-N` 이름을 붙입니다.

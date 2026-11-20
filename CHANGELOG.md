@@ -112,6 +112,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2DateUtil`: `compareDates` threw for date-only patterns (`yyyy-MM-dd`; now compared at 00:00); `dateFormat(Instant)` printed the UTC digits instead of the system time zone; `parseToZonedDateTime` missed the `x`/`O` offset letters (shifting the instant) and mistook quoted literals (`'z'`) for a zone; `toDateTimeString(OffsetDateTime, …)` dropped the offset and threw `UnsupportedTemporalTypeException` for `XXX` (now formats with the offset; unsupported fields return null); `parseToLocalDate`/`parseToLocalDateTime` threw on blank input even with `isThrowException=false` (now null). Exception messages are in English and output formatters are cached.
 - `S2Copier` deep copy dropped `ConcurrentHashMap`, `CopyOnWriteArrayList`, `EnumMap` and `EnumSet` fields entirely (it built a `LinkedHashMap`/`ArrayList` that did not fit the field type) and shared `ArrayDeque` instead of copying it — collections are now copied into the same kind (`PriorityQueue`, `TreeSet`, `TreeMap` keep their comparator).
 - `S2Copier.to(Record.class)` failed with "Failed to instantiate" — records are now created with the canonical constructor. Passing a record instance as the target, which silently did nothing, now throws `IllegalArgumentException`.
 - `S2ThreadUtil`: logged an initialization ERROR on Java 19/20 (virtual threads in preview) — now treated as unsupported. Platform threads are named `s2-util-N`.

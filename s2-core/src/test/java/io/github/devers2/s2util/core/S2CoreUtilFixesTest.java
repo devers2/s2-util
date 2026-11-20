@@ -421,4 +421,29 @@ class S2CoreUtilFixesTest {
             S2Cache.resolve("s2.test.corrupted", "k", String.class, Integer.class, 10, wrong);
         });
     }
+
+    @Test
+    void s2DateUtilReviewFixes() {
+        java.util.TimeZone previous = java.util.TimeZone.getDefault();
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+        try {
+            // 날짜만 있는 패턴도 비교(이전에는 LocalDateTime 으로만 파싱해 예외)
+            assertEquals(-1, Integer.signum(S2DateUtil.compareDates("2024-01-01", "2024-02-01", "yyyy-MM-dd")));
+            assertEquals(1, Integer.signum(S2DateUtil.compareDates("2024-01-01 10:00", "2024-01-01 09:00", "yyyy-MM-dd HH:mm")));
+            // isThrowException=false 면 빈 입력도 null
+            assertNull(S2DateUtil.parseToLocalDate("", "yyyy-MM-dd", false));
+            assertNull(S2DateUtil.parseToLocalDateTime(" ", "yyyy-MM-dd HH:mm", false));
+            // Instant 는 시스템 시간대, Offset/Zoned 는 자기 오프셋으로
+            assertEquals("2024-01-02 00:00", S2DateUtil.dateFormat(java.time.Instant.parse("2024-01-01T15:00:00Z"), "yyyy-MM-dd HH:mm"));
+            assertEquals("2024-01-01 09:30+09:00", S2DateUtil.toDateTimeString(java.time.OffsetDateTime.parse("2024-01-01T09:30:00+09:00"), "yyyy-MM-dd HH:mmXXX"));
+            assertNull(S2DateUtil.toDateTimeString(java.time.LocalDateTime.of(2024, 1, 1, 0, 0), "yyyy-MM-dd XXX")); // 값에 없는 필드는 null
+            // 오프셋 x 를 시간대 정보로 보고, 따옴표 리터럴 'z' 는 무시
+            assertEquals(java.time.Instant.parse("2024-01-01T10:00:00Z"),
+                    S2DateUtil.parseToZonedDateTime("2024-01-01 10:00 +0000", "yyyy-MM-dd HH:mm xx", "Asia/Seoul").toInstant());
+            assertEquals(java.time.ZoneId.of("Asia/Seoul"),
+                    S2DateUtil.parseToZonedDateTime("2024-01-01z10:00", "yyyy-MM-dd'z'HH:mm", "Asia/Seoul").getZone());
+        } finally {
+            java.util.TimeZone.setDefault(previous);
+        }
+    }
 }
