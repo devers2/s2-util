@@ -36,7 +36,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.github.javaparser.ParserConfiguration;
-import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParseProblemException;
+import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
@@ -145,6 +147,23 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
      */
     private static final Set<String> TERMINAL_CALL_NAMES = Set.of("validate", "getRulesJson");
 
+    /**
+     * 이 태스크 전용 파서. 사용자 소스는 라이브러리 기준(Java 17)보다 새 문법(switch 패턴·레코드 패턴 등)을 쓸 수 있으므로
+     * Java 21(LTS) 문법 수준으로 읽는다(하위 문법도 그대로 읽음). Gradle 배포판에 든 JavaParser(Gradle 9.8 은 3.27.1, JAVA_21 까지)가
+     * 컴파일 클래스패스 앞에 오므로 그 버전에도 있는 수준을 쓴다. 더 새 문법의 파일은 파싱 실패 경고로 알린다.
+     * 전역 StaticJavaParser 설정은 바꾸지 않는다(같은 데몬의 다른 플러그인 영향 방지)
+     */
+    private final JavaParser parser = new JavaParser(
+            new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21));
+
+    private CompilationUnit parse(Path file) throws java.io.IOException {
+        ParseResult<CompilationUnit> result = parser.parse(file);
+        if (!result.isSuccessful() || result.getResult().isEmpty()) {
+            throw new ParseProblemException(result.getProblems());
+        }
+        return result.getResult().get();
+    }
+
     /** Fields (name to declared type) per analyzed DTO class | 분석한 DTO 클래스별 필드 (이름 → 선언 타입) 캐시 */
     private final Map<String, Map<String, FieldRef>> fieldCache = new LinkedHashMap<>();
 
@@ -154,6 +173,9 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
 
     /** List of DTOs for which analysis results have already been logged to prevent log overflow | 로그 오버플로우 방지를 위해 이미 분석 결과를 출력한 DTO 목록 */
     private final Set<String> loggedDTOs = new HashSet<>();
+
+    /** 스캔 소스에서 다른 타입의 필드(또는 그 컬렉션·배열 요소) 타입으로 쓰인 클래스들, 처음 필요할 때 만든다 */
+    private Set<String> nestableClasses;
 
     /** Target classes whose source was not found, logged once each | 소스를 찾지 못해 한 번씩만 기록한 대상 클래스 */
     private final Set<String> skippedDTOs = new HashSet<>();
@@ -258,7 +280,6 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     public void checkValidators() {
         getLogger().lifecycle("🔍 소스 코드 정적 분석 시작 (JavaParser)...");
         // Parse with the Java 17 baseline so records and other modern syntax are understood. | record 등 최신 문법을 해석하도록 Java 17 기준으로 파싱
-        StaticJavaParser.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17);
 
         try {
             File projectDir = getProjectDirectory().get().getAsFile();
@@ -475,8 +496,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         List<CriterionIssue> criterionWarnings = new ArrayList<>();
 
         try {
-            CompilationUnit cu = StaticJavaParser.parse(javaFile);
-            String content = cu.toString();
+            // S2Validator·S2BindValidator 를 언급하지 않는 파일(대부분)은 파싱하지 않는다(이전에는 모두 파싱한 뒤 소스 전체를 다시 출력해 확인)
+            String content = readLeniently(javaFile);
+            if (!content.contains("S2Validator") && !content.contains("S2BindValidator")) {
+                return new FileAnalysisResult(errors, chainingErrors, bindWarnings, criterionErrors, criterionWarnings);
+            }
+            CompilationUnit cu = parse(javaFile);
 
             if (content.contains("S2Validator")) {
                 // 모든 .field/.when/.and("fieldName") 호출 찾기
@@ -507,7 +532,15 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                     ValidationError error = checkPath(fieldName, targetClassName, fieldCall.getNameAsString(),
                             fieldCall.getName().getBegin().map(pos -> pos.line).orElse(0));
                     if (error != null) {
-                        errors.add(error);
+                        if ("field".equals(fieldCall.getNameAsString()) || !isNestableClass(targetClassName)) {
+                            errors.add(error);
+                        } else {
+                            // when/and 조건 필드는 실행 시 바깥 객체까지 찾는다. 다른 DTO 의 필드 타입이라 NESTED/EACH 하위 검증기 대상이
+                            // 될 수 있는 클래스면 바깥 필드일 수 있으므로 빌드를 막지 않고 경고만 한다(최상위 DTO 의 오타는 그대로 오류)
+                            criterionWarnings.add(new CriterionIssue(error.lineNumber, error.methodName + "(\"" + error.fieldName
+                                    + "\"): 조건 필드 '" + error.missingField + "'가 " + error.targetClass
+                                    + "에 없습니다 (바깥 객체 필드를 참조하는 NESTED/EACH 하위 검증기라면 무시해도 됩니다)"));
+                        }
                     }
                 }
 
@@ -523,13 +556,102 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             }
 
         } catch (Exception e) {
-            getLogger().debug("파일 파싱 실패: {}", javaFile.getFileName(), e);
+            // S2Validator 를 쓰는 파일을 읽지 못하면 그 파일은 검사되지 않으므로 경고로 알린다(이전에는 DEBUG 라 조용히 건너뜀)
+            if (mentionsS2(javaFile)) {
+                getLogger().warn("⚠️ S2Validator 를 쓰는 파일을 해석하지 못해 검사하지 못했습니다: {} ({}) | Could not parse a file that uses "
+                        + "S2Validator, so it was not checked", javaFile.getFileName(), firstLine(e.getMessage()));
+            } else {
+                getLogger().debug("파일 파싱 실패: {}", javaFile.getFileName(), e);
+            }
         }
 
         return new FileAnalysisResult(errors, chainingErrors, bindWarnings, criterionErrors, criterionWarnings);
     }
 
     /** 기준값 종류: 규칙이 받는 기준값의 형태 | Kind of criterion a rule takes */
+    /**
+     * 인자 없는 인스턴스 메서드 이름으로 읽을 수 있는 속성 이름들. 실행 시 {@code field("xCoord")} 는 {@code getXCoord()} 로,
+     * {@code field("URL")} 은 {@code getURL()} 로 찾으므로 첫 글자만 소문자로 바꾼 이름과 그대로인 이름을 모두 인정하고,
+     * 메서드 이름 자체(레코드식 접근자 {@code name()})도 인정한다
+     */
+    private static List<String> getterProperties(String name) {
+        List<String> properties = new ArrayList<>();
+        properties.add(name);
+        String rest = name.startsWith("get") && name.length() > 3 ? name.substring(3)
+                : name.startsWith("is") && name.length() > 2 ? name.substring(2) : null;
+        if (rest != null && Character.isUpperCase(rest.charAt(0))) {
+            properties.add(Character.toLowerCase(rest.charAt(0)) + rest.substring(1));
+            properties.add(rest);
+        }
+        return properties;
+    }
+
+    /** UTF-8 로 읽되 잘못된 바이트는 대체 문자로(MS949 등 다른 인코딩 소스도 ASCII 식별자는 그대로 보이게, 예외 없이) */
+    private static String readLeniently(Path file) throws IOException {
+        return new String(Files.readAllBytes(file), java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private static boolean mentionsS2(Path javaFile) {
+        try {
+            String text = readLeniently(javaFile);
+            return text.contains("S2Validator") || text.contains("S2BindValidator");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** 다른 DTO 의 필드 타입으로 쓰여 하위 검증기(NESTED/EACH) 대상이 될 수 있는 클래스인지 */
+    private boolean isNestableClass(String className) {
+        if (nestableClasses == null) {
+            nestableClasses = new HashSet<>();
+            for (File root : getSourceRoots().get()) {
+                if (!root.isDirectory()) {
+                    continue;
+                }
+                try (Stream<Path> paths = Files.walk(root.toPath())) {
+                    for (Path file : paths.filter(p -> p.toString().endsWith(".java")).collect(Collectors.toList())) {
+                        collectFieldTypes(file);
+                    }
+                } catch (IOException e) {
+                    getLogger().debug("필드 타입 수집 실패: {}", root, e);
+                }
+            }
+        }
+        return nestableClasses.contains(className);
+    }
+
+    private void collectFieldTypes(Path file) {
+        try {
+            CompilationUnit cu = parse(file);
+            for (TypeDeclaration<?> type : cu.findAll(TypeDeclaration.class)) {
+                List<Type> types = new ArrayList<>();
+                type.getFields().forEach(f -> f.getVariables().forEach(v -> types.add(v.getType())));
+                if (type instanceof RecordDeclaration record) {
+                    record.getParameters().forEach(p -> types.add(p.getType()));
+                }
+                for (Type t : types) {
+                    // List<Item>·Item[]·Map<String, Item> 은 요소 타입까지 내려간다
+                    for (Type current = t; current != null; current = elementType(current)) {
+                        String name = toCheckableClassName(cu, current);
+                        if (name != null) {
+                            nestableClasses.add(name);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            getLogger().debug("필드 타입 수집 실패: {}", file, e);
+        }
+    }
+
+    private static String firstLine(String message) {
+        if (message == null) {
+            return "";
+        }
+        int nl = message.indexOf('\n');
+        return nl < 0 ? message : message.substring(0, nl);
+    }
+
     private enum CriterionKind {
         /** 기준값 없음 ({@code null}만 허용, 메시지 키 지정용) | None; only null (to pass a message key) */
         NONE,
@@ -683,6 +805,12 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
         String text = literalText(value);
         return switch (kind) {
             case INTEGER -> {
+                // 정수 리터럴은 컴파일된 값으로 본다(0x10·0b1010·010 도 실행 시에는 String.valueOf(값) 이라 정상)
+                Long integral = integralValue(value);
+                if (integral != null) {
+                    yield integral >= Integer.MIN_VALUE && integral <= Integer.MAX_VALUE ? null
+                            : "정수(int 범위) 기준값이 필요합니다. 받은 값: " + value;
+                }
                 try {
                     Integer.parseInt(text.trim());
                     yield value instanceof CharLiteralExpr ? "정수 기준값이 필요합니다." : null;
@@ -714,6 +842,22 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /** 정수·실수 리터럴(부호 포함) | Integer or decimal literal, optionally signed */
+    /** int·long 리터럴(부호 포함)의 값, 그 밖에는 null */
+    private static Long integralValue(Expression value) {
+        boolean negative = value instanceof UnaryExpr unary && unary.getOperator() == UnaryExpr.Operator.MINUS;
+        Expression inner = value instanceof UnaryExpr unary ? unary.getExpression() : value;
+        Number number;
+        if (inner instanceof IntegerLiteralExpr intLiteral) {
+            number = intLiteral.asNumber();
+        } else if (inner instanceof LongLiteralExpr longLiteral) {
+            number = longLiteral.asNumber();
+        } else {
+            return null;
+        }
+        long v = number.longValue();
+        return negative ? -v : v;
+    }
+
     private static boolean isNumericLiteral(Expression value) {
         Expression inner = value instanceof UnaryExpr unary ? unary.getExpression() : value;
         return inner instanceof IntegerLiteralExpr || inner instanceof LongLiteralExpr || inner instanceof DoubleLiteralExpr;
@@ -940,21 +1084,32 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 지정된 스코프 노드 안에서 {@code variableName.expectedTerminal(...)}이 호출되는지 확인합니다.
+     * 지정된 스코프 노드 안에서 변수의 체인이 종단 메서드로 끝나거나({@code b.field(..).build()}) 변수가 다른 곳으로
+     * 넘겨지는지({@code return b}, 인자 전달 등) 확인합니다.
      *
      * @param scopeNode        탐색할 스코프 (메서드/생성자/람다 본문)
      * @param variableName     변수명
      * @param expectedTerminal 기대하는 종단 메서드 이름 (validate 또는 build)
-     * @return 종단 메서드 호출이 있으면 true
+     * @return 종단 메서드 호출이 있거나 변수가 넘겨지면 true
      */
     private boolean isVariableTerminalCalled(Node scopeNode, String variableName, String expectedTerminal) {
-        return !scopeNode.findAll(
-                MethodCallExpr.class,
-                call -> expectedTerminal.equals(call.getNameAsString())
-                        && call.getScope().isPresent()
-                        && call.getScope().get() instanceof NameExpr nameExpr
-                        && variableName.equals(nameExpr.getNameAsString()))
-                .isEmpty();
+        // 변수의 쓰임 중 하나라도 체인을 끝내거나(b.field(..).build()) 값을 다른 곳으로 넘기면(return b, 인자, 다른 변수) 완결로 본다.
+        // 빌드를 막는 판정이므로, 확실히 버려지는 경우(쓰이지 않음, 종단 없이 끝나는 단독 구문뿐)만 오류로 남긴다
+        for (NameExpr ref : scopeNode.findAll(NameExpr.class, n -> variableName.equals(n.getNameAsString()))) {
+            Node parent = ref.getParentNode().orElse(null);
+            if (parent instanceof AssignExpr assign && assign.getTarget() == ref) {
+                continue;
+            }
+            if (!(parent instanceof MethodCallExpr call && call.getScope().orElse(null) == ref)) {
+                return true;
+            }
+            MethodCallExpr outermost = findOutermostChainedCall(call);
+            if (expectedTerminal.equals(outermost.getNameAsString())
+                    || !(outermost.getParentNode().orElse(null) instanceof ExpressionStmt)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1156,7 +1311,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             if (scope instanceof MethodCallExpr scopedCall) {
                 current = scopedCall;
             } else if (scope instanceof NameExpr nameExpr && visitedVariables.add(nameExpr.getNameAsString())) {
-                current = findInitializerCall(getCU(fieldCall), nameExpr.getNameAsString());
+                current = findInitializerCall(nameExpr, nameExpr.getNameAsString());
             } else {
                 break;
             }
@@ -1292,19 +1447,29 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     }
 
     /**
-     * 파일 전체에서 지정된 이름의 변수 선언을 찾아, 그 초기화식이 메서드 호출이면 반환한다.
+     * 사용 지점에서 보이는 범위에서 지정된 이름의 변수 선언을 찾아, 그 초기화식이 메서드 호출이면 반환한다.
      * {@link #findTargetClassForCall}이 변수에서 끊긴 빌더 체인을 계속 추적할 수 있도록 돕는다.
      *
-     * @param cu           탐색 대상 파일의 CompilationUnit
+     * @param from         변수를 사용하는 노드
      * @param variableName 찾을 변수 이름
      * @return 초기화식(메서드 호출), 없거나 메서드 호출이 아니면 null
      */
-    private MethodCallExpr findInitializerCall(CompilationUnit cu, String variableName) {
-        for (VariableDeclarator declarator : cu.findAll(VariableDeclarator.class)) {
-            if (variableName.equals(declarator.getNameAsString())
-                    && declarator.getInitializer().isPresent()
-                    && declarator.getInitializer().get() instanceof MethodCallExpr initCall) {
-                return initCall;
+    private MethodCallExpr findInitializerCall(Node from, String variableName) {
+        // 그 이름이 보이는 가장 가까운 범위(람다·메서드·생성자, 그다음 타입의 필드)의 선언만 본다 — 다른 메서드의 같은 이름 변수 제외
+        for (Node node = from.getParentNode().orElse(null); node != null; node = node.getParentNode().orElse(null)) {
+            List<VariableDeclarator> candidates;
+            if (node instanceof LambdaExpr || node instanceof MethodDeclaration || node instanceof ConstructorDeclaration) {
+                candidates = node.findAll(VariableDeclarator.class);
+            } else if (node instanceof TypeDeclaration<?> typeDecl) {
+                candidates = typeDecl.getFields().stream().flatMap(f -> f.getVariables().stream()).collect(Collectors.toList());
+            } else {
+                continue;
+            }
+            for (VariableDeclarator declarator : candidates) {
+                if (variableName.equals(declarator.getNameAsString())) {
+                    return declarator.getInitializer().filter(MethodCallExpr.class::isInstance)
+                            .map(MethodCallExpr.class::cast).orElse(null);
+                }
             }
         }
         return null;
@@ -1377,6 +1542,17 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
             recordDecl.getParameters().forEach(param -> names.put(param.getNameAsString(), new FieldRef(param.getType(), cu)));
         }
 
+        // getter 만 있는 속성(계산 속성)도 실행 시 S2Util.getValue 가 읽으므로 필드로 인정한다(필드 선언이 우선).
+        // 실행 시 조회 규칙과 같게: get/is + 첫 글자 대문자 이름, 그리고 이름이 같은 인자 없는 메서드(name())
+        type.getMethods().forEach(method -> {
+            if (method.isStatic() || !method.getParameters().isEmpty() || method.getType().isVoidType()) {
+                return;
+            }
+            FieldRef ref = new FieldRef(method.getType(), cu);
+            for (String property : getterProperties(method.getNameAsString())) {
+                names.putIfAbsent(property, ref);
+            }
+        });
         fieldCache.put(fullClassName, names);
         if (loggedDTOs.add(fullClassName)) {
             getLogger().lifecycle(ANSI_GREEN + "✅ DTO 분석 완료:" + ANSI_RESET + " {} (필드: {}개)", fullClassName,
@@ -1404,7 +1580,7 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
                 if (!file.isFile()) {
                     continue;
                 }
-                for (TypeDeclaration<?> type : StaticJavaParser.parse(file).findAll(TypeDeclaration.class)) {
+                for (TypeDeclaration<?> type : parse(file.toPath()).findAll(TypeDeclaration.class)) {
                     if (canonicalName.equals(type.getFullyQualifiedName().orElse(null))) {
                         return type;
                     }

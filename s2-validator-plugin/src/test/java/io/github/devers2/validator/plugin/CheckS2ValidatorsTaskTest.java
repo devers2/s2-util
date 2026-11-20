@@ -92,6 +92,269 @@ public class CheckS2ValidatorsTaskTest {
     }
 
     @Test
+    void when_conditionFieldIsOnOuterObject_noException() throws Exception {
+        // 하위 검증기의 when 조건은 실행 시 바깥 객체까지 찾으므로(매뉴얼 '바깥 필드 참조') 대상 DTO 에 없어도 빌드를 막지 않는다(경고)
+        File projectDir = Files.createTempDirectory("project-dir-when-outer").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Member", "private String country;\n private Address address;\n");
+            createDto(projectDir.toPath(), "com.example", "Address", "private String zip;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    Object sub(){\n" +
+                    "        return S2Validator.<Address>builder().field(\"zip\").when(\"country\", null, \"KR\").rule(null).build();\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertDoesNotThrow(() -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_sameVariableNameInOtherMethods_usesItsOwnInitializer() throws Exception {
+        // 다른 메서드의 같은 이름 변수 초기값을 쓰지 않는다 — 이전에는 파일에서 처음 찾은 v(Person)로 Order 의 필드를 검사해 오탐
+        File projectDir = Files.createTempDirectory("project-dir-var-scope").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person", "private String name;\n");
+            createDto(projectDir.toPath(), "com.example", "Order", "private String orderNo;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    Object a(){\n" +
+                    "        var v = S2Validator.<Person>builder().field(\"name\").rule(null);\n" +
+                    "        return v.build();\n" +
+                    "    }\n" +
+                    "    Object b(){\n" +
+                    "        var v = S2Validator.<Order>builder();\n" +
+                    "        return v.field(\"orderNo\").rule(null).build();\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertDoesNotThrow(() -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_builderVariableIsOnlyContinuedWithoutTerminal_chainingError() throws Exception {
+        // 변수의 체인을 이어 쓰기만 하고 build() 로 끝내지 않으면 죽은 코드
+        File projectDir = Files.createTempDirectory("project-dir-chain-dead").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person", "private String name;\n private int age;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    void dead(){\n" +
+                    "        var b = S2Validator.<Person>builder().field(\"name\").rule(null);\n" +
+                    "        b.field(\"age\").rule(null);\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            IllegalStateException e = assertThrows(IllegalStateException.class, () -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException ex) {
+                    Throwable cause = ex.getCause();
+                    if (cause instanceof RuntimeException)
+                        throw (RuntimeException) cause;
+                    throw new RuntimeException(cause);
+                }
+            });
+            org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("불완전한 체이닝"), e.getMessage());
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_builderVariableIsContinuedOrReturned_noChainingError() throws Exception {
+        // 변수에 담은 빌더를 이어서 쓰고 끝내거나(b.field(..).build()), 다른 곳에 넘기면(return b) 죽은 코드가 아니다
+        File projectDir = Files.createTempDirectory("project-dir-chain-var").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person", "private String name;\n private int age;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    Object continued(boolean adult){\n" +
+                    "        var b = S2Validator.<Person>builder().field(\"name\").rule(null);\n" +
+                    "        if (adult) b = b.field(\"age\").rule(null);\n" +
+                    "        return b.field(\"age\").rule(null).build();\n" +
+                    "    }\n" +
+                    "    Object returned(){\n" +
+                    "        var b = S2Validator.<Person>builder().field(\"name\").rule(null);\n" +
+                    "        return b;\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertDoesNotThrow(() -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_propertyHasOnlyAGetter_noException() throws Exception {
+        // 필드 없이 getter 만 있는 속성(계산 속성)도 S2Util.getValue 가 읽으므로 오류가 아니다(이전에는 빌드를 막는 오탐)
+        File projectDir = Files.createTempDirectory("project-dir-getter").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person",
+                    "private String first;\n public String getFullName() { return first; }\n public boolean isAdult() { return true; }\n"
+                            + " public int getXCoord() { return 0; }\n public String code() { return first; }\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    void sample(){\n" +
+                    "        S2Validator.<Person>builder().field(\"fullName\").rule(null).field(\"adult\").rule(null)"
+                    + ".field(\"xCoord\").rule(null).field(\"code\").rule(null).build();\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertDoesNotThrow(() -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    throw e.getCause();
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_sourceIsMs949Encoded_fieldTypoIsStillCaught() throws Exception {
+        // UTF-8 이 아닌(MS949) 소스도 검사한다 — 엄격한 UTF-8 읽기로 바꾸면 예외로 조용히 건너뛸 수 있어 고정
+        File projectDir = Files.createTempDirectory("project-dir-ms949").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person", "private String other;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "// 회원 검증기\n" +
+                    "public class ValidatorSample {\n" +
+                    "    void sample(){\n" +
+                    "        S2Validator.<Person>builder().field(\"name\").rule(null, \"이름\").build();\n" +
+                    "    }\n" +
+                    "}\n";
+            Path dir = projectDir.toPath().resolve("src/main/java/com/example");
+            Files.createDirectories(dir);
+            Files.write(dir.resolve("ValidatorSample.java"), validatorSrc.getBytes(java.nio.charset.Charset.forName("MS949")));
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertThrows(IllegalStateException.class, () -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException)
+                        throw (RuntimeException) cause;
+                    throw new RuntimeException(cause);
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
+    void when_fileUsesJava21Syntax_fieldTypoIsStillCaught() throws Exception {
+        // Java 21 문법(switch 패턴 매칭·레코드 패턴)이 있는 파일도 파싱해 검사해야 한다 — Java 17 문법으로 파싱하면
+        // 실패한 파일을 조용히 건너뛰어 오타가 빌드를 통과했다
+        File projectDir = Files.createTempDirectory("project-dir-java21").toFile();
+        try {
+            setupSource(projectDir.toPath());
+            createDto(projectDir.toPath(), "com.example", "Person", "private String other;\n");
+            String validatorSrc = "package com.example;\n" +
+                    "public class ValidatorSample {\n" +
+                    "    record Point(int x, int y) {}\n" +
+                    "    String describe(Object o) {\n" +
+                    "        return switch (o) {\n" +
+                    "            case Point(int x, int y) when x > 0 -> \"p\" + y;\n" +
+                    "            case String s -> s;\n" +
+                    "            default -> \"?\";\n" +
+                    "        };\n" +
+                    "    }\n" +
+                    "    void sample(){\n" +
+                    "        S2Validator.<Person>builder().field(\"name\").rule(null).build();\n" +
+                    "    }\n" +
+                    "}\n";
+            writeJavaFile(projectDir.toPath(), "com/example", "ValidatorSample.java", validatorSrc);
+
+            Project project = ProjectBuilder.builder().withProjectDir(projectDir).build();
+            Class<?> taskClass = Class.forName("io.github.devers2.validator.plugin.CheckS2ValidatorsTask");
+            @SuppressWarnings({ "unchecked", "deprecation", "rawtypes" })
+            org.gradle.api.Task task = project.getTasks().create("checkS2", (Class) taskClass);
+            java.lang.reflect.Method check = taskClass.getMethod("checkValidators");
+            assertThrows(IllegalStateException.class, () -> {
+                try {
+                    check.invoke(task);
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException)
+                        throw (RuntimeException) cause;
+                    throw new RuntimeException(cause);
+                }
+            });
+        } finally {
+            deleteRecursively(projectDir.toPath());
+        }
+    }
+
+    @Test
     void when_fieldMissing_throwsException() throws Exception {
         File projectDir = Files.createTempDirectory("project-dir-fail").toFile();
         try {

@@ -27,6 +27,8 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Verifies that specified field names actually exist in target DTO classes
    - Identifies typos in field names before they cause runtime errors
    - Supports inheritance: Validates fields from parent classes as well
+   - Properties with only a getter (`getFullName()`, `isAdult()`, `code()`) count as fields, as at runtime
+   - Reads Java 21 syntax (switch and record patterns); warns when a file that uses S2Validator cannot be parsed
    - Paths: `address.city`, `items[0].name` and `products[].price` are checked part by part, following the declared
      types into nested objects and the elements of arrays, collections (`List`, `Set`, ...) and map values (stops where
      the sources cannot tell the type: `Map`, type variables, JDK types)
@@ -86,6 +88,8 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
      value other than true/false (treated as off)
    - Warning: the comparison field of `EQUALS_FIELD`/`DATE_AFTER`/`DATE_BEFORE` is not in the DTO (a NESTED/EACH
      sub-validator may refer to an outer field, so this is only a warning)
+   - Warning: a `when`/`and` condition field is missing from a DTO that is used as a field type of another DTO (it can be a
+     sub-validator target) — on a top-level DTO a condition-field typo still fails the build
    - Values passed as variables, constants or method calls are skipped and checked by the runtime when the validator is built
 
 ---

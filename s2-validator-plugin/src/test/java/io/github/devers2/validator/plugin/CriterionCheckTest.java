@@ -52,6 +52,7 @@ public class CriterionCheckTest {
         List<String> bad = List.of(
                 ".rule(S2RuleType.MAX_LENGTH, \"abc\")",
                 ".rule(S2RuleType.MAX_LENGTH, 10.5)",
+                ".rule(S2RuleType.MAX_LENGTH, 3_000_000_000L)",
                 ".rule(S2RuleType.MIN_VALUE, \"19살\")",
                 ".rule(S2RuleType.MAX_LENGTH)",
                 ".rule(S2RuleType.EMAIL, \"^.+$\")",
@@ -71,8 +72,8 @@ public class CriterionCheckTest {
 
         BuildResult result = setUp(body.toString()).buildAndFail();
         String output = result.getOutput();
-        assertTrue(output.contains("13개의 잘못된 규칙 기준값"), output);
-        for (int line = 10; line <= 22; line++) {
+        assertTrue(output.contains("14개의 잘못된 규칙 기준값"), output);
+        for (int line = 10; line <= 23; line++) {
             assertTrue(output.contains("Line " + line + ":"), "line " + line + " not reported:\n" + output);
         }
         assertTrue(output.contains("정규식 문법 오류"), output);
@@ -85,7 +86,7 @@ public class CriterionCheckTest {
                     void good(S2Validator<Object> sub, int max) {
                         S2Validator.<Map<String, Object>>builder()
                             .field("a").rule(S2RuleType.REQUIRED, null, "err.required")
-                            .field("b").rule(MAX_LENGTH, 10).rule(S2RuleType.MAX_LENGTH, "10").rule(S2RuleType.MIN_LENGTH, LIMIT)
+                            .field("b").rule(MAX_LENGTH, 10).rule(S2RuleType.MAX_LENGTH, "10").rule(S2RuleType.MIN_LENGTH, LIMIT).rule(S2RuleType.MAX_LENGTH, 0x10).rule(S2RuleType.MAX_BYTE, 0b1010).rule(S2RuleType.MAX_SIZE, 10L)
                             .field("c").rule(S2RuleType.MIN_VALUE, -1.5).rule(S2RuleType.MAX_VALUE, " 19 ").rule(S2RuleType.MAX_VALUE, max)
                             .field("d").rule(S2RuleType.REGEX, "\\\\d+").rule(S2RuleType.JUMIN, true).rule(S2RuleType.BIZRNO, "true")
                             .field("e").rule(S2RuleType.NESTED, sub).rule(S2RuleType.JUMIN)
