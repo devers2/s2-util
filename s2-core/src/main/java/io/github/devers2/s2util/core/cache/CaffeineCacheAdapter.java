@@ -76,11 +76,20 @@ public class CaffeineCacheAdapter<K, V> implements CacheAdapter<K, V> {
 
     /**
      * Retrieves a value from the cache, or creates it using the loader if not present.
+     * <p>
+     * The loader runs outside any cache lock, like the lightweight cache: concurrent misses on the same key may
+     * compute the value more than once (the first stored value wins), but a slow loader never blocks other keys
+     * or pins virtual threads on Java 21-23. A {@code null} result is returned without being cached.
+     * </p>
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * 캐시에서 값을 조회하거나, 없을 경우 loader를 통해 생성하여 반환합니다.
+     * <p>
+     * 경량 캐시와 같이 loader 를 캐시 락 밖에서 실행합니다. 같은 키를 동시에 놓치면 중복 계산될 수 있으나(먼저 저장된 값이 쓰임),
+     * 느린 loader 가 다른 키를 막거나 Java 21~23 에서 가상 스레드를 실행 스레드에 묶지 않습니다. {@code null} 결과는 캐시하지 않고 돌려줍니다.
+     * </p>
      *
      * @param key    Key to look up | 조회할 키
      * @param loader Creation function to execute when value is missing | 값이 없을 때 실행할 생성 함수
@@ -89,7 +98,18 @@ public class CaffeineCacheAdapter<K, V> implements CacheAdapter<K, V> {
     @SuppressWarnings("null")
     @Override
     public V get(K key, Function<K, V> loader) {
-        return cache.get(key, loader);
+        V cached = cache.getIfPresent(key);
+        if (cached != null) {
+            return cached;
+        }
+        // Caffeine 의 get(key, loader) 는 내부 맵의 computeIfAbsent 라 loader 가 버킷 락 안에서 돈다 —
+        // 느린 loader 면 같은 버킷의 다른 키 로딩이 줄줄이 기다리고, Java 21~23 에서는 가상 스레드가 묶인다(실측)
+        V created = loader.apply(key);
+        if (created == null) {
+            return null;
+        }
+        V existing = cache.asMap().putIfAbsent(key, created);
+        return existing != null ? existing : created;
     }
 
     /**

@@ -157,8 +157,10 @@ public class S2ThreadUtil {
         MethodHandle virtualExecutorMh = null;
 
         // 기본 플랫폼 데몬 팩토리 설정
+        // 스레드 덤프에서 라이브러리 스레드임을 알 수 있도록 이름을 붙인다(s2-util-1, s2-util-2 ...)
+        java.util.concurrent.atomic.AtomicInteger threadNumber = new java.util.concurrent.atomic.AtomicInteger();
         platformFactory = runnable -> {
-            Thread thread = new Thread(runnable);
+            Thread thread = new Thread(runnable, "s2-util-" + threadNumber.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         };
@@ -182,8 +184,9 @@ public class S2ThreadUtil {
                 virtualExecutorMh = lookup.findStatic(Executors.class, "newVirtualThreadPerTaskExecutor",
                         MethodType.methodType(ExecutorService.class));
 
-            } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
-                // Java 21 미만 환경 처리
+            } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException
+                    | UnsupportedOperationException e) {
+                // Java 21 미만 환경 처리 (Java 19·20 은 미리보기 기능이라 --enable-preview 없이 호출하면 UnsupportedOperationException)
                 defaultFactory = platformFactory;
             } catch (Throwable t) {
                 defaultFactory = platformFactory;

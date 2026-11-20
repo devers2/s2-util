@@ -86,6 +86,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Performance
 
+- The Caffeine backend now runs loaders outside any cache lock, like the lightweight cache. Caffeine's `get(key, loader)` (an internal `computeIfAbsent`) let a slow loader block other keys in the same bin and pinned virtual threads on Java 21-23 (2,000 loads of a 20 ms loader: Java 21 2.2 s → 0.19 s, Java 25 1.4 s → 0.23 s). Concurrent misses on the same key may compute twice; the first stored value wins.
 - s2-core lightweight cache (`S2OptimisticCache`): reads no longer bump a shared counter; recency is tracked as an epoch-based approximate LRU, so reads perform no shared writes
   and throughput scales with the number of cores under concurrent reads. Eviction still runs asynchronously on its dedicated platform thread and now trims to 75% of the maximum size instead of half.
 - `S2Cache` method handle, field (`getFields`) and proxy real-class caches moved to a per-class `ClassValue`. Previous class loaders are no longer pinned by a static cache
@@ -109,6 +110,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2ThreadUtil`: logged an initialization ERROR on Java 19/20 (virtual threads in preview) — now treated as unsupported. Platform threads are named `s2-util-N`.
 - `S2Util.getValue` could not read public methods of JDK classes (`String.length`, `BigDecimal.scale`, ...), returning `null` with an ERROR log — public members of public classes are now read without changing access. Inaccessible members are reported once at WARN.
 - `S2Cache.getFields` threw `InaccessibleObjectException` for JDK classes (modules not open). `S2Cache.resolve` checked the value type only when DEBUG logging was on (now always); exception messages are in English.
 - `S2Util.getValue` could not read Lombok's `getIsXxx()` for a `Boolean isXxx` field or a field whose name looks like a getter (`is3d`), always returning `null`. `getValueAll` no longer lists static getters as properties.

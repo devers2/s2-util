@@ -81,6 +81,7 @@
 
 ### 성능
 
+- Caffeine 백엔드도 경량 캐시처럼 loader 를 캐시 락 밖에서 실행합니다. 이전에는 Caffeine `get(key, loader)`(내부 `computeIfAbsent`)라 느린 loader 가 같은 버킷의 다른 키 로딩을 막고 Java 21~23 에서 가상 스레드를 실행 스레드에 묶었습니다(20ms loader 2,000건: Java 21 2.2초 → 0.19초, Java 25 1.4초 → 0.23초). 같은 키를 동시에 놓치면 중복 계산될 수 있으나 먼저 저장된 값이 쓰입니다.
 - s2-core 경량 캐시(`S2OptimisticCache`): 조회 때 공유 카운터를 올리던 방식을 세대(epoch) 기반 근사 LRU 로 바꿔, 조회가 공유 쓰기 없이 동작합니다.
   여러 스레드가 동시에 조회해도 처리량이 코어 수만큼 늘어납니다. 축출은 지금처럼 전용 플랫폼 스레드에서 비동기로 하며, 절반이 아닌 최대 크기의 75%까지만 지웁니다.
 - `S2Cache` 의 메서드 핸들·필드(`getFields`)·프록시 실제 클래스 캐시를 클래스별 `ClassValue` 로 옮겼습니다. 재배포·DevTools 재시작 때 이전 ClassLoader 가
@@ -104,6 +105,7 @@
 
 ### 수정
 
+- `S2ThreadUtil`: Java 19·20(가상 스레드 미리보기)에서 초기화 ERROR 로그를 내던 문제 — 지원하지 않는 환경으로 처리합니다. 플랫폼 스레드에 `s2-util-N` 이름을 붙입니다.
 - `S2Util.getValue` 가 JDK 클래스의 공개 메서드(`String.length`·`BigDecimal.scale` 등)를 읽지 못하고 `null` 과 ERROR 로그를 내던 문제 — 공개 클래스의 공개 멤버는 접근 권한을 바꾸지 않고 읽습니다. 접근할 수 없는 멤버는 WARN 으로 한 번 알립니다.
 - `S2Cache.getFields` 가 JDK 클래스(열리지 않은 모듈)에서 `InaccessibleObjectException` 을 던지던 문제. `S2Cache.resolve` 의 값 타입 검사가 DEBUG 로그일 때만 동작하던 문제(항상 검사), 예외 메시지를 영어로.
 - `S2Util.getValue` 가 Lombok 이 `Boolean isXxx` 필드에 만드는 `getIsXxx()` 와, getter 모양 이름(`is3d`)의 필드를 읽지 못하고 항상 `null` 을 돌려주던 문제. `getValueAll` 은 static getter 를 속성으로 넣지 않습니다.
