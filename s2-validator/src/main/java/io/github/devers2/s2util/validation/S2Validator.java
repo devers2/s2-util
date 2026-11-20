@@ -20,7 +20,6 @@
  */
 package io.github.devers2.s2util.validation;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -129,9 +128,7 @@ import com.google.errorprone.annotations.CheckReturnValue;
  * @version 1.5
  * @since 1.0
  */
-public class S2Validator<T> implements Serializable {
-
-    private static final long serialVersionUID = -7182934058123948572L;
+public class S2Validator<T> {
 
     /**
      * Default base name for the resource bundle used globally for validation messages.

@@ -20,7 +20,6 @@
  */
 package io.github.devers2.s2util.validation;
 
-import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.Instant;
@@ -86,14 +85,13 @@ import io.github.devers2.s2util.core.S2Util;
  * @see S2RuleType
  * @see S2Field
  */
-public class S2Rule implements S2RuleMessageStep, Serializable {
+public class S2Rule implements S2RuleMessageStep {
 
     /** Plain decimal number notation shared with the client validator | 클라이언트 검증기와 공유하는 일반 십진 숫자 표기 */
     private static final Pattern NUMERIC_PATTERN = Pattern
             .compile("[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?");
 
 
-    private static final long serialVersionUID = 5429183746201827364L;
 
     /** Validation rule type identifier */
     private final S2RuleType ruleType;
@@ -116,7 +114,7 @@ public class S2Rule implements S2RuleMessageStep, Serializable {
     }
 
     /** Whether this is the shared {@link #required()} instance, which must not be modified | 수정하면 안 되는 공유 {@link #required()} 인스턴스인지 */
-    private transient boolean shared;
+    private boolean shared;
 
     /**
      * Constructs a new rule with the specified type.

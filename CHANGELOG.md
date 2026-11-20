@@ -6,8 +6,16 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ## [Unreleased]
 
+### ⚠️ Compatibility
+
+- **`S2Validator`, `S2Field`, `S2Rule` and `S2Condition` are no longer `Serializable`.** With any lambda rule, serialization always failed with `NotSerializableException` because of an internal lambda, so the contract could not be kept.
+  A validator is configuration: share it as a `static final` constant (or a Spring bean) instead of serializing it into a session.
+
 ### ⚠️ Behavior changes
 
+- **`S2Util.getValue` no longer swallows exceptions thrown by the getter itself; it throws `S2PropertyAccessException` (with the property path and cause).** A missing property or a `null` along the path still yields `null` (or the default value).
+  Previously a getter failure (lazy-loading failure, NPE in a computed getter, …) became an empty value, so in the validator `REQUIRED` failed with a misleading message and the other rules (`EMAIL`, `MAX_LENGTH`, …) **silently passed**.
+  For the same reason `S2Copier`, `setValue` (nested paths) and `getValueAll` report getter failures too. JVM errors such as `OutOfMemoryError` are no longer swallowed.
 - **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) judge the original value including surrounding spaces.** Previously the
   trimmed value was judged, so a value padded with spaces could pass the limit and be stored as is. Both the server and
   `s2.validator.js` changed; the browser now reads form values without trimming.

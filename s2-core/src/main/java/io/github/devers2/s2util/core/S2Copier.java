@@ -39,6 +39,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import io.github.devers2.s2util.exception.S2PropertyAccessException;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 
@@ -299,6 +300,7 @@ public class S2Copier<S> {
      * @param target The target object to populate with copied values (must not be null) | 값을 채워넣을 대상 객체 (null이 아니어야 함)
      * @return The target object with copied values | 복사된 값으로 채워진 대상 객체
      * @throws IllegalArgumentException if target is null | target이 null인 경우
+     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if a source getter throws (exclude such fields with {@link #exclude(String...)}) | 원본 getter 가 예외를 던질 때 ({@link #exclude(String...)} 로 제외 가능)
      */
     @SuppressWarnings("unchecked")
     public <T> T to(T target) {
@@ -344,6 +346,9 @@ public class S2Copier<S> {
                 if (!S2Util.setValue(target, targetFieldName, null, value)) {
                     logSkipped(targetFieldName, null);
                 }
+            } catch (S2PropertyAccessException e) {
+                // getter 의 실패는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
+                throw e;
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
                 logSkipped(targetFieldName, e);
@@ -426,6 +431,9 @@ public class S2Copier<S> {
 
                 // 6. Map에 값을 저장한다.
                 targetMap.put(mapKey, value);
+            } catch (S2PropertyAccessException e) {
+                // getter 의 실패는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
+                throw e;
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
                 logSkipped(sourceFieldName, e);
@@ -457,18 +465,22 @@ public class S2Copier<S> {
      * @param targetClass The target class to instantiate (must have a no-argument constructor) | 인스턴스를 생성할 대상 클래스 (no-argument 생성자 필요)
      * @return A new instance of targetClass populated with copied values | 복사된 값으로 채워진 새 인스턴스
      * @throws RuntimeException if instantiation fails | 인스턴스 생성 실패 시
+     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if a source getter throws (exclude such fields with {@link #exclude(String...)}) | 원본 getter 가 예외를 던질 때 ({@link #exclude(String...)} 로 제외 가능)
      */
     public <T> T to(Class<T> targetClass) {
         if (targetClass == null) {
             throw new IllegalArgumentException("Target class cannot be null.");
         }
+        T instance;
         try {
-            return to(newInstance(targetClass));
+            instance = newInstance(targetClass);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to instantiate target class: " + targetClass.getName() + " (한국어: 대상 클래스 인스턴스 생성 실패)",
                     e);
         }
+        // 복사 중의 예외(getter 실패 등)는 인스턴스 생성 실패로 감싸지 않고 그대로 알린다
+        return to(instance);
     }
 
     /**
@@ -643,6 +655,8 @@ public class S2Copier<S> {
                             ? deepCopyValue(fieldValue, field.getType(), visited, depth + 1)
                             : null;
                     S2Util.setValue(copiedObject, fieldName, null, copiedFieldValue);
+                } catch (S2PropertyAccessException e) {
+                    throw e;
                 } catch (Exception e) {
                     // Skip problematic fields
                     logSkipped(fieldName, e);
@@ -650,6 +664,9 @@ public class S2Copier<S> {
                 }
             }
             return copiedObject;
+        } catch (S2PropertyAccessException e) {
+            visited.remove(source);
+            throw e;
         } catch (ReflectiveOperationException | RuntimeException e) {
             // If instantiation fails, return the original object
             visited.remove(source);

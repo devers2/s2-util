@@ -6,8 +6,16 @@
 
 ## [Unreleased]
 
+### ⚠️ 호환성
+
+- **`S2Validator`·`S2Field`·`S2Rule`·`S2Condition` 은 더 이상 `Serializable` 이 아닙니다.** 람다 규칙이 하나라도 있으면 내부 람다 때문에 항상 `NotSerializableException` 이 나서 지킬 수 없는 계약이었습니다.
+  검증기는 설정 객체이므로 세션 등에 직렬화하지 말고 `static final` 상수(또는 Spring 빈)로 공유하십시오.
+
 ### ⚠️ 동작 변경
 
+- **`S2Util.getValue` 는 getter 자체가 던진 예외를 삼키지 않고 `S2PropertyAccessException`(속성 경로·원인 포함)으로 던집니다.** 없는 속성·경로 중간의 `null` 은 이전처럼 `null`(또는 기본값)입니다.
+  이전에는 getter 예외(지연 로딩 실패, 계산 getter 의 NPE 등)가 빈 값이 되어, 검증기에서 `REQUIRED` 는 엉뚱한 메시지로 실패하고 나머지 규칙(`EMAIL`·`MAX_LENGTH` 등)은 **조용히 통과**했습니다.
+  같은 이유로 `S2Copier`·`setValue`(중첩 경로)·`getValueAll` 도 getter 실패를 알립니다. `OutOfMemoryError` 같은 JVM 오류도 더 이상 삼키지 않습니다.
 - **상한 규칙(`LENGTH`·`MAX_LENGTH`·`MAX_BYTE`)은 앞뒤 공백을 포함한 원래 값으로 판정합니다.** 이전에는 공백을 뺀 값으로 판정해 공백을 덧붙인 값이
   길이 제한을 통과한 뒤 그대로 저장될 수 있었습니다. 서버와 `s2.validator.js` 모두 바뀌었고, 브라우저는 폼 값을 공백을 빼지 않고 읽습니다.
 - **여러 값(컬렉션·배열·체크박스 그룹·다중 선택)은 요소별로 판정합니다.** 이전에는 서버가 `toString()`(`"[a, b]"`, `"[Ljava.lang.String;@…"`),

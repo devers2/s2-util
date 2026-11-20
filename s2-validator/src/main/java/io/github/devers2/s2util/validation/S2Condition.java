@@ -20,7 +20,6 @@
  */
 package io.github.devers2.s2util.validation;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -54,7 +53,7 @@ import io.github.devers2.s2util.core.S2Util;
  * @version 1.5
  * @since 1.0
  */
-public record S2Condition(Object fieldName, S2Operator operator, Object value) implements Serializable {
+public record S2Condition(Object fieldName, S2Operator operator, Object value) {
 
     /**
      * Validates the operator and value at creation, so a condition that can never be judged consistently fails fast.

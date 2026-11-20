@@ -254,4 +254,32 @@ class ReviewDefectRegressionTest {
         Assertions.assertEquals("nickname", bindingResult.getFieldError().getField());
         Assertions.assertNotNull(bindingResult.getFieldError().getDefaultMessage());
     }
+
+    public static class LazyDto {
+        public String getEmail() {
+            throw new IllegalStateException("could not initialize proxy - no Session");
+        }
+    }
+
+    @Test
+    @DisplayName("getter 가 예외를 던지면 빈 값으로 보고 통과시키지 않고 S2PropertyAccessException 을 전파한다")
+    void getterFailureIsNotTreatedAsEmptyValue() {
+        S2Validator<LazyDto> validator = S2Validator.<LazyDto>builder()
+                .field("email", "이메일").rule(S2RuleType.EMAIL)
+                .build();
+        var e = Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> validator.validate(new LazyDto()));
+        Assertions.assertEquals("email", e.getPropertyPath());
+        Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> validator.validateAll(new LazyDto()));
+    }
+
+    @Test
+    @DisplayName("검증기는 Serializable 이 아니다(람다 규칙 때문에 지킬 수 없는 계약) — static final 상수로 공유한다")
+    void validatorIsNotSerializable() {
+        Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Validator.class));
+        Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Field.class));
+        Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Rule.class));
+        Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Condition.class));
+    }
 }

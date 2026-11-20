@@ -958,6 +958,8 @@ String role = S2Util.getValue(user, "roles[0].name");
 S2Util.setValue(user, "address.city", "Seoul");
 ```
 
+A missing property or a `null` along the path yields `null` (or the default value), but **if the getter itself throws**, `S2PropertyAccessException` (with `getPropertyPath()` and the cause) is thrown, so validation and copying never mistake a getter failure for an empty value.
+
 ### 9-2. Intelligent Dual-Mode Caching (`S2Cache`)
 
 - **Default (Zero-Dependency)**: `S2OptimisticCache` provides lock-free reads and optimistic atomic writes.

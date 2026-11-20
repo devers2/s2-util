@@ -958,6 +958,8 @@ String role = S2Util.getValue(user, "roles[0].name");
 S2Util.setValue(user, "address.city", "대전");
 ```
 
+없는 속성이나 경로 중간의 `null` 은 `null`(또는 기본값)이 되지만, **getter 자체가 예외를 던지면** `S2PropertyAccessException`(`getPropertyPath()`, 원인 포함)이 발생합니다. 검증·복사가 getter 실패를 빈 값으로 오인하지 않게 하기 위함입니다.
+
 ### 9-2. 지능형 듀얼 모드 캐시 (`S2Cache`)
 
 - **기본 모드 (무의존성)**: `S2OptimisticCache`가 락 프리(Lock-free) 읽기와 원자적 쓰기를 제공합니다.

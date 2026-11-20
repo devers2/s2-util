@@ -20,7 +20,6 @@
  */
 package io.github.devers2.s2util.validation;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -65,9 +64,7 @@ import io.github.devers2.s2util.log.S2Logger;
  * @version 1.5
  * @since 1.0
  */
-public class S2Field<T> implements Serializable {
-
-    private static final long serialVersionUID = -7438229703800777199L;
+public class S2Field<T> {
 
     private static final S2Logger logger = S2LogManager.getLogger(S2Field.class);
 
@@ -822,9 +819,7 @@ public class S2Field<T> implements Serializable {
      * 브라우저가 스스로 판정할 수 있는 규칙은 양쪽에서 실행되는 내장 규칙이나 {@link S2RuleType#REGEX}로 정의하십시오.
      * </p>
      */
-    public static class S2CustomRule<V, T> implements S2RuleMessageStep, Serializable {
-
-        private static final long serialVersionUID = 2120694816429761625L;
+    public static class S2CustomRule<V, T> implements S2RuleMessageStep {
 
         private final BiPredicate<V, T> logic;
         /** * 로케일 언어별 에러 메시지 템플릿 맵 */
@@ -911,7 +906,7 @@ public class S2Field<T> implements Serializable {
          * Used to log the "server-only" notice once per definition site. | 이 규칙을 정의한 람다의 클래스. 정의 위치마다 하나이며
          * 검증기를 다시 만들어도 같음. "서버 전용" 안내를 정의 위치당 한 번만 기록하는 데 사용
          */
-        transient Class<?> origin;
+        Class<?> origin;
 
         /**
          * Implementation of {@link S2RuleMessageStep} to record templates.

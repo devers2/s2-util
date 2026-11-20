@@ -233,4 +233,60 @@ class S2CoreUtilFixesTest {
     void jsonWritesShadowedFieldOnce() {
         assertEquals("{\"name\":\"child\"}", S2JsonUtil.toJson(new ChildBean()));
     }
+
+    public static class ThrowingGetter {
+        public String ok = "fine";
+        public static String getStaticOnly() {
+            return "static";
+        }
+        public String getBroken() {
+            throw new IllegalStateException("lazy load failed");
+        }
+    }
+
+    public static class Holder {
+        public ThrowingGetter getInner() {
+            return new ThrowingGetter();
+        }
+    }
+
+    @Test
+    void getValuePropagatesGetterFailureButNotMissingProperty() {
+        // getter 자체의 실패는 빈 값으로 삼키지 않고 속성 경로와 원인을 담아 알린다
+        var e = org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> S2Util.getValue(new ThrowingGetter(), "broken"));
+        assertEquals("broken", e.getPropertyPath());
+        assertEquals(ThrowingGetter.class, e.getTargetClass());
+        assertTrue(e.getCause() instanceof IllegalStateException);
+        // 중첩 경로는 요청한 전체 경로로 알린다
+        var nested = org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> S2Util.getValue(new Holder(), "inner.broken"));
+        assertEquals("inner.broken", nested.getPropertyPath());
+        assertEquals(Holder.class, nested.getTargetClass());
+        // 기본값 오버로드도 getter 실패는 알린다(값이 없을 때만 기본값)
+        org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> S2Util.getValue(new ThrowingGetter(), "broken", "default"));
+        // 없는 속성·같은 이름의 static 메서드는 오류가 아니라 빈 값
+        assertNull(S2Util.getValue(new ThrowingGetter(), "missing"));
+        assertEquals("default", S2Util.getValue(new ThrowingGetter(), "missing", "default"));
+        assertNull(S2Util.getValue(new ThrowingGetter(), "staticOnly"));
+        assertEquals("fine", S2Util.getValue(new ThrowingGetter(), "ok"));
+    }
+
+    public static class CopyTarget {
+        public String ok;
+        public String broken;
+    }
+
+    @Test
+    void copierAndSetValuePropagateGetterFailure() {
+        // 복사: getter 실패는 값이 빠진 채 넘어가지 않고 알리며, exclude 로 뺄 수 있다
+        org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> S2Copier.from(new ThrowingGetter()).to(CopyTarget.class));
+        assertEquals("fine", S2Copier.from(new ThrowingGetter()).exclude("broken").to(CopyTarget.class).ok);
+        // setValue: 경로 중간을 읽는 getter 실패는 알리고, 쓸 곳이 없는 것은 false
+        org.junit.jupiter.api.Assertions.assertThrows(io.github.devers2.s2util.exception.S2PropertyAccessException.class,
+                () -> S2Util.setValue(new ThrowingGetter(), "broken.x", "v"));
+        assertFalse(S2Util.setValue(new ThrowingGetter(), "missing", "v"));
+    }
 }

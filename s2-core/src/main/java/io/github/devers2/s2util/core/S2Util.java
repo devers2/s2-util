@@ -35,6 +35,7 @@ import java.util.Optional;
 import io.github.devers2.s2util.core.S2Cache.MethodHandleResolver;
 import io.github.devers2.s2util.core.S2Cache.MethodHandleResolver.LookupType;
 import io.github.devers2.s2util.core.S2Cache.MethodHandleResolver.MethodKey;
+import io.github.devers2.s2util.exception.S2PropertyAccessException;
 import io.github.devers2.s2util.log.S2LogManager;
 import io.github.devers2.s2util.log.S2Logger;
 
@@ -171,6 +172,7 @@ public class S2Util {
      * @param target    The object to query (Map, List, VO, Record, etc.) | 조회 대상 객체 (Map, List, VO, Record 등)
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
      * @return The extracted value, or {@code null} if not found | 추출된 값 (찾지 못한 경우 null)
+     * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName) {
@@ -203,6 +205,7 @@ public class S2Util {
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
      * @param castClass The Class to cast to (no casting if {@code null}) | 형변환할 클래스 (null이면 형변환하지 않음)
      * @return The extracted value | 추출된 값
+     * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass) {
@@ -210,7 +213,7 @@ public class S2Util {
     }
 
     /**
-     * Extracts a value and returns a default value if {@code null} or an error occurs.
+     * Extracts a value and returns a default value if it is {@code null} or cannot be found.
      *
      * <h3>Supported Access Patterns</h3>
      * <ul>
@@ -224,15 +227,16 @@ public class S2Util {
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출하며, {@code null}이거나 오류 발생 시 기본값을 반환합니다.
+     * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출하며, {@code null}이거나 찾을 수 없으면 기본값을 반환합니다.
      *
      * @param <T>          The type of the target object | 대상 객체의 타입
      * @param <F>          The type of the field identifier | 필드 식별자 타입
      * @param <R>          The expected return type | 예상되는 반환 타입
      * @param target       The object to query | 조회 대상 객체
      * @param fieldName    Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @param defaultValue Default value to return if extraction fails | 추출 실패 시 반환할 기본값
+     * @param defaultValue Default value to return if the value is null or not found | 값이 null 이거나 없을 때 반환할 기본값
      * @return Extracted value or default value | 추출된 값 또는 기본값
+     * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, R defaultValue) {
@@ -345,7 +349,12 @@ public class S2Util {
                                 ? fieldNameStr.substring(start, dotIndex)
                                 : fieldNameStr.substring(start);
 
-                        current = getValue(current, part, Object.class, null, raw);
+                        try {
+                            current = getValue(current, part, Object.class, null, raw);
+                        } catch (S2PropertyAccessException e) {
+                            // 실패한 마디가 아니라 요청한 전체 경로("address.zip")와 시작 객체 클래스로 다시 알린다
+                            throw new S2PropertyAccessException(String.valueOf(fieldName), target.getClass(), e.getCause());
+                        }
 
                         // 더 이상 진행할 점(.)이 없으면 루프 종료
                         if (dotIndex == -1)
@@ -492,11 +501,23 @@ public class S2Util {
                         }
 
                         if (methodHandle.isPresent()) {
-                            value = methodHandle.get().invoke(finalTarget);
+                            try {
+                                value = methodHandle.get().invoke(finalTarget);
+                            } catch (java.lang.invoke.WrongMethodTypeException e) {
+                                // 같은 이름의 static 메서드 등 호출 형태가 맞지 않는 것은 속성이 없는 것으로 본다
+                                value = null;
+                            } catch (VirtualMachineError e) {
+                                throw e;
+                            } catch (Throwable e) {
+                                // getter 자체의 실패는 빈 값으로 삼키지 않는다(검증이 조용히 통과하거나 복사 값이 빠지는 것을 막음)
+                                throw new S2PropertyAccessException(fieldNameStr, finalTarget.getClass(), e);
+                            }
                         }
                     }
                 }
             }
+        } catch (S2PropertyAccessException | VirtualMachineError e) {
+            throw e;
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
                 if (isKorean()) {
@@ -750,6 +771,9 @@ public class S2Util {
                 methodHandle.get().invoke(finalTargetOrigin, value);
                 return true;
             }
+        } catch (S2PropertyAccessException | VirtualMachineError e) {
+            // 경로 중간을 읽는 getter 의 실패는 getValue 와 같이 알린다(쓰기 실패만 false)
+            throw e;
         } catch (Throwable e) {
             if (logger.isDebugEnabled()) {
                 if (isKorean()) {
