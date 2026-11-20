@@ -35,10 +35,7 @@ Java·`s2.validator.js`·Gradle 설정·문서를 수정했으면 완료 보고�
 ## 5. Java·JS 버전
 - 기준은 Java 17(`--release 17`). Java 21+ 전용 문법·API(`Thread.ofVirtual()`, `getFirst()` 등)를 직접 쓰지 않는다.
 - 예외는 `s2-core` 의 `S2ThreadUtil` 가상 스레드뿐이며, MethodHandle/리플렉션으로 런타임에 감지하고 Java 17 용 대체 로직(플랫폼 스레드 풀)을 반드시 둔다.
-- 소비자 프로젝트가 불러가는 JS(jar 에 들어가는 `src/main/resources` 아래 JS 전체, 지금은 `s2.validator.js`)는 **ES2020 까지**
-  (Chrome·Edge 80, Firefox 74, Safari 13.1, s2-kit 과 같은 기준). 시험·데모·도구용 JS(`browser-test/` 등)는 제외. 숫자 구분자(`5_000` 대신 `5 * 1000`),
-  `??=`·`||=`, `.at()`, `replaceAll`, 클래스 필드 선언(`x = 1;` — 생성자에서 초기화), `#private` 등 ES2021+ 문법·API 금지.
-  자동 검사가 없으므로 고친 뒤 ES2020 파서로 확인한다(예: acorn `ecmaVersion: 2020` 으로 parse).
+- 배포되는 JS(`src/main/resources` 아래)는 **ES2020 까지**(s2-kit 과 같음). 자동 검사가 없으니 고친 뒤 ES2020 파서(예: acorn)로 확인한다.
 
 ## 6. 인코딩
 - 모든 소스·설정·문서는 UTF-8 NoBOM.
@@ -50,8 +47,8 @@ Java·`s2.validator.js`·Gradle 설정·문서를 수정했으면 완료 보고�
 | Javadoc·JSDoc | 영문 설명 → `<p><b>[한국어 설명]</b></p>` → 한글 설명 (기존 형식) |
 | 그 밖의 주석(`//`, 메서드 내부 블록 주석, 빌드 스크립트) | 한국어 |
 | 커밋 메시지 | 한국어. 접두어(`feat:`, `fix:`, `docs:`, `build:` …)·식별자는 영어 — 예: `fix: 날짜 검증에서 null 처리 누락 수정` |
-| 예외 메시지 | 영어, 원인 분석용 세부 정보 포함. **사용자가 행동으로 해결할 수 있는 실패**에만 `S2MessageKey` 를 붙인다(MANUAL 4-3). 개발자 실수·설정·내부 오류에는 붙이지 않는다(사용자에게는 `S2Localizable.localizedMessageOrDefault` 의 일반 문구) |
-| 로그 | `if (S2Util.isKorean()) { 한국어 } else { 영어 }` 로 함께 쓰거나 영어만. 예외: `s2-validator-plugin` 의 빌드 출력은 한국어 유지(사용자 결정) |
+| 예외 메시지 | 영어(세부 정보 포함). 사용자가 해결할 수 있는 실패에만 `S2MessageKey` (MANUAL 4-3) |
+| 로그 | `if (S2Util.isKorean())` 로 한·영 함께, 또는 영어만. `s2-validator-plugin` 빌드 출력은 한국어(사용자 결정) |
 | 이슈·PR 답변 | 작성자의 언어 |
 
 - 기존 주석·커밋 이력은 번역·정리 목적으로 바꾸지 않는다. 주석은 설명하는 코드가 바뀌었거나 틀렸을 때만 그 부분을 고치고, 고친 주석은 위 원칙의 언어로 쓴다.
