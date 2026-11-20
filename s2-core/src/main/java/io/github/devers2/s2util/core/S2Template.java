@@ -891,11 +891,77 @@ public class S2Template {
         String result = resultBuilder.toString();
 
         // 2. 디테일 정리: 빈 줄 제거 및 줄 끝 공백 정리
-        return result.lines()
-                .filter(line -> !line.isBlank())
-                .map(String::stripTrailing)
-                .collect(Collectors.joining("\n"))
-                .strip();
+        char quote = stringLiteralQuote();
+        if (quote == '\0') {
+            return result.lines()
+                    .filter(line -> !line.isBlank())
+                    .map(String::stripTrailing)
+                    .collect(Collectors.joining("\n"))
+                    .strip();
+        }
+        return cleanupOutsideLiterals(result, quote);
+    }
+
+    /**
+     * Returns the quote character of string literals whose content {@link #render()} must not clean up
+     * (blank lines and trailing spaces inside a literal are kept). {@code '\0'} (default) cleans every line,
+     * which suits messages where an apostrophe is not a literal delimiter. Query subclasses (e.g. JPQL) return {@code '\''}.
+     *
+     * <p>
+     * [한국어 설명]
+     * </p>
+     * {@link #render()} 가 내용을 정리하지 않을 문자열 리터럴의 따옴표 문자를 돌려줍니다(리터럴 안의 빈 줄·줄 끝 공백 유지).
+     * 기본값 {@code '\0'} 은 모든 줄을 정리합니다(아포스트로피가 리터럴 구분자가 아닌 메시지용).
+     * 쿼리용 하위 클래스(예: JPQL)는 {@code '\''} 를 돌려줍니다.
+     *
+     * @return Literal quote character, or {@code '\0'} for none | 리터럴 따옴표 문자, 없으면 {@code '\0'}
+     */
+    protected char stringLiteralQuote() {
+        return '\0';
+    }
+
+    /**
+     * 리터럴 밖에서만 빈 줄 제거·줄 끝 공백 정리를 한다. 따옴표 두 개('')는 상태를 두 번 바꿔 이스케이프와 같게 처리된다.
+     * 리터럴 안에서 끝나는 줄은 원래 줄바꿈 문자(\r\n 등)를 그대로 둔다.
+     */
+    private static String cleanupOutsideLiterals(String text, char quote) {
+        StringBuilder out = new StringBuilder(text.length());
+        boolean inLiteral = false;
+        boolean first = true;
+        String pendingSeparator = "";
+        int i = 0;
+        int n = text.length();
+        while (i < n) {
+            int lineStart = i;
+            boolean startsInLiteral = inLiteral;
+            while (i < n && text.charAt(i) != '\n' && text.charAt(i) != '\r') {
+                if (text.charAt(i) == quote) {
+                    inLiteral = !inLiteral;
+                }
+                i++;
+            }
+            String line = text.substring(lineStart, i);
+            int terminatorStart = i;
+            if (i < n && text.charAt(i) == '\r') {
+                i++;
+            }
+            if (i < n && text.charAt(i) == '\n') {
+                i++;
+            }
+            String terminator = text.substring(terminatorStart, i);
+
+            // 리터럴 밖의 빈 줄은 버린다(빈 줄에는 따옴표가 없어 상태가 바뀌지 않음)
+            if (!startsInLiteral && line.isBlank()) {
+                continue;
+            }
+            if (!first) {
+                out.append(pendingSeparator);
+            }
+            out.append(inLiteral ? line : line.stripTrailing());
+            pendingSeparator = inLiteral ? terminator : "\n";
+            first = false;
+        }
+        return out.toString().strip();
     }
 
     /**

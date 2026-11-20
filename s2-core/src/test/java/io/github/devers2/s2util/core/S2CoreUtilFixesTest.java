@@ -132,6 +132,8 @@ class S2CoreUtilFixesTest {
         assertEquals("A=x{{=b}} B=Y", S2Template.of("A={{=a}} B={{=b}}").bind("a", "x{{=b}}").bind("b", "Y").render());
         assertEquals("1 1", S2Template.of("{{=a}} {{=a}}{{=missing}}").bind("a", "1").render());
         assertEquals("x", S2Template.of("x{{=unclosed").render().replace("{{=unclosed", ""));
+        // 기본 S2Template 은 따옴표를 리터럴로 보지 않는다(메시지의 아포스트로피 뒤에서도 빈 줄 정리)
+        assertEquals("It's\nok", S2Template.of("It's  \n\n  \nok").render());
     }
 
     @Test

@@ -191,6 +191,24 @@ public class S2JpqlTest {
     }
 
     @Test
+    @DisplayName("렌더링: 문자열 리터럴 안의 빈 줄·줄 끝 공백·줄바꿈 문자는 그대로, 리터럴 밖의 빈 줄·줄 끝 공백만 정리한다")
+    @SuppressWarnings("null")
+    void renderKeepsBlankLinesInsideStringLiterals() {
+        when(typedQuery.getParameters()).thenReturn(java.util.Set.of());
+        org.mockito.ArgumentCaptor<String> sqlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+
+        S2Jpql.from(entityManager)
+                .type(Member.class)
+                .query("SELECT m FROM Member m   \n\n WHERE m.memo = 'it''s  \r\n\r\n  b'   \n   {{=cond}}\n\n AND m.age > 1")
+                .bindClause("cond", false, "AND m.name = 'x'")
+                .build();
+
+        verify(entityManager).createQuery(sqlCaptor.capture(), eq(Member.class));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "SELECT m FROM Member m\n WHERE m.memo = 'it''s  \r\n\r\n  b'\n AND m.age > 1", sqlCaptor.getValue());
+    }
+
+    @Test
     @DisplayName("escapeLike: %, _, \\ 를 역슬래시로 이스케이프하고 null 은 그대로 둔다")
     void escapeLikeEscapesWildcards() {
         org.junit.jupiter.api.Assertions.assertEquals("100\\%\\_a\\\\b", S2Jpql.escapeLike("100%_a\\b"));

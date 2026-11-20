@@ -41,6 +41,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   so calling it after another clause could leave an included clause's parameter unbound (error at execution) or run the Supplier of an excluded clause. Call order relative to `bindClause` no longer matters.
 - **`S2Template.bindIn` writes only numbers and booleans as-is and quotes other values (dates, enums, …) as string literals. Strings containing a backslash are rejected with `IllegalArgumentException`.**
   Previously a value such as `a\'` could break the quote escaping and inject SQL on MySQL/MariaDB (default settings), and non-numeric objects were inserted via `toString()`. Bind user input as query parameters.
+- `S2Jpql` rendering keeps blank lines, trailing spaces and line terminators inside JPQL string literals (`'…'`); multi-line literal values used to change. Plain `S2Template` still cleans every line (an apostrophe in a message is not a literal).
 - **`MIN_VALUE`/`MAX_VALUE` and numeric conditions (`GT`, `GTE`, `LT`, `LTE`) compare decimals exactly on both the server and the browser.**
   They compared doubles, so values beyond 15-16 significant digits (e.g. `9007199254740993` vs `9007199254740992`, `0.1000000000000000001` vs `0.1`) were treated as equal.
   The server uses `BigDecimal` and `s2.validator.js` compares decimal strings directly, so both sides still judge the same.

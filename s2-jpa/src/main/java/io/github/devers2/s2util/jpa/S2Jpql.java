@@ -1127,6 +1127,21 @@ public class S2Jpql<T> extends S2Template implements Executor<T> {
     }
 
     /**
+     * JPQL string literals are single-quoted; blank lines and trailing spaces inside them are kept when rendering.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * JPQL 문자열 리터럴은 작은따옴표로 감싸므로, 렌더링할 때 리터럴 안의 빈 줄·줄 끝 공백은 지우지 않습니다.
+     *
+     * @return {@code '\''}
+     */
+    @Override
+    protected char stringLiteralQuote() {
+        return '\'';
+    }
+
+    /**
      * Creates a TypedQuery with parameter binding completed based on the settings so far.
      *
      * <p>
