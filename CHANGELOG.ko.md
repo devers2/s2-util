@@ -72,7 +72,8 @@
 
 - 사용자에게 보여 줄 예외 문구: `S2MessageKey`, `S2Localizable`(`io.github.devers2.s2util.message`). `S2RuntimeException`·
   `S2Exception`이 메시지 키를 받고, `getLocalizedMessage(locale)`이 요청 언어로 문구를 만들며 `getMessage()`는 영어를
-  유지합니다. 서버 기본 로케일로 대체하지 않습니다(MANUAL 4-3).
+  유지합니다. 서버 기본 로케일로 대체하지 않습니다(MANUAL 4-3). 키가 없는 실패는
+  `S2Localizable.localizedMessageOrDefault`가 일반 문구를 돌려줍니다.
 - jar 매니페스트에 고정 모듈 이름 `Automatic-Module-Name`(`io.github.devers2.s2util`, `.core`, `.jpa`, `.validation`) — 모듈 시스템(JPMS)에서 jar 파일 이름과 관계없이 같은 이름으로 `requires` 할 수 있습니다.
 - 배포 POM 에 선택 의존성 Caffeine(s2-core)·Jakarta Persistence API(s2-jpa)를 Spring·Bean Validation 처럼 `optional` 로 표시합니다(전이되지 않음, 필요한 의존성 확인용).
 - `S2Util.setValue` 가 평면 `Map` 의 리터럴 키(`"address.zip"`, `"items[0].name"`)에 씁니다. `getValue` 와 같은 규칙(경로의 첫 마디가 Map 에 없으면 경로 전체가 키)이라 쓴 값을 그대로 읽을 수 있습니다. 이전에는 `false` 를 돌려주고 쓰지 않았습니다.

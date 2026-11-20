@@ -29,11 +29,10 @@ import java.util.Optional;
  * An exception that can describe itself in the user's language. {@link #getMessage()} stays English for logs and
  * searches; {@link #getLocalizedMessage(Locale)} renders the {@link S2MessageKey} for a request's locale.
  * <pre>{@code
- * // Spring: show the user's language, never internal details
+ * // Spring: every failure in the user's language, never internal details
  * @ExceptionHandler(Exception.class)
  * ResponseEntity<String> handle(Exception e, Locale locale) {
- *     var message = S2Localizable.findLocalizedMessage(e, locale).orElse(genericMessage(locale));
- *     return ResponseEntity.badRequest().body(message);
+ *     return ResponseEntity.badRequest().body(S2Localizable.localizedMessageOrDefault(e, locale));
  * }
  * }</pre>
  * <p>
@@ -107,6 +106,25 @@ public interface S2Localizable {
             }
         }
         return found;
+    }
+
+    /**
+     * The user-facing message of an exception, or a generic one ("Something went wrong...") when it has none, so a
+     * handler shows every failure in the user's language without internal details. Override the generic text with the
+     * key {@code s2util.error.generic} in the application bundle.
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 예외의 사용자용 문구를, 없으면 일반 문구("처리 중 오류가 발생했습니다...")를 돌려줍니다. 처리기가 모든 실패를 내부 정보 없이 사용자
+     * 언어로 보여 줄 수 있습니다. 일반 문구는 앱 번들의 {@code s2util.error.generic} 키로 바꿉니다.
+     * @param error  Exception | 예외
+     * @param locale User's locale | 사용자 로케일
+     * @return Message in the user's language | 사용자 언어의 문구
+     */
+    static String localizedMessageOrDefault(Throwable error, Locale locale) {
+        return findLocalizedMessage(error, locale).orElseGet(() -> S2MessageKey
+                .of("io.github.devers2.s2util.messages", "s2util.error.generic").resolve(locale)
+                .orElse("Something went wrong. Please try again later."));
     }
 
 }

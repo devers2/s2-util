@@ -108,4 +108,12 @@ class S2LocalizableTest {
             assertEquals("b.txt already exists.", copy.getLocalizedMessage(Locale.ENGLISH));
         }
     }
+
+    @Test
+    void failuresWithoutAKeyGetAGenericMessage() {
+        var internal = new IllegalStateException("opacity must be between 0 and 1");
+        assertEquals("처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.", S2Localizable.localizedMessageOrDefault(internal, Locale.KOREAN));
+        assertEquals("Something went wrong. Please try again later.", S2Localizable.localizedMessageOrDefault(internal, Locale.ENGLISH));
+        assertEquals("a.txt already exists.", S2Localizable.localizedMessageOrDefault(exists("a.txt"), Locale.ENGLISH));
+    }
 }

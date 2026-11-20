@@ -551,13 +551,15 @@ throw new S2RuntimeException("File already exists: " + path,          // 로그�
 @ExceptionHandler(Exception.class)
 ResponseEntity<String> handle(Exception e, Locale locale) {
     return ResponseEntity.badRequest()
-            .body(S2Localizable.findLocalizedMessage(e, locale).orElse("오류가 발생했습니다."));
+            .body(S2Localizable.localizedMessageOrDefault(e, locale)); // 키가 없으면 일반 문구
 }
 ```
 
 - 찾는 순서: 애플리케이션 번들(`S2ResourceBundle.setDefaultBasename`, 문구 덮어쓰기용), 그다음 키의 번들. 각각 `_ko_KR`,
   `_ko`, 기본 파일 순서입니다. `ResourceBundle.getBundle`과 달리 **서버 기본 로케일로 대체하지 않으므로**, 한국어 서버에서도
   영어 요청에는 영어로 답합니다. 파일은 UTF-8 로 읽고 캐시합니다.
+- 키는 사용자가 행동으로 해결할 수 있는 실패(다시 시도, 다른 파일, 더 작은 파일)에만 붙입니다. 나머지는 일반 문구
+  `s2util.error.generic`이 보이며, 앱 번들에서 바꿀 수 있습니다.
 - `findLocalizedMessage`는 감싼 예외 안쪽까지 찾아 가장 안쪽 문구를 씁니다(원인이 감싼 예외보다 구체적). 사용자용 문구가
   없으면 빈 값을 돌려줍니다.
 - 비용: 키 저장은 참조 2개뿐이고, 문구는 `getLocalizedMessage`를 부를 때만 만듭니다.

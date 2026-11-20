@@ -78,6 +78,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - User-facing exception messages: `S2MessageKey` and `S2Localizable` (`io.github.devers2.s2util.message`).
   `S2RuntimeException` and `S2Exception` accept a message key; `getLocalizedMessage(locale)` renders it in the request's
   language while `getMessage()` stays English. Lookup never falls back to the server's default locale (MANUAL 4-3).
+  `S2Localizable.localizedMessageOrDefault` returns a generic message for failures without a key.
 - A fixed `Automatic-Module-Name` in the jar manifests (`io.github.devers2.s2util`, `.core`, `.jpa`, `.validation`), so JPMS users can `requires` the same name regardless of the jar file name.
 - The published POMs list Caffeine (s2-core) and the Jakarta Persistence API (s2-jpa) as `optional` dependencies, like Spring and Bean Validation (not transitive; shows what each feature needs).
 - `S2Util.setValue` writes literal keys of a flat `Map` (`"address.zip"`, `"items[0].name"`) by the same rule as `getValue` (the whole path is the key when its first segment is not in the map), so written values read back as is. It used to return `false` without writing.

@@ -552,13 +552,15 @@ throw new S2RuntimeException("File already exists: " + path,          // English
 @ExceptionHandler(Exception.class)
 ResponseEntity<String> handle(Exception e, Locale locale) {
     return ResponseEntity.badRequest()
-            .body(S2Localizable.findLocalizedMessage(e, locale).orElse("Something went wrong."));
+            .body(S2Localizable.localizedMessageOrDefault(e, locale)); // no key: a generic message
 }
 ```
 
 - Lookup: the application bundle (`S2ResourceBundle.setDefaultBasename`, to override any text), then the key's bundle;
   `_ko_KR`, `_ko`, then the base file. It **never falls back to the server's default locale**, so an English request gets
   English even on a Korean server (unlike `ResourceBundle.getBundle`). Files are read as UTF-8 and cached.
+- Keys go only on failures a user can act on (retry, another file, a smaller file). Others get the generic
+  `s2util.error.generic` text, which the application bundle can override.
 - `findLocalizedMessage` looks through wrapped exceptions and uses the innermost message (the cause is more specific
   than its wrapper); it returns empty when nothing is user-facing.
 - Cost: storing the key is two references; text is rendered only when `getLocalizedMessage` is called.
