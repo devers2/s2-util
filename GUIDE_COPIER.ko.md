@@ -74,6 +74,10 @@ S2Copier.from(updateDto)
 // 결과: 이름만 변경, 나이는 유지 (null이었음), 이메일 변경
 ```
 
+> **원본에 없는 속성은 건드리지 않습니다.** 대상의 각 필드에 대해 원본(필드·getter·Map 키)에 그 속성이 있을 때만 복사하므로,
+> 일부 필드만 가진 DTO 로 엔티티를 갱신해도 `id`·`createdBy` 같은 값은 그대로 남습니다. `ignoreNulls()` 는 원본에 **있지만 null 인** 값을 막는 설정입니다.
+> 값 타입이 대상 필드와 다르면 `S2Util.cast` 로 변환을 시도합니다(`"30"` → `int`). 변환할 수 없으면 그 필드는 건너뜁니다.
+
 ### 2-4. Map과 DTO 상호 변환
 
 ```java
@@ -235,9 +239,11 @@ String
 ```java
 // 각 요소를 재귀적으로 깊게 복사
 
-List, ArrayList, LinkedList
-Set, HashSet, LinkedHashSet
-Iterable implementations
+// 원본과 같은 종류로 복사 (ConcurrentHashMap·CopyOnWriteArrayList·ArrayDeque 등 공개 기본 생성자가 있는 구현)
+List, ArrayList, LinkedList, CopyOnWriteArrayList
+Set, HashSet, LinkedHashSet, TreeSet(정렬 기준 유지), EnumSet
+Queue/Deque: ArrayDeque, PriorityQueue(정렬 기준 유지)
+// 만들 수 없는 불변 컬렉션(List.of 등)은 ArrayList·LinkedHashSet 으로
 ```
 
 ### 4-3. 맵
@@ -245,9 +251,18 @@ Iterable implementations
 ```java
 // 각 값을 재귀적으로 깊게 복사
 
-HashMap, LinkedHashMap
-TreeMap, ConcurrentHashMap
-Map implementations
+// 원본과 같은 종류로 복사
+HashMap, LinkedHashMap, ConcurrentHashMap
+TreeMap(정렬 기준 유지), EnumMap
+// 만들 수 없는 불변 Map(Map.of 등)은 LinkedHashMap 으로
+```
+
+### 4-3-1. 레코드
+
+```java
+// to(레코드.class) 는 정식 생성자로 만듭니다(매핑·제외·깊은 복사 적용, 원본에 없는 구성요소는 null·0)
+Person p = S2Copier.from(dto).to(Person.class);
+// 레코드 인스턴스는 바꿀 수 없으므로 to(record) 는 IllegalArgumentException
 ```
 
 ### 4-4. 사용자 정의 클래스

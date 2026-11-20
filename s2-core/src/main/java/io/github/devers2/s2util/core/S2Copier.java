@@ -265,8 +265,10 @@ public class S2Copier<S> {
      * <p>
      * This method respects all previously configured rules (field mappings, exclusions, and null-handling).
      * Fields are accessed using {@link S2Util#getValue(Object, Object)} and {@link S2Util#setValue(Object, Object, Class, Object)},
-     * ensuring optimal performance through MethodHandle caching. Any field-level copy errors are silently ignored
-     * to prevent interruption of the overall copy process.
+     * ensuring optimal performance through MethodHandle caching. A target field is copied only when the source has that
+     * property; a value of a different type is converted with {@link S2Util#cast(Object, Class)} when possible. Other
+     * field-level copy errors (no setter, unconvertible value) skip the field and are logged at DEBUG, while getter/setter
+     * failures and an exceeded deep-copy depth are thrown.
      * </p>
      *
      * <p>
@@ -284,7 +286,9 @@ public class S2Copier<S> {
      * </p>
      * 원본에서 지정된 대상 객체로 데이터를 복사합니다.
      * <p>
-     * 이전에 설정한 모든 규칙(필드 매핑, 제외 목록, null 처리)을 준수합니다.
+     * 이전에 설정한 모든 규칙(필드 매핑, 제외 목록, null 처리)을 준수합니다. 대상 필드는 원본에 그 속성이 있을 때만 복사하며,
+     * 타입이 다르면 가능할 때 {@link S2Util#cast(Object, Class)} 로 변환합니다. 그 밖의 필드 단위 오류(쓸 곳이 없음, 변환 불가)는
+     * 그 필드를 건너뛰고 DEBUG 로그를 남기며, getter·setter 자체의 실패와 깊은 복사 깊이 초과는 예외로 알립니다.
      * </p>
      * <p>
      * <b>대상 타입별 동작:</b>
@@ -299,7 +303,7 @@ public class S2Copier<S> {
      * @param <T>    Target object type | 대상 객체의 타입
      * @param target The target object to populate with copied values (must not be null) | 값을 채워넣을 대상 객체 (null이 아니어야 함)
      * @return The target object with copied values | 복사된 값으로 채워진 대상 객체
-     * @throws IllegalArgumentException if target is null | target이 null인 경우
+     * @throws IllegalArgumentException if target is null or a record instance (use {@link #to(Class)}) | target이 null 이거나 레코드 인스턴스인 경우 ({@link #to(Class)} 사용)
      * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if a source getter throws (exclude such fields with {@link #exclude(String...)}) | 원본 getter 가 예외를 던질 때 ({@link #exclude(String...)} 로 제외 가능)
      */
     @SuppressWarnings("unchecked")
@@ -311,6 +315,10 @@ public class S2Copier<S> {
         // Map 타겟의 경우: source의 필드를 기준으로 복사
         if (target instanceof Map) {
             return toMap((Map<String, Object>) target);
+        }
+        if (target.getClass().isRecord()) {
+            throw new IllegalArgumentException("A record cannot be modified; use to(" + target.getClass().getSimpleName()
+                    + ".class) to create a copy (한국어: 레코드는 바꿀 수 없으니 to(클래스)로 새로 만드십시오)");
         }
 
         // 일반 객체 타겟: target의 필드(상속 필드 포함)를 기준으로 복사
@@ -329,6 +337,11 @@ public class S2Copier<S> {
             // 2. 매핑 설정 확인 (없으면 자기 이름 사용)
             var sourceFieldName = fieldMapping.getOrDefault(targetFieldName, targetFieldName);
 
+            // 2-1. 원본에 없는 속성은 대상 값을 그대로 둔다(일부 필드만 가진 DTO 로 엔티티를 갱신할 때 id 등이 null 로 지워지지 않도록)
+            if (!sourceHasProperty(sourceFieldName)) {
+                continue;
+            }
+
             try {
                 // 3. Source에서 값을 그대로 가져온다(빈 문자열·빈 컬렉션을 null 로 바꾸지 않음).
                 var value = S2Util.getValue(source, sourceFieldName);
@@ -342,12 +355,13 @@ public class S2Copier<S> {
                     value = deepCopyValue(value, field.getType(), visited, 0);
                 }
 
-                // 6. Target에 값을 설정한다.
-                if (!S2Util.setValue(target, targetFieldName, null, value)) {
+                // 6. Target에 값을 설정한다. 타입이 달라 쓰지 못하면 S2Util.cast 로 변환해 다시 시도한다("12" → int 등)
+                if (!S2Util.setValue(target, targetFieldName, null, value)
+                        && !setConverted(target, targetFieldName, field.getType(), value)) {
                     logSkipped(targetFieldName, null);
                 }
-            } catch (S2PropertyAccessException e) {
-                // getter 의 실패는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
+            } catch (S2PropertyAccessException | DepthExceededException e) {
+                // getter 의 실패·깊이 초과는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
                 throw e;
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
@@ -431,8 +445,8 @@ public class S2Copier<S> {
 
                 // 6. Map에 값을 저장한다.
                 targetMap.put(mapKey, value);
-            } catch (S2PropertyAccessException e) {
-                // getter 의 실패는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
+            } catch (S2PropertyAccessException | DepthExceededException e) {
+                // getter 의 실패·깊이 초과는 빠진 값으로 넘기지 않는다(읽지 못하는 필드는 exclude 로 제외)
                 throw e;
             } catch (Exception e) {
                 // 오류는 인지만 할 수 있도록 하며, 복사 과정이 중단되지 않게 함
@@ -447,8 +461,8 @@ public class S2Copier<S> {
      * Creates a new instance of the target class and copies data from the source to it.
      * <p>
      * This method is a convenience overload that combines instantiation and copying in a single operation.
-     * The target class must have a no-argument constructor (public or accessible). After instantiation,
-     * all configured copy rules are applied via the {@link #to(Object)} method.
+     * The target class must have a no-argument constructor (any access level), or be a record, which is created with its
+     * canonical constructor. After instantiation, all configured copy rules are applied via the {@link #to(Object)} method.
      * </p>
      *
      * <p>
@@ -457,7 +471,7 @@ public class S2Copier<S> {
      * 대상 클래스의 새 인스턴스를 생성한 후 원본에서 데이터를 복사합니다.
      * <p>
      * 인스턴스 생성과 복사를 한 번의 작업으로 수행하는 편의 메서드입니다.
-     * 대상 클래스는 no-argument 생성자(public 또는 접근 가능)를 가져야 하며,
+     * 대상 클래스는 no-argument 생성자(접근 수준 무관)를 가지거나 레코드여야 하며(레코드는 정식 생성자로 생성),
      * 인스턴스 생성 후 설정된 모든 복사 규칙이 {@link #to(Object)} 메서드를 통해 적용됩니다.
      * </p>
      *
@@ -470,6 +484,9 @@ public class S2Copier<S> {
     public <T> T to(Class<T> targetClass) {
         if (targetClass == null) {
             throw new IllegalArgumentException("Target class cannot be null.");
+        }
+        if (targetClass.isRecord()) {
+            return toRecord(targetClass);
         }
         T instance;
         try {
@@ -533,7 +550,7 @@ public class S2Copier<S> {
 
         // Check depth limit to prevent infinite recursion
         if (depth > MAX_DEPTH) {
-            throw new RuntimeException(
+            throw new DepthExceededException(
                     "Maximum deep copy depth exceeded (MAX_DEPTH=" + MAX_DEPTH + ")" +
                             " (한국어: 최대 깊은 복사 깊이 초과)");
         }
@@ -579,58 +596,28 @@ public class S2Copier<S> {
             return copiedDate;
         }
 
-        // Handle List/ArrayList (LinkedList 는 그대로 LinkedList 로)
-        if (source instanceof List) {
-            var sourceList = (List<?>) source;
-            List<Object> copiedList = source instanceof LinkedList ? new LinkedList<>() : new ArrayList<>(sourceList.size());
-            visited.put(source, copiedList);
-
-            for (var element : sourceList) {
-                if (element != null) {
-                    copiedList.add(deepCopyValue(element, element.getClass(), visited, depth + 1));
-                } else {
-                    copiedList.add(null);
-                }
-            }
-            return copiedList;
-        }
-
-        // Handle Set (LinkedHashSet: HashSet 등 원본 구현체가 리플렉션으로 재귀 순회되어(내부
-        // backing HashMap 필드까지 파고들며) 깨지는 것을 막고, List와 동일하게 명시적으로 처리함 |
-        // Handles Set explicitly (as a LinkedHashSet) so it isn't left to fall through to the
-        // generic "custom object" branch below, which would reflect into a HashSet's internal
-        // backing HashMap field instead of actually copying the set's elements.
-        // 정렬된 Set(TreeSet 등)은 같은 비교 기준의 TreeSet 으로 복사해 정렬을 유지함
-        if (source instanceof Set) {
-            var sourceSet = (Set<?>) source;
-            Set<Object> copiedSet = source instanceof SortedSet<?> sorted
-                    ? new TreeSet<>(castComparator(sorted.comparator()))
-                    : new LinkedHashSet<>(sourceSet.size());
+        // 컬렉션: 원본과 같은 종류로 복사한다(ConcurrentHashMap·CopyOnWriteArrayList·EnumMap·ArrayDeque 등 —
+        // 일반 ArrayList·LinkedHashMap 으로 바꾸면 대상 필드 타입과 맞지 않아 조용히 빠졌다). 요소는 깊은 복사
+        if (source instanceof java.util.EnumSet<?> enumSet) {
+            // 열거형 요소는 불변이라 복제만 하면 된다
+            var copiedSet = enumSet.clone();
             visited.put(source, copiedSet);
-
-            for (var element : sourceSet) {
-                if (element != null) {
-                    copiedSet.add(deepCopyValue(element, element.getClass(), visited, depth + 1));
-                } else {
-                    copiedSet.add(null);
-                }
-            }
             return copiedSet;
         }
-
-        // Handle Map (순서 유지: LinkedHashMap, 정렬된 Map 은 같은 비교 기준의 TreeMap)
-        if (source instanceof Map) {
-            var sourceMap = (Map<?, ?>) source;
-            Map<Object, Object> copiedMap = source instanceof SortedMap<?, ?> sorted
-                    ? new TreeMap<>(castComparator(sorted.comparator()))
-                    : new LinkedHashMap<>(Math.max(16, (int) (sourceMap.size() / 0.75f) + 1));
+        if (source instanceof java.util.Collection<?> sourceCollection) {
+            java.util.Collection<Object> copiedCollection = newCollectionLike(sourceCollection);
+            visited.put(source, copiedCollection);
+            for (var element : sourceCollection) {
+                copiedCollection.add(element != null ? deepCopyValue(element, element.getClass(), visited, depth + 1) : null);
+            }
+            return copiedCollection;
+        }
+        if (source instanceof Map<?, ?> sourceMap) {
+            Map<Object, Object> copiedMap = newMapLike(sourceMap);
             visited.put(source, copiedMap);
-
             for (var entry : sourceMap.entrySet()) {
-                var key = entry.getKey();
                 var value = entry.getValue();
-                var copiedValue = value != null ? deepCopyValue(value, value.getClass(), visited, depth + 1) : null;
-                copiedMap.put(key, copiedValue);
+                copiedMap.put(entry.getKey(), value != null ? deepCopyValue(value, value.getClass(), visited, depth + 1) : null);
             }
             return copiedMap;
         }
@@ -655,7 +642,7 @@ public class S2Copier<S> {
                             ? deepCopyValue(fieldValue, field.getType(), visited, depth + 1)
                             : null;
                     S2Util.setValue(copiedObject, fieldName, null, copiedFieldValue);
-                } catch (S2PropertyAccessException e) {
+                } catch (S2PropertyAccessException | DepthExceededException e) {
                     throw e;
                 } catch (Exception e) {
                     // Skip problematic fields
@@ -664,7 +651,7 @@ public class S2Copier<S> {
                 }
             }
             return copiedObject;
-        } catch (S2PropertyAccessException e) {
+        } catch (S2PropertyAccessException | DepthExceededException e) {
             visited.remove(source);
             throw e;
         } catch (ReflectiveOperationException | RuntimeException e) {
@@ -704,6 +691,200 @@ public class S2Copier<S> {
     }
 
     /** 기본 생성자로 인스턴스를 만든다. public 이 아닌 생성자(예: JPA 엔티티의 protected 생성자)도 허용한다. */
+    /**
+     * 원본과 같은 종류의 빈 컬렉션. 정렬 기준(TreeSet·PriorityQueue)은 유지하고, 그 밖은 원본 클래스의 기본 생성자,
+     * 만들 수 없으면(List.of 같은 불변 컬렉션 등) List → ArrayList, Set → LinkedHashSet, 그 밖 → LinkedList.
+     */
+    @SuppressWarnings("unchecked")
+    private static java.util.Collection<Object> newCollectionLike(java.util.Collection<?> source) {
+        if (source instanceof SortedSet<?> sorted) {
+            return new TreeSet<>(castComparator(sorted.comparator()));
+        }
+        if (source instanceof java.util.PriorityQueue<?> queue) {
+            return new java.util.PriorityQueue<>(Math.max(1, queue.size()), castComparator(queue.comparator()));
+        }
+        if (source instanceof java.util.concurrent.PriorityBlockingQueue<?> queue) {
+            return new java.util.concurrent.PriorityBlockingQueue<>(Math.max(1, queue.size()), castComparator(queue.comparator()));
+        }
+        java.util.Collection<Object> same = tryNewInstance(source.getClass(), java.util.Collection.class);
+        if (same != null) {
+            return same;
+        }
+        if (source instanceof List) {
+            return new ArrayList<>(source.size());
+        }
+        if (source instanceof Set) {
+            return new LinkedHashSet<>(Math.max(16, (int) (source.size() / 0.75f) + 1));
+        }
+        return new LinkedList<>();
+    }
+
+    /**
+     * 원본과 같은 종류의 빈 Map. 정렬 기준(TreeMap)·키 타입(EnumMap)은 유지하고, 그 밖은 원본 클래스의 기본 생성자,
+     * 만들 수 없으면 LinkedHashMap(순서 유지).
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static Map<Object, Object> newMapLike(Map<?, ?> source) {
+        if (source instanceof SortedMap<?, ?> sorted) {
+            return new TreeMap<>(castComparator(sorted.comparator()));
+        }
+        if (source instanceof java.util.EnumMap enumMap) {
+            Map<Object, Object> copied = new java.util.EnumMap(enumMap);
+            copied.clear();
+            return copied;
+        }
+        Map<Object, Object> same = tryNewInstance(source.getClass(), Map.class);
+        return same != null ? same : new LinkedHashMap<>(Math.max(16, (int) (source.size() / 0.75f) + 1));
+    }
+
+    /** 공개 기본 생성자가 있으면 새 인스턴스, 없거나 실패하면 null (JDK 내부 불변 컬렉션 등) */
+    @SuppressWarnings("unchecked")
+    private static <T> T tryNewInstance(Class<?> type, Class<?> expected) {
+        try {
+            Constructor<?> constructor = type.getConstructor();
+            if (!Modifier.isPublic(type.getModifiers()) || Modifier.isAbstract(type.getModifiers())) {
+                return null;
+            }
+            Object instance = constructor.newInstance();
+            return expected.isInstance(instance) ? (T) instance : null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 원본이 이 속성을 가졌는지. Map 은 키(경로 "a.b" 는 getValue 에 맡김), 객체는 필드·getter(get/is)·같은 이름의 메서드·레코드 구성요소.
+     */
+    private boolean sourceHasProperty(String name) {
+        if (name.indexOf('.') >= 0 || name.indexOf('[') >= 0) {
+            return true; // 경로는 getValue 가 판단
+        }
+        if (source instanceof Map<?, ?> map) {
+            return map.containsKey(name) || S2Util.getValue(map, name) != null;
+        }
+        return SOURCE_PROPERTIES.get(S2Cache.getRealClass(source)).contains(name);
+    }
+
+    /** 클래스가 읽게 해 주는 속성 이름: 인스턴스 필드, 공개 무인자 메서드(getX·isX 는 x 로, 그 밖은 이름 그대로) */
+    private static final ClassValue<Set<String>> SOURCE_PROPERTIES = new ClassValue<>() {
+        @Override
+        protected Set<String> computeValue(Class<?> type) {
+            Set<String> names = new HashSet<>();
+            for (Field f : copyFields(type)) {
+                names.add(f.getName());
+            }
+            for (java.lang.reflect.Method m : type.getMethods()) {
+                if (m.getParameterCount() != 0 || m.getReturnType() == void.class || Modifier.isStatic(m.getModifiers())) {
+                    continue;
+                }
+                String n = m.getName();
+                names.add(n);
+                if (n.length() > 3 && n.startsWith("get") && !Character.isLowerCase(n.charAt(3))) {
+                    names.add(Character.toLowerCase(n.charAt(3)) + n.substring(4));
+                } else if (n.length() > 2 && n.startsWith("is") && !Character.isLowerCase(n.charAt(2))) {
+                    names.add(Character.toLowerCase(n.charAt(2)) + n.substring(3));
+                }
+            }
+            return Set.copyOf(names);
+        }
+    };
+
+    /** 값 타입이 필드와 달라 쓰지 못했을 때 S2Util.cast 로 바꿔 다시 쓴다(변환할 수 없으면 false) */
+    private static boolean setConverted(Object target, String fieldName, Class<?> fieldType, Object value) {
+        if (value == null || fieldType.isInstance(value)) {
+            return false;
+        }
+        Object converted;
+        try {
+            converted = S2Util.cast(value, fieldType);
+        } catch (ClassCastException e) {
+            return false;
+        }
+        return converted != null && S2Util.setValue(target, fieldName, null, converted);
+    }
+
+    /**
+     * 레코드는 정식 생성자로 만든다: 구성요소마다 원본 값(매핑·제외·깊은 복사 적용), 없거나 변환할 수 없으면 null(기본형은 0·false).
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T toRecord(Class<T> recordClass) {
+        var components = recordClass.getRecordComponents();
+        Class<?>[] types = new Class<?>[components.length];
+        Object[] args = new Object[components.length];
+        var visited = new IdentityHashMap<Object, Object>();
+        for (int i = 0; i < components.length; i++) {
+            String name = components[i].getName();
+            Class<?> type = components[i].getType();
+            types[i] = type;
+            Object value = null;
+            String sourceName = fieldMapping.getOrDefault(name, name);
+            if (!excludedFields.contains(name) && sourceHasProperty(sourceName)) {
+                value = S2Util.getValue(source, sourceName);
+                try {
+                    if (value != null && (deepCopyAll || deepCopyFields.contains(sourceName))) {
+                        value = deepCopyValue(value, type, visited, 0);
+                    }
+                } catch (S2PropertyAccessException | DepthExceededException e) {
+                    throw e;
+                } catch (Exception e) {
+                    logSkipped(name, e);
+                }
+                if (value != null && !wrap(type).isInstance(value)) {
+                    try {
+                        value = S2Util.cast(value, type);
+                    } catch (ClassCastException e) {
+                        value = null;
+                    }
+                }
+            }
+            args[i] = value != null ? value : defaultValue(type);
+        }
+        try {
+            Constructor<T> constructor = recordClass.getDeclaredConstructor(types);
+            constructor.setAccessible(true);
+            return constructor.newInstance(args);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            throw new RuntimeException("Record constructor of " + recordClass.getName() + " threw an exception"
+                    + " (한국어: 레코드 생성자가 예외를 던짐)", e.getCause());
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to instantiate record " + recordClass.getName()
+                    + " (한국어: 레코드 인스턴스 생성 실패)", e);
+        }
+    }
+
+    private static Class<?> wrap(Class<?> type) {
+        if (!type.isPrimitive()) return type;
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == boolean.class) return Boolean.class;
+        if (type == double.class) return Double.class;
+        if (type == float.class) return Float.class;
+        if (type == short.class) return Short.class;
+        if (type == byte.class) return Byte.class;
+        return Character.class;
+    }
+
+    private static Object defaultValue(Class<?> type) {
+        if (!type.isPrimitive()) return null;
+        if (type == boolean.class) return false;
+        if (type == char.class) return '\0';
+        if (type == long.class) return 0L;
+        if (type == double.class) return 0d;
+        if (type == float.class) return 0f;
+        if (type == short.class) return (short) 0;
+        if (type == byte.class) return (byte) 0;
+        return 0;
+    }
+
+    /** 깊은 복사 깊이 초과 — 필드 단위 오류처럼 건너뛰지 않고 호출자에게 알린다(가이드 3-5) */
+    private static final class DepthExceededException extends io.github.devers2.s2util.exception.S2RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        DepthExceededException(String message) {
+            super(message);
+        }
+    }
+
     private static <T> T newInstance(Class<T> type) throws ReflectiveOperationException {
         Constructor<T> constructor = type.getDeclaredConstructor();
         if (!Modifier.isPublic(constructor.getModifiers()) || !Modifier.isPublic(type.getModifiers())) {

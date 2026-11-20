@@ -14,6 +14,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **`S2Copier` leaves properties that the source does not have untouched.** It used to read a source value for every target field and overwrote missing ones (`id`, `createdBy`, ...) with `null`, wiping values when updating an entity from a partial DTO.
+  Values of a different type are converted with `S2Util.cast` (`"30"` → `int`; previously skipped). Exceeding the deep-copy depth (`MAX_DEPTH`) now throws instead of silently skipping the field (as GUIDE 3-5 describes).
 - **`S2Util.cast` (and `getValue(…, Class)`) converts exactly.** Integer types accept only values that fit exactly — previously `3.7` became `3` and `10000000000` became `1410065408`; now it is a conversion failure (the default, or `null`).
   Numeric strings may have surrounding spaces (`"12 "` → 12), and `BigDecimal`, `BigInteger`, `Short`, `Byte` and enums (by constant name) are supported (previously `ClassCastException`). Booleans recognize only `true/1/on/yes/y` and `false/0/off/no/n`; anything else is a conversion failure (previously always `false`).
 - **Exceptions thrown by a setter, constructor or record accessor itself are no longer swallowed.** `setValue` throws `S2PropertyAccessException` (write) and `createInstance` throws `S2RuntimeException`; a missing target or a value of the wrong type still yields `false`/`null`. `S2Copier` reports setter failures too.
@@ -110,6 +112,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- `S2Copier` deep copy dropped `ConcurrentHashMap`, `CopyOnWriteArrayList`, `EnumMap` and `EnumSet` fields entirely (it built a `LinkedHashMap`/`ArrayList` that did not fit the field type) and shared `ArrayDeque` instead of copying it — collections are now copied into the same kind (`PriorityQueue`, `TreeSet`, `TreeMap` keep their comparator).
+- `S2Copier.to(Record.class)` failed with "Failed to instantiate" — records are now created with the canonical constructor. Passing a record instance as the target, which silently did nothing, now throws `IllegalArgumentException`.
 - `S2ThreadUtil`: logged an initialization ERROR on Java 19/20 (virtual threads in preview) — now treated as unsupported. Platform threads are named `s2-util-N`.
 - `S2Util.getValue` could not read public methods of JDK classes (`String.length`, `BigDecimal.scale`, ...), returning `null` with an ERROR log — public members of public classes are now read without changing access. Inaccessible members are reported once at WARN.
 - `S2Cache.getFields` threw `InaccessibleObjectException` for JDK classes (modules not open). `S2Cache.resolve` checked the value type only when DEBUG logging was on (now always); exception messages are in English.

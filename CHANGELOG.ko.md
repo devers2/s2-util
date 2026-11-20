@@ -14,6 +14,8 @@
 
 ### ⚠️ 동작 변경
 
+- **`S2Copier` 는 원본에 없는 속성을 대상에서 건드리지 않습니다.** 이전에는 대상 필드마다 원본 값을 읽어, 원본에 없는 필드(`id`·`createdBy` 등)를 `null` 로 덮어써 일부 필드만 가진 DTO 로 엔티티를 갱신하면 값이 지워졌습니다.
+  값 타입이 다르면 `S2Util.cast` 로 변환해 복사합니다(`"30"` → `int`, 이전에는 건너뜀). 깊은 복사 깊이 초과(`MAX_DEPTH`)는 필드를 조용히 건너뛰지 않고 예외로 알립니다(가이드 3-5 와 같게).
 - **`S2Util.cast`(와 `getValue(…, Class)`) 형변환을 정확하게 바꿨습니다.** 정수 타입은 정확히 맞는 값만 받습니다 — 이전에는 `3.7` → `3`, `10000000000` → `1410065408` 처럼 조용히 잘리거나 넘쳤고, 이제 변환 실패(기본값, 없으면 `null`)입니다.
   숫자 문자열의 앞뒤 공백을 허용하고(`"12 "` → 12), `BigDecimal`·`BigInteger`·`Short`·`Byte`·열거형(상수 이름)을 지원합니다(이전에는 `ClassCastException`). Boolean 은 `true/1/on/yes/y`·`false/0/off/no/n` 만 인식하고 그 밖은 변환 실패입니다(이전에는 모두 `false`).
 - **setter·생성자·레코드 접근자 자체가 던진 예외를 삼키지 않습니다.** `setValue` 는 `S2PropertyAccessException`(쓰기), `createInstance` 는 `S2RuntimeException` 을 던집니다. 쓸 곳이 없거나 값 타입이 맞지 않으면 이전처럼 `false`/`null` 입니다. `S2Copier` 도 setter 실패를 알립니다.
@@ -105,6 +107,8 @@
 
 ### 수정
 
+- `S2Copier` 깊은 복사가 `ConcurrentHashMap`·`CopyOnWriteArrayList`·`EnumMap`·`EnumSet` 필드를 통째로 빠뜨리고(대상 필드 타입과 맞지 않는 `LinkedHashMap`·`ArrayList` 로 만듦) `ArrayDeque` 는 복사하지 않고 공유하던 문제 — 원본과 같은 종류로 복사합니다(`PriorityQueue`·`TreeSet`·`TreeMap` 정렬 기준 유지).
+- `S2Copier.to(레코드.class)` 가 "인스턴스 생성 실패" 로 끝나던 문제 — 정식 생성자로 만듭니다. 레코드 인스턴스를 대상으로 주면 아무것도 하지 않던 것은 `IllegalArgumentException` 으로 알립니다.
 - `S2ThreadUtil`: Java 19·20(가상 스레드 미리보기)에서 초기화 ERROR 로그를 내던 문제 — 지원하지 않는 환경으로 처리합니다. 플랫폼 스레드에 `s2-util-N` 이름을 붙입니다.
 - `S2Util.getValue` 가 JDK 클래스의 공개 메서드(`String.length`·`BigDecimal.scale` 등)를 읽지 못하고 `null` 과 ERROR 로그를 내던 문제 — 공개 클래스의 공개 멤버는 접근 권한을 바꾸지 않고 읽습니다. 접근할 수 없는 멤버는 WARN 으로 한 번 알립니다.
 - `S2Cache.getFields` 가 JDK 클래스(열리지 않은 모듈)에서 `InaccessibleObjectException` 을 던지던 문제. `S2Cache.resolve` 의 값 타입 검사가 DEBUG 로그일 때만 동작하던 문제(항상 검사), 예외 메시지를 영어로.

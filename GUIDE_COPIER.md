@@ -74,6 +74,11 @@ S2Copier.from(updateDto)
 // Result: name changed, age unchanged (was null), email changed
 ```
 
+> **Properties missing from the source are left untouched.** A target field is copied only when the source has that property
+> (field, getter or map key), so updating an entity from a DTO with only some fields keeps values such as `id` and `createdBy`.
+> `ignoreNulls()` skips values that the source **has but are null**. When a value's type differs from the target field,
+> `S2Util.cast` tries to convert it (`"30"` → `int`); if it cannot, the field is skipped.
+
 ### 2-4. Map ↔ DTO Conversion
 
 ```java
@@ -238,9 +243,11 @@ String
 ```java
 // Recursively deep copy each element
 
-List, ArrayList, LinkedList
-Set, HashSet, LinkedHashSet
-Iterable implementations
+// Copied into the same kind (implementations with a public no-arg constructor, e.g. ConcurrentHashMap, CopyOnWriteArrayList, ArrayDeque)
+List, ArrayList, LinkedList, CopyOnWriteArrayList
+Set, HashSet, LinkedHashSet, TreeSet (keeps its comparator), EnumSet
+Queue/Deque: ArrayDeque, PriorityQueue (keeps its comparator)
+// Immutable collections that cannot be created (List.of, ...) become ArrayList / LinkedHashSet
 ```
 
 ### 4-3. Maps
@@ -248,9 +255,18 @@ Iterable implementations
 ```java
 // Recursively deep copy each value
 
-HashMap, LinkedHashMap
-TreeMap, ConcurrentHashMap
-Map implementations
+// Copied into the same kind
+HashMap, LinkedHashMap, ConcurrentHashMap
+TreeMap (keeps its comparator), EnumMap
+// Immutable maps that cannot be created (Map.of, ...) become LinkedHashMap
+```
+
+### 4-3-1. Records
+
+```java
+// to(Record.class) uses the canonical constructor (mappings, exclusions and deep copy apply; missing components are null/0)
+Person p = S2Copier.from(dto).to(Person.class);
+// A record instance cannot be modified, so to(record) throws IllegalArgumentException
 ```
 
 ### 4-4. Custom Objects

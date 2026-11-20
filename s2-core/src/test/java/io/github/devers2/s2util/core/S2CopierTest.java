@@ -243,4 +243,102 @@ class S2CopierTest {
         assertEquals(source, map);
         assertTrue(map.containsKey("memo"));
     }
+
+    public static class Entity {
+        public Long id = 7L;
+        public String name = "old";
+        public String createdBy = "admin";
+    }
+
+    public static class NameDto {
+        public String name = "new";
+    }
+
+    @Test
+    void propertiesMissingFromSourceAreLeftUntouched() {
+        // 일부 필드만 가진 DTO·Map 으로 엔티티를 갱신해도 원본에 없는 id·createdBy 는 그대로(이전에는 null 로 지워짐)
+        Entity entity = new Entity();
+        S2Copier.from(new NameDto()).to(entity);
+        assertEquals(7L, entity.id);
+        assertEquals("new", entity.name);
+        assertEquals("admin", entity.createdBy);
+
+        Entity fromMap = new Entity();
+        S2Copier.from(new HashMap<>(Map.of("name", "m"))).to(fromMap);
+        assertEquals(7L, fromMap.id);
+        assertEquals("admin", fromMap.createdBy);
+
+        // 원본에 있지만 null 인 속성은 이전처럼 null 로 복사(ignoreNulls 로 막음)
+        NameDto nullName = new NameDto();
+        nullName.name = null;
+        Entity target = new Entity();
+        S2Copier.from(nullName).to(target);
+        assertEquals(null, target.name);
+    }
+
+    public static class Holder {
+        public java.util.concurrent.ConcurrentHashMap<String, Integer> chm = new java.util.concurrent.ConcurrentHashMap<>(Map.of("a", 1));
+        public java.util.concurrent.CopyOnWriteArrayList<String> cow = new java.util.concurrent.CopyOnWriteArrayList<>(List.of("x"));
+        public java.util.EnumMap<java.time.DayOfWeek, String> enumMap = new java.util.EnumMap<>(Map.of(java.time.DayOfWeek.MONDAY, "m"));
+        public java.util.EnumSet<java.time.DayOfWeek> enumSet = java.util.EnumSet.of(java.time.DayOfWeek.FRIDAY);
+        public java.util.ArrayDeque<String> deque = new java.util.ArrayDeque<>(List.of("q"));
+        public java.util.PriorityQueue<Integer> reversed = new java.util.PriorityQueue<>(Comparator.reverseOrder());
+        public List<String> immutable = List.of("i");
+    }
+
+    @Test
+    void deepCopyKeepsCollectionKinds() {
+        Holder original = new Holder();
+        original.reversed.addAll(List.of(1, 3, 2));
+        Holder copy = S2Copier.from(original).deep().to(Holder.class);
+        // 같은 종류의 새 컬렉션(이전에는 타입이 맞지 않아 필드가 통째로 빠지거나 ArrayDeque 는 공유됨)
+        assertInstanceOf(java.util.concurrent.ConcurrentHashMap.class, copy.chm);
+        assertNotSame(original.chm, copy.chm);
+        assertEquals(original.chm, copy.chm);
+        assertInstanceOf(java.util.concurrent.CopyOnWriteArrayList.class, copy.cow);
+        assertEquals(original.enumMap, copy.enumMap);
+        assertNotSame(original.enumMap, copy.enumMap);
+        assertEquals(original.enumSet, copy.enumSet);
+        assertNotSame(original.deque, copy.deque);
+        assertEquals(List.of("q"), new ArrayList<>(copy.deque));
+        assertEquals(3, copy.reversed.peek()); // 정렬 기준 유지
+        assertEquals(List.of("i"), copy.immutable); // 만들 수 없는 불변 컬렉션은 ArrayList 로
+    }
+
+    public record Person(String name, int age, Long id) {
+    }
+
+    public static class PersonSource {
+        public String name = "kim";
+        public String age = "30"; // 문자열 → int 변환
+    }
+
+    public static class Typed {
+        public int age;
+    }
+
+    @Test
+    void recordsConversionAndDepthLimit() {
+        // 레코드는 정식 생성자로 만든다(없는 구성요소는 null·0)
+        Person p = S2Copier.from(new PersonSource()).to(Person.class);
+        assertEquals(new Person("kim", 30, null), p);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> S2Copier.from(new PersonSource()).to(new Person("a", 1, 1L)));
+        // 타입이 달라도 변환할 수 있으면 복사("30" → int)
+        assertEquals(30, S2Copier.from(new PersonSource()).to(Typed.class).age);
+        // 깊이 초과는 필드를 건너뛰지 않고 알린다(가이드 3-5)
+        Node head = new Node();
+        Node cur = head;
+        for (int i = 0; i < 150; i++) {
+            cur.next = new Node();
+            cur = cur.next;
+        }
+        var e = org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+                () -> S2Copier.from(head).deep().to(Node.class));
+        assertTrue(e.getMessage().contains("Maximum deep copy depth exceeded"), e.getMessage());
+    }
+
+    public static class Node {
+        public Node next;
+    }
 }
