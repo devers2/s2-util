@@ -122,7 +122,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
   - A same-named variable in another method could be used to infer the validator's target class.
   - `when`/`and` in a sub-validator (a DTO that can be a NESTED/EACH target) referring to an outer-object field was an error — it is now a warning (condition-field typos on top-level DTOs are still errors).
   - Hexadecimal, binary and octal integer criteria (`0x10`) were reported as invalid.
-- The build plugin could not parse files using syntax newer than Java 17 (switch and record patterns) and silently skipped them — it now reads Java 21 syntax and warns when a file that uses S2Validator cannot be parsed.
+- The build plugin could not parse files using syntax newer than Java 17 (switch and record patterns) and silently skipped them — it now reads the newest syntax its JavaParser supports (Java 25) and warns when a file that uses S2Validator cannot be parsed.
 - `EQUALS_FIELD` on multi-selects and checkbox groups compared order on the server but not in the browser — the server now compares the values regardless of order.
 - When a cross-field target was empty in the nearest object, the server kept looking in outer objects while the browser stopped — the browser now continues outward, like the server and condition lookups.
 - For cross-field rules (`DATE_AFTER`, `EQUALS_FIELD`, ...) inside a nested object of a row or list, the browser looked up a same-named target in the row before the object itself, so its verdict differed from the server — it now looks in the object, then outer objects, then the root, as the server does (forms and `check()`).

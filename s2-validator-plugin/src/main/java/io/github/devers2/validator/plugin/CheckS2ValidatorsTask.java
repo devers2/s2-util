@@ -148,13 +148,19 @@ public abstract class CheckS2ValidatorsTask extends DefaultTask {
     private static final Set<String> TERMINAL_CALL_NAMES = Set.of("validate", "getRulesJson");
 
     /**
-     * 이 태스크 전용 파서. 사용자 소스는 라이브러리 기준(Java 17)보다 새 문법(switch 패턴·레코드 패턴 등)을 쓸 수 있으므로
-     * Java 21(LTS) 문법 수준으로 읽는다(하위 문법도 그대로 읽음). Gradle 배포판에 든 JavaParser(Gradle 9.8 은 3.27.1, JAVA_21 까지)가
-     * 컴파일 클래스패스 앞에 오므로 그 버전에도 있는 수준을 쓴다. 더 새 문법의 파일은 파싱 실패 경고로 알린다.
+     * 이 태스크 전용 파서. 사용자 소스는 라이브러리 기준(Java 17)보다 새 문법을 쓸 수 있으므로, 실행 시 로드된 JavaParser 가
+     * 지원하는 가장 높은 정식 Java 문법 수준으로 읽는다(하위 문법도 그대로 읽음). 상수(JAVA_25 등)를 직접 쓰지 않는 것은
+     * 컴파일 클래스패스 앞에 Gradle 배포판의 옛 JavaParser 가 오기 때문 — JavaParser 를 올리면 새 수준을 자동으로 쓴다.
      * 전역 StaticJavaParser 설정은 바꾸지 않는다(같은 데몬의 다른 플러그인 영향 방지)
      */
-    private final JavaParser parser = new JavaParser(
-            new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21));
+    private final JavaParser parser = new JavaParser(new ParserConfiguration().setLanguageLevel(NEWEST_LANGUAGE_LEVEL));
+
+    /** 로드된 JavaParser 의 가장 높은 정식(JAVA_N, 미리보기 제외) 문법 수준 */
+    static final ParserConfiguration.LanguageLevel NEWEST_LANGUAGE_LEVEL = java.util.Arrays
+            .stream(ParserConfiguration.LanguageLevel.values())
+            .filter(level -> level.name().matches("JAVA_\\d+"))
+            .max(java.util.Comparator.comparingInt(level -> Integer.parseInt(level.name().substring(5))))
+            .orElse(ParserConfiguration.LanguageLevel.CURRENT);
 
     private CompilationUnit parse(Path file) throws java.io.IOException {
         ParseResult<CompilationUnit> result = parser.parse(file);

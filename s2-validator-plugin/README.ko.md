@@ -28,7 +28,7 @@
    - 런타임 에러가 되기 전에 필드명 오타 감지
    - 상속 지원: 부모 클래스의 필드도 함께 검증
    - getter 만 있는 속성(`getFullName()`, `isAdult()`, `code()`)도 실행 시처럼 필드로 인정
-   - Java 21 문법(switch 패턴·레코드 패턴)까지 읽음. S2Validator 를 쓰는 파일을 읽지 못하면 경고
+   - 플러그인에 든 JavaParser 가 지원하는 최신 Java 문법까지 읽음(2.2.0 은 Java 25). S2Validator 를 쓰는 파일을 읽지 못하면 경고
    - 경로 검사: `address.city`, `items[0].name`, `products[].price`는 선언 타입을 따라 중첩 객체와 배열·컬렉션(`List`,
      `Set` 등)·맵 값의 요소 타입까지 부분마다 확인 (`Map`, 타입 변수, JDK 타입처럼 소스로 알 수 없는 지점에서는 멈춤)
    - 중첩 DTO: 다른 클래스 안에 선언한 `record`·static 클래스(`Join.Form`)도 검사
@@ -45,6 +45,7 @@
    - `bootRun` 및 기타 JavaExec 태스크 지원
 
 5. **증분 빌드·빌드 캐시**
+   - 검사 범위는 각 프로젝트의 `src/main/java` 입니다(sourceSets 에 추가한 소스 폴더·생성 코드는 검사하지 않음)
    - 모든 프로젝트의 `src/main/java`를 태스크 입력으로 선언: 바뀐 소스가 없으면 `UP-TO-DATE`로 건너뜀
    - `@CacheableTask`: `--build-cache`에서 이전 결과를 `FROM-CACHE`로 복원
    - 한 번의 실행 안에서는 분석한 DTO 필드 정보를 메모리에 캐싱
@@ -105,7 +106,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.1.0'
+    id 'io.github.devers2.validator' version '2.2.0'
 }
 ```
 
@@ -120,7 +121,7 @@ plugins {
 
 ## 🔄 호환성 (Compatibility)
 
-본 플러그인은 **s2-validator 2.1.0** 과 함께 사용합니다. 필드 이름 검사는 1.1.0 이상에서도 동작하지만, 규칙 기준값·조건 값 검사는 2.0.0 의 규칙(`S2RuleType`, `S2Operator`)을 기준으로 합니다.
+본 플러그인은 **s2-validator 2.2.0** 과 함께 사용합니다. 필드 이름 검사는 1.1.0 이상에서도 동작하지만, 규칙 기준값·조건 값 검사는 2.0.0 의 규칙(`S2RuleType`, `S2Operator`)을 기준으로 합니다.
 
 ---
 
@@ -135,4 +136,4 @@ plugins {
 
 ---
 
-s2-validator-plugin Version: 2.1.0
+s2-validator-plugin Version: 2.2.0

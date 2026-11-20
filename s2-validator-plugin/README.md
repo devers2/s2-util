@@ -28,7 +28,7 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Identifies typos in field names before they cause runtime errors
    - Supports inheritance: Validates fields from parent classes as well
    - Properties with only a getter (`getFullName()`, `isAdult()`, `code()`) count as fields, as at runtime
-   - Reads Java 21 syntax (switch and record patterns); warns when a file that uses S2Validator cannot be parsed
+   - Reads the newest Java syntax its bundled JavaParser supports (Java 25 in 2.2.0); warns when a file that uses S2Validator cannot be parsed
    - Paths: `address.city`, `items[0].name` and `products[].price` are checked part by part, following the declared
      types into nested objects and the elements of arrays, collections (`List`, `Set`, ...) and map values (stops where
      the sources cannot tell the type: `Map`, type variables, JDK types)
@@ -46,6 +46,7 @@ The **s2-validator-plugin** is a Gradle build plugin that performs static source
    - Supports `bootRun` and other JavaExec tasks
 
 5. **Incremental Build & Build Cache**
+   - Scans each project's `src/main/java` (extra source folders added to sourceSets and generated code are not checked)
    - The `src/main/java` trees of all projects are task inputs: skipped as `UP-TO-DATE` when no source changed
    - `@CacheableTask`: restores the previous result as `FROM-CACHE` with `--build-cache`
    - Within one run, analyzed DTO field information is cached in memory
@@ -110,7 +111,7 @@ pluginManagement {
 
 ```groovy
 plugins {
-    id 'io.github.devers2.validator' version '2.1.0'
+    id 'io.github.devers2.validator' version '2.2.0'
 }
 ```
 
@@ -125,7 +126,7 @@ plugins {
 
 ## 🔄 Compatibility
 
-Use this plugin with **s2-validator 2.1.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
+Use this plugin with **s2-validator 2.2.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
 
 ---
 
@@ -140,4 +141,4 @@ This library is provided under the **Apache License 2.0**. You are free to use, 
 
 ---
 
-s2-validator-plugin Version: 2.1.0
+s2-validator-plugin Version: 2.2.0
