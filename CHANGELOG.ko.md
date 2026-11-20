@@ -109,6 +109,7 @@
 
 ### 수정
 
+- 경량 캐시(Caffeine 이 없을 때)가 `S2Cache.resolve` 의 `expiryMs` 를 무시해 값이 만료되지 않던 문제 — Caffeine 백엔드와 같이 마지막 접근 후 만료합니다(`S2OptimisticCache(int, long)`·`SimpleCacheAdapter(int, long, boolean)` 추가). 만료를 쓰지 않는 캐시의 성능은 그대로입니다.
 - `S2Template`: `{{= name }}` 처럼 키 앞뒤에 공백이 있으면 바인딩된 값이 있어도 조용히 지워지던 문제(같은 키로 봄). Javadoc 예제 바로잡기 — `bindIn` 문자열 목록은 따옴표 리터럴이 되며(`ORDER BY` 예제가 틀렸음), 값을 `String.join` 으로 쿼리에 붙이던 `bindWhen` 예제(SQL 주입 패턴)와 요청 정렬값을 그대로 넣던 예제를 파라미터·허용 목록 방식으로.
 - `S2StringUtil`: `replaceChars(…, " ", …)` 가 공백으로 바꾸지 않고 지우던 문제, 공백만 있는 원본을 `replaceChars`·`replaceAll`·`substringByBytes` 가 처리하지 않던 문제(정규식 캐시가 공백 패턴 `" "` 을 거부하던 것 포함), `decodeUnicode` 가 잘못된 `\uZZZZ` 에서 역슬래시를 두 번 쓰고 `\u-001` 같은 부호를 16진수로 받던 문제, `formatMessage` 의 int 범위를 넘는 인덱스.
 - `S2DateUtil`: `compareDates` 가 날짜만 있는 패턴(`yyyy-MM-dd`)에서 예외를 던지던 문제(그날 00:00 으로 비교), `dateFormat(Instant)` 가 UTC 숫자를 그대로 써 시스템 시간대와 어긋나던 문제, `parseToZonedDateTime` 이 오프셋 `x`·`O` 를 놓쳐 시각이 어긋나고 따옴표 리터럴(`'z'`)을 시간대로 오인하던 문제, `toDateTimeString(OffsetDateTime, …)` 가 오프셋을 버리고 `XXX` 패턴에서 `UnsupportedTemporalTypeException` 을 던지던 문제(이제 오프셋 그대로, 값에 없는 필드는 null), `parseToLocalDate`·`parseToLocalDateTime` 이 `isThrowException=false` 인데도 빈 입력에서 예외를 던지던 문제(null). 예외 메시지를 영어로, 출력 포맷터를 캐시합니다.

@@ -64,7 +64,24 @@ public class SimpleCacheAdapter<K, V> implements CacheAdapter<K, V> {
      * @param statsEnabled Whether to enable statistics collection | 통계 수집 활성화 여부
      */
     public SimpleCacheAdapter(int maxSize, boolean statsEnabled) {
-        this.cache = new S2OptimisticCache<>(maxSize);
+        this(maxSize, 0, statsEnabled);
+    }
+
+    /**
+     * Constructs a new SimpleCacheAdapter whose entries expire after not being accessed for {@code expiryMs}.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 마지막 접근 후 {@code expiryMs} 가 지나면 만료되는 SimpleCacheAdapter 를 생성합니다(Caffeine 백엔드와 같은 의미).
+     *
+     * @param maxSize      Maximum cache size | 최대 캐시 크기
+     * @param expiryMs     Expiry after the last access in milliseconds ({@code 0}: never) | 마지막 접근 후 만료 시간(ms, 0 이면 만료 없음)
+     * @param statsEnabled Whether to enable statistics collection | 통계 수집 활성화 여부
+     * @since 2.2.0
+     */
+    public SimpleCacheAdapter(int maxSize, long expiryMs, boolean statsEnabled) {
+        this.cache = new S2OptimisticCache<>(maxSize, expiryMs);
         this.statsEnabled = statsEnabled;
     }
 

@@ -386,7 +386,8 @@ public class S2Cache {
         if (logger.isDebugEnabled()) {
             logger.debug("[S2Cache] Simple cache adapter created for cache: {} (Caffeine not available)", cacheName);
         }
-        return new SimpleCacheAdapter<>(maxSize, STATS_ENABLED);
+        // 만료 시간도 넘긴다 — 이전에는 경량 캐시가 expiryMs 를 무시해 Caffeine 이 없으면 값이 만료되지 않았다
+        return new SimpleCacheAdapter<>(maxSize, expiryMs, STATS_ENABLED);
     }
 
     /**

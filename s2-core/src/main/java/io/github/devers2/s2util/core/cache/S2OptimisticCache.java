@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -143,10 +144,12 @@ public class S2OptimisticCache<K, V> {
     private static class CacheEntry<V> {
         final V value;
         volatile long accessEpoch; // 마지막 접근 세대 (작을수록 오래됨)
+        volatile long accessNanos; // 마지막 접근 시각(System.nanoTime) — 만료를 켰을 때만 기록
 
-        CacheEntry(V value, long accessEpoch) {
+        CacheEntry(V value, long accessEpoch, long accessNanos) {
             this.value = value;
             this.accessEpoch = accessEpoch;
+            this.accessNanos = accessNanos;
         }
     }
 
@@ -172,6 +175,8 @@ public class S2OptimisticCache<K, V> {
     private final AtomicInteger insertTick = new AtomicInteger(0);
     private final int epochMask;
     private final AtomicBoolean evicting = new AtomicBoolean(false);
+    /** 마지막 접근 후 만료까지의 시간(나노초), 0 이면 만료 없음 — Caffeine 백엔드의 expireAfterAccess 와 같은 의미 */
+    private final long expireAfterAccessNanos;
 
     /**
      * Constructs a new S2OptimisticCache.
@@ -184,6 +189,23 @@ public class S2OptimisticCache<K, V> {
      * @param maxEntries Maximum number of entries allowed | 캐시의 최대 허용 개수
      */
     public S2OptimisticCache(int maxEntries) {
+        this(maxEntries, 0);
+    }
+
+    /**
+     * Constructs a new S2OptimisticCache whose entries expire after not being accessed for {@code expireAfterAccessMs}.
+     *
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 마지막 접근 후 {@code expireAfterAccessMs} 가 지나면 만료되는 S2OptimisticCache 를 생성합니다(Caffeine 백엔드와 같은 의미).
+     *
+     * @param maxEntries          Maximum number of entries allowed | 캐시의 최대 허용 개수
+     * @param expireAfterAccessMs Expiry after the last access in milliseconds ({@code 0} or less: never) | 마지막 접근 후 만료 시간(ms, 0 이하면 만료 없음)
+     * @since 2.2.0
+     */
+    public S2OptimisticCache(int maxEntries, long expireAfterAccessMs) {
+        this.expireAfterAccessNanos = expireAfterAccessMs > 0 ? TimeUnit.MILLISECONDS.toNanos(expireAfterAccessMs) : 0;
         this.maxEntries = maxEntries;
         this.hardLimit = Math.max(1L, (long) maxEntries * HARD_LIMIT_MULTIPLIER);
         // 세대는 삽입 N건마다 1 증가: 작은 캐시는 촘촘하게(정확도), 큰 캐시는 성기게(조회 쪽 캐시 라인 무효화 감소)
@@ -245,7 +267,7 @@ public class S2OptimisticCache<K, V> {
     @SuppressWarnings({ "null", "unchecked" })
     public V get(K key, Function<? super K, ? extends V> mappingFunction) {
         // 1. Non-blocking lookup (99% of cases)
-        CacheEntry<V> entry = cache.get(key);
+        CacheEntry<V> entry = liveEntry(key);
         if (entry != null) {
             touch(entry);
             V value = entry.value;
@@ -265,7 +287,7 @@ public class S2OptimisticCache<K, V> {
         }
 
         // 3. Atomic registration (first-come, first-served)
-        CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, epoch.get());
+        CacheEntry<V> newEntry = new CacheEntry<>(valueToCache, epoch.get(), expireAfterAccessNanos > 0 ? System.nanoTime() : 0);
         CacheEntry<V> existingEntry = cache.putIfAbsent(key, newEntry);
 
         if (existingEntry == null) {
@@ -299,7 +321,7 @@ public class S2OptimisticCache<K, V> {
      * @return Cached value or null if not present | 캐시된 값 또는 없으면 null
      */
     public V getIfPresent(K key) {
-        CacheEntry<V> entry = cache.get(key);
+        CacheEntry<V> entry = liveEntry(key);
         if (entry != null) {
             touch(entry);
             V value = entry.value;
@@ -322,6 +344,21 @@ public class S2OptimisticCache<K, V> {
         if (entry.accessEpoch != current) {
             entry.accessEpoch = current;
         }
+        if (expireAfterAccessNanos > 0) {
+            entry.accessNanos = System.nanoTime();
+        }
+    }
+
+    /** 만료되지 않은 항목, 없거나 만료됐으면 null(만료된 항목은 지운다 — 다른 스레드가 바꾼 항목은 건드리지 않음) */
+    private CacheEntry<V> liveEntry(K key) {
+        CacheEntry<V> entry = cache.get(key);
+        if (entry != null && expireAfterAccessNanos > 0 && System.nanoTime() - entry.accessNanos > expireAfterAccessNanos) {
+            if (cache.remove(key, entry)) {
+                size.decrementAndGet();
+            }
+            return null;
+        }
+        return entry;
     }
 
     /**
@@ -349,7 +386,7 @@ public class S2OptimisticCache<K, V> {
      *         존재하면(음성 캐싱 포함) {@code true}
      */
     public boolean containsKey(K key) {
-        return cache.get(key) != null;
+        return liveEntry(key) != null;
     }
 
     /**
