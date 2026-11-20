@@ -148,6 +148,7 @@ public interface S2RuleMessageStep {
      * @return This step object for chaining | 체이닝을 위한 현재 객체
      */
     default S2RuleMessageStep includeEmpty() {
-        throw new IllegalStateException("includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.");
+        throw new IllegalStateException("includeEmpty() can only follow a custom lambda rule. "
+                + "(includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.)");
     }
 }
