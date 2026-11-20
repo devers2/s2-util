@@ -65,6 +65,7 @@
 
 ### 추가
 
+- `S2Util.setValue` 가 평면 `Map` 의 리터럴 키(`"address.zip"`, `"items[0].name"`)에 씁니다. `getValue` 와 같은 규칙(경로의 첫 마디가 Map 에 없으면 경로 전체가 키)이라 쓴 값을 그대로 읽을 수 있습니다. 이전에는 `false` 를 돌려주고 쓰지 않았습니다.
 - **`S2BeanValidation`: Bean Validation 어노테이션(`@NotBlank`·`@Size`·`@Pattern`·`@Min`·`@Valid` 등)으로 S2 규칙을 만듭니다.** 기존 DTO 를 고치지 않고 브라우저 검증을 얻고, `toBuilder()`로 S2 규칙을 더할 수 있습니다. Bean Validation 보다 엄격하지 않은 제약만 변환하고 나머지는 `serverOnly()`·로그로 알립니다(`practical()` 로 범위 확장). Hibernate Validator 와 무작위 입력으로 비교하는 시험 포함. MANUAL 5-5.
 - 배포 POM 에 Spring·`jakarta.validation-api` 를 선택 의존성(`<optional>true</optional>`)으로 표시합니다. 프로젝트로 전이되지 않으며 어떤 기능에 무엇이 필요한지 보입니다.
 - 규칙 `MIN_SIZE`·`MAX_SIZE`: 값의 개수(컬렉션·배열·체크박스 그룹·다중 선택, 단일 값은 1개)를 검사합니다. 서버·브라우저 동일, 빌드 플러그인 기준값 검사 포함.

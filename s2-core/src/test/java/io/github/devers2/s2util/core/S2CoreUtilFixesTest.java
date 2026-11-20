@@ -384,4 +384,26 @@ class S2CoreUtilFixesTest {
         assertTrue(S2Util.isEmpty(java.util.Optional.of(" ")));
         assertFalse(S2Util.isEmpty(java.util.Optional.of("a")));
     }
+
+    @Test
+    void setValueWritesFlatMapLiteralKeyLikeGetValueReads() {
+        Map<String, Object> flat = new java.util.HashMap<>();
+        // 첫 마디("address")가 없으면 경로 전체를 키로 쓰고, getValue 로 그대로 읽힌다
+        assertTrue(S2Util.setValue(flat, "address.zip", "12345"));
+        assertTrue(S2Util.setValue(flat, "items[0].name", "pen"));
+        assertEquals("12345", flat.get("address.zip"));
+        assertEquals("12345", S2Util.getValue(flat, "address.zip"));
+        assertEquals("pen", S2Util.getValue(flat, "items[0].name"));
+        // 첫 마디가 있으면 이전처럼 중첩 경로로 쓴다
+        Map<String, Object> nested = new java.util.HashMap<>();
+        nested.put("address", new java.util.HashMap<String, Object>());
+        assertTrue(S2Util.setValue(nested, "address.zip", "999"));
+        assertEquals("999", S2Util.getValue(nested, "address.zip"));
+        assertFalse(nested.containsKey("address.zip"));
+        // 수정할 수 없는 Map 은 false
+        assertFalse(S2Util.setValue(Map.of(), "address.zip", "x"));
+        // 대소문자 구분 없는 Boolean 변환
+        assertEquals(Boolean.TRUE, S2Util.cast(" TRUE ", Boolean.class));
+        assertEquals(Boolean.FALSE, S2Util.cast("Off", Boolean.class));
+    }
 }

@@ -258,14 +258,10 @@ public class S2Util {
 
             // 평면 Map 의 리터럴 키("address.zip", "items[0].name"): 경로의 첫 마디("address")가 Map 에 없을 때만 그대로 사용
             // (첫 마디가 있으면 중첩 경로가 우선 — 정상적인 null 리프값이 같은 이름의 리터럴 키로 바뀌지 않도록)
-            if (isStringField && target instanceof Map<?, ?> flatMap) {
-                int dot = fieldNameStr.indexOf('.');
-                int bracket = fieldNameStr.indexOf('[');
-                int cut = dot < 0 ? bracket : (bracket < 0 ? dot : Math.min(dot, bracket));
-                if (cut > 0 && !flatMap.containsKey(fieldNameStr.substring(0, cut)) && flatMap.containsKey(fieldNameStr)) {
-                    Object literal = flatMap.get(fieldNameStr);
-                    return cast(literal, castClass, defaultValue, emptyAsDefault);
-                }
+            if (isStringField && target instanceof Map<?, ?> flatMap && isFlatMapLiteralKey(flatMap, fieldNameStr)
+                    && flatMap.containsKey(fieldNameStr)) {
+                Object literal = flatMap.get(fieldNameStr);
+                return cast(literal, castClass, defaultValue, emptyAsDefault);
             }
 
             // 0. Dot Notation (Nested Access) & Bracket Notation ([0]) 처리
@@ -583,6 +579,19 @@ public class S2Util {
             boolean isStringField = fieldName instanceof String;
             String fieldNameStr = isStringField ? (String) fieldName : String.valueOf(fieldName);
 
+            // 평면 Map 의 리터럴 키("address.zip"): getValue 와 같은 규칙 — 경로의 첫 마디("address")가 Map 에 없으면 키 그대로 쓴다
+            // (첫 마디가 있으면 중첩 경로). 그래서 setValue 로 쓴 값을 getValue 로 그대로 읽을 수 있다
+            if (isStringField && finalTargetOrigin instanceof Map<?, ?> flatMap && isFlatMapLiteralKey(flatMap, fieldNameStr)) {
+                @SuppressWarnings("unchecked")
+                Map<Object, Object> writable = (Map<Object, Object>) flatMap;
+                try {
+                    writable.put(fieldNameStr, value);
+                    return true;
+                } catch (UnsupportedOperationException | ClassCastException | IllegalArgumentException e) {
+                    return false; // 수정할 수 없는 Map 이나 키·값 타입을 받지 않는 Map
+                }
+            }
+
             // 0. Dot Notation (Nested Access) & Bracket Notation ([0]) 처리
             if (isStringField) {
                 // 1. Bracket Notation Normalization: "users[0]" -> "users.0"
@@ -743,6 +752,17 @@ public class S2Util {
         }
 
         return false;
+    }
+
+    /**
+     * 경로("address.zip", "items[0].name")의 첫 마디가 Map 에 없어 경로 전체를 평면 키로 볼지. 첫 마디가 있으면 중첩 경로가 우선
+     * (정상적인 null 값이 같은 이름의 리터럴 키로 바뀌지 않도록). getValue·setValue 가 같은 규칙을 쓴다.
+     */
+    private static boolean isFlatMapLiteralKey(Map<?, ?> map, String path) {
+        int dot = path.indexOf('.');
+        int bracket = path.indexOf('[');
+        int cut = dot < 0 ? bracket : (bracket < 0 ? dot : Math.min(dot, bracket));
+        return cut > 0 && !map.containsKey(path.substring(0, cut));
     }
 
     /**

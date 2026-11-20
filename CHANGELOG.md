@@ -70,6 +70,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Added
 
+- `S2Util.setValue` writes literal keys of a flat `Map` (`"address.zip"`, `"items[0].name"`) by the same rule as `getValue` (the whole path is the key when its first segment is not in the map), so written values read back as is. It used to return `false` without writing.
 - **`S2BeanValidation`: builds S2 rules from Bean Validation annotations (`@NotBlank`, `@Size`, `@Pattern`, `@Min`, `@Valid`, ...).** Existing DTOs get browser validation unchanged, and `toBuilder()` adds S2 rules. Only constraints never stricter than Bean Validation are converted; the rest are reported by `serverOnly()` and a log line (`practical()` widens the range). Includes a test comparing against Hibernate Validator with random input. MANUAL 5-5.
 - The published POM lists Spring and `jakarta.validation-api` as optional dependencies (`<optional>true</optional>`): not transitive, but visible as what each feature needs.
 - Rules `MIN_SIZE`/`MAX_SIZE`: check the number of values (collections, arrays, checkbox groups, multi-selects; a single value counts as one). Same on server and browser; the build plugin checks their criteria.
