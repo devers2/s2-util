@@ -1205,8 +1205,10 @@ public class S2Validator<T> {
                     if (processedFields.contains(fieldName))
                         continue;
 
-                    var fieldValue = S2Util.getValue(target, fieldName);
-                    if (fieldValue == null) {
+                    // 규칙은 저장될 원래 값으로 판정(공백만인 값의 길이 상한), 그 밖의 처리는 이전처럼 빈 값을 null 로 본다
+                    Object rawFieldValue = S2Util.getRawValue(target, fieldName);
+                    Object fieldValue = S2Util.isEmpty(rawFieldValue) ? null : rawFieldValue;
+                    if (rawFieldValue == null) {
                         // 대상 클래스에 없는 필드명(오타 등)은 항상 빈 값이 되므로 한 번 경고
                         S2PropertyCheck.warnIfMissing(target, fieldName);
                     }
@@ -1347,7 +1349,7 @@ public class S2Validator<T> {
                             continue;
                         }
 
-                        if (!rule.isValidIn(fieldValue, target, outerTargets)) {
+                        if (!rule.isValidIn(rawFieldValue, target, outerTargets)) {
                             isAllValid = false;
                             Object criterion = field.resolveMessageCriterion(rule, outerValidators);
                             var args = S2Util.isNotEmpty(criterion)
@@ -1422,7 +1424,8 @@ public class S2Validator<T> {
                 }
 
                 // item에서 실제 값 추출
-                Object fieldValue = S2Util.isEmpty(suffix) ? item : S2Util.getValue(item, suffix);
+                Object rawFieldValue = S2Util.isEmpty(suffix) ? item : S2Util.getRawValue(item, suffix);
+                Object fieldValue = S2Util.isEmpty(suffix) || !S2Util.isEmpty(rawFieldValue) ? rawFieldValue : null;
                 String fieldLabel = field.getLabel();
                 List<S2Rule> rules = field.getRules();
                 var customRules = field.getCustomRules(); // Use var for type inference
@@ -1452,7 +1455,7 @@ public class S2Validator<T> {
                         continue;
                     }
 
-                    if (!rule.isValidIn(fieldValue, item, withOuter(target))) {
+                    if (!rule.isValidIn(rawFieldValue, item, withOuter(target))) {
                         isValid = false;
                         Object criterion = field.resolveMessageCriterion(rule, outerValidators);
                         var args = S2Util.isNotEmpty(criterion)

@@ -171,7 +171,7 @@ public class S2Util {
      * @param <R>       The expected return type | 예상되는 반환 타입
      * @param target    The object to query (Map, List, VO, Record, etc.) | 조회 대상 객체 (Map, List, VO, Record 등)
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @return The extracted value, or {@code null} if not found | 추출된 값 (찾지 못한 경우 null)
+     * @return The extracted value, or {@code null} if not found or empty (blank string, empty collection/array/map) | 추출된 값 (찾지 못했거나 빈 값(공백 문자열, 빈 컬렉션·배열·맵)이면 null)
      * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
@@ -213,7 +213,8 @@ public class S2Util {
     }
 
     /**
-     * Extracts a value and returns a default value if it is {@code null} or cannot be found.
+     * Extracts a value and returns a default value if it is {@code null}, empty (blank string, empty collection/array/map),
+     * cannot be found, or cannot be converted to the default value's type.
      *
      * <h3>Supported Access Patterns</h3>
      * <ul>
@@ -227,14 +228,14 @@ public class S2Util {
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
-     * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출하며, {@code null}이거나 찾을 수 없으면 기본값을 반환합니다.
+     * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출하며, {@code null}·빈 값(공백 문자열, 빈 컬렉션·배열·맵)이거나, 찾을 수 없거나, 기본값 타입으로 변환할 수 없으면 기본값을 반환합니다.
      *
      * @param <T>          The type of the target object | 대상 객체의 타입
      * @param <F>          The type of the field identifier | 필드 식별자 타입
      * @param <R>          The expected return type | 예상되는 반환 타입
      * @param target       The object to query | 조회 대상 객체
      * @param fieldName    Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @param defaultValue Default value to return if the value is null or not found | 값이 null 이거나 없을 때 반환할 기본값
+     * @param defaultValue Default value to return if the value is null, empty, missing or not convertible | 값이 null·빈 값이거나 없거나 변환할 수 없을 때 반환할 기본값
      * @return Extracted value or default value | 추출된 값 또는 기본값
      * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
@@ -280,19 +281,21 @@ public class S2Util {
     /**
      * Reads a value as is, without the empty-to-default conversion of {@link #cast}: an empty string or an
      * empty collection is returned unchanged instead of {@code null}. Used by {@link S2Copier} so copies keep
-     * the original values.
+     * the original values, and by the validator so length limits see the value that will be stored.
      *
      * <p>
      * <b>[한국어 설명]</b>
      * </p>
      * {@link #cast}의 "빈 값 → 기본값" 변환 없이 값을 그대로 읽습니다. 빈 문자열·빈 컬렉션을 {@code null}로 바꾸지 않고
-     * 그대로 돌려주므로, {@link S2Copier}가 원래 값을 그대로 복사할 때 씁니다.
+     * 그대로 돌려주므로, {@link S2Copier}가 원래 값을 그대로 복사할 때와 검증기가 저장될 값 그대로 길이 상한을 판정할 때 씁니다.
      *
      * @param target    The object to query | 조회 대상 객체
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
      * @return The value as stored, or {@code null} if not found | 저장된 값 그대로, 없으면 {@code null}
+     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if the getter itself throws | getter 자체가 예외를 던질 때
+     * @since 2.2.0
      */
-    static Object getRawValue(Object target, Object fieldName) {
+    public static Object getRawValue(Object target, Object fieldName) {
         return getValue(target, fieldName, null, null, true);
     }
 

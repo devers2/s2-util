@@ -282,4 +282,43 @@ class ReviewDefectRegressionTest {
         Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Rule.class));
         Assertions.assertFalse(java.io.Serializable.class.isAssignableFrom(S2Condition.class));
     }
+
+    public static class BlankDto {
+        public String name;
+        public List<String> tags;
+
+        public String getName() {
+            return name;
+        }
+
+        public List<String> getTags() {
+            return tags;
+        }
+    }
+
+    @Test
+    @DisplayName("공백만인 값은 빈 값이지만 길이 상한은 원래 길이로 판정하고, 람다 규칙은 이전처럼 null 을 받는다")
+    void blankOnlyValueIsCheckedAgainstUpperLimits() {
+        BlankDto dto = new BlankDto();
+        dto.name = " ".repeat(300);
+        dto.tags = List.of("ok", " ".repeat(50));
+        S2Validator<BlankDto> validator = S2Validator.<BlankDto>builder()
+                .field("name", "이름").rule(S2RuleType.MAX_LENGTH, 10)
+                .field("tags", "태그").rule(S2RuleType.MAX_LENGTH, 10)
+                .build();
+        var errors = validator.validateAll(dto).toMap();
+        Assertions.assertTrue(errors.containsKey("name"), errors.toString());
+        Assertions.assertTrue(errors.containsKey("tags"), errors.toString());
+
+        // 람다(includeEmpty)는 공백만인 값을 이전처럼 null 로 받는다
+        java.util.concurrent.atomic.AtomicReference<Object> seen = new java.util.concurrent.atomic.AtomicReference<>("unset");
+        dto.name = "   ";
+        S2Validator.<BlankDto>builder()
+                .field("name").rule((Object v) -> {
+                    seen.set(v);
+                    return true;
+                }).includeEmpty()
+                .build().validateAll(dto);
+        Assertions.assertNull(seen.get());
+    }
 }

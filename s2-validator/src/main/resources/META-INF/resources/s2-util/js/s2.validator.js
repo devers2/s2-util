@@ -1332,9 +1332,9 @@ const getFieldValue = (elements) => {
     return values;
   } else {
     // text, password, email, number, tel, select-one 등 일반 입력 필드
-    // 전송되는 원래 값을 유지 (상한 규칙이 공백 포함 길이로 판정하도록). 공백만이면 빈 값
+    // 전송되는 원래 값을 유지 (상한 규칙이 공백 포함 길이로 판정하도록). 공백만인 값도 그대로 두고 validateCheck 가 빈 값으로 판정
     const val = elements[0].value;
-    return val !== undefined && val !== null && val.trim() !== '' ? val : null;
+    return val !== undefined && val !== null && val !== '' ? val : null;
   }
 };
 
@@ -1462,11 +1462,17 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
   // 여러 값(체크박스 그룹·다중 선택 등 배열)은 서버(S2Rule)와 같이 요소별로 판정. 빈 값이 아닌 요소가 있어야 값이 있는 것
   if (Array.isArray(value) && rule.type !== 'ASSERT_TRUE' && rule.type !== 'ASSERT_FALSE') {
     const present = value.filter((v) => !isBlankValue(v));
-    if (rule.type === 'REQUIRED' || present.length === 0) {
-      return rule.type !== 'REQUIRED' || present.length > 0;
+    if (rule.type === 'REQUIRED') {
+      return present.length > 0;
     }
     if (ELEMENT_WISE_RULES.has(rule.type)) {
-      return present.every((v) => validateCheck(v, rule, formData, prefix, fieldName));
+      // 공백만인 요소도 상한 규칙은 원래 길이로 판정하므로 null 이 아닌 모든 요소를 본다(서버 S2Rule 과 같음)
+      return value
+        .filter((v) => v !== null && v !== undefined)
+        .every((v) => validateCheck(v, rule, formData, prefix, fieldName));
+    }
+    if (present.length === 0) {
+      return true;
     }
   }
 
@@ -1477,7 +1483,13 @@ const validateCheck = (value, rule, formData, prefix = '', fieldName = '') => {
     rule.type !== 'ASSERT_TRUE' &&
     rule.type !== 'ASSERT_FALSE'
   ) {
-    return rule.type !== 'REQUIRED'; // REQUIRED만 실패, 나머지 empty 무시
+    if (rule.type === 'REQUIRED') return false; // REQUIRED만 실패, 나머지 empty 무시
+    // 공백만인 문자열은 그대로 저장될 수 있으므로 상한 규칙은 원래 길이가 기준을 넘는지 본다(서버 S2Rule 과 같음)
+    if (typeof rawValue === 'string' && rawValue !== '') {
+      if (rule.type === 'LENGTH' || rule.type === 'MAX_LENGTH') return rawValue.length <= parseInt(rule.value);
+      if (rule.type === 'MAX_BYTE') return new Blob([rawValue]).size <= parseInt(rule.value);
+    }
+    return true;
   }
 
   // ASSERT_TRUE, ASSERT_FALSE는 단일 값(체크박스 하나 등)에 대해서만 유효함

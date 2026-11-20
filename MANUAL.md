@@ -385,6 +385,7 @@ S2Validator.check(order.isPayable())
 - **Surrounding spaces and upper limits (`LENGTH` / `MAX_LENGTH` / `MAX_BYTE`)**:
   - Rules judge the value with surrounding spaces trimmed, but upper-limit rules judge the original value that is actually submitted and stored. This rejects values padded past the limit (`"ab"` + 1,000 spaces).
   - A value of only spaces is empty, and `MIN_LENGTH`/`MIN_BYTE` judge the trimmed content (spaces cannot fill a minimum).
+    Because such a value can still be stored as is, upper-limit rules judge its original length (300 spaces fail `MAX_LENGTH 10`; `LENGTH` fails only when exceeded).
 - **Multiple values (collections, arrays, checkbox groups, multi-selects)**:
   - Length, byte, numeric, format and date rules are judged per element and every element must pass (empty elements are skipped). `String[]` parameter maps are validated as is.
   - `REQUIRED` passes only if at least one element is not empty (`["", " "]` is empty).

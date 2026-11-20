@@ -316,12 +316,17 @@ public class S2Rule implements S2RuleMessageStep {
         List<Object> elements = multiValues(value);
         if (elements != null && ruleType != S2RuleType.ASSERT_TRUE && ruleType != S2RuleType.ASSERT_FALSE) {
             List<Object> present = elements.stream().filter(e -> S2Util.isNotEmpty(trimIfString(e))).toList();
-            if (ruleType == S2RuleType.REQUIRED || present.isEmpty()) {
+            if (ruleType == S2RuleType.REQUIRED) {
                 // 빈 값이 아닌 요소가 하나라도 있어야 값이 있는 것
-                return ruleType != S2RuleType.REQUIRED || !present.isEmpty();
+                return !present.isEmpty();
             }
             if (ELEMENT_WISE.contains(ruleType)) {
-                return present.stream().allMatch(e -> evaluate(trimIfString(e), e, target, outerTargets));
+                // 공백만인 요소도 상한 규칙은 원래 길이로 판정하므로 null 이 아닌 모든 요소를 본다(빈 요소는 아래 빈 값 분기에서 통과)
+                return elements.stream().filter(java.util.Objects::nonNull)
+                        .allMatch(e -> evaluate(trimIfString(e), e, target, outerTargets));
+            }
+            if (present.isEmpty()) {
+                return true;
             }
         }
         if (ruleType == S2RuleType.REQUIRED) {
@@ -332,8 +337,9 @@ public class S2Rule implements S2RuleMessageStep {
         } else if (ruleType == S2RuleType.ASSERT_FALSE) {
             return isFalse(value);
         } else if (S2Util.isEmpty(value)) {
-            // 필수 입력 체크가 아닐 때 값이 없으면 무조건 유효(true)하다.
-            return true;
+            // 필수 입력 체크가 아닐 때 값이 없으면 유효하다. 단 공백만인 문자열은 그대로 저장될 수 있으므로
+            // 상한 규칙(LENGTH·MAX_LENGTH·MAX_BYTE)은 원래 길이가 기준을 넘는지 본다(공백으로 상한 우회 방지)
+            return withinUpperLimitWhenBlank(rawValue);
         }
 
         return switch (ruleType) {
@@ -628,6 +634,21 @@ public class S2Rule implements S2RuleMessageStep {
         }
 
         return null;
+    }
+
+    /**
+     * 공백만인 문자열(빈 값으로 보는 값)에 대한 상한 규칙 판정: 원래 길이·바이트가 기준을 넘으면 실패.
+     * LENGTH 는 정확한 길이지만 빈 값이므로 기준을 넘을 때만 실패한다. 그 밖의 규칙·빈 문자열은 통과.
+     */
+    private boolean withinUpperLimitWhenBlank(Object rawValue) {
+        if (!(rawValue instanceof String raw) || raw.isEmpty()) {
+            return true;
+        }
+        return switch (ruleType) {
+            case LENGTH, MAX_LENGTH -> raw.length() <= toIntCriterion(checkValue);
+            case MAX_BYTE -> raw.getBytes(StandardCharsets.UTF_8).length <= toIntCriterion(checkValue);
+            default -> true;
+        };
     }
 
     /** Rules judged per element for multiple values (collections, arrays) | 여러 값(컬렉션·배열)이면 요소마다 판정하는 규칙 */

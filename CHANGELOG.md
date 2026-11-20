@@ -14,6 +14,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### ⚠️ Behavior changes
 
+- **Upper-limit rules (`LENGTH`, `MAX_LENGTH`, `MAX_BYTE`) also judge whitespace-only values by their original length.** Such values were skipped as empty, so 300 spaces passed `MAX_LENGTH 10` and could be stored as is.
+  `LENGTH` fails only when exceeded; other rules, `REQUIRED` and lambda rules still treat the value as empty. Both the server and `s2.validator.js` changed, and the new public `S2Util.getRawValue` reads a value without the empty-to-null conversion.
 - **Server/browser verdicts for user regexes (`REGEX`, converted `@Pattern`) agree more closely.** The browser evaluates with the `u` flag when possible, so emoji and other astral characters count as one character as in Java, and `.` no longer matches U+0085 (as in Java).
   More syntax that means different things in Java and JS is now refused for rules JSON (`IllegalStateException`; BV conversion keeps it server-only): `\x{…}`, `\v`, `\N{…}`, `\b{g}`, `]` right after `[` (`[]a]`, `[^]a]`), octal `\0…`, multi-digit or missing-group backreferences (`\12`), and patterns Java cannot compile (`a{,3}`, `\y`).
 - **`S2Util.getValue` no longer swallows exceptions thrown by the getter itself; it throws `S2PropertyAccessException` (with the property path and cause).** A missing property or a `null` along the path still yields `null` (or the default value).
