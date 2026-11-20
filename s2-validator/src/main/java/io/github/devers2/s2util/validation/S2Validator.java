@@ -2051,14 +2051,14 @@ public class S2Validator<T> {
     }
 
     // build() 뒤에는 필드 목록을 바꿀 수 없는 목록으로 고정한다(공유 검증기를 실수로 바꾸지 않고, 여러 스레드가 안전하게 읽도록)
-    private void seal() {
+    void seal() {
         if (!built) {
             fields = List.copyOf(fields);
             built = true;
         }
     }
 
-    private void ensureNotBuilt() {
+    void ensureNotBuilt() {
         if (built) {
             throw new IllegalStateException(
                     "The validator has already been built; start a new builder() to define another validator. "

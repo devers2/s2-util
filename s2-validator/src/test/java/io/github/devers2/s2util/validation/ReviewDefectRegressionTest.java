@@ -321,4 +321,16 @@ class ReviewDefectRegressionTest {
                 .build().validateAll(dto);
         Assertions.assertNull(seen.get());
     }
+
+    @Test
+    @DisplayName("build() 한 검증기는 필드 객체를 꺼내도 바꿀 수 없다(rule·when 차단, 목록은 읽기 전용)")
+    void builtValidatorFieldsCannotBeModified() {
+        S2Validator<java.util.Map<String, Object>> validator = S2Validator.<java.util.Map<String, Object>>builder()
+                .field("name").rule(S2RuleType.REQUIRED).build();
+        S2Field<java.util.Map<String, Object>> field = validator.getFields().get(0);
+        Assertions.assertThrows(IllegalStateException.class, () -> field.rule(S2RuleType.MAX_LENGTH, 1));
+        Assertions.assertThrows(IllegalStateException.class, () -> field.when("x", "y"));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> field.getRules().clear());
+        Assertions.assertEquals(1, field.getRules().size());
+    }
 }

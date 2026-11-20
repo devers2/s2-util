@@ -129,6 +129,7 @@ public class S2Field<T> {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public S2Field<T> rule(S2RuleType type, Object value, String errorMessageKey) {
+        ensureEditable();
         S2Rule rule = new S2Rule(type, value, errorMessageKey);
         this.rules.add(rule);
         this.currentRule = rule; // Update tracking pointer
@@ -251,6 +252,7 @@ public class S2Field<T> {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public <V> S2Field<T> rule(BiPredicate<V, T> logic, String errorMessageKey) {
+        ensureEditable();
         String fieldNameStr = this.name != null ? String.valueOf(this.name) : null;
         S2CustomRule<V, T> custom = new S2CustomRule<>(logic, errorMessageKey, fieldNameStr);
         this.customRules.add(custom);
@@ -295,6 +297,7 @@ public class S2Field<T> {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public S2Field<T> storeMessage(String lang, String template) {
+        ensureEditable();
         if (this.currentRule == null) {
             throw new IllegalStateException("Missing rule definition. Call rule() before setting a message.");
         }
@@ -313,10 +316,12 @@ public class S2Field<T> {
      * @return Current field instance | 현재 필드 인스턴스
      */
     public S2Field<T> includeEmpty() {
+        ensureEditable();
         if (this.currentRule instanceof S2CustomRule<?, ?> customRule) {
             customRule.setIncludeEmpty(true);
         } else {
-            throw new IllegalStateException("includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.");
+            throw new IllegalStateException("includeEmpty() can only follow a custom lambda rule. "
+                    + "(includeEmpty() 수식어는 커스텀 람다 규칙 뒤에만 사용할 수 있습니다.)");
         }
         return this;
     }
@@ -342,6 +347,7 @@ public class S2Field<T> {
      * @return Current S2Field instance for chaining | 체이닝을 위한 현재 S2Field 인스턴스
      */
     public S2Field<T> when(Object fieldName, Object value) {
+        ensureEditable();
         List<S2Condition> group = new ArrayList<>();
         group.add(new S2Condition(fieldName, value));
         this.conditionGroups.add(group);
@@ -374,6 +380,7 @@ public class S2Field<T> {
      * @see S2Operator
      */
     public S2Field<T> when(Object fieldName, S2Operator operator, Object value) {
+        ensureEditable();
         List<S2Condition> group = new ArrayList<>();
         group.add(new S2Condition(fieldName, operator, value));
         this.conditionGroups.add(group);
@@ -399,6 +406,7 @@ public class S2Field<T> {
     }
 
     private S2Field<T> and(S2Condition condition) {
+        ensureEditable();
         if (this.conditionGroups.isEmpty())
             throw new IllegalStateException("and() must be called after when().");
         this.conditionGroups.get(this.conditionGroups.size() - 1).add(condition);
@@ -444,7 +452,8 @@ public class S2Field<T> {
      * @return List of validation rules | 검증 규칙 리스트
      */
     public List<S2Rule> getRules() {
-        return rules;
+        // 읽기 전용 — build() 한 검증기를 바깥에서 바꾸지 못하게(규칙 추가는 rule() 로)
+        return java.util.Collections.unmodifiableList(rules);
     }
 
     /**
@@ -458,7 +467,7 @@ public class S2Field<T> {
      * @return List of custom validation rules | 커스텀 검증 로직 리스트
      */
     public List<S2CustomRule<?, T>> getCustomRules() {
-        return customRules;
+        return java.util.Collections.unmodifiableList(customRules);
     }
 
     /**
@@ -472,7 +481,14 @@ public class S2Field<T> {
      * @return List of condition groups | 조건 그룹 리스트
      */
     public List<List<S2Condition>> getConditionGroups() {
-        return conditionGroups;
+        return conditionGroups.stream().map(java.util.Collections::unmodifiableList).toList();
+    }
+
+    /** build() 한 검증기의 필드는 바꿀 수 없다(필드 객체를 꺼내 rule()·when() 을 부르는 우회 차단) */
+    private void ensureEditable() {
+        if (validator != null) {
+            validator.ensureNotBuilt();
+        }
     }
 
     /**
@@ -761,6 +777,8 @@ public class S2Field<T> {
      * @return The parent S2Validator object | S2Validator 객체
      */
     public S2Validator<T> build() {
+        // 체인의 build() 와 같이 봉인한다(이전에는 봉인하지 않은 검증기를 돌려줌)
+        validator.seal();
         return validator;
     }
 
