@@ -319,6 +319,8 @@ class S2CoreUtilFixesTest {
 
     public static class LombokBoolean {
         private Boolean isDeleted = true;
+        // getter 없이 리플렉션(getValue)으로만 읽는 필드 — getter 모양 이름의 필드도 읽히는지 확인하는 대상
+        @SuppressWarnings("unused")
         private String is3d = "x";
 
         public Boolean getIsDeleted() {

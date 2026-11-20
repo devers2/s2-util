@@ -64,6 +64,8 @@ class S2JsonUtilTest {
         private String name;
         private int age;
         private transient String secret = "hidden";
+        // static 필드는 JSON 에 나오지 않아야 한다(직렬화 결과 비교 시험의 대상)
+        @SuppressWarnings("unused")
         private static String ignored = "static";
         private List<User> friends;
         private Map<String, Object> metadata;
@@ -324,6 +326,7 @@ class S2JsonUtilTest {
 
     static class Member {
         private String name;
+        @SuppressWarnings("unused")
         private int age;
 
         Member() {
@@ -397,6 +400,7 @@ class S2JsonUtilTest {
     }
 
     /** Entity after Hibernate bytecode enhancement | Hibernate 바이트코드 강화 후 엔티티 */
+    @SuppressWarnings("unused")
     static class EnhancedEntity {
         private Long id = 1L;
         private Object $$_hibernate_entityEntryHolder = new Object();
@@ -434,6 +438,7 @@ class S2JsonUtilTest {
     }
 
     static final class Ambiguous {
+        @SuppressWarnings("unused")
         private final int a;
 
         Ambiguous(int a, int b) {
