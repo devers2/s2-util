@@ -80,10 +80,11 @@ public record S2Condition(Object fieldName, S2Operator operator, Object value) {
             }
         }
         if (operator.isList()) {
+            // null 요소도 허용(List.of·List.copyOf 는 null 이면 NPE) — 읽기 전용 복사본
             if (value instanceof Object[] array) {
-                value = List.of(array);
+                value = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(Arrays.asList(array)));
             } else if (value instanceof Collection<?> collection) {
-                value = List.copyOf(collection);
+                value = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(collection));
             } else {
                 throw new IllegalArgumentException(
                         "[S2Condition] " + operator + " requires a collection or array, but was: " + value);

@@ -791,6 +791,11 @@ public class S2Rule implements S2RuleMessageStep {
      * @return The resolved message template | 결정된 메시지 템플릿
      */
     public String getErrorMessageTemplate(Locale locale) {
+        // 공개 메서드라 null 로 불러도 NPE 대신 기본 로케일
+        return messageTemplate(locale != null ? locale : S2Validator.getDefaultLocale());
+    }
+
+    private String messageTemplate(Locale locale) {
         boolean explicitKey = !errorMessageKey.equals(ruleType.getErrorMessageKey());
         if (explicitKey) {
             java.util.Optional<String> found = S2Validator.findMessage(errorMessageKey, locale);

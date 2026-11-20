@@ -333,4 +333,12 @@ class ReviewDefectRegressionTest {
         Assertions.assertThrows(UnsupportedOperationException.class, () -> field.getRules().clear());
         Assertions.assertEquals(1, field.getRules().size());
     }
+
+    @Test
+    @DisplayName("IN 조건 목록에 null 이 있어도 되고, 메시지 템플릿은 null 로케일이면 기본 로케일")
+    void inConditionWithNullAndNullLocaleTemplate() {
+        S2Condition condition = new S2Condition("type", S2Operator.IN, java.util.Arrays.asList("A", null));
+        Assertions.assertTrue(condition.isSatisfied(java.util.Map.of("type", "A")));
+        Assertions.assertNotNull(new S2Rule(S2RuleType.REQUIRED).getErrorMessageTemplate(null));
+    }
 }

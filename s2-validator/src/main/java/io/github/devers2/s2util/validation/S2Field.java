@@ -1022,9 +1022,10 @@ public class S2Field<T> {
          * @return Resolved message template | 해석된 메시지 템플릿
          */
         public String getErrorMessageTemplate(Locale locale) {
-            return S2Validator.findMessage(errorMessageKey, locale)
+            Locale effective = locale != null ? locale : S2Validator.getDefaultLocale();
+            return S2Validator.findMessage(errorMessageKey, effective)
                     .orElseGet(() -> {
-                        String template = messageTemplates.get(locale.getLanguage());
+                        String template = messageTemplates.get(effective.getLanguage());
                         if (template == null || template.isBlank()) {
                             template = messageTemplates.get(S2Rule.ANY_LANGUAGE);
                         }
