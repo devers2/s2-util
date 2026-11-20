@@ -171,12 +171,14 @@ public class S2Util {
      * @param <R>       The expected return type | 예상되는 반환 타입
      * @param target    The object to query (Map, List, VO, Record, etc.) | 조회 대상 객체 (Map, List, VO, Record 등)
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @return The extracted value, or {@code null} if not found or empty (blank string, empty collection/array/map) | 추출된 값 (찾지 못했거나 빈 값(공백 문자열, 빈 컬렉션·배열·맵)이면 null)
+     * @return The value as stored (an empty or blank string and an empty collection are returned unchanged; check with
+     *         {@link #isEmpty(Object)}), or {@code null} if not found | 저장된 값 그대로 (빈·공백 문자열과 빈 컬렉션도 그대로이므로
+     *         빈 값 여부는 {@link #isEmpty(Object)} 로 판단), 찾지 못하면 null
      * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName) {
-        return getValue(target, fieldName, null, null);
+        return getValue(target, fieldName, null, null, false);
     }
 
     /**
@@ -204,12 +206,13 @@ public class S2Util {
      * @param target    The object to query | 조회 대상 객체
      * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
      * @param castClass The Class to cast to (no casting if {@code null}) | 형변환할 클래스 (null이면 형변환하지 않음)
-     * @return The extracted value | 추출된 값
+     * @return The extracted value converted to {@code castClass} (an empty value is not replaced), or {@code null} if not
+     *         found or not convertible | castClass 로 변환한 값 (빈 값을 바꾸지 않음), 찾지 못하거나 변환할 수 없으면 null
      * @throws S2PropertyAccessException if the getter itself throws (a missing property is not an error) | getter 자체가 예외를 던질 때 (속성이 없는 것은 오류가 아님)
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass) {
-        return getValue(target, fieldName, castClass, null);
+        return getValue(target, fieldName, castClass, null, false);
     }
 
     /**
@@ -241,66 +244,15 @@ public class S2Util {
      */
     @SuppressWarnings("null")
     public static <T, F, R> R getValue(T target, F fieldName, R defaultValue) {
-        return getValue(target, fieldName, null, defaultValue);
+        return getValue(target, fieldName, null, defaultValue, true);
     }
 
     /**
-     * 대상 객체(object)에서 필드명(fieldName)에 해당하는 값을 추출한다.
-     * <p>
-     * 기존의 리플렉션(Reflection) 방식 대신 {@link java.lang.invoke.MethodHandle}을 캐싱하여 사용함으로써
-     * 반복적인 호출 시 오버헤드를 최소화하고 네이티브에 가까운 조회 성능을 제공한다.
-     * </p>
-     *
-     * <p>
-     * [지원하는 조회 대상]
-     * <ul>
-     * <li><b>Map/List/Array:</b> Key 조회, 인덱스 조회 및 수정</li>
-     * <li><b>DTO/VO:</b> Getter/Setter 메서드를 우선 호출하며, 없을 경우 필드에 직접 접근. (상속된 필드 포함)</li>
-     * <li><b>Java Record:</b> Record 특유의 컴포넌트 메서드(필드명과 동일한 메서드) 자동 인식</li>
-     * <li><b>JPA/Hibernate 프록시:</b> 프록시 객체를 감지하여 가상 메서드가 아닌 실제 엔티티의 로직을 타도록 처리 (Dirty Checking 보장)</li>
-     * <li><b>Optional:</b> 값이 Optional로 감싸져 있는 경우 자동으로 언래핑(Unwrapping)하여 탐색</li>
-     * <li><b>중첩 경로:</b> user.address.street와 같이 점(.)으로 연결된 모든 깊이의 객체 그래프 탐색</li>
-     * <li><b>인덱스 지원:</b> users[0].name 또는 matrix[1][2]와 같은 대괄호([]) 문법 지원</li>
-     * </ul>
-     * </p>
-     *
-     * @param <T>          The type of the target object | 대상 객체의 타입
-     * @param <F>          The type of the field identifier | 필드 식별자 타입
-     * @param <R>          The expected return type | 예상되는 반환 타입
-     * @param target       The object to query | 조회 대상 객체
-     * @param fieldName    Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @param castClass    The Class to cast to (no casting if {@code null}) | 형변환할 클래스 (null이면 형변환하지 않음)
-     * @param defaultValue Default value to return if extraction fails | 추출 실패 시 반환할 기본값
-     * @return Extracted value or default value | 추출된 값 또는 기본값
+     * 공통 구현. {@code emptyAsDefault} 가 true(기본값을 준 호출)면 빈 값(공백 문자열·빈 컬렉션 등)도 기본값으로 바꾸고,
+     * false(기본값 없는 호출)면 저장된 값 그대로 돌려준다(변환 실패·없음만 null).
      */
-    @SuppressWarnings("null")
-    private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue) {
-        return getValue(target, fieldName, castClass, defaultValue, false);
-    }
-
-    /**
-     * Reads a value as is, without the empty-to-default conversion of {@link #cast}: an empty string or an
-     * empty collection is returned unchanged instead of {@code null}. Used by {@link S2Copier} so copies keep
-     * the original values, and by the validator so length limits see the value that will be stored.
-     *
-     * <p>
-     * <b>[한국어 설명]</b>
-     * </p>
-     * {@link #cast}의 "빈 값 → 기본값" 변환 없이 값을 그대로 읽습니다. 빈 문자열·빈 컬렉션을 {@code null}로 바꾸지 않고
-     * 그대로 돌려주므로, {@link S2Copier}가 원래 값을 그대로 복사할 때와 검증기가 저장될 값 그대로 길이 상한을 판정할 때 씁니다.
-     *
-     * @param target    The object to query | 조회 대상 객체
-     * @param fieldName Field identifier or navigation path | 필드 식별자 또는 탐색 경로
-     * @return The value as stored, or {@code null} if not found | 저장된 값 그대로, 없으면 {@code null}
-     * @throws io.github.devers2.s2util.exception.S2PropertyAccessException if the getter itself throws | getter 자체가 예외를 던질 때
-     * @since 2.2.0
-     */
-    public static Object getRawValue(Object target, Object fieldName) {
-        return getValue(target, fieldName, null, null, true);
-    }
-
     @SuppressWarnings({ "null", "unchecked" })
-    private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue, boolean raw) {
+    private static <T, F, R> R getValue(T target, F fieldName, Class<R> castClass, R defaultValue, boolean emptyAsDefault) {
         if (target == null || fieldName == null) {
             return defaultValue;
         }
@@ -319,7 +271,7 @@ public class S2Util {
                 int cut = dot < 0 ? bracket : (bracket < 0 ? dot : Math.min(dot, bracket));
                 if (cut > 0 && !flatMap.containsKey(fieldNameStr.substring(0, cut)) && flatMap.containsKey(fieldNameStr)) {
                     Object literal = flatMap.get(fieldNameStr);
-                    return raw ? (R) literal : cast(literal, castClass, defaultValue);
+                    return cast(literal, castClass, defaultValue, emptyAsDefault);
                 }
             }
 
@@ -353,7 +305,8 @@ public class S2Util {
                                 : fieldNameStr.substring(start);
 
                         try {
-                            current = getValue(current, part, Object.class, null, raw);
+                            // 중간 마디는 그대로 읽고, 빈 값 처리는 마지막 값에서만 한다
+                            current = getValue(current, part, null, null, false);
                         } catch (S2PropertyAccessException e) {
                             // 실패한 마디가 아니라 요청한 전체 경로("address.zip")와 시작 객체 클래스로 다시 알린다
                             throw new S2PropertyAccessException(String.valueOf(fieldName), target.getClass(), e.getCause());
@@ -536,7 +489,7 @@ public class S2Util {
             return defaultValue; // 실패 시 defaultValue 반환으로 변경 (원본은 value가 null이면 cast에서 처리되지만, 여기서 일관성 위해 직접 반환)
         }
 
-        return raw ? (R) value : cast(value, castClass, defaultValue);
+        return cast(value, castClass, defaultValue, emptyAsDefault);
     }
 
     /**
@@ -668,7 +621,7 @@ public class S2Util {
 
                         String part = fieldNameStr.substring(start, dotIndex);
                         // getValue를 통해 다음 단계 객체 획득
-                        current = getValue(current, part, Object.class, null);
+                        current = getValue(current, part, null, null, false);
 
                         start = dotIndex + 1;
                         dotIndex = fieldNameStr.indexOf('.', start);
@@ -957,7 +910,7 @@ public class S2Util {
             var components = clazz.getRecordComponents();
             for (var component : components) {
                 var fieldName = component.getName();
-                Object value = getValue(target, fieldName, Object.class, null);
+                Object value = getValue(target, fieldName, null, null, false);
                 result.put(fieldName, value);
             }
             return result;
@@ -982,7 +935,7 @@ public class S2Util {
 
             if (fieldName != null) {
                 // 개별 값 추출 시 이미 최적화된 getValue 활용 (MethodHandle 캐시 사용)
-                Object value = getValue(target, fieldName, Object.class, null);
+                Object value = getValue(target, fieldName, null, null, false);
                 result.put(fieldName, value);
             }
         }
@@ -1270,7 +1223,7 @@ public class S2Util {
      */
     @SuppressWarnings("null")
     public static <V, T> T cast(V value) {
-        return cast(value, null, null);
+        return cast(value, null, null, false);
     }
 
     /**
@@ -1289,7 +1242,7 @@ public class S2Util {
      */
     @SuppressWarnings("null")
     public static <V, T> T cast(V value, Class<T> castClass) {
-        return cast(value, castClass, null);
+        return cast(value, castClass, null, false);
     }
 
     /**
@@ -1307,7 +1260,7 @@ public class S2Util {
      * @return The casted object | 형변환된 객체
      */
     public static <V, T> T cast(V value, T defaultValue) {
-        return cast(value, null, defaultValue);
+        return cast(value, null, defaultValue, true);
     }
 
     /**
@@ -1338,8 +1291,9 @@ public class S2Util {
      * @return The converted value, or {@code defaultValue} | 변환된 값 또는 {@code defaultValue}
      */
     @SuppressWarnings({ "unchecked", "null" })
-    private static <V, T> T cast(V value, Class<T> castClass, T defaultValue) {
-        if (isEmpty(value)) {
+    private static <V, T> T cast(V value, Class<T> castClass, T defaultValue, boolean emptyAsDefault) {
+        // 기본값을 준 호출만 빈 값(공백 문자열·빈 컬렉션 등)을 기본값으로 바꾼다. 기본값 없는 호출은 null 만 null
+        if (emptyAsDefault ? isEmpty(value) : value == null) {
             return defaultValue;
         }
 

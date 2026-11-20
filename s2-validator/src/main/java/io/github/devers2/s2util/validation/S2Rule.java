@@ -601,9 +601,10 @@ public class S2Rule implements S2RuleMessageStep {
             return null;
         }
 
+        // 빈 값(공백 문자열·빈 컬렉션)이면 없는 것으로 보고 다음 후보를 찾는다(getValue 는 빈 값을 그대로 돌려줌)
         // 1. 직접 target에서 조회 (상대 필드명: "start" 또는 단일 객체 프로퍼티)
         Object value = S2Util.getValue(target, checkValue);
-        if (value != null) {
+        if (!S2Util.isEmpty(value)) {
             return value;
         }
 
@@ -616,7 +617,7 @@ public class S2Rule implements S2RuleMessageStep {
             }
             if (!relative.isEmpty()) {
                 value = S2Util.getValue(target, relative);
-                if (value != null) {
+                if (!S2Util.isEmpty(value)) {
                     return value;
                 }
             }
@@ -628,7 +629,7 @@ public class S2Rule implements S2RuleMessageStep {
                 continue;
             }
             value = S2Util.getValue(outer, checkValue);
-            if (value != null) {
+            if (!S2Util.isEmpty(value)) {
                 return value;
             }
         }

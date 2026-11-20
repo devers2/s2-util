@@ -959,6 +959,7 @@ String role = S2Util.getValue(user, "roles[0].name");
 S2Util.setValue(user, "address.city", "대전");
 ```
 
+기본값 없는 `getValue` 는 저장된 값을 그대로 돌려줍니다(빈 문자열·빈 컬렉션도 그대로 — 빈 값 여부는 `S2Util.isEmpty`). 기본값을 주면 빈 값·없음·변환 실패일 때 기본값을 돌려줍니다(`getValue(params, "sort", "name")`).
 없는 속성이나 경로 중간의 `null` 은 `null`(또는 기본값)이 되지만, **getter 자체가 예외를 던지면** `S2PropertyAccessException`(`getPropertyPath()`, 원인 포함)이 발생합니다. 검증·복사가 getter 실패를 빈 값으로 오인하지 않게 하기 위함입니다.
 
 ### 9-2. 지능형 듀얼 모드 캐시 (`S2Cache`)

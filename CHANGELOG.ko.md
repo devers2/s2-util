@@ -15,7 +15,9 @@
 ### ⚠️ 동작 변경
 
 - **공백만 있는 값도 상한 규칙(`LENGTH`·`MAX_LENGTH`·`MAX_BYTE`)은 원래 길이로 판정합니다.** 빈 값으로 보아 건너뛰던 탓에 공백 300자가 `MAX_LENGTH 10` 을 통과해 그대로 저장될 수 있었습니다.
-  `LENGTH` 는 기준을 넘을 때만 실패하고, 나머지 규칙·`REQUIRED`·람다 규칙에서는 이전처럼 빈 값입니다. 서버와 `s2.validator.js` 모두 바뀌었고, 새 공개 API `S2Util.getRawValue` 로 빈 값 변환 없이 값을 읽을 수 있습니다.
+  `LENGTH` 는 기준을 넘을 때만 실패하고, 나머지 규칙·`REQUIRED`·람다 규칙에서는 이전처럼 빈 값입니다. 서버와 `s2.validator.js` 모두 바뀌었습니다.
+- **기본값 없는 `S2Util.getValue(target, field)`·`getValue(target, field, Class)`·`cast(value)`·`cast(value, Class)` 와 `getValueAll` 은 저장된 값을 그대로 돌려줍니다.** 이전에는 빈 문자열·공백 문자열·빈 컬렉션을 `null` 로 바꿨습니다.
+  빈 값 여부는 `S2Util.isEmpty`(공백만 있는 문자열도 빈 값)로 판단하십시오 — `getValue(...) == null` 로 빈 값을 검사하던 코드는 바꿔야 합니다. 기본값을 주는 `getValue(target, field, default)`·`cast(value, default)` 는 이전처럼 빈 값·없음·변환 실패면 기본값입니다.
 - **사용자 정규식(`REGEX`·`@Pattern` 변환)의 서버·브라우저 판정을 더 맞췄습니다.** 브라우저는 가능하면 `u` 플래그로 평가해 이모지 등을 Java 처럼 한 글자로 보고, `.` 은 Java 처럼 U+0085 와 일치하지 않습니다.
   두 쪽 뜻이 달라 규칙 JSON 으로 내보내지 않는(`IllegalStateException`, BV 변환은 서버 전용) 문법이 늘었습니다: `\x{…}`·`\v`·`\N{…}`·`\b{g}`, `[` 바로 뒤의 `]`(`[]a]`·`[^]a]`), 8진수 `\0…`, 여러 자리·없는 그룹 역참조(`\12`), Java 가 컴파일하지 못하는 패턴(`a{,3}`·`\y`).
 - **`S2Util.getValue` 는 getter 자체가 던진 예외를 삼키지 않고 `S2PropertyAccessException`(속성 경로·원인 포함)으로 던집니다.** 없는 속성·경로 중간의 `null` 은 이전처럼 `null`(또는 기본값)입니다.

@@ -289,4 +289,31 @@ class S2CoreUtilFixesTest {
                 () -> S2Util.setValue(new ThrowingGetter(), "broken.x", "v"));
         assertFalse(S2Util.setValue(new ThrowingGetter(), "missing", "v"));
     }
+
+    @Test
+    void getValueWithoutDefaultReturnsStoredValueAndDefaultOverloadReplacesEmpty() {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("blank", "   ");
+        m.put("empty", "");
+        m.put("list", java.util.List.of());
+        m.put("num", "abc");
+        // 기본값 없는 호출: 저장된 값 그대로(빈 값 판단은 isEmpty)
+        assertEquals("   ", S2Util.getValue(m, "blank"));
+        assertEquals("", S2Util.getValue(m, "empty"));
+        assertEquals(java.util.List.of(), S2Util.getValue(m, "list"));
+        assertTrue(S2Util.isEmpty(S2Util.getValue(m, "blank")));
+        assertEquals("   ", S2Util.getValue(m, "blank", String.class));
+        assertNull(S2Util.getValue(m, "num", Integer.class)); // 변환 실패는 null
+        assertNull(S2Util.getValue(m, "missing"));
+        // 기본값 있는 호출: 빈 값·없음·변환 실패면 기본값
+        assertEquals("def", S2Util.getValue(m, "blank", "def"));
+        assertEquals("def", S2Util.getValue(m, "empty", "def"));
+        assertEquals(7, (int) S2Util.getValue(m, "num", 7));
+        assertEquals("def", S2Util.getValue(m, "missing", "def"));
+        // cast 도 같은 원칙
+        assertEquals("", S2Util.cast(""));
+        assertEquals("d", S2Util.cast(" ", "d"));
+        // getValueAll 은 저장된 값 그대로
+        assertEquals("", S2Util.getValueAll(new java.util.HashMap<>(Map.of("a", ""))).get("a"));
+    }
 }

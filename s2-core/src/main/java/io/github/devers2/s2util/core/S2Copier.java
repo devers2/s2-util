@@ -331,7 +331,7 @@ public class S2Copier<S> {
 
             try {
                 // 3. Source에서 값을 그대로 가져온다(빈 문자열·빈 컬렉션을 null 로 바꾸지 않음).
-                var value = S2Util.getRawValue(source, sourceFieldName);
+                var value = S2Util.getValue(source, sourceFieldName);
                 // 4. Null 무시 설정 체크
                 if (value == null && ignoreNulls) {
                     continue;
@@ -418,7 +418,7 @@ public class S2Copier<S> {
 
             try {
                 // 3. Source에서 값을 그대로 가져온다(빈 문자열·빈 컬렉션을 null 로 바꾸지 않음).
-                var value = S2Util.getRawValue(source, sourceFieldName);
+                var value = S2Util.getValue(source, sourceFieldName);
                 // 4. Null 무시 설정 체크
                 if (value == null && ignoreNulls) {
                     continue;
@@ -650,7 +650,7 @@ public class S2Copier<S> {
             for (var field : copyFields(sourceClass)) {
                 var fieldName = field.getName();
                 try {
-                    var fieldValue = S2Util.getRawValue(source, fieldName);
+                    var fieldValue = S2Util.getValue(source, fieldName);
                     var copiedFieldValue = fieldValue != null
                             ? deepCopyValue(fieldValue, field.getType(), visited, depth + 1)
                             : null;

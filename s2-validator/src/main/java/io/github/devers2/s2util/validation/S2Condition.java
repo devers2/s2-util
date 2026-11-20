@@ -212,6 +212,9 @@ public record S2Condition(Object fieldName, S2Operator operator, Object value) {
             return null;
         }
         Object v = S2Util.getValue(source, fieldName);
+        // getValue 는 빈 값을 그대로 돌려주므로 빈 값(공백 문자열·빈 컬렉션·맵·배열)을 여기서 없음으로 본다
+        if (S2Util.isEmpty(v))
+            return null;
         if (v instanceof String str && S2Whitespace.isBlank(str))
             return null;
         if (v instanceof Collection<?> collection && collection.isEmpty())

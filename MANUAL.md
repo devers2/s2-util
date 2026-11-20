@@ -959,6 +959,7 @@ String role = S2Util.getValue(user, "roles[0].name");
 S2Util.setValue(user, "address.city", "Seoul");
 ```
 
+`getValue` without a default returns the stored value as is (empty strings and collections included — check emptiness with `S2Util.isEmpty`). With a default, it returns the default for empty, missing or unconvertible values (`getValue(params, "sort", "name")`).
 A missing property or a `null` along the path yields `null` (or the default value), but **if the getter itself throws**, `S2PropertyAccessException` (with `getPropertyPath()` and the cause) is thrown, so validation and copying never mistake a getter failure for an empty value.
 
 ### 9-2. Intelligent Dual-Mode Caching (`S2Cache`)

@@ -1206,7 +1206,7 @@ public class S2Validator<T> {
                         continue;
 
                     // 규칙은 저장될 원래 값으로 판정(공백만인 값의 길이 상한), 그 밖의 처리는 이전처럼 빈 값을 null 로 본다
-                    Object rawFieldValue = S2Util.getRawValue(target, fieldName);
+                    Object rawFieldValue = S2Util.getValue(target, fieldName);
                     Object fieldValue = S2Util.isEmpty(rawFieldValue) ? null : rawFieldValue;
                     if (rawFieldValue == null) {
                         // 대상 클래스에 없는 필드명(오타 등)은 항상 빈 값이 되므로 한 번 경고
@@ -1424,7 +1424,7 @@ public class S2Validator<T> {
                 }
 
                 // item에서 실제 값 추출
-                Object rawFieldValue = S2Util.isEmpty(suffix) ? item : S2Util.getRawValue(item, suffix);
+                Object rawFieldValue = S2Util.isEmpty(suffix) ? item : S2Util.getValue(item, suffix);
                 Object fieldValue = S2Util.isEmpty(suffix) || !S2Util.isEmpty(rawFieldValue) ? rawFieldValue : null;
                 String fieldLabel = field.getLabel();
                 List<S2Rule> rules = field.getRules();
