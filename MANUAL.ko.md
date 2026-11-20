@@ -26,6 +26,7 @@
 4. [메시지 및 다국어(i18n) 처리](#4-메시지-및-다국어i18n-처리)
    - [4-1. 인라인 다국어 설정 (.ko, .en, .message)](#4-1-인라인-다국어-설정-ko-en-message)
    - [4-2. 한국어 조사 자동 완성 (은/는, 이/가, 을/를, 로/으로 등)](#4-2-한국어-조사-자동-완성-은는-이가-을를-로으로-등)
+   - [4-3. 사용자에게 보여 줄 예외 문구 (S2Localizable)](#4-3-사용자에게-보여-줄-예외-문구-s2localizable)
 5. [고급 검증 기법](#5-고급-검증-기법)
    - [5-1. 객체 그래프 탐색 (점, 인덱스, 와일드카드)](#5-1-객체-그래프-탐색-점-인덱스-와일드카드)
    - [5-2. 재귀 및 합성 검증 (EACH, NESTED)](#5-2-재귀-및-합성-검증-each-nested)
@@ -535,6 +536,30 @@ S2Util은 메시지 템플릿에 조사 하나만 지정하더라도(`{0|은}`, 
 // 'ㄹ' 받침 예외 자동 처리: "총괄" -> "총괄로", "집" -> "집으로"
 .field("role", "총괄").ko("{0|으로} 배정할 참여자를 선택해주세요.") // -> "총괄로 배정할 참여자를 선택해주세요."
 ```
+
+### 4-3. 사용자에게 보여 줄 예외 문구 (`S2Localizable`)
+
+예외 메시지(`getMessage()`)는 어느 서버에서나 로그·검색이 같도록 영어입니다. 사용자에게 보일 수 있는 실패는 **메시지
+키**(`S2MessageKey`)를 함께 담을 수 있고, `getLocalizedMessage(locale)`이 **요청한 사용자**의 언어로 문구를 만듭니다.
+`S2RuntimeException`·`S2Exception`이 키를 받으며, 다른 예외 종류도 `S2Localizable`을 구현하면 됩니다.
+
+```java
+throw new S2RuntimeException("File already exists: " + path,          // 로그용 영어
+        S2MessageKey.of("com.example.errors", "file.exists", fileName)); // 한국어 문구에서 {0|은} 조사 처리
+
+// 오류 처리기: 사용자 언어로, 내부 정보는 보이지 않게
+@ExceptionHandler(Exception.class)
+ResponseEntity<String> handle(Exception e, Locale locale) {
+    return ResponseEntity.badRequest()
+            .body(S2Localizable.findLocalizedMessage(e, locale).orElse("오류가 발생했습니다."));
+}
+```
+
+- 찾는 순서: 애플리케이션 번들(`S2ResourceBundle.setDefaultBasename`, 문구 덮어쓰기용), 그다음 키의 번들. 각각 `_ko_KR`,
+  `_ko`, 기본 파일 순서입니다. `ResourceBundle.getBundle`과 달리 **서버 기본 로케일로 대체하지 않으므로**, 한국어 서버에서도
+  영어 요청에는 영어로 답합니다. 파일은 UTF-8 로 읽고 캐시합니다.
+- `findLocalizedMessage`는 감싼 예외 안쪽까지 찾고, 사용자용 문구가 없으면 빈 값을 돌려줍니다.
+- 비용: 키 저장은 참조 2개뿐이고, 문구는 `getLocalizedMessage`를 부를 때만 만듭니다.
 
 ---
 

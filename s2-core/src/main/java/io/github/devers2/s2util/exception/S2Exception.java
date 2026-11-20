@@ -20,6 +20,8 @@
  */
 package io.github.devers2.s2util.exception;
 
+import io.github.devers2.s2util.message.S2Localizable;
+import io.github.devers2.s2util.message.S2MessageKey;
 import io.github.devers2.s2util.core.S2StringUtil;
 
 /**
@@ -44,9 +46,12 @@ import io.github.devers2.s2util.core.S2StringUtil;
  * @version 1.5
  * @since 1.0
  */
-public class S2Exception extends Exception {
+public class S2Exception extends Exception implements S2Localizable {
 
     private static final long serialVersionUID = 3451115851098577666L;
+
+    /* 사용자에게 보여 줄 문구의 키 (없으면 null). getMessage() 는 영어 그대로 둔다 */
+    private final S2MessageKey messageKey;
 
     /**
      * Constructs a new exception with the specified detail message.
@@ -60,6 +65,7 @@ public class S2Exception extends Exception {
      */
     public S2Exception(String defaultMessage) {
         super(defaultMessage);
+        this.messageKey = null;
     }
 
     /**
@@ -75,6 +81,7 @@ public class S2Exception extends Exception {
      */
     public S2Exception(String defaultMessage, Throwable cause) {
         super(defaultMessage, cause);
+        this.messageKey = null;
     }
 
     /**
@@ -89,6 +96,7 @@ public class S2Exception extends Exception {
      */
     public S2Exception(Throwable cause) {
         super(cause);
+        this.messageKey = null;
     }
 
     /**
@@ -137,6 +145,50 @@ public class S2Exception extends Exception {
 
         var stackTrace = sw.toString();
         return maxByte != null ? S2StringUtil.substringByBytes(stackTrace, 0, maxByte) : stackTrace;
+    }
+
+
+    /**
+     * Constructs an exception with an English message for logs and a message key for the user's language.
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 로그용 영어 메시지와 사용자 언어용 메시지 키로 예외를 생성합니다.
+     * @param defaultMessage English message for logs | 로그용 영어 메시지
+     * @param messageKey Key of the message shown to users ({@link S2Localizable#getLocalizedMessage(java.util.Locale)}) |
+     *                   사용자에게 보여 줄 문구의 키
+     */
+    public S2Exception(String defaultMessage, S2MessageKey messageKey) {
+        super(defaultMessage);
+        this.messageKey = messageKey;
+    }
+
+    /**
+     * Constructs an exception with an English message for logs, a cause and a message key for the user's language.
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 로그용 영어 메시지, 원인, 사용자 언어용 메시지 키로 예외를 생성합니다.
+     * @param defaultMessage English message for logs | 로그용 영어 메시지
+     * @param cause        The cause of the exception | 원인 예외
+     * @param messageKey   Key of the message shown to users | 사용자에게 보여 줄 문구의 키
+     */
+    public S2Exception(String defaultMessage, Throwable cause, S2MessageKey messageKey) {
+        super(defaultMessage, cause);
+        this.messageKey = messageKey;
+    }
+
+    /**
+     * Key of the message shown to users, or {@code null}.
+     * <p>
+     * <b>[한국어 설명]</b>
+     * </p>
+     * 사용자에게 보여 줄 문구의 키. 없으면 {@code null}.
+     * @return Message key | 메시지 키
+     */
+    @Override
+    public S2MessageKey getMessageKey() {
+        return messageKey;
     }
 
 }

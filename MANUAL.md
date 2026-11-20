@@ -26,6 +26,7 @@
 4. [Messaging & Internationalization (i18n)](#4-messaging--internationalization-i18n)
    - [4-1. Inline Localization (.en, .ko, .message)](#4-1-inline-localization-en-ko-message)
    - [4-2. Smart Korean Particle Handling](#4-2-smart-korean-particle-handling)
+   - [4-3. User-facing Exception Messages (S2Localizable)](#4-3-user-facing-exception-messages-s2localizable)
 5. [Advanced Validation Mechanics](#5-advanced-validation-mechanics)
    - [5-1. Object Graph Navigation (Dot, Bracket, Wildcard)](#5-1-object-graph-navigation-dot-bracket-wildcard)
    - [5-2. Recursive & Compositional Validation (EACH, NESTED)](#5-2-recursive--compositional-validation-each-nested)
@@ -535,6 +536,31 @@ Paired slash notations (such as `이/가`) often lead to typos and pairing error
 // 'ㄹ' batchim exception handled automatically: "총괄로", "집으로"
 .field("role", "총괄").ko("{0|으로} 배정할 참여자를 선택해주세요.") // -> "총괄로 배정할 참여자를 선택해주세요."
 ```
+
+### 4-3. User-facing Exception Messages (`S2Localizable`)
+
+Exception messages (`getMessage()`) are English so that logs and searches look the same on every server. A failure a
+user may see can also carry a **message key** (`S2MessageKey`); `getLocalizedMessage(locale)` renders it in the
+**request's** language. `S2RuntimeException` and `S2Exception` take a key, and any exception type can implement
+`S2Localizable`.
+
+```java
+throw new S2RuntimeException("File already exists: " + path,          // English, for logs
+        S2MessageKey.of("com.example.errors", "file.exists", fileName)); // {0|은} josa works in Korean text
+
+// Error handler: the user's language, never internal details
+@ExceptionHandler(Exception.class)
+ResponseEntity<String> handle(Exception e, Locale locale) {
+    return ResponseEntity.badRequest()
+            .body(S2Localizable.findLocalizedMessage(e, locale).orElse("Something went wrong."));
+}
+```
+
+- Lookup: the application bundle (`S2ResourceBundle.setDefaultBasename`, to override any text), then the key's bundle;
+  `_ko_KR`, `_ko`, then the base file. It **never falls back to the server's default locale**, so an English request gets
+  English even on a Korean server (unlike `ResourceBundle.getBundle`). Files are read as UTF-8 and cached.
+- `findLocalizedMessage` looks through wrapped exceptions and returns empty when nothing is user-facing.
+- Cost: storing the key is two references; text is rendered only when `getLocalizedMessage` is called.
 
 ---
 
