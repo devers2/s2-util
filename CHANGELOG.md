@@ -91,6 +91,7 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Performance
 
+- `s2.validator.js` validation cost grew with the square of the form's input count; it is now linear — instead of rescanning the form with `querySelectorAll` per field and error proxy, it uses a name index built once per validation (measured in Chromium: 1,000 inputs 42 ms → 2 ms, 2,500 inputs 222 ms → 5 ms). Noticeable on large grid forms with input-mode live validation.
 - The Caffeine backend now runs loaders outside any cache lock, like the lightweight cache. Caffeine's `get(key, loader)` (an internal `computeIfAbsent`) let a slow loader block other keys in the same bin and pinned virtual threads on Java 21-23 (2,000 loads of a 20 ms loader: Java 21 2.2 s → 0.19 s, Java 25 1.4 s → 0.23 s). Concurrent misses on the same key may compute twice; the first stored value wins.
 - s2-core lightweight cache (`S2OptimisticCache`): reads no longer bump a shared counter; recency is tracked as an epoch-based approximate LRU, so reads perform no shared writes
   and throughput scales with the number of cores under concurrent reads. Eviction still runs asynchronously on its dedicated platform thread and now trims to 75% of the maximum size instead of half.

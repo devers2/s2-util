@@ -339,6 +339,8 @@ export const S2Validator = {
 
     // 검증 전 이전에 생성된 임시 1px 더미 앵커 제거
     form.querySelectorAll('.__s2_dummy_anchor__').forEach((el) => el.remove());
+    // 이름 → 요소 색인을 한 번만 만든다(필드마다 querySelectorAll 로 폼을 다시 훑으면 요소 수의 제곱으로 느려짐)
+    const byName = elementsByName(form);
 
     // Custom renderer: clear the previous error display before validating | 사용자 렌더러: 검증 전 이전 오류 표시 제거
     callRenderer('clear', form);
@@ -349,7 +351,7 @@ export const S2Validator = {
         el.setCustomValidity('');
 
         // 커스텀 에러 엘리먼트 초기화
-        const errorEl = form.querySelector(`[name="${cssAttr(el.name + '_error')}"]`);
+        const errorEl = (byName.get(el.name + '_error') || [])[0];
         if (errorEl) {
           if (typeof errorEl.setCustomValidity === 'function') errorEl.setCustomValidity('');
           errorEl.textContent = '';
@@ -404,16 +406,16 @@ export const S2Validator = {
       };
     }
 
-    const formData = getFormData(form); // 전체 필드 값 맵 (cross-field용)
+    const formData = getFormData(form, byName); // 전체 필드 값 맵 (cross-field용)
     if (additionalData && typeof additionalData === 'object') {
       Object.assign(formData, additionalData);
     }
-    const errors = collectErrors(rules, formData, formFieldReader(form, additionalData));
+    const errors = collectErrors(rules, formData, formFieldReader(form, additionalData, byName));
 
     // Native UI: attach the first message of each field, in validation order (anchors keep field order) | 기본 UI: 필드마다 첫 메시지를 검증 순서대로 설정 (앵커가 필드 순서를 유지)
     if (!activeRenderer) {
       Object.entries(errors).forEach(([name, messages]) => {
-        applyFieldError(form, name, form.querySelectorAll(`[name="${cssAttr(name)}"]`), messages[0]);
+        applyFieldError(form, name, byName.get(name) || [], messages[0], byName);
       });
     }
     // Fields with errors are re-checked while typing in live "blur" mode | 오류가 난 필드는 실시간 "blur" 모드에서 입력 중에도 다시 검사
@@ -782,12 +784,35 @@ const readRules = (form, rulesSource) => {
  * @param {Object} [additionalData] - Additional data | 추가 데이터
  * @returns {Function} name → {present, value} | 이름 → {present, value}
  */
-const formFieldReader = (form, additionalData) => (name) => {
+/**
+ * Indexes the form's elements that have a {@code name} attribute by that name, in document order — the same elements
+ * {@code form.querySelectorAll('[name="…"]')} returns, found with one pass instead of one scan per field.
+ * <p>
+ * <b>[한국어 설명]</b>
+ * </p>
+ * 폼 안에서 name 속성이 있는 요소를 이름별로(문서 순서) 모읍니다. 이름마다 querySelectorAll 로 폼을 다시 훑는 대신
+ * 한 번 훑어 같은 결과를 얻습니다(요소 수의 제곱으로 늘던 검증 비용 제거).
+ *
+ * @param {HTMLFormElement} form - Form | 폼
+ * @returns {Map<string, Element[]>} Elements by name | 이름별 요소
+ */
+const elementsByName = (form) => {
+  const map = new Map();
+  form.querySelectorAll('[name]').forEach((el) => {
+    const name = typeof el.getAttribute === 'function' ? el.getAttribute('name') : el.name;
+    const list = map.get(name);
+    if (list) list.push(el);
+    else map.set(name, [el]);
+  });
+  return map;
+};
+
+const formFieldReader = (form, additionalData, byName = elementsByName(form)) => (name) => {
   if (additionalData && Object.prototype.hasOwnProperty.call(additionalData, name)) {
     return { present: true, value: additionalData[name] };
   }
-  const elements = form.querySelectorAll(`[name="${cssAttr(name)}"]`);
-  return elements.length === 0 ? { present: false } : { present: true, value: getFieldValue(Array.from(elements)) };
+  const elements = byName.get(name) || [];
+  return elements.length === 0 ? { present: false } : { present: true, value: getFieldValue(elements) };
 };
 
 const isPlainObject = (value) =>
@@ -1001,7 +1026,8 @@ const liveInvalid = (form) => {
 const validateLiveField = (form, name) => {
   const rules = readRules(form);
   if (rules.length === 0) return;
-  const messages = collectErrors(rules, getFormData(form), formFieldReader(form))[name];
+  const byName = elementsByName(form);
+  const messages = collectErrors(rules, getFormData(form, byName), formFieldReader(form, undefined, byName))[name];
 
   if (activeRenderer) {
     callRenderer('clearField', form, name);
@@ -1071,7 +1097,7 @@ const onLiveEvent = (e) => {
  * @param {HTMLFormElement} form - Form element | 폼 요소
  * @returns {Object} Field name to value map | 필드 이름: 값 맵
  */
-const getFormData = (form) => {
+const getFormData = (form, byName = elementsByName(form)) => {
   const data = {};
   const processedNames = new Set();
   const elements = form.elements;
@@ -1079,8 +1105,7 @@ const getFormData = (form) => {
   for (let i = 0; i < elements.length; i++) {
     const name = elements[i].name;
     if (name && !processedNames.has(name)) {
-      const fieldElements = form.querySelectorAll(`[name="${cssAttr(name)}"]`);
-      data[name] = getFieldValue(Array.from(fieldElements));
+      data[name] = getFieldValue(byName.get(name) || []);
       processedNames.add(name);
     }
   }
@@ -1970,8 +1995,10 @@ const DATE_TIME_TEXT = /^(\d{4})[-.]?(\d{2})[-.]?(\d{2})(?:[T ](\d{2}):(\d{2})(?
  * @param {NodeList|Array} fieldElements - Elements of the field | 필드 요소들
  * @param {string} message - The message to show | 표시할 메시지
  */
-const applyFieldError = (form, fieldName, fieldElements, message) => {
-  const errorEl = form.querySelector(`[name="${cssAttr(fieldName + '_error')}"]`);
+const applyFieldError = (form, fieldName, fieldElements, message, byName) => {
+  const errorEl = byName
+    ? (byName.get(fieldName + '_error') || [])[0]
+    : form.querySelector(`[name="${cssAttr(fieldName + '_error')}"]`);
   if (errorEl) {
     if (typeof errorEl.setCustomValidity === 'function') {
       errorEl.setCustomValidity(message);

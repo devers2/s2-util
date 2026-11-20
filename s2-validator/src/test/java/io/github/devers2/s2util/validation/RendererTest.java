@@ -65,6 +65,7 @@ public class RendererTest {
                     all() { return this.elements.concat(this.extras); }
                     querySelectorAll(sel) {
                         if (sel === '.__s2_dummy_anchor__') return globalThis.__inserted.slice();
+                        if (sel === '[name]') return this.elements.filter((e) => e.name);
                         let m = sel.match(/^\\[name="(.+)"\\]$/);
                         if (m) return this.elements.filter((e) => e.name === m[1]);
                         m = sel.match(/^\\[([\\w-]+)="(.+)"\\]$/);

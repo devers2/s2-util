@@ -69,6 +69,7 @@ public class HiddenFieldAnchorTest {
                     constructor() { this.elements = []; this.dataset = {}; this.rendered = true; this.parentElement = null; }
                     querySelectorAll(sel) {
                         if (sel === '.__s2_dummy_anchor__') return globalThis.__inserted.slice();
+                        if (sel === '[name]') return this.elements.filter((e) => e.name);
                         const m = sel.match(/^\\[name="(.+)"\\]$/);
                         return m ? this.elements.filter((e) => e.name === m[1]) : [];
                     }

@@ -94,6 +94,7 @@ public class FormPathParityTest {
                 class HTMLFormElement {
                     constructor(elements) { this.elements = elements; this.dataset = {}; }
                     querySelectorAll(sel) {
+                        if (sel === '[name]') return this.elements.filter((e) => e.name);
                         const m = sel.match(/^\\[name="(.+)"\\]$/);
                         return m ? this.elements.filter((e) => e.name === m[1]) : [];
                     }

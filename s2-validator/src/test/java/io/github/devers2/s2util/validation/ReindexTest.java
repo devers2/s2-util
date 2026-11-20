@@ -57,6 +57,7 @@ public class ReindexTest {
                     querySelectorAll(sel) {
                         if (sel === '[name], [data-s2-error-for]') return this.children.filter((e) => 'name' in e.attrs || 'data-s2-error-for' in e.attrs);
                         if (sel === '.__s2_dummy_anchor__') return [];
+                        if (sel === '[name]') return this.children.filter((e) => 'name' in e.attrs);
                         const m = sel.match(/^\\[([\\w-]+)="(.+)"\\]$/);
                         return m ? this.children.filter((e) => e.attrs[m[1]] === m[2]) : [];
                     }
