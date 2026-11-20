@@ -115,6 +115,8 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 
 ### Fixed
 
+- For cross-field rules (`DATE_AFTER`, `EQUALS_FIELD`, ...) inside a nested object of a row or list, the browser looked up a same-named target in the row before the object itself, so its verdict differed from the server — it now looks in the object, then outer objects, then the root, as the server does (forms and `check()`).
+- An unexpected error during browser validation escaped the submit listener and **the form was submitted without validation** — the error is logged and the submission blocked (fail-closed).
 - A built validator could still be changed through `getFields().get(i).rule(…)`/`when(…)` or `getRules().clear()` (bypassing the shared-validator lock) — now rejected, and a field's rule and condition lists are returned read-only. `S2Field.build()` seals as well.
 - `NESTED`/`EACH` on a wildcard field (`field("items[].address").rule(NESTED, …)`) was silently ignored on both the server and the browser — each row is now validated with the sub-validator (which looks up outer fields row first, then root).
 - The default logger (without SLF4J) always prefixed levels with ANSI color codes, leaving control characters in log files, Docker and CI logs — colors are now used only on an interactive terminal (`-Ds2.log.color=true/false` and the `NO_COLOR` environment variable are honored).

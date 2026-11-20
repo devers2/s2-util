@@ -124,7 +124,16 @@ export const initS2Validator = () => {
 
     // 선택자에 매칭되는 폼인 경우 자동 검증 수행
     if (form && form instanceof HTMLFormElement && form.matches('form[data-s2-rules]')) {
-      const errors = S2Validator.validate(form);
+      let errors;
+      try {
+        errors = S2Validator.validate(form);
+      } catch (err) {
+        // 검증 중 예상하지 못한 오류가 나도 검증 없이 제출되지 않게 막는다(fail-closed) — 이전에는 예외가 그대로 나가
+        // preventDefault 가 불리지 않아 폼이 제출됐다
+        console.error('[S2Validator] 검증 중 오류가 나서 제출을 막았습니다. | Submission blocked: validation failed with an error.', err);
+        e.preventDefault();
+        return;
+      }
 
       // 검증 에러가 존재할 경우 전송 중단
       if (Object.keys(errors).length > 0) {
@@ -1403,14 +1412,22 @@ const lookupTargetFieldValue = (targetKey, formData, prefix = '', currentFieldNa
     }
   }
 
-  // 3. 현재 아이템 접두사가 있는 경우 행 내부 상대 경로로 우선 탐색 (예: targetKey="start" -> "items[0].start")
-  if (itemPrefix && Object.prototype.hasOwnProperty.call(formData, itemPrefix + keyStr)) {
-    return formData[itemPrefix + keyStr];
-  }
-
-  // 4. 일반 prefix 조합 탐색 (예: 중첩 객체 "address." + "zip")
-  if (prefix && Object.prototype.hasOwnProperty.call(formData, prefix + keyStr)) {
-    return formData[prefix + keyStr];
+  // 3. 서버(S2Rule.lookupTargetValue)와 같은 순서로 찾는다: 가장 가까운 객체부터 바깥으로(자기 객체 → 행 → 그 위 부모 …).
+  //    이전에는 행(itemPrefix)을 자기 객체(prefix)보다 먼저 봐서, 행 안 중첩 객체(items[0].period.end 의 "start")가
+  //    같은 이름의 행 필드(items[0].start)를 골라 서버와 판정이 갈렸다
+  const scopes = [];
+  const addScope = (scope) => {
+    if (scope && !scopes.includes(scope)) scopes.push(scope);
+  };
+  // 와일드카드 행(items[0].)이 자기 객체보다 안쪽이면 행이 가장 가깝다(예: prefix "a.", 필드 "a.items[0].x")
+  if (itemPrefix && itemPrefix.length > prefix.length && itemPrefix.startsWith(prefix)) addScope(itemPrefix);
+  // 자기 객체에서 바깥으로: "items[0].period." → "items[0]." → …
+  for (let scope = prefix; scope; scope = parentPrefix(scope)) addScope(scope);
+  addScope(itemPrefix);
+  for (const scope of scopes) {
+    if (Object.prototype.hasOwnProperty.call(formData, scope + keyStr)) {
+      return formData[scope + keyStr];
+    }
   }
 
   // 5. 루트 레벨 필드 직접 탐색

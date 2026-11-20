@@ -211,6 +211,20 @@ public class FormPathParityTest {
                                 .build(),
                         F.text("items[0].name", "A"), F.text("items[0].address.zip", ""),
                         F.text("items[1].name", "B"), F.text("items[1].address.zip", "12345")),
+                c("행의 하위 객체에서 같은 이름의 비교 대상 — 자기 객체 먼저(행보다)",
+                        () -> b().field("items[].start", "행 시작일")
+                                .field("items[].period", "기간").rule(S2RuleType.NESTED, sub().field("start", "기간 시작일")
+                                        .field("end", "기간 종료일").rule(S2RuleType.DATE_AFTER, "start").build())
+                                .build(),
+                        F.text("items[0].start", "2024-01-01"), F.text("items[0].period.start", "2024-03-01"),
+                        F.text("items[0].period.end", "2024-02-01")),
+                c("EACH 행의 하위 객체에서 같은 이름의 비교 대상 — 자기 객체 먼저(행보다)",
+                        () -> b().field("items", "품목").rule(S2RuleType.EACH, sub().field("start", "행 시작일")
+                                .field("period", "기간").rule(S2RuleType.NESTED, sub().field("start", "기간 시작일")
+                                        .field("end", "기간 종료일").rule(S2RuleType.DATE_AFTER, "start").build())
+                                .build()).build(),
+                        F.text("items[0].start", "2024-01-01"), F.text("items[0].period.start", "2024-03-01"),
+                        F.text("items[0].period.end", "2024-02-01")),
                 c("행의 하위 목록(EACH), 1행 2번째 태그 빈 값",
                         () -> b().field("items[].tags", "태그").rule(S2RuleType.EACH, sub().field("v", "값").rule(S2RuleType.REQUIRED).build())
                                 .build(),

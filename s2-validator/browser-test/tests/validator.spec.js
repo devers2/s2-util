@@ -43,6 +43,18 @@ test.describe('basic form', () => {
     expect(await submitted(page, 'basic')).toBe('1');
   });
 
+  test('an unexpected error during validation blocks the submission (fail-closed)', async ({ page }) => {
+    await ready(page, '/');
+    // 검증 중 예외가 나도 검증 없이 제출되면 안 된다(이전에는 예외가 그대로 나가 제출됨)
+    await page.evaluate(() => {
+      window.S2Validator.validate = () => {
+        throw new Error('boom');
+      };
+    });
+    await submit(page, 'basic');
+    expect(await submitted(page, 'basic')).toBeNull();
+  });
+
   test('editing a field clears its error', async ({ page }) => {
     await ready(page, '/');
     await submit(page, 'basic');
