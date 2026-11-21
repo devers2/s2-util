@@ -110,11 +110,6 @@ All notable changes to `s2-util` (`s2-core`, `s2-validator`, `s2-jpa`) and `s2-v
 - `S2DateUtil` caches parsing formatters per pattern.
 - `s2.validator.js` caches compiled regular expressions instead of converting and compiling the pattern on every check.
 
-### Removed (security)
-
-- **`S2Util.chkSuPw` has been removed.** It built a password from the current time with a fixed rule that is public in the source, so anyone can compute it.
-  Used to bypass authentication it is a backdoor, so it is removed without a replacement. Remove any code that grants access (e.g. login) through it.
-
 ### Docs & examples
 
 - Public demo site (GitHub Pages, `s2-validator/browser-test/site`): sign-up, order rows, Bean Validation conversion and a `check()` playground in Korean/English, with rules made by the server validators. Covered by Playwright tests.
