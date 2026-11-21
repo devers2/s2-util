@@ -644,7 +644,7 @@ public class MemberController {
 - 클래스 상속 지원: 부모 클래스에 선언된 필드도 함께 검사
 - 체이닝 완결성 자동 검사: 누락된 검증 코드가 배포되는 것을 원천 차단
 - 멀티 프로젝트 빌드 환경에서도 동작
-- `s2-validator` 1.1.0+, Java 17+, Gradle 8.0+ 필요
+- `s2-validator` 2.2.0 과 함께 사용(필드 이름 검사만은 1.1.0 이상에서도 동작), Java 17+, Gradle 8.0+ 필요
 
 플러그인 전체 문서는 [`s2-validator-plugin` README](../s2-validator-plugin/README.ko.md)를 참조하세요.
 
