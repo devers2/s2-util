@@ -5,15 +5,32 @@
  * 의도한 대로 동작하는지 자동으로 테스트하기 위해 작성되었습니다.
  *
  * [검증 항목]
- * 1. Standard JAR: 배포 모드, Prefix 없음 -> 외부 의존성 포함 안 됨 (POM 전이)
- * 2. Shaded JAR: 배포 모드, Prefix 설정 -> 외부 의존성 Shaded(Relocate) 포함
+ * 1. Standard JAR: 배포 모드, Prefix 없음 -> 의존성 클래스 포함 안 됨 (POM 전이)
+ * 2. Shaded JAR: 배포 모드, Prefix 설정 -> implementation 의존성은 재배치되어 포함, api(s2-core)는 빠지고 POM 에 compile 로 남음
  * 3. Fat JAR: 빌드 모드, Prefix 없음 -> 모든 의존성 포함 (Relocation 없음)
+ * 4. Shaded Fat JAR: 빌드 모드, Prefix 설정 -> 모든 의존성 포함, api(s2-core)를 뺀 나머지만 재배치
+ *
+ * [검증 전용 의존성]
+ * s2-validator 의 외부 의존성은 모두 compileOnly 라 재배치·Fat JAR 를 확인할 대상이 없다. 그래서 이 스크립트가 띄우는
+ * 하위 실행에서만 VERIFY_DEPENDENCY 를 s2-validator 의 implementation 으로 넣는다 (일반 빌드에는 영향 없음).
  *
  * [사용 방법]
  * ※ 루트 프로젝트 build.gradle.kts 의 'shadow' 플러그인을 적용한 후 아래 명령어를 실행합니다.
- * ./gradlew -I verification.gradle.kts verifyPackaging
+ * ./gradlew clean -I verification.gradle.kts verifyPackaging
+ * (끝나면 ~/.m2/repository/io/github/devers2/s2-validator 의 검증용 산출물을 지운다)
  */
 import java.util.zip.ZipFile
+
+val verifyDependency = "org.apache.commons:commons-lang3:3.17.0"
+
+// 하위 실행(-Ps2.verify.dependency=...)에서만 s2-validator 에 검증 전용 implementation 의존성을 넣는다
+gradle.startParameter.projectProperties["s2.verify.dependency"]?.let { dependency ->
+    gradle.allprojects {
+        if (name == "s2-validator") {
+            pluginManager.withPlugin("java") { dependencies.add("implementation", dependency) }
+        }
+    }
+}
 
 data class VerificationResult(
     val name: String,
@@ -72,169 +89,107 @@ gradle.projectsEvaluated {
                     }
                 }
 
-                // Temporary variables for checks
-                var checkName: String
-                var failedMsg: String?
+                // jar 안에서 찾을 경로: s2-core(api), 검증 의존성(implementation), 재배치된 검증 의존성
+                val corePath = "io/github/devers2/s2util/core/"
+                val dependencyPath = "org/apache/commons/lang3/"
+                val shadedDependencyPath = "io/github/devers2/s2util/shaded/org/apache/commons/lang3/"
+                val shadedPrefix = "io/github/devers2/s2util/shaded/"
+
+                // 기대값: 이름 → (jar 항목 중 이 경로로 시작하는 것이 있어야 하는가)
+                fun check(
+                    number: Int,
+                    name: String,
+                    task: String,
+                    prefix: String,
+                    expected: Map<String, Boolean>,
+                    extra: (() -> String?)? = null,
+                ) {
+                    // 배포(publishToMavenLocal)는 배포되는 기본 jar 를, 빌드(shadowJar)는 -all.jar 가 있으면 그것을 본다
+                    val preferAll = task == "shadowJar"
+                    logger.lifecycle("\n--- $number. Testing $name ---")
+                    var failedMsg: String? = null
+                    try {
+                        val exitCode =
+                            runGradle(
+                                listOf(
+                                    ":$artifactId:clean",
+                                    ":$artifactId:$task",
+                                    "-PshadedPackagePrefix=$prefix",
+                                    "-Ps2.verify.dependency=$verifyDependency",
+                                    "--no-daemon",
+                                ),
+                            )
+                        if (exitCode != 0) {
+                            failedMsg = "Build failed"
+                        } else {
+                            var jar = project.file("$buildDirPath/$artifactId-$version.jar")
+                            val allJar = project.file("$buildDirPath/$artifactId-$version-all.jar")
+                            if (preferAll && allJar.exists()) jar = allJar
+                            if (!jar.exists()) {
+                                failedMsg = "JAR not found"
+                            } else {
+                                val names = ZipFile(jar).use { zip -> zip.entries().toList().map { it.name } }
+                                logger.lifecycle("   - JAR: ${jar.name}")
+                                for ((path, shouldHave) in expected) {
+                                    val has = names.any { it.startsWith(path) }
+                                    logger.lifecycle("   - $path: $has (Should be ${shouldHave.toString().uppercase()})")
+                                    if (has != shouldHave && failedMsg == null) {
+                                        failedMsg = (if (shouldHave) "Missing " else "Unexpected ") + path
+                                    }
+                                }
+                                if (failedMsg == null) failedMsg = extra?.invoke()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        failedMsg = "Exception: ${e.message}"
+                    }
+                    record(name, failedMsg == null, failedMsg)
+                }
+
+                val prefix = "io.github.devers2.s2util.shaded"
+                val pomFile = project.file("s2-validator/build/publications/mavenJava/pom-default.xml")
 
                 // 1. Verify Publishing -> Standard JAR (No Prefix)
-                checkName = "Standard JAR (Publishing, No Prefix)"
-                logger.lifecycle("\n--- 1. Testing $checkName ---")
-                failedMsg = null
-                try {
-                    val exitCode1 =
-                        runGradle(
-                            listOf(":$artifactId:clean", ":$artifactId:publishToMavenLocal", "-PshadedPackagePrefix=", "--no-daemon"),
-                        )
-                    if (exitCode1 != 0) {
-                        failedMsg = "Build failed"
-                    } else {
-                        val standardJar = project.file("$buildDirPath/$artifactId-$version.jar")
-                        if (!standardJar.exists()) {
-                            failedMsg = "JAR not found"
-                        } else {
-                            ZipFile(standardJar).use { zip ->
-                                val entries = zip.entries().toList()
-                                val hasDeps =
-                                    entries.any {
-                                        it.name.contains(
-                                            "com/google/common",
-                                        ) || it.name.contains("org/apache/commons")
-                                    }
-                                val hasReloc = entries.any { it.name.contains("io/github/devers2/s2util/shaded") }
-                                val hasReadme = entries.any { it.name == "README.md" }
-
-                                logger.lifecycle("   - Has Dependencies: $hasDeps (Should be FALSE)")
-                                logger.lifecycle("   - Has Relocation: $hasReloc (Should be FALSE)")
-                                logger.lifecycle("   - Has README.md: $hasReadme (Should be TRUE)")
-
-                                failedMsg =
-                                    when {
-                                        hasDeps -> "Contains dependencies"
-                                        hasReloc -> "Has unexpected relocation"
-                                        !hasReadme -> "Missing README.md"
-                                        else -> null
-                                    }
-                            }
-                        }
+                check(
+                    1, "Standard JAR (Publishing, No Prefix)", "publishToMavenLocal", "",
+                    mapOf(corePath to false, dependencyPath to false, shadedPrefix to false),
+                ) {
+                    val hasReadme = project.file("$buildDirPath/$artifactId-$version.jar").let { jar ->
+                        ZipFile(jar).use { zip -> zip.getEntry("README.md") != null }
                     }
-                } catch (e: Exception) {
-                    failedMsg = "Exception: ${e.message}"
+                    logger.lifecycle("   - Has README.md: $hasReadme (Should be TRUE)")
+                    if (hasReadme) null else "Missing README.md"
                 }
-                record(checkName, failedMsg == null, failedMsg)
 
                 // 2. Verify Publishing -> Shaded JAR (With Prefix)
-                checkName = "Shaded JAR (Publishing, With Prefix)"
-                logger.lifecycle("\n--- 2. Testing $checkName ---")
-                failedMsg = null
-                try {
-                    val exitCode2 =
-                        runGradle(
-                            listOf(
-                                ":$artifactId:clean",
-                                ":$artifactId:publishToMavenLocal",
-                                "-PshadedPackagePrefix=io.github.devers2.s2util.shaded",
-                                "--no-daemon",
-                            ),
-                        )
-                    if (exitCode2 != 0) {
-                        failedMsg = "Build failed"
-                    } else {
-                        val shadedJar = project.file("$buildDirPath/$artifactId-$version.jar")
-                        if (!shadedJar.exists()) {
-                            failedMsg = "JAR not found"
-                        } else {
-                            ZipFile(shadedJar).use { zip ->
-                                val entries = zip.entries().toList()
-                                val hasReloc =
-                                    entries.any {
-                                        it.name.contains("io/github/devers2/s2util/shaded/com") ||
-                                            it.name.contains("io/github/devers2/s2util/shaded/org")
-                                    }
-
-                                logger.lifecycle("   - Has Relocated Dependencies: $hasReloc (Should be TRUE)")
-
-                                if (!hasReloc) failedMsg = "Missing relocated dependencies"
-                            }
-                        }
+                check(
+                    2, "Shaded JAR (Publishing, With Prefix)", "publishToMavenLocal", prefix,
+                    mapOf(shadedDependencyPath to true, dependencyPath to false, corePath to false),
+                ) {
+                    // POM: api(s2-core)만 compile 로 남고, 재배치되어 들어간 implementation 의존성은 없어야 한다
+                    val pom = if (pomFile.exists()) pomFile.readText() else ""
+                    val hasCore = pom.contains("<artifactId>s2-core</artifactId>")
+                    val hasDependency = pom.contains("<artifactId>commons-lang3</artifactId>")
+                    logger.lifecycle("   - POM has s2-core: $hasCore (Should be TRUE)")
+                    logger.lifecycle("   - POM has commons-lang3: $hasDependency (Should be FALSE)")
+                    when {
+                        !hasCore -> "POM is missing s2-core"
+                        hasDependency -> "POM still has the relocated dependency"
+                        else -> null
                     }
-                } catch (e: Exception) {
-                    failedMsg = "Exception: ${e.message}"
                 }
-                record(checkName, failedMsg == null, failedMsg)
 
                 // 3. Verify Build -> Fat JAR (No Prefix)
-                checkName = "Fat JAR (Build, No Prefix)"
-                logger.lifecycle("\n--- 3. Testing $checkName ---")
-                failedMsg = null
-                try {
-                    val exitCode3 =
-                        runGradle(
-                            listOf(":$artifactId:clean", ":$artifactId:shadowJar", "-PshadedPackagePrefix=", "--no-daemon"),
-                        )
-                    if (exitCode3 != 0) {
-                        failedMsg = "Build failed"
-                    } else {
-                        var fatJar = project.file("$buildDirPath/$artifactId-$version-all.jar")
-                        if (!fatJar.exists()) fatJar = project.file("$buildDirPath/$artifactId-$version.jar")
-
-                        ZipFile(fatJar).use { zip ->
-                            val entries = zip.entries().toList()
-                            val hasDeps = entries.any { it.name.contains("com/google/common") || it.name.contains("org/apache/commons") }
-                            val hasReloc = entries.any { it.name.contains("io/github/devers2/s2util/shaded") }
-
-                            logger.lifecycle("   - Has Dependencies: $hasDeps (Should be TRUE)")
-                            logger.lifecycle("   - Has Relocation: $hasReloc (Should be FALSE)")
-
-                            failedMsg =
-                                when {
-                                    !hasDeps -> "Missing dependencies"
-                                    hasReloc -> "Unexpected relocation"
-                                    else -> null
-                                }
-                        }
-                    }
-                } catch (e: Exception) {
-                    failedMsg = "Exception: ${e.message}"
-                }
-                record(checkName, failedMsg == null, failedMsg)
+                check(
+                    3, "Fat JAR (Build, No Prefix)", "shadowJar", "",
+                    mapOf(corePath to true, dependencyPath to true, shadedPrefix to false),
+                )
 
                 // 4. Verify Build -> Shaded Fat JAR (With Prefix)
-                checkName = "Shaded Fat JAR (Build, With Prefix)"
-                logger.lifecycle("\n--- 4. Testing $checkName ---")
-                failedMsg = null
-                try {
-                    val exitCode4 =
-                        runGradle(
-                            listOf(
-                                ":$artifactId:clean",
-                                ":$artifactId:shadowJar",
-                                "-PshadedPackagePrefix=io.github.devers2.s2util.shaded",
-                                "--no-daemon",
-                            ),
-                        )
-                    if (exitCode4 != 0) {
-                        failedMsg = "Build failed"
-                    } else {
-                        var fatShadedJar = project.file("$buildDirPath/$artifactId-$version-all.jar")
-                        if (!fatShadedJar.exists()) fatShadedJar = project.file("$buildDirPath/$artifactId-$version.jar")
-
-                        ZipFile(fatShadedJar).use { zip ->
-                            val entries = zip.entries().toList()
-                            val hasReloc =
-                                entries.any {
-                                    it.name.contains("io/github/devers2/s2util/shaded/com") ||
-                                        it.name.contains("io/github/devers2/s2util/shaded/org")
-                                }
-
-                            logger.lifecycle("   - Has Relocated Dependencies: $hasReloc (Should be TRUE)")
-
-                            if (!hasReloc) failedMsg = "Missing relocated dependencies"
-                        }
-                    }
-                } catch (e: Exception) {
-                    failedMsg = "Exception: ${e.message}"
-                }
-                record(checkName, failedMsg == null, failedMsg)
+                check(
+                    4, "Shaded Fat JAR (Build, With Prefix)", "shadowJar", prefix,
+                    mapOf(shadedDependencyPath to true, dependencyPath to false, corePath to true),
+                )
 
                 // Summary
                 logger.lifecycle("\n========================================")
