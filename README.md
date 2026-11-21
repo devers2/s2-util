@@ -398,6 +398,18 @@ This project is built with **JDK 21**, but it can be used reliably in all enviro
 
 ---
 
+## 🔢 Versioning & Compatibility
+
+s2-util uses `MAJOR.MINOR.PATCH` versions.
+
+- **PATCH** (`2.2.x`): bug fixes only. No API removal and no behavior change you have to act on.
+- **MINOR** (`2.x`): new features. Breaking changes belong in major versions as a rule, but **during 2.x a minor release may also include breaking changes** when they are needed to fix incorrect or unsafe behavior.
+  Every such change is listed with migration notes under **⚠️ Compatibility** and **⚠️ Behavior changes** in the [CHANGELOG](./CHANGELOG.md) — read those sections before upgrading a minor version.
+- **2.2.0 is such a release**: the validator classes are no longer `Serializable`, and several behaviors change (for example, nonexistent dates such as `2024-02-30` are now rejected). See the [CHANGELOG](./CHANGELOG.md).
+- Use `s2.validator.js` from the same release as the server-side library. The script warns in the console when the rules JSON is newer than it supports.
+
+---
+
 ## 📜 License & Copyright
 
 This library is provided under the **Apache License 2.0**. You are free to use, modify, and distribute this software, provided that you comply with the obligations of the license (such as copyright notice and source code disclosure requirements). For detailed terms and conditions, please refer to the **[LICENSE](./LICENSE)** file.
