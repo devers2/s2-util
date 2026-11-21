@@ -4,7 +4,7 @@
 
 `s2-util`(`s2-core`, `s2-validator`, `s2-jpa`)과 `s2-validator-plugin`의 주요 변경 사항을 기록합니다.
 
-## [Unreleased]
+## [2.2.0] - 2026-11-21
 
 ### ⚠️ 호환성
 
