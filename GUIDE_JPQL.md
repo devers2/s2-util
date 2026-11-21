@@ -1,6 +1,6 @@
 # S2Jpql: Secure Dynamic Query Builder Guide 🔎
 
-🌐 **English** | [한국어](GUIDE_JPQL.ko.md)
+🌐 **English** | [한국어](./GUIDE_JPQL.ko.md)
 
 > **Secure, Template-Based Dynamic Query Generation with Zero SQL Injection Risk**
 

@@ -1,6 +1,6 @@
 # S2Util 사용자 매뉴얼 (User Manual) 🚀
 
-🌐 [English](MANUAL.md) | **한국어**
+🌐 [English](./MANUAL.md) | **한국어**
 
 > **한 번 정의하고, 어디서나 검증한다 (Write Once, Validate Anywhere).**
 > S2Util은 서버(Java)와 브라우저(JavaScript)가 같은 규칙으로 검증하고, MethodHandle 기반 객체 매핑, 캐시, 스레드 유틸리티, 안전한 동적 JPQL 생성을 제공하는 유틸리티 제품군입니다.

@@ -1,6 +1,6 @@
 # s2-validator — 서버·클라이언트 통합 유효성 검증 라이브러리 (s2-util)
 
-🌐 [English](README.md) | **한국어**
+🌐 [English](./README.md) | **한국어**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)

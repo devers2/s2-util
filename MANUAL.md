@@ -1,6 +1,6 @@
 # S2Util User Manual 🚀
 
-🌐 **English** | [한국어](MANUAL.ko.md)
+🌐 **English** | [한국어](./MANUAL.ko.md)
 
 > **Write Once, Validate Anywhere.**
 > S2Util is a unified utility ecosystem that validates on the server (Java) and in the browser (JavaScript) with the same rules, and provides MethodHandle-based object mapping, caching, thread utilities and safe dynamic JPQL generation.

@@ -1,6 +1,6 @@
 # s2-jpa — Fluent 동적 JPQL 쿼리 빌더 (s2-util)
 
-🌐 [English](README.md) | **한국어**
+🌐 [English](./README.md) | **한국어**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-jpa?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-jpa)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)

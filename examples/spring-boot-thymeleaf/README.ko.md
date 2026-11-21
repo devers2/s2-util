@@ -1,6 +1,6 @@
 # s2-validator 예제 — Spring Boot + Thymeleaf
 
-🌐 [English](README.md) | **한국어**
+🌐 [English](./README.md) | **한국어**
 
 서버(Java)와 브라우저(JavaScript)를 같은 규칙으로 검증하는 두 가지 방식을 실행해 볼 수 있는 예제입니다.
 

@@ -1,6 +1,6 @@
 # S2Validator: 통합 검증 가이드 🚀
 
-🌐 [English](GUIDE_VALIDATOR.md) | **한국어**
+🌐 [English](./GUIDE_VALIDATOR.md) | **한국어**
 
 > **"서버에서 한 번 정의하고 어디서나 검증한다."**
 >

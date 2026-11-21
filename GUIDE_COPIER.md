@@ -1,6 +1,6 @@
 # S2Copier: Zero-Reflection Copy Guide 📋
 
-🌐 **English** | [한국어](GUIDE_COPIER.ko.md)
+🌐 **English** | [한국어](./GUIDE_COPIER.ko.md)
 
 > **Optimized with `MethodHandle` for maximum throughput between Entities and DTOs.**
 

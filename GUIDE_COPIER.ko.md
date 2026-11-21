@@ -1,6 +1,6 @@
 # S2Copier: 고성능 객체 복사 가이드 📋
 
-🌐 [English](GUIDE_COPIER.md) | **한국어**
+🌐 [English](./GUIDE_COPIER.md) | **한국어**
 
 > **`MethodHandle`로 최적화되어 리플렉션 고유의 병목 없이 데이터를 매핑합니다.**
 

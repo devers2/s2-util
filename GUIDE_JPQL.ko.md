@@ -1,6 +1,6 @@
 # S2Jpql: 안전한 동적 쿼리 빌더 가이드 🔎
 
-🌐 [English](GUIDE_JPQL.md) | **한국어**
+🌐 [English](./GUIDE_JPQL.md) | **한국어**
 
 > **SQL Injection 걱정 없이 안전한 동적 JPQL 쿼리 생성**
 

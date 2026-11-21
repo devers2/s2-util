@@ -1,6 +1,6 @@
 # s2-validator example — Spring Boot + Thymeleaf
 
-🌐 **English** | [한국어](README.ko.md)
+🌐 **English** | [한국어](./README.ko.md)
 
 Runs the two ways to validate the server (Java) and the browser (JavaScript) with the same rules.
 

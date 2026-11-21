@@ -1,6 +1,6 @@
 # S2Validator: Unified Server-Client Validation Guide 🚀
 
-🌐 **English** | [한국어](GUIDE_VALIDATOR.ko.md)
+🌐 **English** | [한국어](./GUIDE_VALIDATOR.ko.md)
 
 > **"Defined Once on Server, Enforced Everywhere."**
 

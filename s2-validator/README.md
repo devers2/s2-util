@@ -1,6 +1,6 @@
 # s2-validator — Unified Dynamic Validation Library (s2-util)
 
-🌐 **English** | [한국어](README.ko.md)
+🌐 **English** | [한국어](./README.ko.md)
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.devers2/s2-validator?color=brightgreen&label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.devers2/s2-validator)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk)](https://openjdk.org/)
