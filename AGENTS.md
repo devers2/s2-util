@@ -30,7 +30,8 @@ Java·JS·Gradle 설정·문서를 수정했으면 완료 보고·커밋·push �
 ## 4. 버전·배포
 - 버전은 `build.gradle.kts` 만 바꾼다. `./gradlew test` 때 `S2BuildUtils` 가 `README`·`GUIDE`·`MANUAL` 의 버전·의존성 블록을 동기화한다.
 - 사용자가 요청하지 않으면 배포 태스크(`publish`, `publishToCentralPortal` 등)를 실행하지 않는다.
-- 평소에는 `develop` 브랜치에서 commit·push 한다. `main` 은 Maven Central 배포본과 같아야 하므로, 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 단다.
+- 평소에는 `develop` 브랜치에서 commit·push 한다. `main` 의 코드는 Maven Central 배포본과 같아야 하므로, 사용자가 배포를 요청할 때만 `develop` 을 `main` 에 fast-forward 하고 버전 태그를 단다.
+- 예외: 마지막 배포 이후 `develop` 의 커밋이 **문서·CI 만** 바꿨으면(`*.md`, `.github/`, 시험 전용 파일 — 배포 산출물의 소스·리소스·빌드 설정은 그대로) 배포 없이 `main` 에 fast-forward 해도 된다(GitHub 첫 화면 README 등을 바로 반영). 코드·빌드 변경이 하나라도 섞여 있으면 다음 배포 때까지 기다린다. 이때 태그는 달지 않는다.
 
 ## 5. Java·JS 버전
 - 기준은 Java 17(`--release 17`). Java 21+ 전용 문법·API(`Thread.ofVirtual()`, `getFirst()` 등)를 직접 쓰지 않는다.
