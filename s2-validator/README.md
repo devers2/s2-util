@@ -644,7 +644,7 @@ When you add the optional **`s2-validator-plugin`** (see [Installation](#1-insta
 - Supports class inheritance: checks fields declared in parent classes as well
 - Chaining completeness check: prevents dead validation code from reaching production
 - Works in multi-project builds
-- Use with `s2-validator` 2.2.0 (the field name check alone also works with 1.1.0 or later); requires Java 17+, Gradle 8.0+
+- Built against s2-validator 2.2.0 (every check on 2.0.0 or later, the field name check on 1.1.0 or later, rules added later are skipped); requires Java 17+, Gradle 8.0+
 
 For full plugin documentation, see the [`s2-validator-plugin` README](../s2-validator-plugin/README.md).
 

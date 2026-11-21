@@ -126,7 +126,9 @@ plugins {
 
 ## 🔄 Compatibility
 
-Use this plugin with **s2-validator 2.2.0**. The field name check also works with 1.1.0 or later, but the rule criterion and condition value checks follow the 2.0.0 rules (`S2RuleType`, `S2Operator`).
+This plugin is built **against s2-validator 2.2.0** (rule list and criterion checks). With s2-validator 2.0.0 or later every check works; with 1.1.0 or later the field name check works. Rules added to s2-validator after this plugin are not reported as errors — they are just not checked.
+
+The plugin does not depend on the s2-validator library (it reads your source code), so the two versions do not have to be upgraded together.
 
 ---
 
