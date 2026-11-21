@@ -29,7 +29,9 @@
  *     s2-validator-plugin/ 디렉터리에서 command-palette → "Maven 중앙 저장소 배포" 선택
  *
  * ▶ 직접 실행 시 (루트 s2-util 기준):
- *     $ ./gradlew -p s2-validator-plugin publish
+ *     $ ./gradlew -p s2-validator-plugin publishAllPublicationsToCentralPortalRepository
+ *   (태스크 이름에 "Central" 이 있어야 S2BuildUtils 가 Maven Central 배포로 보고 소스 JAR 을 만든다.
+ *    그냥 `publish` 로 올리면 소스 JAR 이 빠져 Central Portal 검증이 실패한다)
  *
  * ※ 버전은 libs.versions.toml 의 [versions] 섹션에서 "s2-validator-plugin" 키로 관리됩니다.
  *    이 build.gradle.kts 에서 version 을 변경하면 S2BuildUtils.syncVersionToCatalog 에 의해
