@@ -30,7 +30,7 @@ jakarta-servlet-api = "6.1.0"
 jakarta-servlet-jsp = "4.0.0"
 jakarta-persistence-api = "3.2.0"
 jakarta-validation-api = "3.0.2"
-hibernate-validator = "8.0.6.Final"
+hibernate-validator = "9.1.6.Final"
 expressly = "5.0.0"
 
 [libraries]
