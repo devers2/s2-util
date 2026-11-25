@@ -5,6 +5,8 @@ updates:
   # --------------------------------------------------------------------------
   - package-ecosystem: "gradle"
     directory: "/"
+    # 의존성 PR 은 develop 으로 받는다(main 은 Maven Central 배포본과 같아야 하므로 — AGENTS.md 4장)
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -47,6 +49,8 @@ updates:
   # --------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
+    # 의존성 PR 은 develop 으로 받는다(main 은 Maven Central 배포본과 같아야 하므로 — AGENTS.md 4장)
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     # ※ CI 러너 환경(Node.js 런타임 호환성, 보안 패치 등) 유지를 위해
