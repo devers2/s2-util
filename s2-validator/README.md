@@ -743,7 +743,7 @@ dependencies {
     // Essential runtime dependencies for optional functionalities
     implementation 'org.springframework:spring-context:6.2.19'
     implementation 'org.springframework.boot:spring-boot-autoconfigure:3.5.16'
-    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'jakarta.validation:jakarta.validation-api:3.1.1'
 }
 ```
 
