@@ -29,6 +29,11 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "jakarta.persistence:*"
         update-types: ["version-update:semver-major"]
+      # 시험용 Bean Validation 구현(Hibernate Validator 9 는 Jakarta EE 11 기준 — EL 6 필요)
+      - dependency-name: "org.hibernate.validator:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.glassfish.expressly:*"
+        update-types: ["version-update:semver-major"]
 
       # Gradle Wrapper 메이저 버전업 차단 (빌드 스크립트 호환성 보호)
       - dependency-name: "gradle"

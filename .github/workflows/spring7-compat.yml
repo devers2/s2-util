@@ -1,0 +1,76 @@
+name: Spring 7 compatibility
+
+# Spring 6 으로 빌드한 s2-validator 가 Spring 7·Boot 4·Jakarta EE 11 위에서도 동작하는지 주 1회 확인한다.
+# PR 체크가 아니므로 병합을 막지 않는다(참고용). 실패하면 GitHub 가 실행 실패 알림을 보낸다.
+on:
+  schedule:
+    - cron: "0 0 * * 1" # 매주 월요일 09:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          ref: develop
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "gradle"
+      - name: Resolve latest versions
+        run: |
+          # 각 메이저 계열의 최신 정식 버전을 Maven Central 에서 조회한다(버전을 고정하면 금방 낡으므로)
+          # 결과는 환경 변수로 넘겨 .github/spring7-compat.init.gradle.kts 가 읽는다
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import re, urllib.request
+          def latest(path, prefix):
+              xml = urllib.request.urlopen(f"https://repo1.maven.org/maven2/{path}/maven-metadata.xml").read().decode()
+              found = [v for v in re.findall(r"<version>([^<]+)</version>", xml)
+                       if v.startswith(prefix) and re.fullmatch(r"[\d.]+(\.Final)?", v)]
+              return max(found, key=lambda v: [int(x) for x in re.findall(r"\d+", v)])
+          print("COMPAT_SPRING=" + latest("org/springframework/spring-context", "7."))
+          print("COMPAT_SPRING_BOOT=" + latest("org/springframework/boot/spring-boot-autoconfigure", "4."))
+          print("COMPAT_HIBERNATE_VALIDATOR=" + latest("org/hibernate/validator/hibernate-validator", "9."))
+          print("COMPAT_EXPRESSLY=" + latest("org/glassfish/expressly/expressly", "6."))
+          print("COMPAT_JAKARTA_VALIDATION=" + latest("jakarta/validation/jakarta.validation-api", "3.1."))
+          PY
+      - name: Test s2-validator on Spring 7
+        run: |
+          env | grep ^COMPAT_ | sort
+          set -o pipefail
+          ./gradlew -I .github/spring7-compat.init.gradle.kts :s2-validator:test --stacktrace 2>&1 | tee build.log | tail -150
+      - name: Show failed tests
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          failed = 0
+          for path in sorted(glob.glob("**/build/test-results/**/*.xml", recursive=True)):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for problem in case.findall("failure") + case.findall("error"):
+                      failed += 1
+                      name = f"{case.get('classname')} > {case.get('name')}"
+                      message = (problem.get("message") or "").replace("\n", " ")[:500]
+                      print(f"::error title=Failed test::{name}: {message}")
+                      print(f"===== {name}\n{(problem.text or '')[:4000]}")
+          print(f"{failed} failed test(s)" if failed else "No failed tests in the JUnit reports; the failure is outside the tests (see build.log).")
+          PY
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-spring7
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+            build.log
+          retention-days: 7
+          if-no-files-found: ignore
